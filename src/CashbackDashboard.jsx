@@ -1551,20 +1551,37 @@ function LoginScreen({ onLoginSuccess }) {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const handlePinComplete = (pin) => {
+    const handlePinComplete = async (pin) => {
         setIsLoading(true);
         setError('');
 
-        setTimeout(() => {
-            if (pin === process.env.REACT_APP_ACCESS_PASSWORD) {
-                onLoginSuccess();
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ pin }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    onLoginSuccess();
+                } else {
+                    // This case handles if the API itself says the pin is wrong
+                    setError('Incorrect PIN. Please try again.');
+                }
             } else {
+                // This handles server errors (e.g., 401 Unauthorized)
                 setError('Incorrect PIN. Please try again.');
-                // We need a way to clear the PinInput, which requires more complex state management.
-                // For simplicity, we'll alert the user and they can manually clear.
             }
+        } catch (err) {
+            console.error('Login request failed:', err);
+            setError('An error occurred. Please check your connection.');
+        } finally {
             setIsLoading(false);
-        }, 500);
+        }
     };
 
     return (
@@ -1576,6 +1593,7 @@ function LoginScreen({ onLoginSuccess }) {
                         <p className="text-sm text-muted-foreground pt-1">Please enter your 6-digit PIN to continue.</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        {/* The PinInput component doesn't need any changes */}
                         <PinInput onComplete={handlePinComplete} />
                         
                         {isLoading && <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
