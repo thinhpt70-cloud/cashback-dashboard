@@ -221,12 +221,6 @@ app.get('/api/mcc-codes', (req, res) => {
 });
 
 
-if (process.env.NODE_ENV !== 'production' && !process.env.NETLIFY) {
-  app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
-  });
-}
-
 app.get('/api/monthly-category-summary', async (req, res) => {
     try {
         // This endpoint doesn't need pagination as category summaries are unlikely to exceed 100 per month
@@ -284,12 +278,9 @@ app.get('/api/recent-transactions', async (req, res) => {
 });
 
 app.post('/api/login', (req, res) => {
-  const { pin } = req.body || {};
-  const correctPin = process.env.ACCESS_PASSWORD;
-
-  if (pin != null && String(pin).trim() === String(correctPin).trim()) {
-    return res.status(200).json({ success: true });
-  }
+  const pin = String((req.body && req.body.pin) ?? '').trim();
+  const correct = String(process.env.ACCESS_PASSWORD ?? '').trim();
+  if (pin && pin === correct) return res.status(200).json({ success: true });
   return res.status(401).json({ success: false, message: 'Incorrect PIN' });
 });
 
