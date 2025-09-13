@@ -281,4 +281,17 @@ app.get('/api/recent-transactions', async (req, res) => {
     }
 });
 
+app.post('/api/login', (req, res) => {
+  const { pin } = req.body;
+  const correctPin = process.env.ACCESS_PASSWORD;
+
+  if (pin && pin === correctPin) {
+    // If the PIN is correct, send a success response.
+    res.status(200).json({ success: true });
+  } else {
+    // If the PIN is incorrect, send an unauthorized error.
+    res.status(401).json({ success: false, message: 'Incorrect PIN' });
+  }
+});
+
 module.exports = { app };
