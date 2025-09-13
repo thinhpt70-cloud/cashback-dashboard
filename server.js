@@ -9,6 +9,8 @@ require('dotenv').config();
 
 const app = express();
 app.use(cors());
+app.use(express.json());
+
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
@@ -219,10 +221,10 @@ app.get('/api/mcc-codes', (req, res) => {
 });
 
 
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(port, () => {
-        console.log(`Server is running on http://localhost:${port}`);
-    });
+if (process.env.NODE_ENV !== 'production' && !process.env.NETLIFY) {
+  app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
+  });
 }
 
 app.get('/api/monthly-category-summary', async (req, res) => {
@@ -282,16 +284,13 @@ app.get('/api/recent-transactions', async (req, res) => {
 });
 
 app.post('/api/login', (req, res) => {
-  const { pin } = req.body;
+  const { pin } = req.body || {};
   const correctPin = process.env.ACCESS_PASSWORD;
 
-  if (pin && pin === correctPin) {
-    // If the PIN is correct, send a success response.
-    res.status(200).json({ success: true });
-  } else {
-    // If the PIN is incorrect, send an unauthorized error.
-    res.status(401).json({ success: false, message: 'Incorrect PIN' });
+  if (pin != null && String(pin).trim() === String(correctPin).trim()) {
+    return res.status(200).json({ success: true });
   }
+  return res.status(401).json({ success: false, message: 'Incorrect PIN' });
 });
 
 module.exports = { app };
