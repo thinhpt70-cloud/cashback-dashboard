@@ -7,3 +7,6 @@ functions = "netlify/functions"
 from = "/api/*"
 to = "/.netlify/functions/api/:splat"
 status = 200
+
+[functions]
+included_files = ["MCC.json"]
