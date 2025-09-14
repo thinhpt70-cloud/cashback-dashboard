@@ -284,67 +284,75 @@ app.post('/api/login', (req, res) => {
   return res.status(401).json({ success: false, message: 'Incorrect PIN' });
 });
 
+app.get('/api/mcc-search', async (req, res) => {
+  const { keyword } = req.query;
+  if (!keyword) {
+    return res.status(400).json({ error: 'Search keyword is required' });
+  }
+  try {
+    const fetch = (await import('node-fetch')).default;
+    const mccResponse = await fetch(`https://tc-mcc.tungpun.site/mcc?keyword=${encodeURIComponent(keyword)}`);
+    if (!mccResponse.ok) {
+      throw new Error('Failed to fetch from external MCC API');
+    }
+    const data = await mccResponse.json();
+    res.json(data);
+  } catch (error) {
+    console.error('MCC Search Error:', error);
+    res.status(500).json({ error: 'Failed to search for MCC code' });
+  }
+});
+
 app.post('/api/transactions', async (req, res) => {
   const {
     merchant,
     amount,
     date,
     cardId,
-    category
+    category,
+    applicableRuleId,
+    cardSummaryCategoryId,
+    mccCode
   } = req.body;
 
-  // Basic validation to ensure all required fields are present
   if (!merchant || !amount || !date || !cardId || !category) {
-    return res.status(400).json({
-      error: 'Missing required fields'
-    });
+    return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
+    const properties = {
+      'Transaction Name': { title: [{ text: { content: merchant } }] },
+      'Amount': { number: parseFloat(amount) },
+      'Transaction Date': { date: { start: date } },
+      'Card': { relation: [{ id: cardId }] },
+      'Category': { select: { name: category } },
+    };
+
+    // Add relation to "Applicable Rule" if ID is provided
+    if (applicableRuleId) {
+      properties['Applicable Rule'] = { relation: [{ id: applicableRuleId }] };
+    }
+    
+    // Add relation to "Card Summary Category" if ID is provided
+    if (cardSummaryCategoryId) {
+      properties['Card Summary Category'] = { relation: [{ id: cardSummaryCategoryId }] };
+    }
+
+    // Add MCC Code if provided (as a Text/Rich Text property)
+    if (mccCode) {
+      properties['MCC Code'] = { rich_text: [{ text: { content: mccCode } }] };
+    }
+
     const response = await notion.pages.create({
-      parent: {
-        database_id: transactionsDbId
-      },
-      properties: {
-        'Transaction Name': {
-          title: [{
-            text: {
-              content: merchant
-            },
-          }, ],
-        },
-        'Amount': {
-          number: amount,
-        },
-        'Transaction Date': {
-          date: {
-            start: date
-          },
-        },
-        'Card': {
-          relation: [{
-            id: cardId
-          }],
-        },
-        'Category': {
-          select: {
-            name: category
-          },
-        },
-      },
+      parent: { database_id: transactionsDbId },
+      properties: properties,
     });
+
     res.status(201).json(response);
   } catch (error) {
     console.error('Failed to create transaction:', error);
-    res.status(500).json({
-      error: 'Failed to create transaction in Notion'
-    });
+    res.status(500).json({ error: 'Failed to create transaction in Notion' });
   }
 });
-
-
-module.exports = {
-  app
-};
 
 module.exports = { app };
