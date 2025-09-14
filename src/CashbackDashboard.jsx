@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogTrigger,
+  DialogFooter,
 } from "./components/ui/dialog";
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
 import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
@@ -45,12 +46,6 @@ export default function CashbackDashboard() {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [cashbackRules, setCashbackRules] = useState([]);
   const [monthlyCashbackCategories, setMonthlyCashbackCategories] = useState([]);
-
-  const mappedRules = rulesData.map(r => ({ ...r, name: r.ruleName }));
-  const mappedMonthlyCats = monthlyCatData.map(c => ({ ...c, name: c.summaryId }));
-
-  setCashbackRules(mappedRules);
-  setMonthlyCashbackCategories(mappedMonthlyCats);
   
 
   // --- DATA FETCHING ---
@@ -95,6 +90,12 @@ export default function CashbackDashboard() {
         setMccMap(mccData.mccDescriptionMap || {});
         setMonthlyCategorySummary(monthlyCatData); // Set the new state for the overview tab
         setRecentTransactions(recentTxData); // Set the new state
+
+        const mappedRules = rulesData.map(r => ({ ...r, name: r.ruleName }));
+        const mappedMonthlyCats = monthlyCatData.map(c => ({ ...c, name: c.summaryId }));
+
+        setCashbackRules(mappedRules);
+        setMonthlyCashbackCategories(mappedMonthlyCats);
 
         // Set the active month based on the summary data for a faster initial load
         if (monthlyData.length > 0) {
