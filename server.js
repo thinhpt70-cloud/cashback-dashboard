@@ -284,4 +284,67 @@ app.post('/api/login', (req, res) => {
   return res.status(401).json({ success: false, message: 'Incorrect PIN' });
 });
 
+app.post('/api/transactions', async (req, res) => {
+  const {
+    merchant,
+    amount,
+    date,
+    cardId,
+    category
+  } = req.body;
+
+  // Basic validation to ensure all required fields are present
+  if (!merchant || !amount || !date || !cardId || !category) {
+    return res.status(400).json({
+      error: 'Missing required fields'
+    });
+  }
+
+  try {
+    const response = await notion.pages.create({
+      parent: {
+        database_id: transactionsDbId
+      },
+      properties: {
+        'Transaction Name': {
+          title: [{
+            text: {
+              content: merchant
+            },
+          }, ],
+        },
+        'Amount': {
+          number: amount,
+        },
+        'Transaction Date': {
+          date: {
+            start: date
+          },
+        },
+        'Card': {
+          relation: [{
+            id: cardId
+          }],
+        },
+        'Category': {
+          select: {
+            name: category
+          },
+        },
+      },
+    });
+    res.status(201).json(response);
+  } catch (error) {
+    console.error('Failed to create transaction:', error);
+    res.status(500).json({
+      error: 'Failed to create transaction in Notion'
+    });
+  }
+});
+
+
+module.exports = {
+  app
+};
+
 module.exports = { app };
