@@ -444,7 +444,7 @@ export default function CashbackDashboard() {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                    <Card className="lg:col-span-4 flex flex-col">
+                    <Card className="lg:col-span-4 flex flex-col min-h-[300px]">
                         <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
                         <CardContent className="pl-2 flex-grow">
                             <ResponsiveContainer width="100%" height="100%">
@@ -753,16 +753,21 @@ function CardInfoDialog({ card, rules }) {
         </div>
 
         <div>
-          <h4 className="font-semibold text-sm mb-2 mt-3">Cashback Rules</h4>
-          <div className="space-y-2 max-h-56 overflow-y-auto pr-4">
-            {rules.map(rule => (
-              <Badge key={rule.id} variant="outline" className="w-full justify-between py-3">
-                <span className="font-medium text-primary">{rule.ruleName}</span>
-                <span className="font-mono text-base text-foreground">{rule.rate * 100}%</span>
-              </Badge>
-            ))}
-            {rules.length === 0 && <p className="text-xs text-muted-foreground">No specific cashback rules found for this card.</p>}
-          </div>
+            <h4 className="font-semibold text-sm mb-2 mt-3">Cashback Rules</h4>
+            {/* 1. Add this new relative container */}
+            <div className="relative">
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-4">
+                {rules.map(rule => (
+                    <Badge key={rule.id} variant="outline" className="w-full justify-between py-3">
+                    <span className="font-medium text-primary">{rule.ruleName}</span>
+                    <span className="font-mono text-base text-foreground">{rule.rate * 100}%</span>
+                    </Badge>
+                ))}
+                {rules.length === 0 && <p className="text-xs text-muted-foreground">No specific cashback rules found for this card.</p>}
+                </div>
+                {/* 2. Add the fade-out overlay element */}
+                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+            </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -859,21 +864,23 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <CardTitle>Transactions for {fmtYMShort(activeMonth)}</CardTitle>
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input type="search" placeholder="Search..." className="w-full pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        <div className="flex flex-col gap-4">
+            <CardTitle>Transactions for {fmtYMShort(activeMonth)}</CardTitle>
+            <div className="flex flex-col sm:flex-row gap-2">
+            {/* Search bar takes full width on mobile, auto on larger screens */}
+            <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input type="search" placeholder="Search..." className="w-full pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
-            <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="all">All Cards</option>
-              {allCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {/* Dropdowns grow on mobile, auto on larger screens */}
+            <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                <option value="all">All Cards</option>
+                {allCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
-              {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
             </select>
-          </div>
+            </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -977,28 +984,31 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
       </CardHeader>
       <CardContent className="space-y-4">
         {cardSpendsCapProgress.map(p => (
-          <div key={p.cardId}>
-            <div className="flex justify-between items-center text-sm mb-1">
-                <div className="flex items-center gap-2">
-                    <span className="font-medium">{p.cardName}</span>
-                    <Badge variant="outline" className={cn(
-                    "text-xs h-5",
-                    p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
-                    )}>
-                        {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
-                    </Badge>
+            <div key={p.cardId} className="flex justify-between items-start gap-4">
+                {/* --- Left Column (Name & Progress Bar) --- */}
+                <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{p.cardName}</p>
+                    <Tooltip>
+                    <TooltipTrigger className="w-full mt-2">
+                        <Progress value={p.usedPct} />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>{p.usedPct}% used. {currency(p.monthlyLimit - p.currentCashback)} remaining.</p>
+                    </TooltipContent>
+                    </Tooltip>
                 </div>
-                <span className="text-muted-foreground">{currency(p.currentCashback)} / {currency(p.monthlyLimit)}</span>
+
+                {/* --- Right Column (Badge & Amounts) --- */}
+                <div className="flex flex-col items-end flex-shrink-0">
+                    <Badge variant="outline" className={cn(
+                        "text-xs h-5 mb-1",
+                        p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
+                    )}>
+                    {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">{currency(p.currentCashback)} / {currency(p.monthlyLimit)}</span>
+                </div>
             </div>
-            <Tooltip>
-              <TooltipTrigger className="w-full">
-                <Progress value={p.usedPct} />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{p.usedPct}% used. {currency(p.monthlyLimit - p.currentCashback)} remaining.</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
         ))}
         {cardSpendsCapProgress.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-4">No monthly limits defined for your cards.</p>
@@ -1036,7 +1046,7 @@ function SpendByCardChart({ spendData, currencyFn }) {
               ))}
             </Pie>
             <RechartsTooltip formatter={(value) => currencyFn(value)} />
-            <Legend />
+            <Legend wrapperStyle={{ marginTop: '24px' }}/>
           </PieChart>
         </ResponsiveContainer>
       </CardContent>
@@ -1073,7 +1083,7 @@ function CashbackByCardChart({ cashbackData, currencyFn }) {
               ))}
             </Pie>
             <RechartsTooltip formatter={(value) => currencyFn(value)} />
-            <Legend />
+            <Legend wrapperStyle={{ marginTop: '24px' }} />
           </PieChart>
         </ResponsiveContainer>
       </CardContent>
@@ -1134,44 +1144,58 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
 
     const paymentData = useMemo(() => {
         const data = cards.map(card => {
+            // Get all summaries for the current card and sort by most recent month
             const allCardSummaries = monthlySummary
                 .filter(s => s.cardId === card.id)
                 .sort((a, b) => b.month.localeCompare(a.month));
             
             const latestMonthSummary = allCardSummaries[0];
             
-            // MODIFIED: Calculate payment date for all previous statements
+            // Calculate details for all previous statements (for the expandable view)
             const previousStatements = allCardSummaries.slice(1).map(stmt => {
                 const year = parseInt(stmt.month.slice(0, 4), 10);
-                // JS month is 0-indexed, but our data's month is 1-indexed. 
-                // new Date(year, month, day) will correctly give the *next* month's date.
-                // Example: For September (month 9), new Date(2025, 9, 25) creates an October date.
                 const month = parseInt(stmt.month.slice(4, 6), 10);
                 let paymentDate = "N/A";
                 if (card.paymentDueDay) {
                     const dueDate = new Date(year, month, card.paymentDueDay);
                     paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
                 }
-                // --- ADD THIS LOGIC ---
                 let statementDate = "N/A";
                 if (card.statementDay) {
                     statementDate = `${year}-${String(month).padStart(2, '0')}-${String(card.statementDay).padStart(2, '0')}`;
                 }
-                // ----------------------
-                return { ...stmt, paymentDate, statementDate }; // Add the calculated date to the object
+                return { ...stmt, paymentDate, statementDate };
             });
 
+            // Calculate payment totals for the latest month
             const latestMonth = latestMonthSummary ? latestMonthSummary.month : null;
             const totalPayment = latestMonthSummary ? latestMonthSummary.spend : 0;
             const totalCashback = latestMonthSummary ? latestMonthSummary.cashback : 0;
             const finalPayment = totalPayment - totalCashback;
 
+            // Initialize variables for the main row's data
             let statementDate = "N/A", paymentDate = "N/A", daysLeft = null;
+            
+            // --- Date comparison logic starts here ---
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Normalize to the start of the day for accurate comparison
+            let isStatementClosed = false;
 
             if (latestMonth) {
                 const year = parseInt(latestMonth.slice(0, 4), 10);
                 const month = parseInt(latestMonth.slice(4, 6), 10);
-                if (card.statementDay) statementDate = `${year}-${String(month).padStart(2, '0')}-${String(card.statementDay).padStart(2, '0')}`;
+
+                // Calculate statement date and check if it has passed
+                if (card.statementDay) {
+                    statementDate = `${year}-${String(month).padStart(2, '0')}-${String(card.statementDay).padStart(2, '0')}`;
+                    
+                    const statementDateObj = new Date(statementDate);
+                    if (!isNaN(statementDateObj)) {
+                        isStatementClosed = today >= statementDateObj;
+                    }
+                }
+
+                // Calculate payment due date and days left
                 if (card.paymentDueDay) {
                     const dueDate = new Date(year, month, card.paymentDueDay);
                     paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
@@ -1179,9 +1203,22 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                 }
             }
 
-            return { ...card, latestMonth, totalPayment, totalCashback, finalPayment, statementDate, paymentDate, daysLeft, previousStatements };
+            // Return a complete object for this card
+            return {
+                ...card,
+                latestMonth,
+                totalPayment,
+                totalCashback,
+                finalPayment,
+                statementDate,
+                paymentDate,
+                daysLeft,
+                previousStatements,
+                isStatementClosed // Include the result of the date comparison
+            };
         });
 
+        // Sort the entire list of cards by the days left until payment
         data.sort((a, b) => {
             if (a.daysLeft === null) return 1;
             if (b.daysLeft === null) return -1;
@@ -1222,7 +1259,18 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                             </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell>{card.latestMonth && <Badge variant="outline">{fmtYMShortFn(card.latestMonth)}</Badge>}</TableCell>
+                                    <TableCell>
+                                        {card.latestMonth && (
+                                            <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                    card.isStatementClosed && "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                                )}
+                                            >
+                                                {fmtYMShortFn(card.latestMonth)}
+                                            </Badge>
+                                        )}
+                                    </TableCell>
                                     <TableCell>{card.paymentDate}</TableCell>
                                     <TableCell>
                                         {card.daysLeft !== null && (
@@ -1392,9 +1440,9 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
 
     return (
         <div>
-            <h4 className="text-sm font-semibold text-center text-muted-foreground mb-3">Category Caps Usage</h4>
+            <h4 className="text-sm font-semibold text-center text-muted-foreground mb-2">Category Caps Usage</h4>
             {/* --- NEW: Add status badge for the "Total" box --- */}
-            <div className="flex justify-center mt-1">
+            <div className="flex justify-center mb-3" style={{ marginBottom: '24px' }}>
                 <Badge variant="outline" className={cn(
                     "text-xs",
                     status === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
@@ -1467,7 +1515,7 @@ function CardPerformanceLineChart({ data, cards, currencyFn }) {
 
     return (
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle>Card Performance Trend</CardTitle>
                 <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
                     <Button onClick={() => setView('All')} variant="ghost" size="sm" className={cn("h-7 px-3", view === 'All' && 'bg-white text-primary shadow-sm hover:bg-white')}>All</Button>
@@ -1485,7 +1533,6 @@ function CardPerformanceLineChart({ data, cards, currencyFn }) {
                             <YAxis yAxisId="right" domain={[0, 'auto']} orientation="right" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                         )}
                         <RechartsTooltip formatter={(value) => currencyFn(value)} />
-                        <Legend />
                         
                         {cards.map((card, index) => {
                             const cardColor = COLORS[index % COLORS.length];
@@ -1502,6 +1549,17 @@ function CardPerformanceLineChart({ data, cards, currencyFn }) {
                         })}
                     </LineChart>
                 </ResponsiveContainer>
+                <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs">
+                    {cards.map((card, index) => (
+                        <div key={card.id} className="flex items-center gap-1.5">
+                            <span
+                                className="h-2.5 w-2.5 rounded-full"
+                                style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                            />
+                            <span>{card.name}</span>
+                        </div>
+                    ))}
+                </div>
             </CardContent>
         </Card>
     );
@@ -1950,151 +2008,96 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
     return (
       <>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          {/* Row 1: Merchant & MCC Search */}
-          <div className="grid grid-cols-4 items-start gap-4">
-            <label htmlFor="merchant" className="text-right pt-2">
-              Transaction Name
-            </label>
-            <div className="col-span-3">
-              <div className="flex items-center gap-2">
-                <Input
-                  id="merchant"
-                  value={merchant}
-                  onChange={(e) => setMerchant(e.target.value)}
-                  required
-                />
-                <Button type="button" size="icon" variant="outline" onClick={handleMccSearch} disabled={!merchant || isMccSearching}>
-                  {isMccSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: MCC Code & Name */}
-          <div className="grid grid-cols-4 items-start gap-4">
-            <label htmlFor="mcc" className="text-right pt-2">
-              MCC
-            </label>
-            <div className="col-span-3">
-              <Input
-                id="mcc"
-                value={mccCode}
-                onChange={(e) => setMccCode(e.target.value)}
-                placeholder="Enter code or use Lookup feature"
-              />
-              {mccName && <p className="text-xs text-muted-foreground mt-1 pl-1">{mccName}</p>}
-            </div>
-          </div>
-
-          {/* Row 3: Amount & Est. Cashback */}
-          <div className="grid grid-cols-4 items-start gap-4">
-            <label htmlFor="amount" className="text-right pt-2">
-              Amount
-            </label>
-            <div className="col-span-3">
-              <div className="flex items-center">
-                <Input id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} className="flex-grow" required />
-                <div className="flex flex-col ml-1">
-                  <button type="button" onClick={() => adjustAmount(10000)} className="h-5 px-2 border rounded-t-md bg-gray-100 text-lg leading-none flex items-center justify-center">+</button>
-                  <button type="button" onClick={() => adjustAmount(-10000)} className="h-5 px-2 border rounded-b-md bg-gray-100 text-lg leading-none flex items-center justify-center">-</button>
+        <form onSubmit={handleSubmit} className="space-y-6 py-4">
+            {/* --- Section 1: Transaction Details --- */}
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <label htmlFor="merchant">Transaction Name</label>
+                    <div className="flex items-center gap-2">
+                        <Input id="merchant" value={merchant} onChange={(e) => setMerchant(e.target.value)} required />
+                        <Button type="button" size="icon" variant="outline" onClick={handleMccSearch} disabled={!merchant || isMccSearching}>
+                            {isMccSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        </Button>
+                    </div>
                 </div>
-              </div>
+
+                <div className="space-y-2">
+                    <label htmlFor="mcc">MCC (Merchant Category Code)</label>
+                    <Input id="mcc" value={mccCode} onChange={(e) => setMccCode(e.target.value)} placeholder="Enter code or use Lookup" />
+                    {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label htmlFor="amount">Amount</label>
+                        <Input id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
+                    </div>
+                        <div className="space-y-2">
+                        <label htmlFor="date">Date</label>
+                        <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+                    </div>
+                </div>
             </div>
-          </div>
 
-          {/* Row 4: Date */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label htmlFor="date" className="text-right">
-              Date
-            </label>
-            <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="col-span-3" required />
-          </div>
-
-          {/* Row 5: Card & Statement Date */}
-          <div className="grid grid-cols-4 items-start gap-4">
-            <label htmlFor="card" className="text-right pt-2">
-              Card
-            </label>
-            <div className="col-span-3">
-              <select id="card" value={cardId} onChange={(e) => setCardId(e.target.value)} className="w-full p-2 border rounded" required>
+            {/* --- Section 2: Categorization --- */}
+            <div className="space-y-4 border-t pt-6">
+            <div className="space-y-2">
+                <label htmlFor="card">Card</label>
+                <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="w-full p-2 border rounded" required>
                 {cards.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
-              </select>
-              <div className="mt-2">
-                  {cashbackMonth && (
-                      <Badge variant="outline">
-                          {cashbackMonth}
-                      </Badge>
-                  )}
-              </div>
-            </div>
-          </div>
-
-          {/* Row 6: Category */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label htmlFor="category" className="text-right">
-              Category
-            </label>
-            <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="col-span-3 p-2 border rounded">
-              <option value="">None</option>
-              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
-          </div>
-          
-          {/* Row 7: Applicable Rule */}
-          <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="rule" className="text-right">Applicable Rule</label>
-              <div className="col-span-3"> {/* Add a div wrapper */}
-                  <select 
-                      id="rule" 
-                      value={applicableRuleId} 
-                      onChange={(e) => setApplicableRuleId(e.target.value)} 
-                      className="w-full p-2 border rounded" 
-                      disabled={filteredRules.length === 0}
-                  >
-                      <option value="">
-                          {filteredRules.length === 0 ? 'No rules for this card' : 'None'}
-                      </option>
-                      {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
-                  </select>
-                  
-                  {/* ADD THIS NEW DISPLAY LOGIC */}
-                  {selectedRule && (
-                      <div className="mt-2 flex items-center gap-2">
-                          <Badge variant="secondary">
-                              Rate: {(selectedRule.rate * 100).toFixed(1)}%
-                          </Badge>
-                          {estimatedCashback > 0 && (
-                              <Badge variant="outline" className="text-emerald-600">
-                                  Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}
-                              </Badge>
-                          )}
-                      </div>
-                  )}
-              </div>
-          </div>
-
-          {/* Row 8: Monthly Summary (Conditional) */}
-          {applicableRuleId && (
-              <div className="grid grid-cols-4 items-center gap-4">
-                  <label htmlFor="summary" className="text-right">Monthly Summary</label>
-                  <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="col-span-3 p-2 border rounded">
-                      <option value="new">Create New Summary</option>
-                      {filteredSummaries.map(summary => <option key={summary.id} value={summary.id}>{summary.summaryId}</option>)}
-                  </select>
-              </div>
-          )}
-
-          {/* Row 9: Submit Button */}
-          <div className="col-span-4 pt-2 flex justify-center">
-            <Button type="submit" disabled={isSubmitting} className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-900 w-40">
-                {isSubmitting ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                "Add Transaction"
+                </select>
+                {cashbackMonth && (
+                <div className="flex items-center gap-2 pt-2">
+                    <span className="text-xs text-muted-foreground">Statement Month:</span>
+                    <Badge variant="outline">{cashbackMonth}</Badge>
+                </div>
                 )}
+            </div>
+
+            <div className="space-y-2">
+                <label htmlFor="rule">Applicable Cashback Rule</label>
+                <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border rounded" disabled={filteredRules.length === 0}>
+                <option value="">{filteredRules.length === 0 ? 'No rules for this card' : 'None'}</option>
+                {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
+                </select>
+                {selectedRule && (
+                <div className="flex items-center gap-2 pt-2">
+                    <Badge variant="secondary">Rate: {(selectedRule.rate * 100).toFixed(1)}%</Badge>
+                    {estimatedCashback > 0 && (
+                        <Badge variant="outline" className="text-emerald-600">
+                            Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}
+                        </Badge>
+                    )}
+                </div>
+                )}
+            </div>
+
+            {/* --- Monthly Summary Field --- */}
+            {applicableRuleId && (
+            <div className="space-y-2">
+                <label htmlFor="summary">Link to Monthly Summary</label>
+                <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="w-full p-2 border rounded">
+                <option value="new">Create New Summary</option>
+                {filteredSummaries.map(summary => <option key={summary.id} value={summary.id}>{summary.summaryId}</option>)}
+                </select>
+            </div>
+            )}
+            
+            <div className="space-y-2">
+                <label htmlFor="category">Internal Category</label>
+                <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded">
+                    <option value="">None</option>
+                    {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+            </div>
+            </div>
+
+            {/* --- Submit Button --- */}
+            <div className="pt-2">
+            <Button type="submit" disabled={isSubmitting} size="lg" className="w-full">
+                {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Add Transaction"}
             </Button>
-          </div>
+            </div>
         </form>
 
         <MccSearchResultsDialog
