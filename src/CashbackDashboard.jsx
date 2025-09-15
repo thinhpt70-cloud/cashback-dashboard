@@ -1681,6 +1681,33 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
     const selectedRule = useMemo(() => rules.find(r => r.id === applicableRuleId), [applicableRuleId, rules]);
 
+    const cashbackMonth = useMemo(() => {
+        if (!selectedCard || !date) return null;
+
+        // Create date objects for easier comparison
+        const transactionDate = new Date(date);
+        const statementDay = selectedCard.statementDay;
+
+        // Replicate "Cashback Month" logic for HSBC cards
+        if (selectedCard.name.includes("HSBC")) {
+            const year = transactionDate.getFullYear();
+            const month = transactionDate.getMonth() + 1; // JS months are 0-indexed
+            return `${year}${String(month).padStart(2, '0')}`;
+        }
+
+        // Simplified "Statement Month" logic for all other cards
+        let statementDate = new Date(transactionDate);
+        if (transactionDate.getDate() >= statementDay) {
+            // If the transaction is on or after the statement day, the statement is for the *next* month.
+            statementDate.setMonth(statementDate.getMonth() + 1);
+        }
+        
+        const year = statementDate.getFullYear();
+        const month = statementDate.getMonth() + 1;
+        return `${year}${String(month).padStart(2, '0')}`;
+        
+    }, [selectedCard, date]);
+
     const filteredSummaries = useMemo(() => {
         // Don't filter if we don't have the required info yet
         if (!selectedRule || !cardId || !cashbackMonth) return [];
@@ -1729,33 +1756,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         
         return calculatedCashback;
     }, [amount, selectedRule]);
-
-    const cashbackMonth = useMemo(() => {
-        if (!selectedCard || !date) return null;
-
-        // Create date objects for easier comparison
-        const transactionDate = new Date(date);
-        const statementDay = selectedCard.statementDay;
-
-        // Replicate "Cashback Month" logic for HSBC cards
-        if (selectedCard.name.includes("HSBC")) {
-            const year = transactionDate.getFullYear();
-            const month = transactionDate.getMonth() + 1; // JS months are 0-indexed
-            return `${year}${String(month).padStart(2, '0')}`;
-        }
-
-        // Simplified "Statement Month" logic for all other cards
-        let statementDate = new Date(transactionDate);
-        if (transactionDate.getDate() >= statementDay) {
-            // If the transaction is on or after the statement day, the statement is for the *next* month.
-            statementDate.setMonth(statementDate.getMonth() + 1);
-        }
-        
-        const year = statementDate.getFullYear();
-        const month = statementDate.getMonth() + 1;
-        return `${year}${String(month).padStart(2, '0')}`;
-        
-    }, [selectedCard, date]);
 
     // --- Handlers ---
     const resetForm = () => {
