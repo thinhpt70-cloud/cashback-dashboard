@@ -412,8 +412,6 @@ app.post('/api/summaries', async (req, res) => {
         const ruleName = rulePage.properties['Rule Name']?.title[0]?.plain_text || 'Untitled Rule';
 
         const summaryName = `${month} - ${ruleName}`; 
-        
-                //console.log("Creating Notion page with this data:", JSON.stringify(newSummaryPayload, null, 2));
 
         const newSummary = await notion.pages.create({
             parent: { database_id: monthlyCategoryDbId }, // Make sure you have a constant for your Summary DB ID
@@ -421,12 +419,9 @@ app.post('/api/summaries', async (req, res) => {
                 'Summary ID': { title: [{ text: { content: summaryName } }] },
                 'Card': { relation: [{ id: cardId }] },
                 'Month': { select: { name: month } },
-                'Applicable Rule': { relation: [{ id: ruleId }] },
                 // Add any other required fields for a new summary
             },
         });
-
-                //console.log("Successfully created Notion page:", newSummary);
 
         res.status(201).json({ id: newSummary.id, name: summaryName, cardId, month });
     } catch (error) {

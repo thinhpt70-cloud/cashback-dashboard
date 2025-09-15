@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Bell, Info, Loader2 } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
@@ -56,17 +56,19 @@ export default function CashbackDashboard() {
     }
 
     // 2. Update the recent transactions carousel
-    setRecentTransactions(prevRecent => [newTransaction, ...prevRecent].slice(0, 10)); // Assuming you show 10
+    setRecentTransactions(prevRecent => [newTransaction, ...prevRecent].slice(0, 20));
 
     // 3. Trigger a full refresh in the background to update all
     //    aggregate data (charts, stats, etc.) without a loading screen.
-    fetchData(); 
+    fetchData(true); 
     };
   
 
   // --- DATA FETCHING ---
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (isSilent = false) => {
+    if (!isSilent) {
+        setLoading(true);
+    }
     setError(null);
     try {
         // This array now includes the new '/api/monthly-category-summary' endpoint
@@ -129,7 +131,9 @@ export default function CashbackDashboard() {
         setError("Failed to fetch data. Please check the backend, .env configuration, and Notion permissions.");
         console.error(err);
     } finally {
-        setLoading(false);
+        if (!isSilent) {
+            setLoading(false);
+        }
     }
   };
 
@@ -366,13 +370,12 @@ export default function CashbackDashboard() {
                    ))}
                  </select>
             )}
-            <Button variant="outline" size="icon" onClick={fetchData}><RefreshCw className="h-4 w-4" /></Button>
-            <Button variant="outline" size="icon"><Bell className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" onClick={() => fetchData(false)}><RefreshCw className="h-4 w-4" /></Button>
             <div className="ml-auto flex items-center gap-4">
                 {/* This Dialog component creates the popup */}
                 <Dialog open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
                 <DialogTrigger asChild>
-                    <Button variant="outline">Add Transaction</Button>
+                    <Button variant="outline" size="icon"><Plus className="h-4 w-4" /></Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
@@ -1872,7 +1875,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             });
             if (!response.ok) throw new Error('Failed to add transaction');
             const newTransaction = await response.json();
-            
+
             onTransactionAdded(newTransaction);
             resetForm(); // Reset form fields
             onFormSubmit(); 
@@ -1914,7 +1917,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 id="mcc"
                 value={mccCode}
                 onChange={(e) => setMccCode(e.target.value)}
-                placeholder="Enter code or search"
+                placeholder="Enter code or use Lookup feature"
               />
               {mccName && <p className="text-xs text-muted-foreground mt-1 pl-1">{mccName}</p>}
             </div>
@@ -2020,7 +2023,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
           {/* Row 9: Submit Button */}
           <div className="col-span-4 pt-2">
-              <Button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Add Transaction</Button>
+              <Button type="submit" className="bg-black-500 center text-white px-4 py-2 rounded-md hover:bg-black-600">Add Transaction</Button>
           </div>
         </form>
 
