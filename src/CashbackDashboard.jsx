@@ -1674,6 +1674,11 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     // --- Memoized Calculations ---
     const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cardId, cards]);
 
+    const filteredRules = useMemo(() => {
+        if (!cardId) return [];
+        return rules.filter(rule => rule.cardId === cardId);
+    }, [cardId, rules]);
+
     const statementDate = useMemo(() => {
         if (!selectedCard || !date) return 'Select a card and date';
         const transactionDate = new Date(date);
@@ -1753,7 +1758,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         if (!merchant) return;
         setIsMccSearching(true);
         try {
-            const response = await fetch(`/api/find-mcc?merchant=${encodeURIComponent(merchant)}`);
+            const response = await fetch(`/api/mcc-search?merchant=${encodeURIComponent(merchant)}`);
             if (!response.ok) throw new Error('MCC search failed');
             const data = await response.json();
             if (data.mcc) {
@@ -1891,9 +1896,12 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         {/* Row 7: Applicable Rule */}
         <div className="grid grid-cols-4 items-center gap-4">
             <label htmlFor="rule" className="text-right">Applicable Rule</label>
-            <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="col-span-3 p-2 border rounded">
-                <option value="">None</option>
-                {rules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
+            <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="col-span-3 p-2 border rounded" disabled={filteredRules.length === 0}>
+                <option value="">
+                    {/* Change the placeholder text based on whether rules exist */}
+                    {filteredRules.length === 0 ? 'No rules for this card' : 'None'}
+                </option>
+                {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
             </select>
         </div>
 

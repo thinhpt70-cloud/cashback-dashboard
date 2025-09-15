@@ -325,26 +325,35 @@ app.post('/api/transactions', async (req, res) => {
             category,
             mccCode,
             applicableRuleId,
-            cardSummaryCategoryId,
+            cardSummaryCategoryId, // This ID is now correctly used
         } = req.body;
 
-        // 1. Construct the properties object for the Notion API
+        // 1. Start building the properties object for the Notion API
         const properties = {
             'Transaction Name': { title: [{ text: { content: merchant } }] },
-            'Amount': { number: Number(String(amount).replace(/,/g, '')) }, // Sanitize amount
+            'Amount': { number: Number(String(amount).replace(/,/g, '')) },
             'Transaction Date': { date: { start: date } },
             'Card': { relation: [{ id: cardId }] },
-            'Category': { select: { name: category } },
         };
 
-        // 2. Add optional properties if they exist
+        // 2. Conditionally add optional properties to avoid errors
+        
+        // Only add Category if one was actually selected
+        if (category) {
+            properties['Category'] = { select: { name: category } };
+        }
+        
         if (mccCode) {
             properties['MCC Code'] = { number: parseInt(mccCode, 10) };
         }
+        
         if (applicableRuleId) {
             properties['Applicable Rule'] = { relation: [{ id: applicableRuleId }] };
         }
+
+        // FIX: Add the relation to the Monthly Summary table if an ID is provided
         if (cardSummaryCategoryId) {
+            // Ensure this property name matches your Notion database exactly
             properties['Card Summary Category'] = { relation: [{ id: cardSummaryCategoryId }] };
         }
 
@@ -354,17 +363,14 @@ app.post('/api/transactions', async (req, res) => {
             properties,
         });
 
-        // 4. Retrieve the newly created page to get all computed properties (like formulas)
+        // 4. Retrieve and return the newly created transaction
         const populatedPage = await notion.pages.retrieve({ page_id: newPage.id });
-        
-        // 5. Map the full page data to a clean, consistent format
         const formattedTransaction = mapTransaction(populatedPage);
         
-        // 6. Return the formatted transaction object to the frontend
         res.status(201).json(formattedTransaction);
 
     } catch (error) {
-        console.error('Error adding transaction to Notion:', error);
+        console.error('Error adding transaction to Notion:', error.body || error);
         res.status(500).json({ error: 'Failed to add transaction. Check server logs.' });
     }
 });
