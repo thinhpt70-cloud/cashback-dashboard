@@ -28,6 +28,46 @@ import { Toaster, toast } from 'sonner';
 // --------------------------
 const API_BASE_URL = '/api';
 
+const calculateDaysLeft = (paymentDateString) => {
+        if (!paymentDateString || paymentDateString === "N/A") return null;
+
+        // Use a fixed "today" for consistent results in this example
+        const today = new Date(); 
+        today.setHours(0, 0, 0, 0);
+        const dueDate = new Date(paymentDateString + "T00:00:00Z");
+        
+        if (isNaN(dueDate)) return null;
+
+        const diffTime = dueDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        return diffDays >= 0 ? diffDays : null;
+    };
+
+    const calculateDaysUntilStatement = (statementDay, activeMonth) => {
+        if (!statementDay || !activeMonth) return { days: null, status: 'N/A' };
+
+        const today = new Date(); // Using today's date
+        today.setHours(0, 0, 0, 0); // Normalize to the beginning of the day
+
+        const year = parseInt(activeMonth.slice(0, 4), 10);
+        const month = parseInt(activeMonth.slice(4, 6), 10);
+        
+        // Create the statement date for the active month
+        const statementDate = new Date(year, month - 1, statementDay);
+
+        if (isNaN(statementDate.getTime())) return { days: null, status: 'N/A' };
+        
+        // Calculate the difference in days
+        const diffTime = statementDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            return { days: null, status: 'Completed' };
+        }
+        return { days: diffDays, status: 'Upcoming' };
+    };
+
 export default function CashbackDashboard() {
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -210,46 +250,6 @@ export default function CashbackDashboard() {
     
     // --- MEMOIZED DATA PROCESSING ---
     const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
-
-    const calculateDaysLeft = (paymentDateString) => {
-        if (!paymentDateString || paymentDateString === "N/A") return null;
-
-        // Use a fixed "today" for consistent results in this example
-        const today = new Date(); 
-        today.setHours(0, 0, 0, 0);
-        const dueDate = new Date(paymentDateString + "T00:00:00Z");
-        
-        if (isNaN(dueDate)) return null;
-
-        const diffTime = dueDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        return diffDays >= 0 ? diffDays : null;
-    };
-
-    const calculateDaysUntilStatement = (statementDay, activeMonth) => {
-        if (!statementDay || !activeMonth) return { days: null, status: 'N/A' };
-
-        const today = new Date(); // Using today's date
-        today.setHours(0, 0, 0, 0); // Normalize to the beginning of the day
-
-        const year = parseInt(activeMonth.slice(0, 4), 10);
-        const month = parseInt(activeMonth.slice(4, 6), 10);
-        
-        // Create the statement date for the active month
-        const statementDate = new Date(year, month - 1, statementDay);
-
-        if (isNaN(statementDate.getTime())) return { days: null, status: 'N/A' };
-        
-        // Calculate the difference in days
-        const diffTime = statementDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays < 0) {
-            return { days: null, status: 'Completed' };
-        }
-        return { days: diffDays, status: 'Upcoming' };
-    };
 
     const overviewStats = useMemo(() => {
       // Filter the summary data for only the currently selected month
