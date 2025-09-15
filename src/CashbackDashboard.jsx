@@ -1670,6 +1670,8 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [applicableRuleId, setApplicableRuleId] = useState('');
     const [cardSummaryCategoryId, setCardSummaryCategoryId] = useState('new');
     const [isMccSearching, setIsMccSearching] = useState(false);
+    const [mccResults, setMccResults] = useState([]);
+    const [isMccDialogOpen, setIsMccDialogOpen] = useState(false);
 
     // --- Memoized Calculations ---
     const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cardId, cards]);
@@ -1792,22 +1794,14 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             if (!response.ok) throw new Error('MCC search failed');
             const data = await response.json();
 
-            // --- START: CORRECTED LOGIC ---
             // Check if the 'results' array exists and is not empty
             if (data.results && data.results.length > 0) {
                 // Get the first item from the results array
-                const firstResult = data.results[0];
-                
-                // The MCC code is the third element (at index 2) in that item
-                const foundMcc = firstResult[2];
-
-                // If an MCC was found, update the state
-                if (foundMcc) {
-                    setMccCode(foundMcc);
-                }
+                setMccResults(data.results);
+                setIsMccDialogOpen(true);
+            } else {
+              setMccResults([]);
             }
-            // --- END: CORRECTED LOGIC ---
-
         } catch (error) {
             console.error("MCC Search Error:", error);
         } finally {
@@ -1845,145 +1839,202 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     };
 
     return (
-      <form onSubmit={handleSubmit} className="space-y-4 py-4">
-        {/* Row 1: Merchant & MCC Search */}
-        <div className="grid grid-cols-4 items-start gap-4">
-          <label htmlFor="merchant" className="text-right pt-2">
-            Merchant
-          </label>
-          <div className="col-span-3">
-            <div className="flex items-center gap-2">
-              <Input
-                id="merchant"
-                value={merchant}
-                onChange={(e) => setMerchant(e.target.value)}
-                required
-              />
-              <Button type="button" size="icon" variant="outline" onClick={handleMccSearch} disabled={!merchant || isMccSearching}>
-                {isMccSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Row 2: MCC Code & Name */}
-        <div className="grid grid-cols-4 items-start gap-4">
-          <label htmlFor="mcc" className="text-right pt-2">
-            MCC
-          </label>
-          <div className="col-span-3">
-            <Input
-              id="mcc"
-              value={mccCode}
-              onChange={(e) => setMccCode(e.target.value)}
-              placeholder="Enter code or search"
-            />
-            {mccName && <p className="text-xs text-muted-foreground mt-1 pl-1">{mccName}</p>}
-          </div>
-        </div>
-
-        {/* Row 3: Amount & Est. Cashback */}
-        <div className="grid grid-cols-4 items-start gap-4">
-          <label htmlFor="amount" className="text-right pt-2">
-            Amount
-          </label>
-          <div className="col-span-3">
-            <div className="flex items-center">
-              <Input id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} className="flex-grow" required />
-              <div className="flex flex-col ml-1">
-                <button type="button" onClick={() => adjustAmount(10000)} className="h-5 px-2 border rounded-t-md bg-gray-100 text-lg leading-none flex items-center justify-center">+</button>
-                <button type="button" onClick={() => adjustAmount(-10000)} className="h-5 px-2 border rounded-b-md bg-gray-100 text-lg leading-none flex items-center justify-center">-</button>
+      <>
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          {/* Row 1: Merchant & MCC Search */}
+          <div className="grid grid-cols-4 items-start gap-4">
+            <label htmlFor="merchant" className="text-right pt-2">
+              Merchant
+            </label>
+            <div className="col-span-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  id="merchant"
+                  value={merchant}
+                  onChange={(e) => setMerchant(e.target.value)}
+                  required
+                />
+                <Button type="button" size="icon" variant="outline" onClick={handleMccSearch} disabled={!merchant || isMccSearching}>
+                  {isMccSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                </Button>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Row 4: Date */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <label htmlFor="date" className="text-right">
-            Date
-          </label>
-          <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="col-span-3" required />
-        </div>
-
-        {/* Row 5: Card & Statement Date */}
-        <div className="grid grid-cols-4 items-start gap-4">
-          <label htmlFor="card" className="text-right pt-2">
-            Card
-          </label>
-          <div className="col-span-3">
-            <select id="card" value={cardId} onChange={(e) => setCardId(e.target.value)} className="w-full p-2 border rounded" required>
-              {cards.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
-            </select>
-            <div className="mt-2">
-                {cashbackMonth && (
-                    <Badge variant="outline">
-                        {cashbackMonth}
-                    </Badge>
-                )}
+          {/* Row 2: MCC Code & Name */}
+          <div className="grid grid-cols-4 items-start gap-4">
+            <label htmlFor="mcc" className="text-right pt-2">
+              MCC
+            </label>
+            <div className="col-span-3">
+              <Input
+                id="mcc"
+                value={mccCode}
+                onChange={(e) => setMccCode(e.target.value)}
+                placeholder="Enter code or search"
+              />
+              {mccName && <p className="text-xs text-muted-foreground mt-1 pl-1">{mccName}</p>}
             </div>
           </div>
-        </div>
 
-        {/* Row 6: Category */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <label htmlFor="category" className="text-right">
-            Category
-          </label>
-          <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="col-span-3 p-2 border rounded">
-            <option value="">None</option>
-            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-          </select>
-        </div>
-        
-        {/* Row 7: Applicable Rule */}
-        <div className="grid grid-cols-4 items-center gap-4">
-            <label htmlFor="rule" className="text-right">Applicable Rule</label>
-            <div className="col-span-3"> {/* Add a div wrapper */}
-                <select 
-                    id="rule" 
-                    value={applicableRuleId} 
-                    onChange={(e) => setApplicableRuleId(e.target.value)} 
-                    className="w-full p-2 border rounded" 
-                    disabled={filteredRules.length === 0}
-                >
-                    <option value="">
-                        {filteredRules.length === 0 ? 'No rules for this card' : 'None'}
-                    </option>
-                    {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
-                </select>
-                
-                {/* ADD THIS NEW DISPLAY LOGIC */}
-                {selectedRule && (
-                    <div className="mt-2 flex items-center gap-2">
-                        <Badge variant="secondary">
-                            Rate: {(selectedRule.rate * 100).toFixed(1)}%
-                        </Badge>
-                        {estimatedCashback > 0 && (
-                            <Badge variant="outline" className="text-emerald-600">
-                                Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}
-                            </Badge>
-                        )}
-                    </div>
-                )}
+          {/* Row 3: Amount & Est. Cashback */}
+          <div className="grid grid-cols-4 items-start gap-4">
+            <label htmlFor="amount" className="text-right pt-2">
+              Amount
+            </label>
+            <div className="col-span-3">
+              <div className="flex items-center">
+                <Input id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} className="flex-grow" required />
+                <div className="flex flex-col ml-1">
+                  <button type="button" onClick={() => adjustAmount(10000)} className="h-5 px-2 border rounded-t-md bg-gray-100 text-lg leading-none flex items-center justify-center">+</button>
+                  <button type="button" onClick={() => adjustAmount(-10000)} className="h-5 px-2 border rounded-b-md bg-gray-100 text-lg leading-none flex items-center justify-center">-</button>
+                </div>
+              </div>
             </div>
-        </div>
+          </div>
 
-        {/* Row 8: Monthly Summary (Conditional) */}
-        {applicableRuleId && (
-            <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="summary" className="text-right">Monthly Summary</label>
-                <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="col-span-3 p-2 border rounded">
-                    <option value="new">Create New Summary</option>
-                    {filteredSummaries.map(summary => <option key={summary.id} value={summary.id}>{summary.summaryId}</option>)}
-                </select>
+          {/* Row 4: Date */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label htmlFor="date" className="text-right">
+              Date
+            </label>
+            <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="col-span-3" required />
+          </div>
+
+          {/* Row 5: Card & Statement Date */}
+          <div className="grid grid-cols-4 items-start gap-4">
+            <label htmlFor="card" className="text-right pt-2">
+              Card
+            </label>
+            <div className="col-span-3">
+              <select id="card" value={cardId} onChange={(e) => setCardId(e.target.value)} className="w-full p-2 border rounded" required>
+                {cards.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
+              </select>
+              <div className="mt-2">
+                  {cashbackMonth && (
+                      <Badge variant="outline">
+                          {cashbackMonth}
+                      </Badge>
+                  )}
+              </div>
             </div>
-        )}
+          </div>
 
-        {/* Row 9: Submit Button */}
-        <div className="col-span-4 pt-2">
-            <Button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Add Transaction</Button>
-        </div>
-      </form>
+          {/* Row 6: Category */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label htmlFor="category" className="text-right">
+              Category
+            </label>
+            <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="col-span-3 p-2 border rounded">
+              <option value="">None</option>
+              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+          
+          {/* Row 7: Applicable Rule */}
+          <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="rule" className="text-right">Applicable Rule</label>
+              <div className="col-span-3"> {/* Add a div wrapper */}
+                  <select 
+                      id="rule" 
+                      value={applicableRuleId} 
+                      onChange={(e) => setApplicableRuleId(e.target.value)} 
+                      className="w-full p-2 border rounded" 
+                      disabled={filteredRules.length === 0}
+                  >
+                      <option value="">
+                          {filteredRules.length === 0 ? 'No rules for this card' : 'None'}
+                      </option>
+                      {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
+                  </select>
+                  
+                  {/* ADD THIS NEW DISPLAY LOGIC */}
+                  {selectedRule && (
+                      <div className="mt-2 flex items-center gap-2">
+                          <Badge variant="secondary">
+                              Rate: {(selectedRule.rate * 100).toFixed(1)}%
+                          </Badge>
+                          {estimatedCashback > 0 && (
+                              <Badge variant="outline" className="text-emerald-600">
+                                  Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}
+                              </Badge>
+                          )}
+                      </div>
+                  )}
+              </div>
+          </div>
+
+          {/* Row 8: Monthly Summary (Conditional) */}
+          {applicableRuleId && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="summary" className="text-right">Monthly Summary</label>
+                  <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="col-span-3 p-2 border rounded">
+                      <option value="new">Create New Summary</option>
+                      {filteredSummaries.map(summary => <option key={summary.id} value={summary.id}>{summary.summaryId}</option>)}
+                  </select>
+              </div>
+          )}
+
+          {/* Row 9: Submit Button */}
+          <div className="col-span-4 pt-2">
+              <Button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Add Transaction</Button>
+          </div>
+        </form>
+
+        <MccSearchResultsDialog
+            open={isMccDialogOpen}
+            onOpenChange={setIsMccDialogOpen}
+            results={mccResults}
+            onSelect={(selectedMcc) => {
+                setMccCode(selectedMcc);
+                setIsMccDialogOpen(false); // Close dialog on selection
+            }}
+        />
+      </>      
+    );
+}
+
+function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
+    const handleSelect = (result) => {
+        // The MCC code is the 3rd item (index 2)
+        const mccCode = result[2];
+        onSelect(mccCode);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>MCC Search Results</DialogTitle>
+                    <DialogDescription>
+                        Select the most relevant merchant category code.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Merchant</TableHead>
+                                <TableHead>MCC</TableHead>
+                                <TableHead>Category</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {results.map((result, index) => (
+                                <TableRow 
+                                    key={index} 
+                                    onClick={() => handleSelect(result)}
+                                    className="cursor-pointer hover:bg-muted/50"
+                                >
+                                    <TableCell>{result[1]}</TableCell>
+                                    <TableCell className="font-medium">{result[2]}</TableCell>
+                                    <TableCell>{result[4]}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 }
