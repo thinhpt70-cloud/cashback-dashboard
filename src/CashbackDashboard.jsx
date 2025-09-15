@@ -1898,12 +1898,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         }
     };
 
-    const adjustAmount = (adjustment) => {
-        const currentAmount = parseFloat(String(amount).replace(/,/g, '')) || 0;
-        const newAmount = currentAmount + adjustment;
-        setAmount(newAmount.toLocaleString('en-US'));
-    };
-
     const handleMccSearch = async () => {
         if (!merchant) return;
         setIsMccSearching(true);
