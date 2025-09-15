@@ -1811,6 +1811,48 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Use a variable to hold the final summary ID
+        let finalSummaryId = cardSummaryCategoryId;
+
+        // --- NEW LOGIC START ---
+        // Check if the user wants to create a new summary
+        if (cardSummaryCategoryId === 'new') {
+            // Ensure we have the required data to create a summary
+            if (!cardId || !cashbackMonth || !applicableRuleId) {
+                console.error("Cannot create a new summary: Missing Card, Cashback Month, or Applicable Rule.");
+                // You might want to show an error to the user here
+                return; 
+            }
+
+            try {
+                // 1. First API Call: Create the new summary
+                const summaryResponse = await fetch('/api/summaries', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cardId: cardId,
+                        month: cashbackMonth, // Use the calculated cashbackMonth
+                        ruleId: applicableRuleId,
+                    }),
+                });
+
+                if (!summaryResponse.ok) {
+                    throw new Error('Failed to create new monthly summary.');
+                }
+                
+                const newSummary = await summaryResponse.json();
+                // Store the ID of the newly created summary
+                finalSummaryId = newSummary.id; 
+
+            } catch (error) {
+                console.error('Error creating summary:', error);
+                // Optionally, show an error message to the user
+                return; // Stop the submission process if summary creation fails
+            }
+        }
+        // --- NEW LOGIC END ---
+
         const transactionData = {
             merchant,
             amount: parseFloat(String(amount).replace(/,/g, '')),
@@ -1819,7 +1861,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             category: category || null,
             mccCode: mccCode || null,
             applicableRuleId: applicableRuleId || null,
-            cardSummaryCategoryId: cardSummaryCategoryId === 'new' ? null : cardSummaryCategoryId,
+            cardSummaryCategoryId: finalSummaryId === 'new' ? null : finalSummaryId,
         };
 
         try {
@@ -1830,6 +1872,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             });
             if (!response.ok) throw new Error('Failed to add transaction');
             const newTransaction = await response.json();
+            
             onTransactionAdded(newTransaction);
             resetForm(); // Reset form fields
             onFormSubmit(); 

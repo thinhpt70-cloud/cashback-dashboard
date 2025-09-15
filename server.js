@@ -413,7 +413,7 @@ app.post('/api/summaries', async (req, res) => {
 
         const summaryName = `${month} - ${ruleName}`; 
         
-                console.log("Creating Notion page with this data:", JSON.stringify(newSummaryPayload, null, 2));
+                //console.log("Creating Notion page with this data:", JSON.stringify(newSummaryPayload, null, 2));
 
         const newSummary = await notion.pages.create({
             parent: { database_id: monthlyCategoryDbId }, // Make sure you have a constant for your Summary DB ID
@@ -426,7 +426,7 @@ app.post('/api/summaries', async (req, res) => {
             },
         });
 
-        console.log("Successfully created Notion page:", newSummary);
+                //console.log("Successfully created Notion page:", newSummary);
 
         res.status(201).json({ id: newSummary.id, name: summaryName, cardId, month });
     } catch (error) {
