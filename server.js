@@ -307,6 +307,11 @@ app.get('/api/mcc-search', async (req, res) => {
       throw new Error('Failed to fetch from external MCC API');
     }
     const data = await mccResponse.json();
+
+    if (data.results) {
+      data.results = data.results.slice(0, 10);
+    }
+
     res.json(data);
   } catch (error) {
     console.error('MCC Search Error:', error);

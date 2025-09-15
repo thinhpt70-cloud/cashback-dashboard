@@ -19,6 +19,7 @@ import {
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
 import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
 import { cn } from "./lib/utils";
+import { Toaster, toast } from 'sonner';
 
 
 
@@ -214,7 +215,8 @@ export default function CashbackDashboard() {
         if (!paymentDateString || paymentDateString === "N/A") return null;
 
         // Use a fixed "today" for consistent results in this example
-        const today = new Date("2025-09-12T00:00:00Z"); 
+        const today = new Date(); 
+        today.setHours(0, 0, 0, 0);
         const dueDate = new Date(paymentDateString + "T00:00:00Z");
         
         if (isNaN(dueDate)) return null;
@@ -223,6 +225,30 @@ export default function CashbackDashboard() {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         return diffDays >= 0 ? diffDays : null;
+    };
+
+    const calculateDaysUntilStatement = (statementDay, activeMonth) => {
+        if (!statementDay || !activeMonth) return { days: null, status: 'N/A' };
+
+        const today = new Date(); // Using today's date
+        today.setHours(0, 0, 0, 0); // Normalize to the beginning of the day
+
+        const year = parseInt(activeMonth.slice(0, 4), 10);
+        const month = parseInt(activeMonth.slice(4, 6), 10);
+        
+        // Create the statement date for the active month
+        const statementDate = new Date(year, month - 1, statementDay);
+
+        if (isNaN(statementDate.getTime())) return { days: null, status: 'N/A' };
+        
+        // Calculate the difference in days
+        const diffTime = statementDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            return { days: null, status: 'Completed' };
+        }
+        return { days: diffDays, status: 'Upcoming' };
     };
 
     const overviewStats = useMemo(() => {
@@ -353,9 +379,9 @@ export default function CashbackDashboard() {
   return (
     <TooltipProvider>
       <div className="flex min-h-screen w-full flex-col bg-muted/40">
+        <Toaster richColors position="top-right" />
         <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-white shadow-sm px-4 md:px-6 z-10">
           <h1 className="text-xl font-semibold flex items-center gap-2">
-            <TrendingUp className="h-6 w-6" />
             Cashback Optimizer
           </h1>
           <div className="ml-auto flex items-center gap-4">
@@ -514,8 +540,8 @@ export default function CashbackDashboard() {
                                       <CardTitle className="text-lg">{card.name} &bull;&bull;&bull;{card.last4}</CardTitle>
                                       <Badge variant="outline">{card.bank}</Badge>
                                   </div>
-                                  <p className="text-sm text-muted-foreground pt-1">
-                                      Due around day {card.paymentDueDay} of month
+                                  <p className="text-sm text-gray-500 pt-1">
+                                      Statement Due Day: {card.statementDay} &bull; Payment Due Day: {card.paymentDueDay}
                                   </p>
                               </CardHeader>
                               <CardContent className="space-y-4">
@@ -579,9 +605,6 @@ export default function CashbackDashboard() {
                 {/* Create a grid for the two components */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* The summary table takes up 2/3 of the space on large screens */}
-                    <div className="lg:col-span-1">
-                        <CardRoi cards={cards} currencyFn={currency} feeCycleProgressFn={calculateFeeCycleProgress} />
-                    </div>
                     <div className="lg:col-span-2">
                         <PaymentsTab 
                             cards={cards}
@@ -592,6 +615,9 @@ export default function CashbackDashboard() {
                         />
                     </div>
                     {/* The new ROI component takes up 1/3 of the space */}
+                    <div className="lg:col-span-1">
+                        <CardRoi cards={cards} currencyFn={currency} feeCycleProgressFn={calculateFeeCycleProgress} />
+                    </div>
                 </div>
             </TabsContent>
           </Tabs>
@@ -856,10 +882,10 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                 <TableHeader>
                     <TableRow>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Merchant <SortIcon columnKey="Transaction Name" /></Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction Name <SortIcon columnKey="Transaction Name" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('Category')} className="px-2">Category <SortIcon columnKey="Category" /></Button></TableHead>
-                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end w-full">Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
+                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end w-full">Est. Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
                     <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end w-full">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
                     </TableRow>
                 </TableHeader>
@@ -927,16 +953,19 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
 
         // Get the pre-calculated cashback from that summary
         const currentCashback = cardMonthSummary ? cardMonthSummary.cashback : 0;
-        
         const monthlyLimit = card.overallMonthlyLimit;
         const usedPct = monthlyLimit > 0 ? Math.min(100, Math.round((currentCashback / monthlyLimit) * 100)) : 0;
         
+        const { days, status } = calculateDaysUntilStatement(card.statementDay, activeMonth);
+
         return {
           cardId: card.id,
           cardName: card.name,
           currentCashback,
           monthlyLimit,
           usedPct,
+          daysLeft: days,
+          cycleStatus: status,
         };
       });
   }, [cards, activeMonth, monthlySummary]);
@@ -961,6 +990,16 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
                 <p>{p.usedPct}% used. {currency(p.monthlyLimit - p.currentCashback)} remaining.</p>
               </TooltipContent>
             </Tooltip>
+            {/* --- NEW: Display the subtext --- */}
+            {/* --- THIS IS THE UPDATED PART --- */}
+            <div className="flex justify-end mt-1">
+              <Badge variant="outline" className={cn(
+                  "text-xs",
+                  p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
+              )}>
+                  {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
+              </Badge>
+            </div>
           </div>
         ))}
         {cardSpendsCapProgress.length === 0 && (
@@ -1115,6 +1154,12 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                     const dueDate = new Date(year, month, card.paymentDueDay);
                     paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
                 }
+                // --- ADD THIS LOGIC ---
+                let statementDate = "N/A";
+                if (card.statementDay) {
+                    statementDate = `${year}-${String(month).padStart(2, '0')}-${String(card.statementDay).padStart(2, '0')}`;
+                }
+                // ----------------------
                 return { ...stmt, paymentDate }; // Add the calculated date to the object
             });
 
@@ -1156,9 +1201,9 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[250px]">Card</TableHead>
+                            <TableHead>Statement Month</TableHead>
                             <TableHead>Payment Date</TableHead>
                             <TableHead>Days Left</TableHead>
-                            <TableHead>Cashback Month</TableHead>
                             <TableHead className="text-right">Total Payment</TableHead>
                             <TableHead className="text-right">Total Cashback</TableHead>
                             <TableHead className="text-right">Final Payment</TableHead>
@@ -1179,6 +1224,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                             </div>
                                         </div>
                                     </TableCell>
+                                    <TableCell>{card.latestMonth && <Badge variant="outline">{fmtYMShortFn(card.latestMonth)}</Badge>}</TableCell>
                                     <TableCell>{card.paymentDate}</TableCell>
                                     <TableCell>
                                         {card.daysLeft !== null && (
@@ -1187,7 +1233,6 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                             </Badge>
                                         )}
                                     </TableCell>
-                                    <TableCell>{card.latestMonth && <Badge variant="outline">{fmtYMShortFn(card.latestMonth)}</Badge>}</TableCell>
                                     <TableCell className="text-right">{currencyFn(card.totalPayment)}</TableCell>
                                     <TableCell className="text-right text-emerald-600">{currencyFn(card.totalCashback)}</TableCell>
                                     <TableCell className="text-right font-semibold">{currencyFn(card.finalPayment)}</TableCell>
@@ -1202,6 +1247,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                         <TableRow>
                                                             <TableHead>Month</TableHead>
                                                             {/* NEW: Add the table header for the payment date */}
+                                                            <TableHead>Statement Date</TableHead>
                                                             <TableHead>Payment Date</TableHead>
                                                             <TableHead className="text-right">Total Payment</TableHead>
                                                             <TableHead className="text-right">Total Cashback</TableHead>
@@ -1213,6 +1259,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                             <TableRow key={stmt.month}>
                                                                 <TableCell><Badge variant="outline">{fmtYMShortFn(stmt.month)}</Badge></TableCell>
                                                                 {/* NEW: Add the table cell to display the payment date */}
+                                                                <TableCell>{stmt.statementDate}</TableCell>
                                                                 <TableCell>{stmt.paymentDate}</TableCell>
                                                                 <TableCell className="text-right">{currencyFn(stmt.spend)}</TableCell>
                                                                 <TableCell className="text-right text-emerald-600">{currencyFn(stmt.cashback)}</TableCell>
@@ -1309,6 +1356,9 @@ function CardRoi({ cards, currencyFn, feeCycleProgressFn }) {
 // ... at the bottom of src/CashbackDashboard.jsx
 
 function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlySummary, currencyFn }) {
+    // --- NEW: Calculate the cycle status once for the card ---
+    const { days, status } = calculateDaysUntilStatement(card.statementDay, activeMonth);
+
     // Logic to calculate the individual category caps (remains the same)
     const categoryCapData = useMemo(() => {
         const summaries = monthlyCategorySummary.filter(
@@ -1363,6 +1413,17 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
                             </div>
                             <div className="flex-grow"></div> 
                             <Progress value={totalCardData.usedPct} className="h-2" />
+
+                            {/* --- NEW: Add status badge for the "Total" box --- */}
+                            <div className="flex justify-end mt-1">
+                                <Badge variant="outline" className={cn(
+                                    "text-xs",
+                                    status === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                )}>
+                                    {status === 'Completed' ? 'Completed' : `${days} days left`}
+                                </Badge>
+                            </div>
+
                             <div className="flex justify-between text-xs text-muted-foreground">
                                 <span>{currencyFn(totalCardData.totalCashback)} / {currencyFn(totalCardData.limit)}</span>
                                 <span className="font-medium">{currencyFn(totalCardData.remaining)} left</span>
@@ -1675,6 +1736,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [isMccSearching, setIsMccSearching] = useState(false);
     const [mccResults, setMccResults] = useState([]);
     const [isMccDialogOpen, setIsMccDialogOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false); // <-- ADD THIS LINE
 
     // --- Memoized Calculations ---
     const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cardId, cards]);
@@ -1814,6 +1876,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
 
         // Use a variable to hold the final summary ID
         let finalSummaryId = cardSummaryCategoryId;
@@ -1876,11 +1939,17 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             if (!response.ok) throw new Error('Failed to add transaction');
             const newTransaction = await response.json();
 
+            toast.success("Transaction added successfully!"); // Display success notification
+
             onTransactionAdded(newTransaction);
             resetForm(); // Reset form fields
             onFormSubmit(); 
         } catch (error) {
             console.error('Error:', error);
+
+            toast.error("Failed to add transaction. Please try again.");
+        } finally {
+            setIsSubmitting(false); 
         }
     };
 
@@ -1890,7 +1959,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
           {/* Row 1: Merchant & MCC Search */}
           <div className="grid grid-cols-4 items-start gap-4">
             <label htmlFor="merchant" className="text-right pt-2">
-              Merchant
+              Transaction Name
             </label>
             <div className="col-span-3">
               <div className="flex items-center gap-2">
@@ -2022,8 +2091,14 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
           )}
 
           {/* Row 9: Submit Button */}
-          <div className="col-span-4 pt-2">
-              <Button type="submit" className="bg-black-500 center text-white px-4 py-2 rounded-md hover:bg-black-600">Add Transaction</Button>
+          <div className="col-span-4 pt-2 flex justify-center">
+            <Button type="submit" disabled={isSubmitting} className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-900 w-40">
+                {isSubmitting ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                "Add Transaction"
+                )}
+            </Button>
           </div>
         </form>
 
