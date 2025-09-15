@@ -15,7 +15,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogTrigger,
-  DialogFooter,
 } from "./components/ui/dialog";
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
 import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
@@ -1641,27 +1640,6 @@ function LoginScreen({ onLoginSuccess }) {
     );
 }
 
-// --- HELPER COMPONENT FOR NOTIFICATIONS ---
-// Place this right above the AddTransactionForm function
-function SuccessNotification({ message, onDismiss }) {
-    useEffect(() => {
-        if (message) {
-            const timer = setTimeout(() => {
-                onDismiss();
-            }, 3000); // Notification disappears after 3 seconds
-            return () => clearTimeout(timer);
-        }
-    }, [message, onDismiss]);
-
-    if (!message) return null;
-
-    return (
-        <div className="fixed top-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg z-50 animate-fade-in-down">
-            {message}
-        </div>
-    );
-}
-
 // --- FINAL AddTransactionForm COMPONENT ---
 function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded }) {
     // --- State Management ---
@@ -1715,7 +1693,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
             return cardMatch && ruleNameMatch;
         });
-    }, [applicableRuleId, cardId, monthlyCategories, rules, selectedRule]);
+    }, [cardId, monthlyCategories, selectedRule]);
 
 
     // --- Effects ---
