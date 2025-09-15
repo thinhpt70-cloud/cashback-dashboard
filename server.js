@@ -408,14 +408,18 @@ app.post('/api/summaries', async (req, res) => {
 
         // You might want to fetch the rule name here to create a more descriptive summary name
         // For now, we'll use a simple name
-        const summaryName = `${month} - New Summary`; 
+        const rulePage = await notion.pages.retrieve({ page_id: ruleId });
+        const ruleName = rulePage.properties['Rule Name']?.title[0]?.plain_text || 'Untitled Rule';
+
+        const summaryName = `${month} - ${ruleName}`; 
+        
 
         const newSummary = await notion.pages.create({
-            parent: { database_id: monthlySummaryDbId }, // Make sure you have a constant for your Summary DB ID
+            parent: { database_id: monthlyCategoryDbId }, // Make sure you have a constant for your Summary DB ID
             properties: {
                 'Summary ID': { title: [{ text: { content: summaryName } }] },
                 'Card': { relation: [{ id: cardId }] },
-                'Month': { rich_text: [{ text: { content: month } }] },
+                'Month': { select: { name: month } },
                 'Applicable Rule': { relation: [{ id: ruleId }] },
                 // Add any other required fields for a new summary
             },

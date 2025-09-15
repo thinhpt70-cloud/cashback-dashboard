@@ -1669,7 +1669,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [mccName, setMccName] = useState('');
     const [applicableRuleId, setApplicableRuleId] = useState('');
     const [cardSummaryCategoryId, setCardSummaryCategoryId] = useState('new');
-    const [estimatedCashback, setEstimatedCashback] = useState(0);
     const [isMccSearching, setIsMccSearching] = useState(false);
 
     // --- Memoized Calculations ---
@@ -1681,16 +1680,13 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     }, [cardId, rules]);
 
     const statementDate = useMemo(() => {
-        if (!selectedCard || !date) return 'Select a card and date';
-        const transactionDate = new Date(date);
-        let statementMonth = transactionDate.getMonth();
-        let statementYear = transactionDate.getFullYear();
-        if (transactionDate.getDate() > selectedCard.statementDay) {
-            statementMonth += 1;
-        }
-        const nextStatementDate = new Date(statementYear, statementMonth, selectedCard.statementDay);
-        return `Est. Statement Date: ${nextStatementDate.toLocaleDateString()}`;
-    }, [selectedCard, date]);
+        // If no card is selected, show a generic message
+        if (!selectedCard) return 'Select a card';
+        
+        // Directly return the Statement Day from the selected card's data
+        return `Statement Day: ${selectedCard.statementDay}`;
+
+    }, [selectedCard]); 
 
     const selectedRule = useMemo(() => rules.find(r => r.id === applicableRuleId), [applicableRuleId, rules]);
 
@@ -1700,7 +1696,8 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             const cardMatch = summary.cardId === cardId;
             const ruleNameMatch = summary.summaryId.includes(selectedRule.name);
             return cardMatch && ruleNameMatch;
-        });
+        })
+        .sort((a, b) => b.summaryId.localeCompare(a.summaryId));
     }, [cardId, monthlyCategories, selectedRule]);
 
     // --- Effects ---
@@ -1718,14 +1715,24 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         }
     }, [mccCode, mccMap]);
 
-    useEffect(() => {
-        if (selectedRule && amount) {
-            const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
-            const cashback = (numericAmount * selectedRule.cashbackRate) / 100;
-            setEstimatedCashback(cashback > selectedRule.maxCashback ? selectedRule.maxCashback : cashback);
-        } else {
-            setEstimatedCashback(0);
+    const estimatedCashback = useMemo(() => {
+        if (!selectedRule || !amount) {
+            return 0;
         }
+        const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
+        if (isNaN(numericAmount)) {
+            return 0;
+        }
+
+        const calculatedCashback = numericAmount * selectedRule.rate;
+        const cap = selectedRule.capPerTransaction;
+
+        // If there's a cap and the cashback exceeds it, return the cap
+        if (cap > 0 && calculatedCashback > cap) {
+            return cap;
+        }
+        
+        return calculatedCashback;
     }, [amount, selectedRule]);
 
     // --- Handlers ---
@@ -1762,6 +1769,10 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             const response = await fetch(`/api/mcc-search?keyword=${encodeURIComponent(merchant)}`);
             if (!response.ok) throw new Error('MCC search failed');
             const data = await response.json();
+
+            console.log("MCC Search Result:", data);
+
+
             if (data.mcc) {
                 setMccCode(data.mcc);
             }
@@ -1897,13 +1908,34 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         {/* Row 7: Applicable Rule */}
         <div className="grid grid-cols-4 items-center gap-4">
             <label htmlFor="rule" className="text-right">Applicable Rule</label>
-            <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="col-span-3 p-2 border rounded" disabled={filteredRules.length === 0}>
-                <option value="">
-                    {/* Change the placeholder text based on whether rules exist */}
-                    {filteredRules.length === 0 ? 'No rules for this card' : 'None'}
-                </option>
-                {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
-            </select>
+            <div className="col-span-3"> {/* Add a div wrapper */}
+                <select 
+                    id="rule" 
+                    value={applicableRuleId} 
+                    onChange={(e) => setApplicableRuleId(e.target.value)} 
+                    className="w-full p-2 border rounded" 
+                    disabled={filteredRules.length === 0}
+                >
+                    <option value="">
+                        {filteredRules.length === 0 ? 'No rules for this card' : 'None'}
+                    </option>
+                    {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
+                </select>
+                
+                {/* ADD THIS NEW DISPLAY LOGIC */}
+                {selectedRule && (
+                    <div className="mt-2 flex items-center gap-2">
+                        <Badge variant="secondary">
+                            Rate: {(selectedRule.rate * 100).toFixed(1)}%
+                        </Badge>
+                        {estimatedCashback > 0 && (
+                            <Badge variant="outline" className="text-emerald-600">
+                                Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}
+                            </Badge>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
 
         {/* Row 8: Monthly Summary (Conditional) */}
@@ -1919,7 +1951,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
         {/* Row 9: Submit Button */}
         <div className="col-span-4 pt-2">
-            <Button type="submit" className="w-full">Add Transaction</Button>
+            <Button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Add Transaction</Button>
         </div>
       </form>
     );
