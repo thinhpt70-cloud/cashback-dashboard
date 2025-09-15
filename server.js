@@ -350,7 +350,7 @@ app.post('/api/transactions', async (req, res) => {
 
         // 3. Create the new page (transaction) in Notion
         const newPage = await notion.pages.create({
-            parent: { database_id: NOTION_TRANSACTIONS_DB_ID },
+            parent: { database_id: transactionsDbId },
             properties,
         });
 
@@ -373,7 +373,7 @@ app.post('/api/transactions', async (req, res) => {
 app.get('/api/categories', async (req, res) => {
     try {
         // Retrieve the database's schema information
-        const database = await notion.databases.retrieve({ database_id: NOTION_TRANSACTIONS_DB_ID });
+        const database = await notion.databases.retrieve({ database_id: transactionsDbId });
         
         // Get the specific property for "Category"
         const categoryProperty = database.properties['Category'];
@@ -405,7 +405,7 @@ app.post('/api/summaries', async (req, res) => {
         const summaryName = `${month} - New Summary`; 
 
         const newSummary = await notion.pages.create({
-            parent: { database_id: NOTION_SUMMARY_DB_ID }, // Make sure you have a constant for your Summary DB ID
+            parent: { database_id: monthlySummaryDbId }, // Make sure you have a constant for your Summary DB ID
             properties: {
                 'Summary ID': { title: [{ text: { content: summaryName } }] },
                 'Card': { relation: [{ id: cardId }] },
