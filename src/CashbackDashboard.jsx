@@ -1669,7 +1669,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [cardSummaryCategoryId, setCardSummaryCategoryId] = useState('new');
     const [estimatedCashback, setEstimatedCashback] = useState(0);
     const [isMccSearching, setIsMccSearching] = useState(false);
-    const [open, setOpen] = useState(false); // State to control dialog visibility
+    const [setOpen] = useState(false); // State to control dialog visibility
 
     // --- Memoized Calculations ---
     const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cardId, cards]);
