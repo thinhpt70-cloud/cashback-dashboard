@@ -1679,26 +1679,21 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         return rules.filter(rule => rule.cardId === cardId);
     }, [cardId, rules]);
 
-    const statementDate = useMemo(() => {
-        // If no card is selected, show a generic message
-        if (!selectedCard) return 'Select a card';
-        
-        // Directly return the Statement Day from the selected card's data
-        return `Statement Day: ${selectedCard.statementDay}`;
-
-    }, [selectedCard]); 
-
     const selectedRule = useMemo(() => rules.find(r => r.id === applicableRuleId), [applicableRuleId, rules]);
 
     const filteredSummaries = useMemo(() => {
-        if (!selectedRule || !cardId) return [];
+        // Don't filter if we don't have the required info yet
+        if (!selectedRule || !cardId || !cashbackMonth) return [];
+
+        // This replicates your "Reference Summary ID" logic
+        const targetSummaryId = `${cashbackMonth} - ${selectedRule.name}`;
+
         return monthlyCategories.filter(summary => {
-            const cardMatch = summary.cardId === cardId;
-            const ruleNameMatch = summary.summaryId.includes(selectedRule.name);
-            return cardMatch && ruleNameMatch;
-        })
-        .sort((a, b) => b.summaryId.localeCompare(a.summaryId));
-    }, [cardId, monthlyCategories, selectedRule]);
+            // Find summaries for the correct card that match the target ID
+            return summary.cardId === cardId && summary.summaryId === targetSummaryId;
+        });
+        // Add cashbackMonth to the dependency array
+    }, [cardId, monthlyCategories, selectedRule, cashbackMonth]);
 
     // --- Effects ---
     useEffect(() => {
@@ -1735,6 +1730,33 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         return calculatedCashback;
     }, [amount, selectedRule]);
 
+    const cashbackMonth = useMemo(() => {
+        if (!selectedCard || !date) return null;
+
+        // Create date objects for easier comparison
+        const transactionDate = new Date(date);
+        const statementDay = selectedCard.statementDay;
+
+        // Replicate "Cashback Month" logic for HSBC cards
+        if (selectedCard.name.includes("HSBC")) {
+            const year = transactionDate.getFullYear();
+            const month = transactionDate.getMonth() + 1; // JS months are 0-indexed
+            return `${year}${String(month).padStart(2, '0')}`;
+        }
+
+        // Simplified "Statement Month" logic for all other cards
+        let statementDate = new Date(transactionDate);
+        if (transactionDate.getDate() >= statementDay) {
+            // If the transaction is on or after the statement day, the statement is for the *next* month.
+            statementDate.setMonth(statementDate.getMonth() + 1);
+        }
+        
+        const year = statementDate.getFullYear();
+        const month = statementDate.getMonth() + 1;
+        return `${year}${String(month).padStart(2, '0')}`;
+        
+    }, [selectedCard, date]);
+
     // --- Handlers ---
     const resetForm = () => {
         setMerchant('');
@@ -1770,12 +1792,22 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             if (!response.ok) throw new Error('MCC search failed');
             const data = await response.json();
 
-            console.log("MCC Search Result:", data);
+            // --- START: CORRECTED LOGIC ---
+            // Check if the 'results' array exists and is not empty
+            if (data.results && data.results.length > 0) {
+                // Get the first item from the results array
+                const firstResult = data.results[0];
+                
+                // The MCC code is the third element (at index 2) in that item
+                const foundMcc = firstResult[2];
 
-
-            if (data.mcc) {
-                setMccCode(data.mcc);
+                // If an MCC was found, update the state
+                if (foundMcc) {
+                    setMccCode(foundMcc);
+                }
             }
+            // --- END: CORRECTED LOGIC ---
+
         } catch (error) {
             console.error("MCC Search Error:", error);
         } finally {
@@ -1863,13 +1895,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 <button type="button" onClick={() => adjustAmount(-10000)} className="h-5 px-2 border rounded-b-md bg-gray-100 text-lg leading-none flex items-center justify-center">-</button>
               </div>
             </div>
-            <div className="h-4 mt-1">
-              {estimatedCashback > 0 && (
-                <p className="text-right text-sm text-green-600 font-medium pr-1">
-                  Est. Cashback: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}
-                </p>
-              )}
-            </div>
           </div>
         </div>
 
@@ -1890,7 +1915,13 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             <select id="card" value={cardId} onChange={(e) => setCardId(e.target.value)} className="w-full p-2 border rounded" required>
               {cards.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
             </select>
-            <p className="text-sm text-muted-foreground mt-1">{statementDate}</p>
+            <div className="mt-2">
+                {cashbackMonth && (
+                    <Badge variant="outline">
+                        {cashbackMonth}
+                    </Badge>
+                )}
+            </div>
           </div>
         </div>
 
