@@ -27,7 +27,7 @@ const mapTransaction = (tx) => ({
     'Transaction Date': tx.properties['Transaction Date']?.date?.start,
     'Card': tx.properties['Card']?.relation?.map(r => r.id),
     'Category': tx.properties['Category']?.select?.name,
-    'MCC Code': tx.properties['MCC Code']?.number,
+    'MCC Code': tx.properties['MCC Code']?.rich_text[0]?.plain_text || null,
     'estCashback': tx.properties['estCashback']?.formula?.number,
 });
 
@@ -344,7 +344,7 @@ app.post('/api/transactions', async (req, res) => {
         }
         
         if (mccCode) {
-            properties['MCC Code'] = { number: parseInt(mccCode, 10) };
+            properties['MCC Code'] = { rich_text: [{ text: { content: String(mccCode) } }] };
         }
         
         if (applicableRuleId) {

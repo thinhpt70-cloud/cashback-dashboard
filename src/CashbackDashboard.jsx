@@ -46,6 +46,7 @@ export default function CashbackDashboard() {
   const [cashbackRules, setCashbackRules] = useState([]);
   const [monthlyCashbackCategories, setMonthlyCashbackCategories] = useState([]);
   const [allCategories, setAllCategories] = useState([]); // 1. Add new state
+  const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
 
     const handleTransactionAdded = (newTransaction) => {
     // 1. Instantly update the list for the current month
@@ -369,9 +370,9 @@ export default function CashbackDashboard() {
             <Button variant="outline" size="icon"><Bell className="h-4 w-4" /></Button>
             <div className="ml-auto flex items-center gap-4">
                 {/* This Dialog component creates the popup */}
-                <Dialog>
+                <Dialog open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
                 <DialogTrigger asChild>
-                    <Button>Add Transaction</Button>
+                    <Button variant="outline">Add Transaction</Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
@@ -385,6 +386,7 @@ export default function CashbackDashboard() {
                     monthlyCategories={monthlyCashbackCategories}
                     mccMap={mccMap}
                     onTransactionAdded={handleTransactionAdded}
+                    onFormSubmit={() => setIsAddTxDialogOpen(false)}
                     />
                 </DialogContent>
                 </Dialog>
@@ -1669,7 +1671,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [cardSummaryCategoryId, setCardSummaryCategoryId] = useState('new');
     const [estimatedCashback, setEstimatedCashback] = useState(0);
     const [isMccSearching, setIsMccSearching] = useState(false);
-    const [setOpen] = useState(false); // State to control dialog visibility
 
     // --- Memoized Calculations ---
     const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cardId, cards]);
@@ -1758,7 +1759,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         if (!merchant) return;
         setIsMccSearching(true);
         try {
-            const response = await fetch(`/api/mcc-search?merchant=${encodeURIComponent(merchant)}`);
+            const response = await fetch(`/api/mcc-search?keyword=${encodeURIComponent(merchant)}`);
             if (!response.ok) throw new Error('MCC search failed');
             const data = await response.json();
             if (data.mcc) {
@@ -1794,7 +1795,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             const newTransaction = await response.json();
             onTransactionAdded(newTransaction);
             resetForm(); // Reset form fields
-            setOpen(false); // Close the dialog
+            onFormSubmit(); 
         } catch (error) {
             console.error('Error:', error);
         }
