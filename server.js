@@ -20,6 +20,17 @@ const rulesDbId = process.env.NOTION_RULES_DB_ID;
 const monthlySummaryDbId = process.env.NOTION_MONTHLY_SUMMARY_DB_ID; // ADDED: For the new database
 const monthlyCategoryDbId = process.env.NOTION_MONTHLY_CATEGORY_DB_ID;
 
+const mapTransaction = (tx) => ({
+    id: tx.id,
+    'Transaction Name': tx.properties['Transaction Name']?.title[0]?.plain_text || 'N/A',
+    'Amount': tx.properties['Amount']?.number,
+    'Transaction Date': tx.properties['Transaction Date']?.date?.start,
+    'Card': tx.properties['Card']?.relation?.map(r => r.id),
+    'Category': tx.properties['Category']?.select?.name,
+    'MCC Code': tx.properties['MCC Code']?.number,
+    'estCashback': tx.properties['estCashback']?.formula?.number,
+});
+
 
 // Helper function to safely extract properties from a Notion page
 const parseNotionPageProperties = (page) => {
@@ -303,56 +314,113 @@ app.get('/api/mcc-search', async (req, res) => {
   }
 });
 
+// POST /api/transactions - Add a new transaction
 app.post('/api/transactions', async (req, res) => {
-  const {
-    merchant,
-    amount,
-    date,
-    cardId,
-    category,
-    applicableRuleId,
-    cardSummaryCategoryId,
-    mccCode
-  } = req.body;
+    try {
+        const {
+            merchant,
+            amount,
+            date,
+            cardId,
+            category,
+            mccCode,
+            applicableRuleId,
+            cardSummaryCategoryId,
+        } = req.body;
 
-  if (!merchant || !amount || !date || !cardId || !category) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
+        // 1. Construct the properties object for the Notion API
+        const properties = {
+            'Transaction Name': { title: [{ text: { content: merchant } }] },
+            'Amount': { number: Number(String(amount).replace(/,/g, '')) }, // Sanitize amount
+            'Transaction Date': { date: { start: date } },
+            'Card': { relation: [{ id: cardId }] },
+            'Category': { select: { name: category } },
+        };
 
-  try {
-    const properties = {
-      'Transaction Name': { title: [{ text: { content: merchant } }] },
-      'Amount': { number: parseFloat(amount) },
-      'Transaction Date': { date: { start: date } },
-      'Card': { relation: [{ id: cardId }] },
-      'Category': { select: { name: category } },
-    };
+        // 2. Add optional properties if they exist
+        if (mccCode) {
+            properties['MCC Code'] = { number: parseInt(mccCode, 10) };
+        }
+        if (applicableRuleId) {
+            properties['Applicable Rule'] = { relation: [{ id: applicableRuleId }] };
+        }
+        if (cardSummaryCategoryId) {
+            properties['Card Summary Category'] = { relation: [{ id: cardSummaryCategoryId }] };
+        }
 
-    // Add relation to "Applicable Rule" if ID is provided
-    if (applicableRuleId) {
-      properties['Applicable Rule'] = { relation: [{ id: applicableRuleId }] };
+        // 3. Create the new page (transaction) in Notion
+        const newPage = await notion.pages.create({
+            parent: { database_id: NOTION_TRANSACTIONS_DB_ID },
+            properties,
+        });
+
+        // 4. Retrieve the newly created page to get all computed properties (like formulas)
+        const populatedPage = await notion.pages.retrieve({ page_id: newPage.id });
+        
+        // 5. Map the full page data to a clean, consistent format
+        const formattedTransaction = mapTransaction(populatedPage);
+        
+        // 6. Return the formatted transaction object to the frontend
+        res.status(201).json(formattedTransaction);
+
+    } catch (error) {
+        console.error('Error adding transaction to Notion:', error);
+        res.status(500).json({ error: 'Failed to add transaction. Check server logs.' });
     }
-    
-    // Add relation to "Card Summary Category" if ID is provided
-    if (cardSummaryCategoryId) {
-      properties['Card Summary Category'] = { relation: [{ id: cardSummaryCategoryId }] };
-    }
-
-    // Add MCC Code if provided (as a Text/Rich Text property)
-    if (mccCode) {
-      properties['MCC Code'] = { rich_text: [{ text: { content: mccCode } }] };
-    }
-
-    const response = await notion.pages.create({
-      parent: { database_id: transactionsDbId },
-      properties: properties,
-    });
-
-    res.status(201).json(response);
-  } catch (error) {
-    console.error('Failed to create transaction:', error);
-    res.status(500).json({ error: 'Failed to create transaction in Notion' });
-  }
 });
+
+// GET /api/categories - Retrieve all unique category options from the Transactions database
+app.get('/api/categories', async (req, res) => {
+    try {
+        // Retrieve the database's schema information
+        const database = await notion.databases.retrieve({ database_id: NOTION_TRANSACTIONS_DB_ID });
+        
+        // Get the specific property for "Category"
+        const categoryProperty = database.properties['Category'];
+
+        // Check if it's a 'select' type and extract the options
+        if (categoryProperty && categoryProperty.type === 'select') {
+            const categories = categoryProperty.select.options.map(option => option.name);
+            res.json(categories);
+        } else {
+            res.status(404).json({ error: 'Category property not found or is not a select property' });
+        }
+    } catch (error) {
+        console.error('Error fetching categories from Notion:', error);
+        res.status(500).json({ error: 'Failed to fetch categories' });
+    }
+});
+
+// POST /api/summaries - Create a new monthly summary category
+app.post('/api/summaries', async (req, res) => {
+    try {
+        const { cardId, month, ruleId } = req.body;
+
+        if (!cardId || !month || !ruleId) {
+            return res.status(400).json({ error: 'cardId, month, and ruleId are required' });
+        }
+
+        // You might want to fetch the rule name here to create a more descriptive summary name
+        // For now, we'll use a simple name
+        const summaryName = `${month} - New Summary`; 
+
+        const newSummary = await notion.pages.create({
+            parent: { database_id: NOTION_SUMMARY_DB_ID }, // Make sure you have a constant for your Summary DB ID
+            properties: {
+                'Summary ID': { title: [{ text: { content: summaryName } }] },
+                'Card': { relation: [{ id: cardId }] },
+                'Month': { rich_text: [{ text: { content: month } }] },
+                'Applicable Rule': { relation: [{ id: ruleId }] },
+                // Add any other required fields for a new summary
+            },
+        });
+
+        res.status(201).json({ id: newSummary.id, name: summaryName, cardId, month });
+    } catch (error) {
+        console.error('Error creating summary:', error);
+        res.status(500).json({ error: 'Failed to create summary' });
+    }
+});
+
 
 module.exports = { app };
