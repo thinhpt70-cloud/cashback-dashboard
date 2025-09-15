@@ -1160,7 +1160,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                     statementDate = `${year}-${String(month).padStart(2, '0')}-${String(card.statementDay).padStart(2, '0')}`;
                 }
                 // ----------------------
-                return { ...stmt, paymentDate }; // Add the calculated date to the object
+                return { ...stmt, paymentDate, statementDate }; // Add the calculated date to the object
             });
 
             const latestMonth = latestMonthSummary ? latestMonthSummary.month : null;
