@@ -367,14 +367,28 @@ export default function CashbackDashboard() {
             )}
             <Button variant="outline" size="icon" onClick={fetchData}><RefreshCw className="h-4 w-4" /></Button>
             <Button variant="outline" size="icon"><Bell className="h-4 w-4" /></Button>
-            <AddTransactionForm
+            <div className="ml-auto flex items-center gap-4">
+            {/* This Dialog component creates the popup */}
+            <Dialog>
+            <DialogTrigger asChild>
+                <Button>Add Transaction</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                <DialogTitle>Add a New Transaction</DialogTitle>
+                </DialogHeader>
+                {/* The form is now inside the popup content */}
+                <AddTransactionForm
                 cards={cards}
                 categories={allCategories}
                 rules={cashbackRules}
                 monthlyCategories={monthlyCashbackCategories}
                 mccMap={mccMap}
-                onTransactionAdded={handleTransactionAdded} 
-            />
+                onTransactionAdded={handleTransactionAdded}
+                />
+            </DialogContent>
+            </Dialog>
+        </div>
           </div>
         </header>
 
