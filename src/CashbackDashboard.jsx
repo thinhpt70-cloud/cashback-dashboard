@@ -444,10 +444,10 @@ export default function CashbackDashboard() {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                    <Card className="lg:col-span-4">
+                    <Card className="lg:col-span-4 flex flex-col">
                         <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
-                        <CardContent className="pl-2">
-                            <ResponsiveContainer width="100%" height={300}>
+                        <CardContent className="pl-2 flex-grow">
+                            <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={monthlyChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
                                 <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                                 <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} />
@@ -978,9 +978,17 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
       <CardContent className="space-y-4">
         {cardSpendsCapProgress.map(p => (
           <div key={p.cardId}>
-            <div className="flex justify-between text-sm mb-1">
-              <span className="font-medium">{p.cardName}</span>
-              <span className="text-muted-foreground">{currency(p.currentCashback)} / {currency(p.monthlyLimit)}</span>
+            <div className="flex justify-between items-center text-sm mb-1">
+                <div className="flex items-center gap-2">
+                    <span className="font-medium">{p.cardName}</span>
+                    <Badge variant="outline" className={cn(
+                    "text-xs h-5",
+                    p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
+                    )}>
+                        {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
+                    </Badge>
+                </div>
+                <span className="text-muted-foreground">{currency(p.currentCashback)} / {currency(p.monthlyLimit)}</span>
             </div>
             <Tooltip>
               <TooltipTrigger className="w-full">
@@ -990,16 +998,6 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
                 <p>{p.usedPct}% used. {currency(p.monthlyLimit - p.currentCashback)} remaining.</p>
               </TooltipContent>
             </Tooltip>
-            {/* --- NEW: Display the subtext --- */}
-            {/* --- THIS IS THE UPDATED PART --- */}
-            <div className="flex justify-end mt-1">
-              <Badge variant="outline" className={cn(
-                  "text-xs",
-                  p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
-              )}>
-                  {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
-              </Badge>
-            </div>
           </div>
         ))}
         {cardSpendsCapProgress.length === 0 && (
@@ -1395,7 +1393,15 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
     return (
         <div>
             <h4 className="text-sm font-semibold text-center text-muted-foreground mb-3">Category Caps Usage</h4>
-            
+            {/* --- NEW: Add status badge for the "Total" box --- */}
+            <div className="flex justify-center mt-1">
+                <Badge variant="outline" className={cn(
+                    "text-xs",
+                    status === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
+                )}>
+                    {status === 'Completed' ? 'Completed' : `${days} days left`}
+                </Badge>
+            </div>
             {/* THIS IS THE NEW, SIMPLIFIED LOGIC */}
             {/* Check if there is any category data to display */}
             {categoryCapData.length > 0 ? (
@@ -1413,17 +1419,6 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
                             </div>
                             <div className="flex-grow"></div> 
                             <Progress value={totalCardData.usedPct} className="h-2" />
-
-                            {/* --- NEW: Add status badge for the "Total" box --- */}
-                            <div className="flex justify-end mt-1">
-                                <Badge variant="outline" className={cn(
-                                    "text-xs",
-                                    status === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
-                                )}>
-                                    {status === 'Completed' ? 'Completed' : `${days} days left`}
-                                </Badge>
-                            </div>
-
                             <div className="flex justify-between text-xs text-muted-foreground">
                                 <span>{currencyFn(totalCardData.totalCashback)} / {currencyFn(totalCardData.limit)}</span>
                                 <span className="font-medium">{currencyFn(totalCardData.remaining)} left</span>
