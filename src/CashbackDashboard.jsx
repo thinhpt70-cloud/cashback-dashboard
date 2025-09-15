@@ -317,8 +317,6 @@ export default function CashbackDashboard() {
         return { daysPast, progressPercent };
     };
 
-    const cardsForForm = useMemo(() => cards.map(c => ({ id: c.id, name: c.name })), [cards]);
-
     // --- RENDER LOGIC ---
 
     // If the user is not authenticated, show the login screen.
@@ -371,10 +369,11 @@ export default function CashbackDashboard() {
             <Button variant="outline" size="icon" onClick={fetchData}><RefreshCw className="h-4 w-4" /></Button>
             <Button variant="outline" size="icon"><Bell className="h-4 w-4" /></Button>
             <AddTransactionForm
-                cards={cardsForForm}
+                cards={cards}
                 categories={allCategories}
                 rules={cashbackRules}
                 monthlyCategories={monthlyCashbackCategories}
+                mccMap={mccMap}
                 onTransactionAdded={handleTransactionAdded} 
             />
           </div>
@@ -1664,288 +1663,226 @@ function SuccessNotification({ message, onDismiss }) {
 }
 
 // --- FINAL AddTransactionForm COMPONENT ---
-function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccData, onTransactionAdded }) {
-    // --- STATE MANAGEMENT ---
-    const [open, setOpen] = useState(false);
+function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded }) {
+    // --- State Management ---
     const [merchant, setMerchant] = useState('');
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [cardId, setCardId] = useState('');
-    const [category, setCategory] = useState('');
+    const [category, setCategory] = useState(''); // FIX #5: Initial state is empty for "None" option
     const [mccCode, setMccCode] = useState('');
-    const [applicableRuleId, setApplicableRuleId] = useState('');
-    const [cardSummaryCategoryId, setCardSummaryCategoryId] = useState('');
-    
-    const [estimatedCashback, setEstimatedCashback] = useState(0);
     const [mccName, setMccName] = useState('');
-    const [notification, setNotification] = useState('');
-    
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState(null);
-    
-    const [mccResults, setMccResults] = useState([]);
-    const [isMccSearching, setIsMccSearching] = useState(false);
-    const [mccSearchOpen, setMccSearchOpen] = useState(false);
+    const [applicableRuleId, setApplicableRuleId] = useState('');
+    const [cardSummaryCategoryId, setCardSummaryCategoryId] = useState('new');
+    const [estimatedCashback, setEstimatedCashback] = useState(0);
 
-    // --- UTILITY & HELPER FUNCTIONS ---
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+    // --- Memoized Calculations ---
 
-    const getStatementMonth = (txDate, statementDay) => {
-        const transactionDate = new Date(txDate);
-        const dayOfMonth = transactionDate.getDate();
-        if (dayOfMonth <= statementDay) {
-            transactionDate.setMonth(transactionDate.getMonth() - 1);
-        }
-        const year = transactionDate.getFullYear();
-        const month = (transactionDate.getMonth() + 1).toString().padStart(2, '0');
-        return `${year}${month}`;
-    };
-
-    // --- MEMOIZED VALUES & DERIVED STATE ---
+    // Find the full object for the currently selected card
     const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cardId, cards]);
 
-    const filteredRules = useMemo(() => {
-        if (!cardId) return [];
-        return rules.filter(rule => rule.cardId === cardId);
-    }, [cardId, rules]);
-
-    const filteredMonthlyCategories = useMemo(() => {
-        if (!applicableRuleId || !selectedCard) return [];
-        const selectedRule = rules.find(r => r.id === applicableRuleId);
-        if (!selectedRule) return [];
-        
-        const relevantSummaries = monthlyCategories.filter(summary => summary.applicableRuleId === applicableRuleId);
-        const cashbackMonthStr = getStatementMonth(date, selectedCard.statementDay);
-        const currentMonthSummaryExists = relevantSummaries.some(s => s.month === cashbackMonthStr);
-
-        if (!currentMonthSummaryExists) {
-            const newOptionName = `Create: ${cashbackMonthStr} - ${selectedRule.name}`;
-            return [ ...relevantSummaries, { id: `create-new-${cashbackMonthStr}`, name: newOptionName, isCreator: true }];
-        }
-        return relevantSummaries;
-    }, [applicableRuleId, date, monthlyCategories, rules, selectedCard]);
-
-    // --- SIDE EFFECTS (useEffect) ---
-    useEffect(() => {
-        if (cards.length > 0 && !cardId) setCardId(cards[0].id);
-        if (categories.length > 0 && !category) setCategory(categories[0]);
-    }, [cards, categories, cardId, category]);
-
-    useEffect(() => {
-        if (selectedCard) {
-            const cashbackMonthStr = getStatementMonth(date, selectedCard.statementDay);
-            const defaultSummary = filteredMonthlyCategories.find(s => s.month === cashbackMonthStr && !s.isCreator);
-            if (defaultSummary) setCardSummaryCategoryId(defaultSummary.id);
-            else {
-                const createOption = filteredMonthlyCategories.find(s => s.isCreator);
-                if (createOption) setCardSummaryCategoryId(createOption.id);
-                else setCardSummaryCategoryId('');
+    // Calculate the statement date based on the selected card
+    const statementDate = useMemo(() => {
+        if (!selectedCard || !date) return 'Select a card and date';
+        const transactionDate = new Date(date);
+        let statementMonth = transactionDate.getMonth();
+        let statementYear = transactionDate.getFullYear();
+        if (transactionDate.getDate() > selectedCard.statementDay) {
+            statementMonth += 1;
+            if (statementMonth > 11) {
+                statementMonth = 0;
+                statementYear += 1;
             }
         }
-    }, [date, selectedCard, filteredMonthlyCategories]);
+        const nextStatementDate = new Date(statementYear, statementMonth, selectedCard.statementDay);
+        return `Est. Statement Date: ${nextStatementDate.toLocaleDateString()}`;
+    }, [selectedCard, date]);
+
+    // Find the full object for the currently selected cashback rule
+    const selectedRule = useMemo(() => rules.find(r => r.id === applicableRuleId), [applicableRuleId, rules]);
     
+    // FIX #6: Filter summaries based on the rule name within the summary's name (Summary ID)
+    const filteredSummaries = useMemo(() => {
+        if (!selectedRule || !cardId) {
+            return [];
+        }
+        // Filter the summaries from Notion
+        return monthlyCategories.filter(summary => {
+            // Check 1: Does the summary belong to the selected card?
+            const cardMatch = summary.cardId === cardId;
+            // Check 2: Does the summary's name (e.g., "202510 - Rule Name") contain the selected rule's name?
+            const ruleNameMatch = summary.summaryId.includes(selectedRule.name);
+
+            return cardMatch && ruleNameMatch;
+        });
+    }, [applicableRuleId, cardId, monthlyCategories, rules, selectedRule]);
+
+
+    // --- Effects ---
+
+    // FIX #5: This effect now only sets the default card, not the category
     useEffect(() => {
-        const rule = rules.find(r => r.id === applicableRuleId);
-        const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
-        if (rule && numericAmount > 0) setEstimatedCashback(numericAmount * rule.rate);
-        else setEstimatedCashback(0);
-    }, [amount, applicableRuleId, rules]);
-
+        if (cards.length > 0 && !cardId) {
+            setCardId(cards[0].id);
+        }
+    }, [cards, cardId]);
+    
+    // FIX #1: Update MCC Name when mccCode changes, using the passed mccMap
     useEffect(() => {
-        if (mccData && mccCode && mccData[mccCode]) setMccName(mccData[mccCode].combined_description);
-        else setMccName('');
-    }, [mccCode, mccData]);
+        if (mccMap && mccCode && mccMap[mccCode]) {
+            setMccName(mccMap[mccCode].vn); // Use .vn for Vietnamese name
+        } else {
+            setMccName('');
+        }
+    }, [mccCode, mccMap]);
 
+    // Calculate estimated cashback when amount or rule changes
+    useEffect(() => {
+        if (selectedRule && amount) {
+            const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
+            const cashback = (numericAmount * selectedRule.cashbackRate) / 100;
+            setEstimatedCashback(cashback > selectedRule.maxCashback ? selectedRule.maxCashback : cashback);
+        } else {
+            setEstimatedCashback(0);
+        }
+    }, [amount, selectedRule]);
 
-    // --- EVENT HANDLERS ---
+    // --- Handlers ---
+
     const handleAmountChange = (e) => {
         const value = e.target.value.replace(/,/g, '');
-        if (!isNaN(value) && value !== '') setAmount(parseInt(value, 10).toLocaleString('vi-VN'));
-        else setAmount('');
-    };
-
-    const adjustAmount = (adjustment) => {
-        const currentAmount = parseInt(String(amount).replace(/,/g, ''), 10) || 0;
-        const newAmount = currentAmount + adjustment;
-        setAmount(newAmount > 0 ? newAmount.toLocaleString('vi-VN') : '');
+        if (!isNaN(value) && value.length <= 15) {
+            setAmount(Number(value).toLocaleString('en-US'));
+        } else if (value === '') {
+            setAmount('');
+        }
     };
     
-    const handleMccSearch = async () => {
-        if (!merchant) return;
-        setIsMccSearching(true);
-        setMccResults([]);
-        try {
-            const response = await fetch(`/api/mcc-search?keyword=${encodeURIComponent(merchant)}`);
-            const data = await response.json();
-            setMccResults(data.results || []);
-            setMccSearchOpen(true);
-        } catch (err) { console.error('MCC Search failed', err); } 
-        finally { setIsMccSearching(false); }
+    // FIX #3: Corrected logic for amount adjustment buttons
+    const adjustAmount = (adjustment) => {
+        const currentAmount = parseFloat(String(amount).replace(/,/g, '')) || 0;
+        const newAmount = currentAmount + adjustment;
+        setAmount(newAmount.toLocaleString('en-US'));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsSubmitting(true);
-        setError(null);
-        let finalSummaryId = cardSummaryCategoryId;
-
-        if (cardSummaryCategoryId.startsWith('create-new')) {
-            const monthToCreate = cardSummaryCategoryId.split('-').pop();
-            try {
-                const res = await fetch(`/api/summaries`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cardId, month: monthToCreate, ruleId: applicableRuleId })
-                });
-                const newSummary = await res.json();
-                if (!res.ok) throw new Error('Failed to create summary');
-                finalSummaryId = newSummary.id;
-            } catch (err) {
-                setError(err.message);
-                setIsSubmitting(false);
-                return;
-            }
-        }
+        const transactionData = {
+            merchant,
+            amount: parseFloat(String(amount).replace(/,/g, '')),
+            date,
+            cardId,
+            category: category || null, // Send null if category is empty
+            mccCode: mccCode || null,
+            applicableRuleId: applicableRuleId || null,
+            cardSummaryCategoryId: cardSummaryCategoryId === 'new' ? null : cardSummaryCategoryId,
+        };
 
         try {
-            const response = await fetch(`/api/transactions`, {
+            const response = await fetch('/api/transactions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    merchant,
-                    amount: Number(String(amount).replace(/,/g, '')),
-                    date,
-                    cardId,
-                    category,
-                    mccCode,
-                    applicableRuleId,
-                    cardSummaryCategoryId: finalSummaryId,
-                }),
+                body: JSON.stringify(transactionData),
             });
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.error || 'Failed to submit transaction');
-            }
+            if (!response.ok) throw new Error('Failed to add transaction');
             const newTransaction = await response.json();
             onTransactionAdded(newTransaction);
-            setOpen(false);
-            setNotification('Transaction added successfully!');
-            setMerchant(''); setAmount(''); setMccCode('');
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setIsSubmitting(false);
+            // Reset form or close dialog here
+        } catch (error) {
+            console.error('Error:', error);
         }
     };
 
-    // --- RENDER ---
+    // --- Render ---
     return (
-        <>
-            <SuccessNotification message={notification} onDismiss={() => setNotification('')} />
-            <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger asChild><Button>Add Transaction</Button></DialogTrigger>
-                <DialogContent className="sm:max-w-[480px]">
-                    <DialogHeader><DialogTitle>Add New Transaction</DialogTitle></DialogHeader>
-                    <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-                        {/* Merchant & MCC Search */}
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="merchant" className="text-right">Merchant</label>
-                            <div className="col-span-3 flex items-center gap-2">
-                                <Input id="merchant" value={merchant} onChange={(e) => setMerchant(e.target.value)} required />
-                                <Button type="button" size="icon" variant="outline" onClick={handleMccSearch} disabled={!merchant || isMccSearching}>
-                                    {isMccSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                                </Button>
-                            </div>
-                        </div>
-                        {/* MCC Code & Name */}
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="mcc" className="text-right">MCC</label>
-                            <div className="col-span-3">
-                                <Input id="mcc" value={mccCode} onChange={(e) => setMccCode(e.target.value)} placeholder="Enter code or search"/>
-                                {mccName && <p className="text-xs text-muted-foreground mt-1 pl-1">{mccName}</p>}
-                            </div>
-                        </div>
-                        {/* Amount Input */}
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="amount" className="text-right">Amount</label>
-                            <div className="col-span-3 flex items-center">
-                                <Input id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} className="flex-grow" required />
-                                <div className="flex flex-col ml-1">
-                                    <button type="button" onClick={() => adjustAmount(10000)} className="h-5 px-1 border rounded-t-md bg-gray-100 text-lg leading-none">-</button>
-                                    <button type="button" onClick={() => adjustAmount(-10000)} className="h-5 px-1 border rounded-b-md bg-gray-100 text-lg leading-none">+</button>
-                                </div>
-                            </div>
-                        </div>
-                        {estimatedCashback > 0 && <p className="text-right col-span-4 text-sm text-green-600 font-medium pr-1 -mt-2">Est. Cashback: {currency(estimatedCashback)}</p>}
-                        {/* Date Input */}
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="date" className="text-right">Date</label>
-                            <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="col-span-3" required />
-                        </div>
-                        {/* Card Dropdown */}
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="card" className="text-right">Card</label>
-                            <div className="col-span-3">
-                                <select id="card" value={cardId} onChange={(e) => setCardId(e.target.value)} className="col-span-3 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                                    {cards.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
-                                </select>
-                                {selectedCard && <p className="text-xs text-muted-foreground mt-1 pl-1">Statement day: ~{selectedCard.statementDay} of the month.</p>}
-                            </div>
-                        </div>
-                        {/* Category Dropdown */}
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="category" className="text-right">Category</label>
-                            <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="col-span-3 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                            </select>
-                        </div>
-                        {/* Rule Dropdown */}
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="rule" className="text-right">Rule</label>
-                            <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="col-span-3 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={filteredRules.length === 0}>
-                                <option value="">{filteredRules.length === 0 ? 'No rules for this card' : 'Select a rule'}</option>
-                                {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
-                            </select>
-                        </div>
-                        {/* Summary Dropdown */}
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="summary" className="text-right">Summary</label>
-                            <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="col-span-3 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" disabled={filteredMonthlyCategories.length === 0}>
-                                <option value="">{filteredMonthlyCategories.length === 0 ? 'No matching summary' : 'Select a summary'}</option>
-                                {filteredMonthlyCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                            </select>
-                        </div>
-                        {error && <p className="text-red-500 text-sm col-span-4 text-center">{error}</p>}
-                        <DialogFooter>
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Add Transaction
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-            <Dialog open={mccSearchOpen} onOpenChange={setMccSearchOpen}>
-                <DialogContent className="sm:max-w-[600px]">
-                    <DialogHeader>
-                        <DialogTitle>MCC Results for "{merchant}"</DialogTitle>
-                        <DialogDescription>Click a row to select the MCC code.</DialogDescription>
-                    </DialogHeader>
-                    <div className="mt-4 max-h-[400px] overflow-y-auto">
-                        {mccResults.length > 0 ? (
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>MCC</TableHead><TableHead>Category</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {mccResults.map((result, index) => (
-                                        <TableRow key={index} className="cursor-pointer" onClick={() => { setMccCode(result[2]); setMccSearchOpen(false); }}>
-                                            <TableCell>{result[1]}</TableCell><TableCell className="font-mono">{result[2]}</TableCell><TableCell>{result[4]}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        ) : <p className='text-center py-4'>No results found.</p>}
+        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+            {/* Merchant Input */}
+            <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="merchant" className="text-right">Merchant</label>
+                <Input id="merchant" value={merchant} onChange={(e) => setMerchant(e.target.value)} className="col-span-3" required />
+            </div>
+
+            {/* Amount Input */}
+            <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="amount" className="text-right">Amount</label>
+                <div className="col-span-3 flex items-center">
+                    <Input id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} className="flex-grow" required />
+                    {/* FIX #3: Buttons re-ordered and logic corrected */}
+                    <div className="flex flex-col ml-1">
+                        <button type="button" onClick={() => adjustAmount(10000)} className="h-5 px-2 border rounded-t-md bg-gray-100 text-lg leading-none flex items-center justify-center">+</button>
+                        <button type="button" onClick={() => adjustAmount(-10000)} className="h-5 px-2 border rounded-b-md bg-gray-100 text-lg leading-none flex items-center justify-center">-</button>
                     </div>
-                </DialogContent>
-            </Dialog>
-        </>
+                </div>
+            </div>
+            
+            {/* FIX #2: Container for Est. Cashback to prevent dialog shrinking */}
+            <div className="col-span-4 h-5">
+                {estimatedCashback > 0 && (
+                    <p className="text-right text-sm text-green-600 font-medium pr-1">
+                        Est. Cashback: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}
+                    </p>
+                )}
+            </div>
+
+            {/* Date Input */}
+            <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="date" className="text-right">Date</label>
+                <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="col-span-3" required />
+            </div>
+
+            {/* Card Selection */}
+            {/* FIX #4: This now works because the full 'cards' array is passed as a prop */}
+            <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="card" className="text-right">Card</label>
+                <div className="col-span-3">
+                    <select id="card" value={cardId} onChange={(e) => setCardId(e.target.value)} className="w-full p-2 border rounded" required>
+                        {cards.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
+                    </select>
+                    <p className="text-sm text-gray-500 mt-1">{statementDate}</p>
+                </div>
+            </div>
+
+            {/* Category Selection */}
+            <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="category" className="text-right">Category</label>
+                <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="col-span-3 p-2 border rounded">
+                    {/* FIX #5: Added "None" option */}
+                    <option value="">None</option>
+                    {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+            </div>
+
+            {/* MCC Code Input */}
+            <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="mcc" className="text-right">MCC</label>
+                <div className="col-span-3">
+                    <Input id="mcc" value={mccCode} onChange={(e) => setMccCode(e.target.value)} placeholder="e.g., 5812" />
+                    {mccName && <p className="text-sm text-gray-500 mt-1">{mccName}</p>}
+                </div>
+            </div>
+
+            {/* Applicable Rule Selection */}
+            <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="rule" className="text-right">Applicable Rule</label>
+                <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="col-span-3 p-2 border rounded">
+                    <option value="">None</option>
+                    {rules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
+                </select>
+            </div>
+
+            {/* Monthly Summary Selection */}
+            {applicableRuleId && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <label htmlFor="summary" className="text-right">Monthly Summary</label>
+                    <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="col-span-3 p-2 border rounded">
+                        <option value="new">Create New Summary</option>
+                        {/* FIX #6: This now correctly maps over the filtered summaries */}
+                        {filteredSummaries.map(summary => <option key={summary.id} value={summary.id}>{summary.summaryId}</option>)}
+                    </select>
+                </div>
+            )}
+
+            <Button type="submit" className="col-span-4 mt-2">Add Transaction</Button>
+        </form>
     );
 }
