@@ -1658,7 +1658,7 @@ function LoginScreen({ onLoginSuccess }) {
 
 // --- FINAL AddTransactionForm COMPONENT ---
 
-function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded }) {
+function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, onFormSubmit }) {
     // --- State Management ---
     const [merchant, setMerchant] = useState('');
     const [amount, setAmount] = useState('');
