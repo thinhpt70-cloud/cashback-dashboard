@@ -1403,7 +1403,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                     </TableBody>
                                                     <tfoot className="border-t-2 border-slate-200">
                                                         <TableRow>
-                                                            <TableCell colSpan={5} className="font-semibold text-right">Totals</TableCell>
+                                                            <TableCell colSpan={3} className="font-semibold text-right">Totals</TableCell>
                                                             <TableCell className="text-right font-bold">{currencyFn(totals.totalPayment)}</TableCell>
                                                             <TableCell className="text-right font-bold text-emerald-600">{currencyFn(totals.totalCashback)}</TableCell>
                                                             <TableCell className="text-right font-extrabold">{currencyFn(totals.finalPayment)}</TableCell>
