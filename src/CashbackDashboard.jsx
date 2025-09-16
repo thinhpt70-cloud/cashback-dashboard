@@ -880,10 +880,10 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                 <CardTitle>Transactions for {fmtYMShort(activeMonth)}</CardTitle>
                 
                 {/* This is the new filter switch */}
-                <Tabs value={filterType} onValueChange={onFilterTypeChange} className="w-full sm:w-[260px]">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="date">By Transaction Date</TabsTrigger>
-                        <TabsTrigger value="cashbackMonth">By Cashback Month</TabsTrigger>
+                <Tabs defaultValue="date" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
+                    <TabsList className="bg-slate-100 p-1 rounded-lg">
+                        <TabsTrigger value="date">Transaction Date</TabsTrigger>
+                        <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
                     </TabsList>
                 </Tabs>
             </div>
