@@ -84,8 +84,8 @@ const parseNotionPageProperties = (page) => {
 
 
 // Fetch Transactions (UPDATED to filter by month)
+// Fetch Transactions (UPDATED to filter by month)
 app.get('/api/transactions', async (req, res) => {
-    // Get the month from the query parameters (e.g., "202508")
     const { month } = req.query;
 
     if (!month || month.length !== 6) {
@@ -94,29 +94,30 @@ app.get('/api/transactions', async (req, res) => {
 
     try {
         const year = parseInt(month.substring(0, 4), 10);
-        const monthIndex = parseInt(month.substring(4, 6), 10) - 1; // JS months are 0-indexed
+        const monthIndex = parseInt(month.substring(4, 6), 10) - 1;
 
-        const startDate = new Date(year, monthIndex, 1);
-        const endDate = new Date(year, monthIndex + 1, 0); // The 0th day of the next month is the last day of the current month
+        // Timezone-safe date string construction
+        const monthString = month.substring(4, 6);
+        const lastDayOfMonth = new Date(year, monthIndex + 1, 0).getDate();
+        const startDate = `${year}-${monthString}-01`;
+        const endDate = `${year}-${monthString}-${String(lastDayOfMonth).padStart(2, '0')}`;
 
         const allResults = [];
         let nextCursor = undefined;
 
-        // This is the updated filter that we send to Notion
+        // ✅ THIS IS THE FINAL, CORRECT FILTER STRUCTURE
         const filter = {
-            // The key is now the actual property name from Notion
-            'Transaction Date': { 
-                date: {
-                    on_or_after: startDate.toISOString().split('T')[0],
-                    on_or_before: endDate.toISOString().split('T')[0],
-                }
+            property: 'Transaction Date', // Specify the property by name
+            date: {                       // Specify the data type and conditions
+                on_or_after: startDate,
+                on_or_before: endDate,
             },
         };
 
         do {
             const response = await notion.databases.query({
                 database_id: transactionsDbId,
-                filter: filter, // Apply the updated filter to the query
+                filter: filter,
                 start_cursor: nextCursor,
                 sorts: [{ property: 'Transaction Date', direction: 'descending' }],
             });
@@ -128,14 +129,14 @@ app.get('/api/transactions', async (req, res) => {
         const results = allResults.map(page => {
             const props = parseNotionPageProperties(page);
             return {
-                ...props, // Keep all original properties
-                estCashback: props['Estimated Cashback'] || 0, // Create the 'estCashback' property
+                ...props,
+                estCashback: props['Estimated Cashback'] || 0,
             };
         });
         res.json(results);
 
     } catch (error) {
-        console.error('Failed to fetch transactions:', error);
+        console.error('Failed to fetch transactions:', error.body || error);
         res.status(500).json({ error: 'Failed to fetch data from Notion' });
     }
 });
