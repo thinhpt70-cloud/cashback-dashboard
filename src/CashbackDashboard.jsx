@@ -946,9 +946,9 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                         <TableRow>
                         <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
                         <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction Name <SortIcon columnKey="Transaction Name" /></Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('Cashback Month')} className="px-2">Statement Month <SortIcon columnKey="Statement Month" /></Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('Category')} className="px-2">Category <SortIcon columnKey="Category" /></Button></TableHead>
+                        <TableHead className="w-[150px]"><Button variant="ghost" onClick={() => requestSort('Cashback Month')} className="px-2 whitespace-normal h-auto text-left justify-start">S. Month <SortIcon columnKey="Statement Month" /></Button></TableHead>
+                        <TableHead className="w-[200px]"><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2 whitespace-normal h-auto text-left justify-start">Card <SortIcon columnKey="Card" /></Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('Category')} className="px-2 whitespace-normal h-auto text-left justify-start">Category <SortIcon columnKey="Category" /></Button></TableHead>
                         <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Est. Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
                         <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
                         </TableRow>
@@ -1403,7 +1403,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                     </TableBody>
                                                     <tfoot className="border-t-2 border-slate-200">
                                                         <TableRow>
-                                                            <TableCell colSpan={4} className="font-semibold text-right">Totals</TableCell>
+                                                            <TableCell colSpan={5} className="font-semibold text-right">Totals</TableCell>
                                                             <TableCell className="text-right font-bold">{currencyFn(totals.totalPayment)}</TableCell>
                                                             <TableCell className="text-right font-bold text-emerald-600">{currencyFn(totals.totalCashback)}</TableCell>
                                                             <TableCell className="text-right font-extrabold">{currencyFn(totals.finalPayment)}</TableCell>
@@ -2330,6 +2330,15 @@ function CustomLineChartTooltip({ active, payload, label, currencyFn, cards }) {
 function TransactionDetailsDialog({ isOpen, onClose, details, transactions, isLoading, currencyFn }) {
     if (!isOpen) return null;
 
+    // Calculates the totals for cashback and amount only when transactions change
+    const totals = useMemo(() => {
+        return transactions.reduce((acc, tx) => {
+            acc.totalCashback += tx.estCashback || 0;
+            acc.totalAmount += tx['Amount'] || 0;
+            return acc;
+        }, { totalCashback: 0, totalAmount: 0 });
+    }, [transactions]);
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-2xl bg-white">
@@ -2366,6 +2375,17 @@ function TransactionDetailsDialog({ isOpen, onClose, details, transactions, isLo
                     </TableRow>
                     ))}
                 </TableBody>
+                <tfoot className="border-t-2 font-semibold">
+                    <TableRow>
+                        <TableCell colSpan={2} className="text-right">Totals</TableCell>
+                        <TableCell className="text-right text-emerald-600">
+                            {currencyFn(totals.totalCashback)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                            {currencyFn(totals.totalAmount)}
+                        </TableCell>
+                    </TableRow>
+                </tfoot>
                 </Table>
             ) : (
                 <div className="flex justify-center items-center h-48 text-muted-foreground">
