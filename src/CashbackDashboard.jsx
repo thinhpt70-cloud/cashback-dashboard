@@ -215,7 +215,7 @@ export default function CashbackDashboard() {
         };
         fetchMonthlyTransactions();
       }
-    }, [activeMonth]); // This hook runs whenever 'activeMonth' changes
+    }, [activeMonth, transactionFilterType]); // This hook runs whenever 'activeMonth' changes
 
     // --------------------------
     // 2) HELPERS & CALCULATIONS
