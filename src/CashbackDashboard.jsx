@@ -993,7 +993,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
             {cardSpendsCapProgress.map(p => (
                 // Use CSS Grid for a structured layout
                 <div key={p.cardId} className="space-y-2">
-                    {/* Row 1: Card Name and Days Left Badge */}
+                    {/* Row 1: Card Name and Days Left Badge (Unchanged) */}
                     <div className="flex justify-between items-center gap-4">
                         <p className="font-medium text-sm truncate">{p.cardName}</p>
                         <Badge variant="outline" className={cn(
@@ -1004,7 +1004,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
                         </Badge>
                     </div>
                     
-                    {/* Row 2: Progress Bar and Amounts */}
+                    {/* Row 2: Progress Bar and Amounts are now grouped together */}
                     <div>
                         <Tooltip>
                             <TooltipTrigger className="w-full">
@@ -2182,7 +2182,7 @@ function DatePicker({ date, setDate }) {
           {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
+      <PopoverContent className="w-auto p-0 bg-white">
         <Calendar
           mode="single"
           selected={selectedDate}
