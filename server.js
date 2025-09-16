@@ -105,13 +105,21 @@ app.get('/api/transactions', async (req, res) => {
         const allResults = [];
         let nextCursor = undefined;
 
-        // ✅ THIS IS THE FINAL, CORRECT FILTER STRUCTURE
         const filter = {
-            property: 'Transaction Date', // Specify the property by name
-            date: {                       // Specify the data type and conditions
-                on_or_after: startDate,
-                on_or_before: endDate,
-            },
+            and: [
+                {
+                    property: 'Transaction Date',
+                    date: {
+                        on_or_after: startDate,
+                    },
+                },
+                {
+                    property: 'Transaction Date',
+                    date: {
+                        on_or_before: endDate,
+                    },
+                },
+            ],
         };
 
         do {
