@@ -986,41 +986,44 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
 
   return (
     <Card className="lg:col-span-3">
-      <CardHeader>
-        <CardTitle>Card Spends Cap</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {cardSpendsCapProgress.map(p => (
-            <div key={p.cardId} className="flex justify-between items-start gap-4">
-                {/* --- Left Column (Name & Progress Bar) --- */}
-                <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{p.cardName}</p>
-                    <Tooltip>
-                    <TooltipTrigger className="w-full mt-2">
-                        <Progress value={p.usedPct} />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>{p.usedPct}% used. {currency(p.monthlyLimit - p.currentCashback)} remaining.</p>
-                    </TooltipContent>
-                    </Tooltip>
+        <CardHeader>
+            <CardTitle>Card Spends Cap</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            {cardSpendsCapProgress.map(p => (
+                // Use CSS Grid for a structured layout
+                <div key={p.cardId} className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1">
+                    {/* --- Row 1: Card Name and Days Left Badge --- */}
+                    <p className="font-medium text-sm truncate col-start-1">{p.cardName}</p>
+                    <div className="col-start-2 row-start-1 flex justify-end">
+                        <Badge variant="outline" className={cn(
+                            "text-xs h-5",
+                            p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
+                        )}>
+                        {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
+                        </Badge>
+                    </div>
+                    
+                    {/* --- Row 2: Progress Bar and Amounts --- */}
+                    <div className="col-span-1 col-start-1">
+                        <Tooltip>
+                            <TooltipTrigger className="w-full">
+                                <Progress value={p.usedPct} />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{p.usedPct}% used. {currency(p.monthlyLimit - p.currentCashback)} remaining.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                    <span className="text-xs text-muted-foreground col-start-2 row-start-2 text-right">
+                        {currency(p.currentCashback)} / {currency(p.monthlyLimit)}
+                    </span>
                 </div>
-
-                {/* --- Right Column (Badge & Amounts) --- */}
-                <div className="flex flex-col items-end flex-shrink-0">
-                    <Badge variant="outline" className={cn(
-                        "text-xs h-5 mb-1",
-                        p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
-                    )}>
-                    {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">{currency(p.currentCashback)} / {currency(p.monthlyLimit)}</span>
-                </div>
-            </div>
-        ))}
-        {cardSpendsCapProgress.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">No monthly limits defined for your cards.</p>
-        )}
-      </CardContent>
+            ))}
+            {cardSpendsCapProgress.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">No monthly limits defined for your cards.</p>
+            )}
+        </CardContent>
     </Card>
   );
 }
