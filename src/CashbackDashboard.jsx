@@ -17,7 +17,7 @@ import {
   DialogTrigger,
 } from "./components/ui/dialog";
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
-import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, List, X } from "lucide-react";
 import { cn } from "./lib/utils";
 import { Toaster, toast } from 'sonner';
 import { Calendar } from "./components/ui/calendar";
@@ -96,6 +96,9 @@ export default function CashbackDashboard() {
   const [allCategories, setAllCategories] = useState([]); // 1. Add new state
   const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
   const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
+  const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
+  const [dialogTransactions, setDialogTransactions] = useState([]);
+  const [isDialogLoading, setIsDialogLoading] = useState(false);
 
     const handleTransactionAdded = (newTransaction) => {
     // 1. Instantly update the list for the current month
@@ -103,6 +106,29 @@ export default function CashbackDashboard() {
     if (newTransaction['Transaction Date'].startsWith(activeMonth.replace('-', ''))) {
             setMonthlyTransactions(prevTxs => [newTransaction, ...prevTxs]);
     }
+
+    const handleViewTransactions = async (cardId, cardName, month, monthLabel) => {
+        setDialogDetails({ cardId, cardName, month, monthLabel });
+        setIsDialogLoading(true);
+        setDialogTransactions([]);
+
+        try {
+            // Use 'cashbackMonth' filter as it aligns with statement periods
+            const res = await fetch(`${API_BASE_URL}/transactions?month=${month}&filterBy=cashbackMonth&cardId=${cardId}`);
+            if (!res.ok) throw new Error('Failed to fetch transactions for dialog');
+            const data = await res.json();
+
+            // Sort by date just in case
+            data.sort((a, b) => new Date(b['Transaction Date']) - new Date(a['Transaction Date']));
+
+            setDialogTransactions(data);
+        } catch (err) {
+            console.error(err);
+            toast.error("Could not load transaction details.");
+        } finally {
+            setIsDialogLoading(false);
+        }
+    };
 
     // 2. Update the recent transactions carousel
     setRecentTransactions(prevRecent => [newTransaction, ...prevRecent].slice(0, 20));
@@ -623,6 +649,7 @@ export default function CashbackDashboard() {
                             currencyFn={currency}
                             fmtYMShortFn={fmtYMShort}
                             daysLeftFn={calculateDaysLeft}
+                            onViewTransactions={handleViewTransactions}
                         />
                     </div>
                     {/* The new ROI component takes up 1/3 of the space */}
@@ -632,7 +659,16 @@ export default function CashbackDashboard() {
                 </div>
             </TabsContent>
           </Tabs>
-        </main>
+        </main>  
+        {/* 4. RENDER THE DIALOG COMPONENT */}
+        <TransactionDetailsDialog
+            isOpen={!!dialogDetails}
+            onClose={() => setDialogDetails(null)}
+            details={dialogDetails}
+            transactions={dialogTransactions}
+            isLoading={isDialogLoading}
+            currencyFn={currency}
+        />
       </div>
     </TooltipProvider>
   );
@@ -913,15 +949,16 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                     <TableRow>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction Name <SortIcon columnKey="Transaction Name" /></Button></TableHead>
+                    <TableHead><Button variant="ghost" onClick={() => requestSort('Cashback Month')} className="px-2">Statement Month <SortIcon columnKey="Statement Month" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('Category')} className="px-2">Category <SortIcon columnKey="Category" /></Button></TableHead>
-                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end w-full">Est. Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
-                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end w-full">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
+                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Est. Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
+                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {isLoading ? (
-                        <TableRow><TableCell colSpan={6} className="text-center h-24"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /></TableCell></TableRow>
+                        <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /></TableCell></TableRow>
                     ) : transactionsToShow.length > 0 ? (
                         transactionsToShow.map(tx => {
                             const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
@@ -937,6 +974,11 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                       </div>
                                   )}
                                 </TableCell>
+                                <TableCell>
+                                    {tx['Cashback Month'] ? (
+                                        <Badge variant="outline">{fmtYMShort(tx['Cashback Month'])}</Badge>
+                                    ) : null}
+                                </TableCell>
                                 <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>
                                 <TableCell>
                                     {tx['Category'] ? (
@@ -951,7 +993,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                             );
                         })
                     ) : (
-                        <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No transactions found for the selected period or filters.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={7} className="text-center h-24 text-muted-foreground">No transactions found for the selected period or filters.</TableCell></TableRow>
                     )}
                 </TableBody>
             </Table>
@@ -1158,7 +1200,7 @@ function CardsOverviewMetrics({ stats, currencyFn }) {
     );
 }
 
-function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeftFn }) {
+function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeftFn, onViewTransactions }) {
     // State to track which card's previous statements are expanded
     const [expandedRows, setExpandedRows] = useState({});
 
@@ -1255,6 +1297,15 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
         return data;
     }, [cards, monthlySummary, daysLeftFn]);
 
+    const totals = useMemo(() => {
+        return paymentData.reduce((acc, card) => {
+            acc.totalPayment += card.totalPayment || 0;
+            acc.totalCashback += card.totalCashback || 0;
+            acc.finalPayment += card.finalPayment || 0;
+            return acc;
+        }, { totalPayment: 0, totalCashback: 0, finalPayment: 0 });
+    }, [paymentData]);
+
     return (
         <Card>
             <CardHeader><CardTitle>Monthly Statement Summary</CardTitle></CardHeader>
@@ -1269,6 +1320,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                             <TableHead className="text-right">Total Payment</TableHead>
                             <TableHead className="text-right">Total Cashback</TableHead>
                             <TableHead className="text-right">Final Payment</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1309,10 +1361,16 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                     <TableCell className="text-right">{currencyFn(card.totalPayment)}</TableCell>
                                     <TableCell className="text-right text-emerald-600">{currencyFn(card.totalCashback)}</TableCell>
                                     <TableCell className="text-right font-semibold">{currencyFn(card.finalPayment)}</TableCell>
+                                    {/* 3. ADDED: New cell with the info button */}
+                                    <TableCell className="text-center">
+                                        <Button variant="ghost" size="icon" onClick={() => onViewTransactions(card.id, card.name, card.latestMonth, fmtYMShortFn(card.latestMonth))}>
+                                            <List className="h-4 w-4" />
+                                        </Button>
+                                    </TableCell>
                                 </TableRow>
                                 {expandedRows[card.id] && card.previousStatements.length > 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="p-0">
+                                        <TableCell colSpan={8} className="p-0">
                                             <div className="p-4 bg-slate-50">
                                                 <h4 className="font-semibold text-sm mb-2">Previous Statements</h4>
                                                 <Table>
@@ -1337,9 +1395,24 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                                 <TableCell className="text-right">{currencyFn(stmt.spend)}</TableCell>
                                                                 <TableCell className="text-right text-emerald-600">{currencyFn(stmt.cashback)}</TableCell>
                                                                 <TableCell className="text-right font-semibold">{currencyFn(stmt.spend - stmt.cashback)}</TableCell>
+                                                                {/* 5. ADDED: Info button for past statements */}
+                                                                <TableCell className="text-center">
+                                                                    <Button variant="ghost" size="icon" onClick={() => onViewTransactions(card.id, card.name, stmt.month, fmtYMShortFn(stmt.month))}>
+                                                                        <List className="h-4 w-4" />
+                                                                    </Button>
+                                                                </TableCell>
                                                             </TableRow>
                                                         ))}
                                                     </TableBody>
+                                                    <tfoot className="border-t-2 border-slate-200">
+                                                        <TableRow>
+                                                            <TableCell colSpan={4} className="font-semibold text-right">Totals</TableCell>
+                                                            <TableCell className="text-right font-bold">{currencyFn(totals.totalPayment)}</TableCell>
+                                                            <TableCell className="text-right font-bold text-emerald-600">{currencyFn(totals.totalCashback)}</TableCell>
+                                                            <TableCell className="text-right font-extrabold">{currencyFn(totals.finalPayment)}</TableCell>
+                                                            <TableCell></TableCell>
+                                                        </TableRow>
+                                                    </tfoot>
                                                 </Table>
                                             </div>
                                         </TableCell>
@@ -2255,4 +2328,55 @@ function CustomLineChartTooltip({ active, payload, label, currencyFn, cards }) {
   }
 
   return null;
+}
+
+function TransactionDetailsDialog({ isOpen, onClose, details, transactions, isLoading, currencyFn }) {
+  if (!isOpen) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl bg-white">
+        <DialogHeader>
+          <DialogTitle>
+            Transactions for {details.cardName}
+          </DialogTitle>
+          <DialogDescription>
+            Statement Month: {details.month}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[60vh] overflow-y-auto pr-4">
+          {isLoading ? (
+            <div className="flex justify-center items-center h-48">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : transactions.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Transaction</TableHead>
+                  <TableHead className="text-right">Cashback</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transactions.map(tx => (
+                  <TableRow key={tx.id}>
+                    <TableCell>{tx['Transaction Date']}</TableCell>
+                    <TableCell className="font-medium">{tx['Transaction Name']}</TableCell>
+                    <TableCell className="text-right text-emerald-600 font-medium">{currencyFn(tx.estCashback)}</TableCell>
+                    <TableCell className="text-right">{currencyFn(tx['Amount'])}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="flex justify-center items-center h-48 text-muted-foreground">
+              <p>No transactions found for this period.</p>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }

@@ -84,31 +84,49 @@ const parseNotionPageProperties = (page) => {
 
 
 app.get('/api/transactions', async (req, res) => {
-    // 1. Get both 'month' and the new 'filterBy' parameter. Default to 'date'.
-    const { month, filterBy = 'date' } = req.query;
+    // Get 'month', 'filterBy', and 'cardId' from the query parameters.
+    // 'filterBy' defaults to 'date' if not provided.
+    const { month, filterBy = 'date', cardId } = req.query;
 
+    // Validate that the 'month' parameter is present and correctly formatted.
     if (!month || month.length !== 6) {
         return res.status(400).json({ error: 'A month query parameter in YYYYMM format is required.' });
     }
 
     try {
-        let filter; // 2. Declare a filter variable that we will build dynamically.
+        let filter; // This variable will hold the final filter object for the Notion API call.
 
-        // 3. Build the filter object based on the 'filterBy' parameter.
+        // This block builds the filter if the user wants to filter by "Cashback Month".
         if (filterBy === 'cashbackMonth') {
-            // --- This is the filter for "Cashback Month" ---
-            // It filters a formula field for an exact string match.
-            filter = {
-                property: 'Cashback Month', // The name of your formula column in Notion
+            const monthFilter = {
+                property: 'Cashback Month',
                 formula: {
                     string: {
                         equals: month,
                     },
                 },
             };
-        } else {
-            // --- This is the default filter for "Transaction Date" ---
-            // It filters a date field for a range.
+
+            // If a specific cardId is also provided, we add it to the filter.
+            if (cardId) {
+                filter = {
+                    and: [
+                        monthFilter,
+                        {
+                            property: 'Card',
+                            relation: {
+                                contains: cardId,
+                            },
+                        }
+                    ]
+                };
+            } else {
+                filter = monthFilter;
+            }
+        } 
+        // This is the default block, which builds the filter for "Transaction Date".
+        else {
+            // Calculate the first and last day of the given month.
             const year = parseInt(month.substring(0, 4), 10);
             const monthIndex = parseInt(month.substring(4, 6), 10) - 1;
             const monthString = month.substring(4, 6);
@@ -116,27 +134,39 @@ app.get('/api/transactions', async (req, res) => {
             const startDate = `${year}-${monthString}-01`;
             const endDate = `${year}-${monthString}-${String(lastDayOfMonth).padStart(2, '0')}`;
 
-            filter = {
-                and: [
-                    {
-                        property: 'Transaction Date',
-                        date: { on_or_after: startDate },
+            // Create the base conditions for the date range.
+            const conditions = [
+                {
+                    property: 'Transaction Date',
+                    date: { on_or_after: startDate },
+                },
+                {
+                    property: 'Transaction Date',
+                    date: { on_or_before: endDate },
+                },
+            ];
+
+            // If a specific cardId is also provided, add that condition.
+            if (cardId) {
+                conditions.push({
+                    property: 'Card',
+                    relation: {
+                        contains: cardId,
                     },
-                    {
-                        property: 'Transaction Date',
-                        date: { on_or_before: endDate },
-                    },
-                ],
-            };
+                });
+            }
+
+            filter = { and: conditions };
         }
 
         const allResults = [];
         let nextCursor = undefined;
 
+        // Loop to handle Notion's pagination, ensuring all results are fetched.
         do {
             const response = await notion.databases.query({
                 database_id: transactionsDbId,
-                filter: filter, // 4. Use the dynamically created filter here.
+                filter: filter,
                 start_cursor: nextCursor,
                 sorts: [{ property: 'Transaction Date', direction: 'descending' }],
             });
@@ -145,6 +175,7 @@ app.get('/api/transactions', async (req, res) => {
             nextCursor = response.next_cursor;
         } while (nextCursor);
 
+        // Map the raw Notion data to a cleaner format for the frontend.
         const results = allResults.map(page => {
             const props = parseNotionPageProperties(page);
             return {
@@ -152,10 +183,10 @@ app.get('/api/transactions', async (req, res) => {
                 estCashback: props['Estimated Cashback'] || 0,
             };
         });
+        
         res.json(results);
 
     } catch (error) {
-        // Add more specific logging for filter errors
         console.error(`Failed to fetch transactions with filterBy='${filterBy}':`, error.body || error);
         res.status(500).json({ error: 'Failed to fetch data from Notion' });
     }
