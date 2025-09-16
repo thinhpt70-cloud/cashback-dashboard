@@ -10,6 +10,7 @@ require('dotenv').config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+const port = process.env.PORT || 3001;
 
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
@@ -435,5 +436,10 @@ app.post('/api/summaries', async (req, res) => {
     }
 });
 
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`Server is running on http://localhost:${port}`);
+    });
+}
 
 module.exports = { app };

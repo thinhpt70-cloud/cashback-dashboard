@@ -20,6 +20,7 @@ import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTo
 import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
 import { cn } from "./lib/utils";
 import { Toaster, toast } from 'sonner';
+import { Calendar } from "./components/ui/calendar";
 
 
 
@@ -873,11 +874,11 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                 <Input type="search" placeholder="Search..." className="w-full pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
             {/* Dropdowns grow on mobile, auto on larger screens */}
-            <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
                 <option value="all">All Cards</option>
                 {allCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
                 {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
             </select>
             </div>
@@ -2026,9 +2027,9 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                         <label htmlFor="amount">Amount</label>
                         <Input id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
                     </div>
-                        <div className="space-y-2">
+                    <div className="space-y-2">
                         <label htmlFor="date">Date</label>
-                        <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+                        <DatePicker date={date} setDate={setDate} />
                     </div>
                 </div>
             </div>
@@ -2037,7 +2038,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             <div className="space-y-4 border-t pt-6">
             <div className="space-y-2">
                 <label htmlFor="card">Card</label>
-                <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="w-full p-2 border rounded" required>
+                <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="w-full p-2 border rounded cursor-pointer" required>
                 {cards.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
                 </select>
                 {cashbackMonth && (
@@ -2050,7 +2051,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
             <div className="space-y-2">
                 <label htmlFor="rule">Applicable Cashback Rule</label>
-                <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border rounded" disabled={filteredRules.length === 0}>
+                <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border rounded cursor-pointer" disabled={filteredRules.length === 0}>
                 <option value="">{filteredRules.length === 0 ? 'No rules for this card' : 'None'}</option>
                 {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
                 </select>
@@ -2070,7 +2071,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             {applicableRuleId && (
             <div className="space-y-2">
                 <label htmlFor="summary">Link to Monthly Summary</label>
-                <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="w-full p-2 border rounded">
+                <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="w-full p-2 border rounded cursor-pointer">
                 <option value="new">Create New Summary</option>
                 {filteredSummaries.map(summary => <option key={summary.id} value={summary.id}>{summary.summaryId}</option>)}
                 </select>
@@ -2079,7 +2080,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             
             <div className="space-y-2">
                 <label htmlFor="category">Internal Category</label>
-                <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded">
+                <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded cursor-pointer">
                     <option value="">None</option>
                     {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
@@ -2150,4 +2151,40 @@ function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
             </DialogContent>
         </Dialog>
     );
+}
+
+function DatePicker({ date, setDate }) {
+  const selectedDate = date ? new Date(date) : null;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant={"outline"}
+          className={cn(
+            "w-full justify-start text-left font-normal",
+            !date && "text-muted-foreground"
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={(newDate) => {
+            if (newDate) {
+              // Adjust for timezone offset to prevent date from changing
+              const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+              const adjustedDate = new Date(newDate.getTime() - timezoneOffset);
+              setDate(adjustedDate.toISOString().split('T')[0]);
+            }
+          }}
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  );
 }
