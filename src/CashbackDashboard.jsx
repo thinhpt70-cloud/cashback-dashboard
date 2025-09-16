@@ -410,7 +410,7 @@ export default function CashbackDashboard() {
                 <DialogTrigger asChild>
                     <Button variant="outline" size="icon"><Plus className="h-4 w-4" /></Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent>
                     <DialogHeader>
                     <DialogTitle>Add a New Transaction</DialogTitle>
                     </DialogHeader>
@@ -992,20 +992,20 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
         <CardContent className="space-y-4">
             {cardSpendsCapProgress.map(p => (
                 // Use CSS Grid for a structured layout
-                <div key={p.cardId} className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1">
-                    {/* --- Row 1: Card Name and Days Left Badge --- */}
-                    <p className="font-medium text-sm truncate col-start-1">{p.cardName}</p>
-                    <div className="col-start-2 row-start-1 flex justify-end">
+                <div key={p.cardId} className="space-y-2">
+                    {/* Row 1: Card Name and Days Left Badge */}
+                    <div className="flex justify-between items-center gap-4">
+                        <p className="font-medium text-sm truncate">{p.cardName}</p>
                         <Badge variant="outline" className={cn(
-                            "text-xs h-5",
+                            "text-xs h-5 shrink-0",
                             p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
                         )}>
                         {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
                         </Badge>
                     </div>
                     
-                    {/* --- Row 2: Progress Bar and Amounts --- */}
-                    <div className="col-span-1 col-start-1">
+                    {/* Row 2: Progress Bar and Amounts */}
+                    <div>
                         <Tooltip>
                             <TooltipTrigger className="w-full">
                                 <Progress value={p.usedPct} />
@@ -1014,10 +1014,11 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
                                 <p>{p.usedPct}% used. {currency(p.monthlyLimit - p.currentCashback)} remaining.</p>
                             </TooltipContent>
                         </Tooltip>
+                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                            <span>{currency(p.currentCashback)}</span>
+                            <span>{currency(p.monthlyLimit)}</span>
+                        </div>
                     </div>
-                    <span className="text-xs text-muted-foreground col-start-2 row-start-2 text-right">
-                        {currency(p.currentCashback)} / {currency(p.monthlyLimit)}
-                    </span>
                 </div>
             ))}
             {cardSpendsCapProgress.length === 0 && (
@@ -1542,7 +1543,9 @@ function CardPerformanceLineChart({ data, cards, currencyFn }) {
                         {view === 'All' && (
                             <YAxis yAxisId="right" domain={[0, 'auto']} orientation="right" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                         )}
-                        <RechartsTooltip formatter={(value) => currencyFn(value)} />
+                        <RechartsTooltip 
+                            content={<CustomLineChartTooltip currencyFn={currencyFn} cards={cards} />} 
+                        />
                         
                         {cards.map((card, index) => {
                             const cardColor = COLORS[index % COLORS.length];
@@ -2031,7 +2034,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <label htmlFor="amount">Amount</label>
                         <Input id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
@@ -2196,4 +2199,44 @@ function DatePicker({ date, setDate }) {
       </PopoverContent>
     </Popover>
   );
+}
+
+function CustomLineChartTooltip({ active, payload, label, currencyFn, cards }) {
+  if (active && payload?.length) {
+    // Group payload items by card name
+    const dataByCard = payload.reduce((acc, entry) => {
+      const cardName = cards.find(c => entry.dataKey.startsWith(c.name))?.name;
+      if (!cardName) return acc;
+      
+      const type = entry.dataKey.includes('Spend') ? 'spend' : 'cashback';
+      
+      if (!acc[cardName]) {
+        acc[cardName] = { color: entry.stroke, name: cardName };
+      }
+      acc[cardName][type] = entry.value;
+
+      return acc;
+    }, {});
+
+    return (
+      <div className="rounded-lg border bg-white/90 backdrop-blur-sm p-3 text-xs shadow-lg">
+        <p className="font-bold mb-2 text-sm">{label}</p>
+        <div className="space-y-2">
+          {Object.values(dataByCard).map(cardData => (
+            <div key={cardData.name}>
+              <p className="font-semibold" style={{ color: cardData.color }}>{cardData.name}</p>
+              <div className="grid grid-cols-[1fr_auto] gap-x-4">
+                  <span className="text-muted-foreground">Spend:</span>
+                  <span className="font-medium text-right">{currencyFn(cardData.spend)}</span>
+                  <span className="text-muted-foreground">Cashback:</span>
+                  <span className="font-medium text-right">{currencyFn(cardData.cashback)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
