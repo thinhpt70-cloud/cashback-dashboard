@@ -2328,8 +2328,6 @@ function CustomLineChartTooltip({ active, payload, label, currencyFn, cards }) {
 }
 
 function TransactionDetailsDialog({ isOpen, onClose, details, transactions, isLoading, currencyFn }) {
-    if (!isOpen) return null;
-
     // Calculates the totals for cashback and amount only when transactions change
     const totals = useMemo(() => {
         return transactions.reduce((acc, tx) => {
@@ -2338,6 +2336,8 @@ function TransactionDetailsDialog({ isOpen, onClose, details, transactions, isLo
             return acc;
         }, { totalCashback: 0, totalAmount: 0 });
     }, [transactions]);
+
+    if (!isOpen) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
