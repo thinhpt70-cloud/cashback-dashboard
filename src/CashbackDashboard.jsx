@@ -9,12 +9,12 @@ import { Input } from "./components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogTrigger,
 } from "./components/ui/dialog";
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
 import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, List, X } from "lucide-react";
@@ -23,9 +23,9 @@ import { Toaster, toast } from 'sonner';
 import { Calendar } from "./components/ui/calendar";
 import { format } from "date-fns";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
 } from "./components/ui/popover";
 
 
@@ -77,35 +77,43 @@ const calculateDaysLeft = (paymentDateString) => {
 
 export default function CashbackDashboard() {
 
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // --- STATE MANAGEMENT ---
-  const [cards, setCards] = useState([]);
-  const [rules, setRules] = useState([]);
-  const [monthlySummary, setMonthlySummary] = useState([]);
-  const [mccMap, setMccMap] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [monthlyCategorySummary, setMonthlyCategorySummary] = useState([]);
-  const [activeMonth, setActiveMonth] = useState("");
-  const [monthlyTransactions, setMonthlyTransactions] = useState([]);
-  const [isMonthlyTxLoading, setIsMonthlyTxLoading] = useState(true);
-  const [recentTransactions, setRecentTransactions] = useState([]);
-  const [cashbackRules, setCashbackRules] = useState([]);
-  const [monthlyCashbackCategories, setMonthlyCashbackCategories] = useState([]);
-  const [allCategories, setAllCategories] = useState([]); // 1. Add new state
-  const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
-  const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
-  const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
-  const [dialogTransactions, setDialogTransactions] = useState([]);
-  const [isDialogLoading, setIsDialogLoading] = useState(false);
+    // --- STATE MANAGEMENT ---
+    const [cards, setCards] = useState([]);
+    const [rules, setRules] = useState([]);
+    const [monthlySummary, setMonthlySummary] = useState([]);
+    const [mccMap, setMccMap] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [monthlyCategorySummary, setMonthlyCategorySummary] = useState([]);
+    const [activeMonth, setActiveMonth] = useState("");
+    const [monthlyTransactions, setMonthlyTransactions] = useState([]);
+    const [isMonthlyTxLoading, setIsMonthlyTxLoading] = useState(true);
+    const [recentTransactions, setRecentTransactions] = useState([]);
+    const [cashbackRules, setCashbackRules] = useState([]);
+    const [monthlyCashbackCategories, setMonthlyCashbackCategories] = useState([]);
+    const [allCategories, setAllCategories] = useState([]); // 1. Add new state
+    const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
+    const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
+    const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
+    const [dialogTransactions, setDialogTransactions] = useState([]);
+    const [isDialogLoading, setIsDialogLoading] = useState(false);
 
     const handleTransactionAdded = (newTransaction) => {
-    // 1. Instantly update the list for the current month
-    // This makes the UI feel immediate
-    if (newTransaction['Transaction Date'].startsWith(activeMonth.replace('-', ''))) {
-            setMonthlyTransactions(prevTxs => [newTransaction, ...prevTxs]);
-    }
+        // 1. Instantly update the list for the current month
+        // This makes the UI feel immediate
+        if (newTransaction['Transaction Date'].startsWith(activeMonth.replace('-', ''))) {
+                setMonthlyTransactions(prevTxs => [newTransaction, ...prevTxs]);
+        }
+
+        // 2. Update the recent transactions carousel
+        setRecentTransactions(prevRecent => [newTransaction, ...prevRecent].slice(0, 20));
+
+        // 3. Trigger a full refresh in the background to update all
+        //    aggregate data (charts, stats, etc.) without a loading screen.
+        fetchData(true); 
+    };
 
     const handleViewTransactions = async (cardId, cardName, month, monthLabel) => {
         setDialogDetails({ cardId, cardName, month, monthLabel });
@@ -130,117 +138,108 @@ export default function CashbackDashboard() {
         }
     };
 
-    // 2. Update the recent transactions carousel
-    setRecentTransactions(prevRecent => [newTransaction, ...prevRecent].slice(0, 20));
-
-    // 3. Trigger a full refresh in the background to update all
-    //    aggregate data (charts, stats, etc.) without a loading screen.
-    fetchData(true); 
-    };
-  
-
-  // --- DATA FETCHING ---
-  const fetchData = async (isSilent = false) => {
-    if (!isSilent) {
-        setLoading(true);
-    }
-    setError(null);
-    try {
-        // This array now includes the new '/api/monthly-category-summary' endpoint
-        const [
-            cardsRes, 
-            rulesRes, 
-            monthlyRes, 
-            mccRes, 
-            monthlyCatRes,
-            recentTxRes,
-            categoriesRes
-        ] = await Promise.all([
-            fetch(`${API_BASE_URL}/cards`),
-            fetch(`${API_BASE_URL}/rules`),
-            fetch(`${API_BASE_URL}/monthly-summary`),
-            fetch(`${API_BASE_URL}/mcc-codes`),
-            fetch(`${API_BASE_URL}/monthly-category-summary`), // Fetches data for the optimized overview
-            fetch(`${API_BASE_URL}/recent-transactions`),
-            fetch(`${API_BASE_URL}/categories`),
-        ]);
-
-        // Check if all network responses are successful
-        if (!cardsRes.ok || !rulesRes.ok || !monthlyRes.ok || !mccRes.ok || !monthlyCatRes.ok || !recentTxRes.ok || !categoriesRes.ok) {
-            throw new Error('A network response was not ok. Please check the server.');
-        }
-
-        // Parse all JSON data from the responses
-        const cardsData = await cardsRes.json();
-        const rulesData = await rulesRes.json();
-        const monthlyData = await monthlyRes.json();
-        const mccData = await mccRes.json();
-        const monthlyCatData = await monthlyCatRes.json();
-        const recentTxData = await recentTxRes.json(); 
-        const categoriesData = await categoriesRes.json(); 
-
-        // Set all the state variables for the application
-        setCards(cardsData);
-        setRules(rulesData);
-        setMonthlySummary(monthlyData);
-        setMccMap(mccData.mccDescriptionMap || {});
-        setMonthlyCategorySummary(monthlyCatData); // Set the new state for the overview tab
-        setRecentTransactions(recentTxData); // Set the new state
-        setAllCategories(categoriesData); // Set the new state for all categories
-
-        const mappedRules = rulesData.map(r => ({ ...r, name: r.ruleName }));
-        const mappedMonthlyCats = monthlyCatData.map(c => ({ ...c, name: c.summaryId }));
-
-        setCashbackRules(mappedRules);
-        setMonthlyCashbackCategories(mappedMonthlyCats);
-
-        // Set the active month based on the summary data for a faster initial load
-        if (monthlyData.length > 0) {
-            const allMonths = [...new Set(monthlyData.map(t => t.month))].filter(Boolean).sort().reverse();
-            if (allMonths.length > 0) {
-                setActiveMonth(allMonths[0]);
-            }
-        }
-
-    } catch (err) {
-        setError("Failed to fetch data. Please check the backend, .env configuration, and Notion permissions.");
-        console.error(err);
-    } finally {
+    // --- DATA FETCHING ---
+    const fetchData = async (isSilent = false) => {
         if (!isSilent) {
-            setLoading(false);
+            setLoading(true);
         }
-    }
-  };
+        setError(null);
+        try {
+            // This array now includes the new '/api/monthly-category-summary' endpoint
+            const [
+                cardsRes, 
+                rulesRes, 
+                monthlyRes, 
+                mccRes, 
+                monthlyCatRes,
+                recentTxRes,
+                categoriesRes
+            ] = await Promise.all([
+                fetch(`${API_BASE_URL}/cards`),
+                fetch(`${API_BASE_URL}/rules`),
+                fetch(`${API_BASE_URL}/monthly-summary`),
+                fetch(`${API_BASE_URL}/mcc-codes`),
+                fetch(`${API_BASE_URL}/monthly-category-summary`), // Fetches data for the optimized overview
+                fetch(`${API_BASE_URL}/recent-transactions`),
+                fetch(`${API_BASE_URL}/categories`),
+            ]);
 
-  // It now depends on 'isAuthenticated' and will run when it changes to true.
-  useEffect(() => {
-      // Only fetch data if the user has been authenticated.
-      if (isAuthenticated) {
-          fetchData();
-      }
-  }, [isAuthenticated]); // The dependency array now includes 'isAuthenticated'.
-
-  // ADD THIS NEW HOOK to fetch transactions when the month changes
-  useEffect(() => {
-    if (activeMonth) {
-        const fetchMonthlyTransactions = async () => {
-            setIsMonthlyTxLoading(true); // Set loading to true
-            try {
-                const res = await fetch(`${API_BASE_URL}/transactions?month=${activeMonth}&filterBy=${transactionFilterType}`);
-                if (!res.ok) {
-                    throw new Error('Failed to fetch monthly transactions');
-                }
-                const data = await res.json();
-                setMonthlyTransactions(data); // Set the new transactions
-            } catch (err) {
-                console.error(err);
-                setMonthlyTransactions([]); // Clear transactions on error
-            } finally {
-                setIsMonthlyTxLoading(false); // Set loading to false
+            // Check if all network responses are successful
+            if (!cardsRes.ok || !rulesRes.ok || !monthlyRes.ok || !mccRes.ok || !monthlyCatRes.ok || !recentTxRes.ok || !categoriesRes.ok) {
+                throw new Error('A network response was not ok. Please check the server.');
             }
-        };
-        fetchMonthlyTransactions();
-      }
+
+            // Parse all JSON data from the responses
+            const cardsData = await cardsRes.json();
+            const rulesData = await rulesRes.json();
+            const monthlyData = await monthlyRes.json();
+            const mccData = await mccRes.json();
+            const monthlyCatData = await monthlyCatRes.json();
+            const recentTxData = await recentTxRes.json(); 
+            const categoriesData = await categoriesRes.json(); 
+
+            // Set all the state variables for the application
+            setCards(cardsData);
+            setRules(rulesData);
+            setMonthlySummary(monthlyData);
+            setMccMap(mccData.mccDescriptionMap || {});
+            setMonthlyCategorySummary(monthlyCatData); // Set the new state for the overview tab
+            setRecentTransactions(recentTxData); // Set the new state
+            setAllCategories(categoriesData); // Set the new state for all categories
+
+            const mappedRules = rulesData.map(r => ({ ...r, name: r.ruleName }));
+            const mappedMonthlyCats = monthlyCatData.map(c => ({ ...c, name: c.summaryId }));
+
+            setCashbackRules(mappedRules);
+            setMonthlyCashbackCategories(mappedMonthlyCats);
+
+            // Set the active month based on the summary data for a faster initial load
+            if (monthlyData.length > 0) {
+                const allMonths = [...new Set(monthlyData.map(t => t.month))].filter(Boolean).sort().reverse();
+                if (allMonths.length > 0) {
+                    setActiveMonth(allMonths[0]);
+                }
+            }
+
+        } catch (err) {
+            setError("Failed to fetch data. Please check the backend, .env configuration, and Notion permissions.");
+            console.error(err);
+        } finally {
+            if (!isSilent) {
+                setLoading(false);
+            }
+        }
+    };
+
+    // It now depends on 'isAuthenticated' and will run when it changes to true.
+    useEffect(() => {
+        // Only fetch data if the user has been authenticated.
+        if (isAuthenticated) {
+            fetchData();
+        }
+    }, [isAuthenticated]); // The dependency array now includes 'isAuthenticated'.
+
+    // ADD THIS NEW HOOK to fetch transactions when the month changes
+    useEffect(() => {
+        if (activeMonth) {
+            const fetchMonthlyTransactions = async () => {
+                setIsMonthlyTxLoading(true); // Set loading to true
+                try {
+                    const res = await fetch(`${API_BASE_URL}/transactions?month=${activeMonth}&filterBy=${transactionFilterType}`);
+                    if (!res.ok) {
+                        throw new Error('Failed to fetch monthly transactions');
+                    }
+                    const data = await res.json();
+                    setMonthlyTransactions(data); // Set the new transactions
+                } catch (err) {
+                    console.error(err);
+                    setMonthlyTransactions([]); // Clear transactions on error
+                } finally {
+                    setIsMonthlyTxLoading(false); // Set loading to false
+                }
+            };
+            fetchMonthlyTransactions();
+        }
     }, [activeMonth, transactionFilterType]); // This hook runs whenever 'activeMonth' changes
 
     // --------------------------
@@ -253,9 +252,9 @@ export default function CashbackDashboard() {
 
     // Dynamic list of available months from transactions
     const statementMonths = useMemo(() => {
-      if (!monthlySummary || monthlySummary.length === 0) return [];
-      const uniqueMonths = [...new Set(monthlySummary.map(summary => summary.month))];
-      return uniqueMonths.sort().reverse();
+        if (!monthlySummary || monthlySummary.length === 0) return [];
+        const uniqueMonths = [...new Set(monthlySummary.map(summary => summary.month))];
+        return uniqueMonths.sort().reverse();
     }, [monthlySummary]);
     
 
@@ -268,44 +267,44 @@ export default function CashbackDashboard() {
     }, []); // The empty array [] tells React this function never needs to be re-created.
 
     const renderCustomBarLabel = (props) => {
-      const { x, y, width, value } = props;
-      // Format the value to millions (e.g., 39,500,000 becomes "40M")
-      const formattedValue = (value / 1000000).toFixed(2) + 'M';
-      
-      // Don't show the label if the bar is too small, to prevent clutter
-      if (width < 30) return null; 
+        const { x, y, width, value } = props;
+        // Format the value to millions (e.g., 39,500,000 becomes "40M")
+        const formattedValue = (value / 1000000).toFixed(2) + 'M';
+        
+        // Don't show the label if the bar is too small, to prevent clutter
+        if (width < 30) return null; 
 
-      return (
-        <text x={x + width / 2} y={y} fill="#6b7280" textAnchor="middle" dy={-6} fontSize={12}>
-          {formattedValue}
-        </text>
-      );
+        return (
+            <text x={x + width / 2} y={y} fill="#6b7280" textAnchor="middle" dy={-6} fontSize={12}>
+            {formattedValue}
+            </text>
+        );
     };
     
     // --- MEMOIZED DATA PROCESSING ---
     const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
 
     const overviewStats = useMemo(() => {
-      // Filter the summary data for only the currently selected month
-      const monthData = monthlySummary.filter(s => s.month === activeMonth);
+        // Filter the summary data for only the currently selected month
+        const monthData = monthlySummary.filter(s => s.month === activeMonth);
 
-      // Calculate total spend and cashback for that month
-      const totalSpend = monthData.reduce((acc, curr) => acc + (curr.spend || 0), 0);
-      const totalCashback = monthData.reduce((acc, curr) => acc + (curr.cashback || 0), 0);
-      const effectiveRate = totalSpend > 0 ? totalCashback / totalSpend : 0;
+        // Calculate total spend and cashback for that month
+        const totalSpend = monthData.reduce((acc, curr) => acc + (curr.spend || 0), 0);
+        const totalCashback = monthData.reduce((acc, curr) => acc + (curr.cashback || 0), 0);
+        const effectiveRate = totalSpend > 0 ? totalCashback / totalSpend : 0;
 
-      // Prepare data formatted for the pie charts
-      const spendByCard = monthData.map(item => ({
-          name: cardMap.get(item.cardId)?.name || "Unknown Card",
-          value: item.spend || 0,
-      }));
-      
-      const cashbackByCard = monthData.map(item => ({
-          name: cardMap.get(item.cardId)?.name || "Unknown Card",
-          value: item.cashback || 0,
-      }));
+        // Prepare data formatted for the pie charts
+        const spendByCard = monthData.map(item => ({
+            name: cardMap.get(item.cardId)?.name || "Unknown Card",
+            value: item.spend || 0,
+        }));
+        
+        const cashbackByCard = monthData.map(item => ({
+            name: cardMap.get(item.cardId)?.name || "Unknown Card",
+            value: item.cashback || 0,
+        }));
 
-      return { totalSpend, totalCashback, effectiveRate, spendByCard, cashbackByCard };
+        return { totalSpend, totalCashback, effectiveRate, spendByCard, cashbackByCard };
     }, [activeMonth, monthlySummary, cardMap]);
 
     // ADD THIS NEW HOOK to calculate stats for the "My Cards" tab
@@ -351,16 +350,16 @@ export default function CashbackDashboard() {
     }, [monthlySummary, cards, fmtYMShort]);
 
     const monthlyChartData = useMemo(() => {
-      const aggregated = {};
-      monthlySummary.forEach(item => {
-        const monthLabel = fmtYMShort(item.month);
-        if (!aggregated[monthLabel]) {
-          aggregated[monthLabel] = { month: monthLabel, spend: 0, cashback: 0 };
-        }
-        aggregated[monthLabel].spend += item.spend || 0;
-        aggregated[monthLabel].cashback += item.cashback || 0;
-      });
-      return Object.values(aggregated);
+        const aggregated = {};
+        monthlySummary.forEach(item => {
+            const monthLabel = fmtYMShort(item.month);
+            if (!aggregated[monthLabel]) {
+                aggregated[monthLabel] = { month: monthLabel, spend: 0, cashback: 0 };
+            }
+            aggregated[monthLabel].spend += item.spend || 0;
+            aggregated[monthLabel].cashback += item.cashback || 0;
+        });
+        return Object.values(aggregated);
     }, [monthlySummary, fmtYMShort]);
 
     const calculateFeeCycleProgress = (openDateStr, nextFeeDateStr) => {
@@ -385,7 +384,7 @@ export default function CashbackDashboard() {
 
     // If the user is not authenticated, show the login screen.
     if (!isAuthenticated) {
-      return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
+        return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
     }
 
     if (loading) {
@@ -410,268 +409,266 @@ export default function CashbackDashboard() {
     }
     
 
-  return (
-    <TooltipProvider>
-      <div className="flex min-h-screen w-full flex-col bg-muted/40">
-        <Toaster richColors position="top-right" />
-        <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-white shadow-sm px-4 md:px-6 z-10">
-          <h1 className="text-xl font-semibold flex items-center gap-2">
-            Cashback Optimizer
-          </h1>
-          <div className="ml-auto flex items-center gap-4">
-            {statementMonths.length > 0 && (
-                 <select
-                   value={activeMonth}
-                   onChange={(e) => setActiveMonth(e.target.value)}
-                   className="h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                 >
-                   {statementMonths.map(m => (
-                     <option key={m} value={m}>{fmtYMShort(m)}</option>
-                   ))}
-                 </select>
-            )}
-            <Button variant="outline" size="icon" onClick={() => fetchData(false)}><RefreshCw className="h-4 w-4" /></Button>
+    return (
+        <TooltipProvider>
+        <div className="flex min-h-screen w-full flex-col bg-muted/40">
+            <Toaster richColors position="top-right" />
+            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-white shadow-sm px-4 md:px-6 z-10">
+            <h1 className="text-xl font-semibold flex items-center gap-2">Cashback Optimizer</h1>
             <div className="ml-auto flex items-center gap-4">
-                {/* This Dialog component creates the popup */}
-                <Dialog open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button variant="outline" size="icon"><Plus className="h-4 w-4" /></Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                    <DialogTitle>Add a New Transaction</DialogTitle>
-                    </DialogHeader>
-                    {/* The form is now inside the popup content */}
-                    <AddTransactionForm
-                    cards={cards}
-                    categories={allCategories}
-                    rules={cashbackRules}
-                    monthlyCategories={monthlyCashbackCategories}
-                    mccMap={mccMap}
-                    onTransactionAdded={handleTransactionAdded}
-                    onFormSubmit={() => setIsAddTxDialogOpen(false)}
-                    />
-                </DialogContent>
-                </Dialog>
-            </div>
-          </div>
-        </header>
-
-        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-          <Tabs defaultValue="overview">
-            <div className="flex items-center">
-              <TabsList className="bg-slate-100 p-1 rounded-lg">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="transactions">Transactions</TabsTrigger>
-                <TabsTrigger value="cards">My Cards</TabsTrigger>
-                <TabsTrigger value="payments">Payments</TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent value="overview" className="space-y-4 pt-4">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <StatCard title="Month" value={fmtYMShort(activeMonth)} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
-                  {/* Update the props for the StatCards */}
-                  <StatCard title="Total Spend" value={currency(overviewStats.totalSpend)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
-                  <StatCard title="Est. Cashback" value={currency(overviewStats.totalCashback)} icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} />
-                  <StatCard title="Effective Rate" value={`${(overviewStats.effectiveRate * 100).toFixed(2)}%`} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                    <Card className="lg:col-span-4 flex flex-col min-h-[300px]">
-                        <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
-                        <CardContent className="pl-2 flex-grow">
-                            <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={monthlyChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-                                <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} />
-                                <RechartsTooltip content={<CustomRechartsTooltip />} />
-                                <Legend formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)} />
-                                <Bar dataKey="spend" fill="#0BA6DF" radius={[4, 4, 0, 0]}>
-                                  <LabelList dataKey="spend" content={renderCustomBarLabel} />
-                                </Bar>
-                                <Bar dataKey="cashback" fill="#67C090" radius={[4, 4, 0, 0]}>
-                                  <LabelList dataKey="cashback" content={renderCustomBarLabel} />
-                                </Bar>
-                            </BarChart>
-                            </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
-
-                    <CardSpendsCap
-                      cards={cards}
-                      activeMonth={activeMonth}
-                      monthlySummary={monthlySummary} 
-                    />
-                </div>
-
-                <RecentTransactionsCarousel 
-                    transactions={recentTransactions}
-                    cardMap={cardMap}
-                    currencyFn={currency}
-                />
-
-                {/* ADD THE NEW LINE CHART COMPONENT HERE */}
-                <div className="mt-4">
-                    <CardPerformanceLineChart 
-                        data={cardPerformanceData}
+                {statementMonths.length > 0 && (
+                    <select
+                    value={activeMonth}
+                    onChange={(e) => setActiveMonth(e.target.value)}
+                    className="h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                    {statementMonths.map(m => (
+                        <option key={m} value={m}>{fmtYMShort(m)}</option>
+                    ))}
+                    </select>
+                )}
+                <Button variant="outline" size="icon" onClick={() => fetchData(false)}><RefreshCw className="h-4 w-4" /></Button>
+                <div className="ml-auto flex items-center gap-4">
+                    {/* This Dialog component creates the popup */}
+                    <Dialog open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="icon"><Plus className="h-4 w-4" /></Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                        <DialogTitle>Add a New Transaction</DialogTitle>
+                        </DialogHeader>
+                        {/* The form is now inside the popup content */}
+                        <AddTransactionForm
                         cards={cards}
-                        currencyFn={currency}
-                    />
+                        categories={allCategories}
+                        rules={cashbackRules}
+                        monthlyCategories={monthlyCashbackCategories}
+                        mccMap={mccMap}
+                        onTransactionAdded={handleTransactionAdded}
+                        onFormSubmit={() => setIsAddTxDialogOpen(false)}
+                        />
+                    </DialogContent>
+                    </Dialog>
                 </div>
-                    
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <SpendByCardChart
-                        spendData={overviewStats.spendByCard}
-                        currencyFn={currency}
-                    />
-                    <CashbackByCardChart
-                        cashbackData={overviewStats.cashbackByCard}
-                        currencyFn={currency}
-                    />
+            </div>
+            </header>
+
+            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+            <Tabs defaultValue="overview">
+                <div className="flex items-center">
+                <TabsList className="bg-slate-100 p-1 rounded-lg">
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="transactions">Transactions</TabsTrigger>
+                    <TabsTrigger value="cards">My Cards</TabsTrigger>
+                    <TabsTrigger value="payments">Payments</TabsTrigger>
+                </TabsList>
                 </div>
-               
-            </TabsContent>
 
-            <TabsContent value="transactions" className="pt-4">
-              <TransactionsTab
-                    // UPDATE these props
-                    transactions={monthlyTransactions}
-                    isLoading={isMonthlyTxLoading}
-                    // The rest of the props stay the same
-                    activeMonth={activeMonth}
-                    cardMap={cardMap}
-                    mccNameFn={mccName}
-                    allCards={cards}
-                    // 3. PASS THE NEW PROPS DOWN
-                    filterType={transactionFilterType}
-                    onFilterTypeChange={setTransactionFilterType}
-              />
-            </TabsContent>  
+                <TabsContent value="overview" className="space-y-4 pt-4">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <StatCard title="Month" value={fmtYMShort(activeMonth)} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
+                    {/* Update the props for the StatCards */}
+                    <StatCard title="Total Spend" value={currency(overviewStats.totalSpend)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
+                    <StatCard title="Est. Cashback" value={currency(overviewStats.totalCashback)} icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} />
+                    <StatCard title="Effective Rate" value={`${(overviewStats.effectiveRate * 100).toFixed(2)}%`} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
+                    </div>
 
-            <TabsContent value="cards" className="space-y-4 pt-4">
-              
-              <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                        <Card className="lg:col-span-4 flex flex-col min-h-[300px]">
+                            <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
+                            <CardContent className="pl-2 flex-grow">
+                                <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={monthlyChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                                    <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} />
+                                    <RechartsTooltip content={<CustomRechartsTooltip />} />
+                                    <Legend formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)} />
+                                    <Bar dataKey="spend" fill="#0BA6DF" radius={[4, 4, 0, 0]}>
+                                    <LabelList dataKey="spend" content={renderCustomBarLabel} />
+                                    </Bar>
+                                    <Bar dataKey="cashback" fill="#67C090" radius={[4, 4, 0, 0]}>
+                                    <LabelList dataKey="cashback" content={renderCustomBarLabel} />
+                                    </Bar>
+                                </BarChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
 
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {cards.map(card => {
-                      // --- LOGIC TO GET ALL STATS FOR THE CARD ---
-
-                      // 1. Get Monthly Stats (for the selected month)
-                      const cardMonthSummary = monthlySummary.find(
-                          summary => summary.cardId === card.id && summary.month === activeMonth
-                      );
-                      const totalSpendMonth = cardMonthSummary ? cardMonthSummary.spend : 0;
-                      const estCashbackMonth = cardMonthSummary ? cardMonthSummary.cashback : 0;
-                      const effectiveRate = totalSpendMonth > 0 ? (estCashbackMonth / totalSpendMonth) * 100 : 0;
-
-                      // 2. Calculate Total YTD Spend by summing up all months from the summary data
-                      const totalSpendYTD = monthlySummary
-                          .filter(summary => summary.cardId === card.id)
-                          .reduce((acc, summary) => acc + (summary.spend || 0), 0);
-
-                      return (
-                          <Card key={card.id}>
-                              <CardHeader>
-                                  <div className="flex items-center justify-between">
-                                      <CardTitle className="text-lg">{card.name} &bull;&bull;&bull;{card.last4}</CardTitle>
-                                      <Badge variant="outline">{card.bank}</Badge>
-                                  </div>
-                                  <p className="text-sm text-gray-500 pt-1">
-                                      Statement Due Day: {card.statementDay} &bull; Payment Due Day: {card.paymentDueDay}
-                                  </p>
-                              </CardHeader>
-                              <CardContent className="space-y-4">
-                                  {/* --- NEW TWO-ROW LAYOUT --- */}
-
-                                  {/* Row 1: Year-to-Date Totals */}
-                                  <div className="grid grid-cols-2 gap-4 text-center">
-                                      <div>
-                                          <p className="text-sm text-muted-foreground">Total Spending</p>
-                                          <p className="font-semibold text-xl">{currency(totalSpendYTD)}</p>
-                                      </div>
-                                      <div>
-                                          <p className="text-sm text-muted-foreground">Total Cashback</p>
-                                          <p className="font-semibold text-xl text-emerald-600">{currency(card.estYtdCashback)}</p>
-                                      </div>
-                                  </div>
-
-                                  {/* Divider for visual separation */}
-                                  <div className="border-t"></div>
-
-                                  {/* Row 2: Selected Month's Stats */}
-                                  <div className="grid grid-cols-3 gap-4 text-center">
-                                      <div>
-                                          <p className="font-semibold text-lg">{currency(totalSpendMonth)}</p>
-                                          <p className="text-sm text-muted-foreground">Spend</p>
-                                          <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
-                                      </div>
-                                      <div>
-                                          <p className="font-semibold text-lg text-emerald-600">{currency(estCashbackMonth)}</p>
-                                          <p className="text-sm text-muted-foreground">Cashback</p>
-                                          <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
-                                      </div>
-                                      <div>
-                                          <p className="font-semibold text-lg">{effectiveRate.toFixed(2)}%</p>
-                                          <p className="text-sm text-muted-foreground">% Rate</p>
-                                          <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
-                                      </div>
-                                  </div>
-
-                                  <div className="flex justify-end pt-2">
-                                      <CardInfoDialog card={card} rules={rules.filter(r => r.cardId === card.id)} />
-                                  </div>
-
-                                  <div className="border-t pt-4">
-                                      <CategoryCapsUsage 
-                                          card={card}
-                                          activeMonth={activeMonth}
-                                          monthlyCategorySummary={monthlyCategorySummary}
-                                          monthlySummary={monthlySummary} 
-                                          currencyFn={currency}
-                                      />
-                                  </div>
-                              </CardContent>
-                          </Card>
-                      );
-                  })}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="payments" className="space-y-4 pt-4">
-                {/* Create a grid for the two components */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* The summary table takes up 2/3 of the space on large screens */}
-                    <div className="lg:col-span-2">
-                        <PaymentsTab 
-                            cards={cards}
-                            monthlySummary={monthlySummary}
-                            currencyFn={currency}
-                            fmtYMShortFn={fmtYMShort}
-                            daysLeftFn={calculateDaysLeft}
-                            onViewTransactions={handleViewTransactions}
+                        <CardSpendsCap
+                        cards={cards}
+                        activeMonth={activeMonth}
+                        monthlySummary={monthlySummary} 
                         />
                     </div>
-                    {/* The new ROI component takes up 1/3 of the space */}
-                    <div className="lg:col-span-1">
-                        <CardRoi cards={cards} currencyFn={currency} feeCycleProgressFn={calculateFeeCycleProgress} />
+
+                    <RecentTransactionsCarousel 
+                        transactions={recentTransactions}
+                        cardMap={cardMap}
+                        currencyFn={currency}
+                    />
+
+                    {/* ADD THE NEW LINE CHART COMPONENT HERE */}
+                    <div className="mt-4">
+                        <CardPerformanceLineChart 
+                            data={cardPerformanceData}
+                            cards={cards}
+                            currencyFn={currency}
+                        />
                     </div>
+                        
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <SpendByCardChart
+                            spendData={overviewStats.spendByCard}
+                            currencyFn={currency}
+                        />
+                        <CashbackByCardChart
+                            cashbackData={overviewStats.cashbackByCard}
+                            currencyFn={currency}
+                        />
+                    </div>
+                
+                </TabsContent>
+
+                <TabsContent value="transactions" className="pt-4">
+                <TransactionsTab
+                        // UPDATE these props
+                        transactions={monthlyTransactions}
+                        isLoading={isMonthlyTxLoading}
+                        // The rest of the props stay the same
+                        activeMonth={activeMonth}
+                        cardMap={cardMap}
+                        mccNameFn={mccName}
+                        allCards={cards}
+                        // 3. PASS THE NEW PROPS DOWN
+                        filterType={transactionFilterType}
+                        onFilterTypeChange={setTransactionFilterType}
+                />
+                </TabsContent>  
+
+                <TabsContent value="cards" className="space-y-4 pt-4">
+                
+                <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
+
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {cards.map(card => {
+                        // --- LOGIC TO GET ALL STATS FOR THE CARD ---
+
+                        // 1. Get Monthly Stats (for the selected month)
+                        const cardMonthSummary = monthlySummary.find(
+                            summary => summary.cardId === card.id && summary.month === activeMonth
+                        );
+                        const totalSpendMonth = cardMonthSummary ? cardMonthSummary.spend : 0;
+                        const estCashbackMonth = cardMonthSummary ? cardMonthSummary.cashback : 0;
+                        const effectiveRate = totalSpendMonth > 0 ? (estCashbackMonth / totalSpendMonth) * 100 : 0;
+
+                        // 2. Calculate Total YTD Spend by summing up all months from the summary data
+                        const totalSpendYTD = monthlySummary
+                            .filter(summary => summary.cardId === card.id)
+                            .reduce((acc, summary) => acc + (summary.spend || 0), 0);
+
+                        return (
+                            <Card key={card.id}>
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-lg">{card.name} &bull;&bull;&bull;{card.last4}</CardTitle>
+                                        <Badge variant="outline">{card.bank}</Badge>
+                                    </div>
+                                    <p className="text-sm text-gray-500 pt-1">
+                                        Statement Due Day: {card.statementDay} &bull; Payment Due Day: {card.paymentDueDay}
+                                    </p>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {/* --- NEW TWO-ROW LAYOUT --- */}
+
+                                    {/* Row 1: Year-to-Date Totals */}
+                                    <div className="grid grid-cols-2 gap-4 text-center">
+                                        <div>
+                                            <p className="text-sm text-muted-foreground">Total Spending</p>
+                                            <p className="font-semibold text-xl">{currency(totalSpendYTD)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-muted-foreground">Total Cashback</p>
+                                            <p className="font-semibold text-xl text-emerald-600">{currency(card.estYtdCashback)}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Divider for visual separation */}
+                                    <div className="border-t"></div>
+
+                                    {/* Row 2: Selected Month's Stats */}
+                                    <div className="grid grid-cols-3 gap-4 text-center">
+                                        <div>
+                                            <p className="font-semibold text-lg">{currency(totalSpendMonth)}</p>
+                                            <p className="text-sm text-muted-foreground">Spend</p>
+                                            <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-lg text-emerald-600">{currency(estCashbackMonth)}</p>
+                                            <p className="text-sm text-muted-foreground">Cashback</p>
+                                            <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-lg">{effectiveRate.toFixed(2)}%</p>
+                                            <p className="text-sm text-muted-foreground">% Rate</p>
+                                            <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end pt-2">
+                                        <CardInfoDialog card={card} rules={rules.filter(r => r.cardId === card.id)} />
+                                    </div>
+
+                                    <div className="border-t pt-4">
+                                        <CategoryCapsUsage 
+                                            card={card}
+                                            activeMonth={activeMonth}
+                                            monthlyCategorySummary={monthlyCategorySummary}
+                                            monthlySummary={monthlySummary} 
+                                            currencyFn={currency}
+                                        />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                 </div>
-            </TabsContent>
-          </Tabs>
-        </main>  
-        {/* 4. RENDER THE DIALOG COMPONENT */}
-        <TransactionDetailsDialog
-            isOpen={!!dialogDetails}
-            onClose={() => setDialogDetails(null)}
-            details={dialogDetails}
-            transactions={dialogTransactions}
-            isLoading={isDialogLoading}
-            currencyFn={currency}
-        />
-      </div>
-    </TooltipProvider>
-  );
+                </TabsContent>
+                
+                <TabsContent value="payments" className="space-y-4 pt-4">
+                    {/* Create a grid for the two components */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* The summary table takes up 2/3 of the space on large screens */}
+                        <div className="lg:col-span-2">
+                            <PaymentsTab 
+                                cards={cards}
+                                monthlySummary={monthlySummary}
+                                currencyFn={currency}
+                                fmtYMShortFn={fmtYMShort}
+                                daysLeftFn={calculateDaysLeft}
+                                onViewTransactions={handleViewTransactions}
+                            />
+                        </div>
+                        {/* The new ROI component takes up 1/3 of the space */}
+                        <div className="lg:col-span-1">
+                            <CardRoi cards={cards} currencyFn={currency} feeCycleProgressFn={calculateFeeCycleProgress} />
+                        </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
+            </main>  
+            {/* 4. RENDER THE DIALOG COMPONENT */}
+            <TransactionDetailsDialog
+                isOpen={!!dialogDetails}
+                onClose={() => setDialogDetails(null)}
+                details={dialogDetails}
+                transactions={dialogTransactions}
+                isLoading={isDialogLoading}
+                currencyFn={currency}
+            />
+        </div>
+        </TooltipProvider>
+    );
 }
 
 
@@ -679,485 +676,485 @@ export default function CashbackDashboard() {
 // 3) UI SUB-COMPONENTS
 // --------------------------
 function StatCard({ title, value, icon, valueClassName }) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-          {/* This 'cn' utility will merge the default styles with your new color class */}
-          <div className={cn("text-2xl font-bold", valueClassName)}>{value}</div>
-      </CardContent>
-    </Card>
-  );
+    return (
+        <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            {icon}
+        </CardHeader>
+        <CardContent>
+            {/* This 'cn' utility will merge the default styles with your new color class */}
+            <div className={cn("text-2xl font-bold", valueClassName)}>{value}</div>
+        </CardContent>
+        </Card>
+    );
 }
 
 const CustomRechartsTooltip = ({ active, payload, label }) => {
-  const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
-  
-  if (active && payload?.length) {
-    // Find the spend and cashback values from the tooltip's data payload
-    const spendEntry = payload.find(p => p.dataKey === 'spend');
-    const cashbackEntry = payload.find(p => p.dataKey === 'cashback');
+    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     
-    const spend = spendEntry ? spendEntry.value : 0;
-    const cashback = cashbackEntry ? cashbackEntry.value : 0;
+    if (active && payload?.length) {
+        // Find the spend and cashback values from the tooltip's data payload
+        const spendEntry = payload.find(p => p.dataKey === 'spend');
+        const cashbackEntry = payload.find(p => p.dataKey === 'cashback');
+        
+        const spend = spendEntry ? spendEntry.value : 0;
+        const cashback = cashbackEntry ? cashbackEntry.value : 0;
 
-    // Calculate the effective rate, handling the case where spend is 0
-    const effectiveRate = spend > 0 ? (cashback / spend) * 100 : 0;
+        // Calculate the effective rate, handling the case where spend is 0
+        const effectiveRate = spend > 0 ? (cashback / spend) * 100 : 0;
 
-    return (
-      <div className="rounded-lg border bg-white p-2 text-sm shadow-sm">
-        <p className="font-bold">{label}</p>
-        {payload.map((p, i) => (
-          <p key={i} style={{ color: p.color }}>
-            {/* Capitalize the name for display */}
-            {`${p.name.charAt(0).toUpperCase() + p.name.slice(1)}: ${currency(p.value)}`}
-          </p>
-        ))}
-        {/* ADD THIS NEW LINE to display the effective rate */}
-        <p className="font-semibold mt-2 pt-2 border-t">
-          Effective Rate: {effectiveRate.toFixed(2)}%
-        </p>
-      </div>
-    );
-  }
-  return null;
+        return (
+        <div className="rounded-lg border bg-white p-2 text-sm shadow-sm">
+            <p className="font-bold">{label}</p>
+            {payload.map((p, i) => (
+            <p key={i} style={{ color: p.color }}>
+                {/* Capitalize the name for display */}
+                {`${p.name.charAt(0).toUpperCase() + p.name.slice(1)}: ${currency(p.value)}`}
+            </p>
+            ))}
+            {/* ADD THIS NEW LINE to display the effective rate */}
+            <p className="font-semibold mt-2 pt-2 border-t">
+            Effective Rate: {effectiveRate.toFixed(2)}%
+            </p>
+        </div>
+        );
+    }
+    return null;
 };
 
 function CardInfoDialog({ card, rules }) {
-  const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
-  const isFeeCovered = card.estYtdCashback >= card.annualFee;
-  const representativeTxCapRule = rules.find(rule => rule.capPerTransaction > 0);
+    const isFeeCovered = card.estYtdCashback >= card.annualFee;
+    const representativeTxCapRule = rules.find(rule => rule.capPerTransaction > 0);
 
-  const infoItems = [
-    { label: "Credit Limit", value: currency(card.creditLimit) },
-    { label: "Card Number", value: `**** **** **** ${card.last4}` },
-    { label: "Statement Day", value: `~ Day ${card.statementDay}` },
-    { label: "Payment Due Day", value: `~ Day ${card.paymentDueDay}` },
-    { label: "Monthly Interest", value: `${(card.interestRateMonthly * 100).toFixed(2)}%` },
-    { 
-      label: "Annual Fee", 
-      value: currency(card.annualFee),
-      valueClassName: isFeeCovered ? 'text-emerald-600' : 'text-red-500'
-    },
-  ];
+    const infoItems = [
+        { label: "Credit Limit", value: currency(card.creditLimit) },
+        { label: "Card Number", value: `**** **** **** ${card.last4}` },
+        { label: "Statement Day", value: `~ Day ${card.statementDay}` },
+        { label: "Payment Due Day", value: `~ Day ${card.paymentDueDay}` },
+        { label: "Monthly Interest", value: `${(card.interestRateMonthly * 100).toFixed(2)}%` },
+        { 
+        label: "Annual Fee", 
+        value: currency(card.annualFee),
+        valueClassName: isFeeCovered ? 'text-emerald-600' : 'text-red-500'
+        },
+    ];
 
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-7 text-xs">
-          <Info className="mr-1.5 h-3.5 w-3.5" /> More info
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg bg-white">
-        <DialogHeader>
-          <DialogTitle>{card.name}</DialogTitle>
-          <DialogDescription>{card.bank} &ndash; {card.cardType} Card</DialogDescription>
-        </DialogHeader>
-        
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm pt-2">
-          {infoItems.map(item => (
-            <div key={item.label}>
-              <p className="text-muted-foreground">{item.label}</p>
-              <p className={cn("font-medium", item.valueClassName)}>{item.value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div>
-          <h4 className="font-semibold text-sm mb-2 mt-3">Cashback Details</h4>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm p-3 bg-muted rounded-lg">
-            {representativeTxCapRule && (
-              <div>
-                <p className="text-muted-foreground">Max per Tx</p>
-                <p className="font-medium">{currency(representativeTxCapRule.capPerTransaction)}</p>
-              </div>
-            )}
-            {card.limitPerCategory > 0 && (
-              <div>
-                <p className="text-muted-foreground">Max per Cat</p>
-                <p className="font-medium">{currency(card.limitPerCategory)}</p>
-              </div>
-            )}
-            {card.overallMonthlyLimit > 0 && (
-              <div>
-                <p className="text-muted-foreground">Max per Month</p>
-                <p className="font-medium">{currency(card.overallMonthlyLimit)}</p>
-              </div>
-            )}
-            {/* --- THIS IS THE NEW METRIC --- */}
-            {card.minimumMonthlySpend > 0 && (
-              <div>
-                <p className="text-muted-foreground">Min. Spending</p>
-                <p className="font-medium">{currency(card.minimumMonthlySpend)}</p>
-              </div>
-            )}
-            {/* --- END OF NEW METRIC --- */}
-          </div>
-        </div>
-
-        <div>
-            <h4 className="font-semibold text-sm mb-2 mt-3">Cashback Rules</h4>
-            {/* 1. Add this new relative container */}
-            <div className="relative">
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-4">
-                {rules.map(rule => (
-                    <Badge key={rule.id} variant="outline" className="w-full justify-between py-3">
-                    <span className="font-medium text-primary">{rule.ruleName}</span>
-                    <span className="font-mono text-base text-foreground">{rule.rate * 100}%</span>
-                    </Badge>
-                ))}
-                {rules.length === 0 && <p className="text-xs text-muted-foreground">No specific cashback rules found for this card.</p>}
+    return (
+        <Dialog>
+        <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="h-7 text-xs">
+            <Info className="mr-1.5 h-3.5 w-3.5" /> More info
+            </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-lg bg-white">
+            <DialogHeader>
+            <DialogTitle>{card.name}</DialogTitle>
+            <DialogDescription>{card.bank} &ndash; {card.cardType} Card</DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm pt-2">
+            {infoItems.map(item => (
+                <div key={item.label}>
+                <p className="text-muted-foreground">{item.label}</p>
+                <p className={cn("font-medium", item.valueClassName)}>{item.value}</p>
                 </div>
-                {/* 2. Add the fade-out overlay element */}
-                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+            ))}
             </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+
+            <div>
+            <h4 className="font-semibold text-sm mb-2 mt-3">Cashback Details</h4>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm p-3 bg-muted rounded-lg">
+                {representativeTxCapRule && (
+                <div>
+                    <p className="text-muted-foreground">Max per Tx</p>
+                    <p className="font-medium">{currency(representativeTxCapRule.capPerTransaction)}</p>
+                </div>
+                )}
+                {card.limitPerCategory > 0 && (
+                <div>
+                    <p className="text-muted-foreground">Max per Cat</p>
+                    <p className="font-medium">{currency(card.limitPerCategory)}</p>
+                </div>
+                )}
+                {card.overallMonthlyLimit > 0 && (
+                <div>
+                    <p className="text-muted-foreground">Max per Month</p>
+                    <p className="font-medium">{currency(card.overallMonthlyLimit)}</p>
+                </div>
+                )}
+                {/* --- THIS IS THE NEW METRIC --- */}
+                {card.minimumMonthlySpend > 0 && (
+                <div>
+                    <p className="text-muted-foreground">Min. Spending</p>
+                    <p className="font-medium">{currency(card.minimumMonthlySpend)}</p>
+                </div>
+                )}
+                {/* --- END OF NEW METRIC --- */}
+            </div>
+            </div>
+
+            <div>
+                <h4 className="font-semibold text-sm mb-2 mt-3">Cashback Rules</h4>
+                {/* 1. Add this new relative container */}
+                <div className="relative">
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-4">
+                    {rules.map(rule => (
+                        <Badge key={rule.id} variant="outline" className="w-full justify-between py-3">
+                        <span className="font-medium text-primary">{rule.ruleName}</span>
+                        <span className="font-mono text-base text-foreground">{rule.rate * 100}%</span>
+                        </Badge>
+                    ))}
+                    {rules.length === 0 && <p className="text-xs text-muted-foreground">No specific cashback rules found for this card.</p>}
+                    </div>
+                    {/* 2. Add the fade-out overlay element */}
+                    <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+                </div>
+            </div>
+        </DialogContent>
+        </Dialog>
+    );
 }
 
 function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange }) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [cardFilter, setCardFilter] = useState("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [visibleCount, setVisibleCount] = useState(15);
-  const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
+    const [searchTerm, setSearchTerm] = useState("");
+    const [cardFilter, setCardFilter] = useState("all");
+    const [categoryFilter, setCategoryFilter] = useState("all");
+    const [visibleCount, setVisibleCount] = useState(15);
+    const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
 
-  const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
-  const fmtYMShort = (ymCode) => {
-      if (!ymCode || typeof ymCode !== 'string' || ymCode.length !== 6) return "";
-      const year = Number(ymCode.slice(0, 4));
-      const month = Number(ymCode.slice(4, 6));
-      if (isNaN(year) || isNaN(month)) return "";
-      return new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
-  };
+    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+    const fmtYMShort = (ymCode) => {
+        if (!ymCode || typeof ymCode !== 'string' || ymCode.length !== 6) return "";
+        const year = Number(ymCode.slice(0, 4));
+        const month = Number(ymCode.slice(4, 6));
+        if (isNaN(year) || isNaN(month)) return "";
+        return new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
+    };
 
-  const categories = useMemo(() => {
-    const allCategories = transactions.map(tx => tx['Category']).filter(Boolean);
-    return ["all", ...Array.from(new Set(allCategories))];
-  }, [transactions]);
+    const categories = useMemo(() => {
+        const allCategories = transactions.map(tx => tx['Category']).filter(Boolean);
+        return ["all", ...Array.from(new Set(allCategories))];
+    }, [transactions]);
 
-  const filteredAndSortedTransactions = useMemo(() => {
-    let sortableItems = [...transactions]; // Start with the fetched transactions for the month
+    const filteredAndSortedTransactions = useMemo(() => {
+        let sortableItems = [...transactions]; // Start with the fetched transactions for the month
 
-    // Apply filters
-    sortableItems = sortableItems.filter(tx => {
-        if (!searchTerm) return true;
-        const lowerCaseSearch = searchTerm.toLowerCase();
-        return (
-          tx['Transaction Name']?.toLowerCase().includes(lowerCaseSearch) ||
-          String(tx['Amount']).includes(lowerCaseSearch) ||
-          tx['Transaction Date']?.includes(lowerCaseSearch) ||
-          String(tx['MCC Code']).includes(lowerCaseSearch)
-        );
-      })
-      .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
-      .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter);
+        // Apply filters
+        sortableItems = sortableItems.filter(tx => {
+            if (!searchTerm) return true;
+            const lowerCaseSearch = searchTerm.toLowerCase();
+            return (
+            tx['Transaction Name']?.toLowerCase().includes(lowerCaseSearch) ||
+            String(tx['Amount']).includes(lowerCaseSearch) ||
+            tx['Transaction Date']?.includes(lowerCaseSearch) ||
+            String(tx['MCC Code']).includes(lowerCaseSearch)
+            );
+        })
+        .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
+        .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter);
 
-    // Apply sorting
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        const aValue = a[sortConfig.key];
-        const bValue = b[sortConfig.key];
-        if (aValue === null) return 1;
-        if (bValue === null) return -1;
+        // Apply sorting
+        if (sortConfig.key !== null) {
+        sortableItems.sort((a, b) => {
+            const aValue = a[sortConfig.key];
+            const bValue = b[sortConfig.key];
+            if (aValue === null) return 1;
+            if (bValue === null) return -1;
 
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-           return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+            return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
+            }
+            if (sortConfig.key === 'Transaction Date') {
+            return sortConfig.direction === 'ascending' 
+                    ? new Date(aValue) - new Date(bValue) 
+                    : new Date(bValue) - new Date(aValue);
+            }
+            return sortConfig.direction === 'ascending' 
+                ? String(aValue).localeCompare(String(bValue)) 
+                : String(bValue).localeCompare(String(aValue));
+        });
         }
-        if (sortConfig.key === 'Transaction Date') {
-           return sortConfig.direction === 'ascending' 
-                ? new Date(aValue) - new Date(bValue) 
-                : new Date(bValue) - new Date(aValue);
+        return sortableItems;
+    }, [transactions, searchTerm, cardFilter, categoryFilter, sortConfig]);
+
+    useEffect(() => {
+        setVisibleCount(15);
+    }, [filteredAndSortedTransactions]);
+
+    const requestSort = (key) => {
+        let direction = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+        direction = 'descending';
         }
-        return sortConfig.direction === 'ascending' 
-            ? String(aValue).localeCompare(String(bValue)) 
-            : String(bValue).localeCompare(String(aValue));
-      });
-    }
-    return sortableItems;
-  }, [transactions, searchTerm, cardFilter, categoryFilter, sortConfig]);
+        setSortConfig({ key, direction });
+    };
 
-  useEffect(() => {
-    setVisibleCount(15);
-  }, [filteredAndSortedTransactions]);
+    const transactionsToShow = useMemo(() => {
+        return filteredAndSortedTransactions.slice(0, visibleCount);
+    }, [filteredAndSortedTransactions, visibleCount]);
 
-  const requestSort = (key) => {
-    let direction = 'ascending';
-    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    }
-    setSortConfig({ key, direction });
-  };
+    const handleLoadMore = () => {
+        setVisibleCount(prevCount => prevCount + 15);
+    };
 
-  const transactionsToShow = useMemo(() => {
-    return filteredAndSortedTransactions.slice(0, visibleCount);
-  }, [filteredAndSortedTransactions, visibleCount]);
+    const SortIcon = ({ columnKey }) => {
+        if (sortConfig.key !== columnKey) return <ChevronsUpDown className="ml-2 h-4 w-4" />;
+        return sortConfig.direction === 'ascending' ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />;
+    };
 
-  const handleLoadMore = () => {
-    setVisibleCount(prevCount => prevCount + 15);
-  };
-
-  const SortIcon = ({ columnKey }) => {
-    if (sortConfig.key !== columnKey) return <ChevronsUpDown className="ml-2 h-4 w-4" />;
-    return sortConfig.direction === 'ascending' ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />;
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <CardTitle>Transactions for {fmtYMShort(activeMonth)}</CardTitle>
-                
-                {/* This is the new filter switch */}
-                <Tabs defaultValue="date" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
-                    <TabsList className="bg-slate-100 p-1 rounded-lg">
-                        <TabsTrigger value="date">Transaction Date</TabsTrigger>
-                        <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
-                    </TabsList>
-                </Tabs>
-            </div>
-
-            {/* The existing search and filter dropdowns */}
-            <div className="flex flex-col sm:flex-row gap-2">
-                {/* Search bar takes full width on mobile, auto on larger screens */}
-                <div className="relative w-full sm:w-64">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input type="search" placeholder="Search..." className="w-full pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+    return (
+        <Card>
+        <CardHeader>
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <CardTitle>Transactions for {fmtYMShort(activeMonth)}</CardTitle>
+                    
+                    {/* This is the new filter switch */}
+                    <Tabs defaultValue="date" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
+                        <TabsList className="bg-slate-100 p-1 rounded-lg">
+                            <TabsTrigger value="date">Transaction Date</TabsTrigger>
+                            <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
                 </div>
-                {/* Dropdowns grow on mobile, auto on larger screens */}
-                <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
-                    <option value="all">All Cards</option>
-                    {allCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
-                    {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
-                </select>
+
+                {/* The existing search and filter dropdowns */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                    {/* Search bar takes full width on mobile, auto on larger screens */}
+                    <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input type="search" placeholder="Search..." className="w-full pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    </div>
+                    {/* Dropdowns grow on mobile, auto on larger screens */}
+                    <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
+                        <option value="all">All Cards</option>
+                        {allCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
+                        {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
+                    </select>
+                </div>
             </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="border rounded-md">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction Name <SortIcon columnKey="Transaction Name" /></Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('Cashback Month')} className="px-2">Statement Month <SortIcon columnKey="Statement Month" /></Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
-                    <TableHead><Button variant="ghost" onClick={() => requestSort('Category')} className="px-2">Category <SortIcon columnKey="Category" /></Button></TableHead>
-                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Est. Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
-                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {isLoading ? (
-                        <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /></TableCell></TableRow>
-                    ) : transactionsToShow.length > 0 ? (
-                        transactionsToShow.map(tx => {
-                            const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
-                            return (
-                                <TableRow key={tx.id}>
-                                <TableCell>{tx['Transaction Date']}</TableCell>
-                                <TableCell>
-                                  <div className="font-medium">{tx['Transaction Name']}</div>
-                                  {/* THIS IS THE LINE TO CHANGE: Add a conditional check */}
-                                  {tx['MCC Code'] && (
-                                      <div className="text-xs text-gray-500">
-                                          {mccNameFn(tx['MCC Code'])} ({tx['MCC Code']})
-                                      </div>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                    {tx['Cashback Month'] ? (
-                                        <Badge variant="outline">{fmtYMShort(tx['Cashback Month'])}</Badge>
-                                    ) : null}
-                                </TableCell>
-                                <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>
-                                <TableCell>
-                                    {tx['Category'] ? (
-                                        <Badge variant="outline">
-                                            {tx['Category']}
-                                        </Badge>
-                                    ) : null}
-                                </TableCell>
-                                <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>
-                                <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>
-                                </TableRow>
-                            );
-                        })
-                    ) : (
-                        <TableRow><TableCell colSpan={7} className="text-center h-24 text-muted-foreground">No transactions found for the selected period or filters.</TableCell></TableRow>
-                    )}
-                </TableBody>
-            </Table>
-        </div>
-        <div className="mt-6 flex flex-col items-center gap-4">
-          <p className="text-sm text-muted-foreground">
-            Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{filteredAndSortedTransactions.length}</span> transactions
-          </p>
-          {visibleCount < filteredAndSortedTransactions.length && (
-            <Button onClick={handleLoadMore} variant="outline">Load More</Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardHeader>
+        <CardContent>
+            <div className="border rounded-md">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction Name <SortIcon columnKey="Transaction Name" /></Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('Cashback Month')} className="px-2">Statement Month <SortIcon columnKey="Statement Month" /></Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
+                        <TableHead><Button variant="ghost" onClick={() => requestSort('Category')} className="px-2">Category <SortIcon columnKey="Category" /></Button></TableHead>
+                        <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Est. Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
+                        <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading ? (
+                            <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /></TableCell></TableRow>
+                        ) : transactionsToShow.length > 0 ? (
+                            transactionsToShow.map(tx => {
+                                const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
+                                return (
+                                    <TableRow key={tx.id}>
+                                    <TableCell>{tx['Transaction Date']}</TableCell>
+                                    <TableCell>
+                                    <div className="font-medium">{tx['Transaction Name']}</div>
+                                    {/* THIS IS THE LINE TO CHANGE: Add a conditional check */}
+                                    {tx['MCC Code'] && (
+                                        <div className="text-xs text-gray-500">
+                                            {mccNameFn(tx['MCC Code'])} ({tx['MCC Code']})
+                                        </div>
+                                    )}
+                                    </TableCell>
+                                    <TableCell>
+                                        {tx['Cashback Month'] ? (
+                                            <Badge variant="outline">{fmtYMShort(tx['Cashback Month'])}</Badge>
+                                        ) : null}
+                                    </TableCell>
+                                    <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>
+                                    <TableCell>
+                                        {tx['Category'] ? (
+                                            <Badge variant="outline">
+                                                {tx['Category']}
+                                            </Badge>
+                                        ) : null}
+                                    </TableCell>
+                                    <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>
+                                    <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>
+                                    </TableRow>
+                                );
+                            })
+                        ) : (
+                            <TableRow><TableCell colSpan={7} className="text-center h-24 text-muted-foreground">No transactions found for the selected period or filters.</TableCell></TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+            <div className="mt-6 flex flex-col items-center gap-4">
+            <p className="text-sm text-muted-foreground">
+                Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{filteredAndSortedTransactions.length}</span> transactions
+            </p>
+            {visibleCount < filteredAndSortedTransactions.length && (
+                <Button onClick={handleLoadMore} variant="outline">Load More</Button>
+            )}
+            </div>
+        </CardContent>
+        </Card>
+    );
 }
 
 function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
-  const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
-  const cardSpendsCapProgress = useMemo(() => {
-    return cards
-      .filter(card => card.overallMonthlyLimit > 0)
-      .map(card => {
-        // Find the specific summary for this card and the active month
-        const cardMonthSummary = monthlySummary.find(
-          summary => summary.cardId === card.id && summary.month === activeMonth
-        );
+    const cardSpendsCapProgress = useMemo(() => {
+        return cards
+        .filter(card => card.overallMonthlyLimit > 0)
+        .map(card => {
+            // Find the specific summary for this card and the active month
+            const cardMonthSummary = monthlySummary.find(
+            summary => summary.cardId === card.id && summary.month === activeMonth
+            );
 
-        // Get the pre-calculated cashback from that summary
-        const currentCashback = cardMonthSummary ? cardMonthSummary.cashback : 0;
-        const monthlyLimit = card.overallMonthlyLimit;
-        const usedPct = monthlyLimit > 0 ? Math.min(100, Math.round((currentCashback / monthlyLimit) * 100)) : 0;
-        
-        const { days, status } = calculateDaysUntilStatement(card.statementDay, activeMonth);
+            // Get the pre-calculated cashback from that summary
+            const currentCashback = cardMonthSummary ? cardMonthSummary.cashback : 0;
+            const monthlyLimit = card.overallMonthlyLimit;
+            const usedPct = monthlyLimit > 0 ? Math.min(100, Math.round((currentCashback / monthlyLimit) * 100)) : 0;
+            
+            const { days, status } = calculateDaysUntilStatement(card.statementDay, activeMonth);
 
-        return {
-          cardId: card.id,
-          cardName: card.name,
-          currentCashback,
-          monthlyLimit,
-          usedPct,
-          daysLeft: days,
-          cycleStatus: status,
-        };
-      });
-  }, [cards, activeMonth, monthlySummary]);
+            return {
+            cardId: card.id,
+            cardName: card.name,
+            currentCashback,
+            monthlyLimit,
+            usedPct,
+            daysLeft: days,
+            cycleStatus: status,
+            };
+        });
+    }, [cards, activeMonth, monthlySummary]);
 
-  return (
-    <Card className="lg:col-span-3">
-        <CardHeader>
-            <CardTitle>Card Spends Cap</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-            {cardSpendsCapProgress.map(p => (
-                // Use CSS Grid for a structured layout
-                <div key={p.cardId} className="space-y-2">
-                    {/* Row 1: Card Name and Days Left Badge (Unchanged) */}
-                    <div className="flex justify-between items-center gap-4">
-                        <p className="font-medium text-sm truncate">{p.cardName}</p>
-                        <Badge variant="outline" className={cn(
-                            "text-xs h-5 shrink-0",
-                            p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
-                        )}>
-                        {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
-                        </Badge>
-                    </div>
-                    
-                    {/* Row 2: Progress Bar and Amounts are now grouped together */}
-                    <div>
-                        <Tooltip>
-                            <TooltipTrigger className="w-full">
-                                <Progress value={p.usedPct} />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>{p.usedPct}% used. {currency(p.monthlyLimit - p.currentCashback)} remaining.</p>
-                            </TooltipContent>
-                        </Tooltip>
-                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                            <span>{currency(p.currentCashback)}</span>
-                            <span>{currency(p.monthlyLimit)}</span>
+    return (
+        <Card className="lg:col-span-3">
+            <CardHeader>
+                <CardTitle>Card Spends Cap</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {cardSpendsCapProgress.map(p => (
+                    // Use CSS Grid for a structured layout
+                    <div key={p.cardId} className="space-y-2">
+                        {/* Row 1: Card Name and Days Left Badge (Unchanged) */}
+                        <div className="flex justify-between items-center gap-4">
+                            <p className="font-medium text-sm truncate">{p.cardName}</p>
+                            <Badge variant="outline" className={cn(
+                                "text-xs h-5 shrink-0",
+                                p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
+                            )}>
+                            {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
+                            </Badge>
+                        </div>
+                        
+                        {/* Row 2: Progress Bar and Amounts are now grouped together */}
+                        <div>
+                            <Tooltip>
+                                <TooltipTrigger className="w-full">
+                                    <Progress value={p.usedPct} />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{p.usedPct}% used. {currency(p.monthlyLimit - p.currentCashback)} remaining.</p>
+                                </TooltipContent>
+                            </Tooltip>
+                            <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                                <span>{currency(p.currentCashback)}</span>
+                                <span>{currency(p.monthlyLimit)}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-            ))}
-            {cardSpendsCapProgress.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">No monthly limits defined for your cards.</p>
-            )}
-        </CardContent>
-    </Card>
-  );
+                ))}
+                {cardSpendsCapProgress.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No monthly limits defined for your cards.</p>
+                )}
+            </CardContent>
+        </Card>
+    );
 }
 
 function SpendByCardChart({ spendData, currencyFn }) {
-  const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899'];
+    const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899'];
 
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-    const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    if (percent < 0.05) return null;
+    const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+        const RADIAN = Math.PI / 180;
+        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+        if (percent < 0.05) return null;
+        return (
+        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-xs font-semibold">
+            {`${(percent * 100).toFixed(0)}%`}
+        </text>
+        );
+    };
+
     return (
-      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-xs font-semibold">
-        {`${(percent * 100).toFixed(0)}%`}
-      </text>
+        <Card>
+        <CardHeader><CardTitle>Spending by Card</CardTitle></CardHeader>
+        <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+                <Pie data={spendData} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} innerRadius={60} outerRadius={90} dataKey="value" nameKey="name" paddingAngle={3}>
+                {spendData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+                </Pie>
+                <RechartsTooltip formatter={(value) => currencyFn(value)} />
+                <Legend wrapperStyle={{ marginTop: '24px' }}/>
+            </PieChart>
+            </ResponsiveContainer>
+        </CardContent>
+        </Card>
     );
-  };
-
-  return (
-    <Card>
-      <CardHeader><CardTitle>Spending by Card</CardTitle></CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={250}>
-          <PieChart>
-            <Pie data={spendData} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} innerRadius={60} outerRadius={90} dataKey="value" nameKey="name" paddingAngle={3}>
-              {spendData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <RechartsTooltip formatter={(value) => currencyFn(value)} />
-            <Legend wrapperStyle={{ marginTop: '24px' }}/>
-          </PieChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
-  );
 }
 
 // NEW COMPONENT 2: CashbackByCardChart
 function CashbackByCardChart({ cashbackData, currencyFn }) {
-  const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899'];
+    const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899'];
 
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-    const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    if (percent < 0.05) return null;
+    const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+        const RADIAN = Math.PI / 180;
+        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+        if (percent < 0.05) return null;
+        return (
+        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-xs font-semibold">
+            {`${(percent * 100).toFixed(0)}%`}
+        </text>
+        );
+    };
+
     return (
-      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-xs font-semibold">
-        {`${(percent * 100).toFixed(0)}%`}
-      </text>
+        <Card>
+        <CardHeader><CardTitle>Cashback by Card</CardTitle></CardHeader>
+        <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+                <Pie data={cashbackData} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} innerRadius={60} outerRadius={90} dataKey="value" nameKey="name" paddingAngle={3}>
+                {cashbackData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+                </Pie>
+                <RechartsTooltip formatter={(value) => currencyFn(value)} />
+                <Legend wrapperStyle={{ marginTop: '24px' }} />
+            </PieChart>
+            </ResponsiveContainer>
+        </CardContent>
+        </Card>
     );
-  };
-
-  return (
-    <Card>
-      <CardHeader><CardTitle>Cashback by Card</CardTitle></CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={250}>
-          <PieChart>
-            <Pie data={cashbackData} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} innerRadius={60} outerRadius={90} dataKey="value" nameKey="name" paddingAngle={3}>
-              {cashbackData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <RechartsTooltip formatter={(value) => currencyFn(value)} />
-            <Legend wrapperStyle={{ marginTop: '24px' }} />
-          </PieChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
-  );
 }
 
 function CardsOverviewMetrics({ stats, currencyFn }) {
@@ -2014,7 +2011,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 setMccResults(data.results);
                 setIsMccDialogOpen(true);
             } else {
-              setMccResults([]);
+                setMccResults([]);
             }
         } catch (error) {
             console.error("MCC Search Error:", error);
@@ -2103,109 +2100,109 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     };
 
     return (
-      <>
-        <form onSubmit={handleSubmit} className="space-y-6 py-4">
-            {/* --- Section 1: Transaction Details --- */}
-            <div className="space-y-4">
-                <div className="space-y-2">
-                    <label htmlFor="merchant">Transaction Name</label>
-                    <div className="flex items-center gap-2">
-                        <Input id="merchant" value={merchant} onChange={(e) => setMerchant(e.target.value)} required />
-                        <Button type="button" size="icon" variant="outline" onClick={handleMccSearch} disabled={!merchant || isMccSearching}>
-                            {isMccSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                        </Button>
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    <label htmlFor="mcc">MCC (Merchant Category Code)</label>
-                    <Input id="mcc" value={mccCode} onChange={(e) => setMccCode(e.target.value)} placeholder="Enter code or use Lookup" />
-                    {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <>
+            <form onSubmit={handleSubmit} className="space-y-6 py-4">
+                {/* --- Section 1: Transaction Details --- */}
+                <div className="space-y-4">
                     <div className="space-y-2">
-                        <label htmlFor="amount">Amount</label>
-                        <Input id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
+                        <label htmlFor="merchant">Transaction Name</label>
+                        <div className="flex items-center gap-2">
+                            <Input id="merchant" value={merchant} onChange={(e) => setMerchant(e.target.value)} required />
+                            <Button type="button" size="icon" variant="outline" onClick={handleMccSearch} disabled={!merchant || isMccSearching}>
+                                {isMccSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                            </Button>
+                        </div>
                     </div>
+
                     <div className="space-y-2">
-                        <label htmlFor="date">Date</label>
-                        <DatePicker date={date} setDate={setDate} />
+                        <label htmlFor="mcc">MCC (Merchant Category Code)</label>
+                        <Input id="mcc" value={mccCode} onChange={(e) => setMccCode(e.target.value)} placeholder="Enter code or use Lookup" />
+                        {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label htmlFor="amount">Amount</label>
+                            <Input id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
+                        </div>
+                        <div className="space-y-2">
+                            <label htmlFor="date">Date</label>
+                            <DatePicker date={date} setDate={setDate} />
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* --- Section 2: Categorization --- */}
-            <div className="space-y-4 border-t pt-6">
-            <div className="space-y-2">
-                <label htmlFor="card">Card</label>
-                <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="w-full p-2 border rounded cursor-pointer" required>
-                {cards.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
-                </select>
-                {cashbackMonth && (
-                <div className="flex items-center gap-2 pt-2">
-                    <span className="text-xs text-muted-foreground">Statement Month:</span>
-                    <Badge variant="outline">{cashbackMonth}</Badge>
-                </div>
-                )}
-            </div>
-
-            <div className="space-y-2">
-                <label htmlFor="rule">Applicable Cashback Rule</label>
-                <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border rounded cursor-pointer" disabled={filteredRules.length === 0}>
-                <option value="">{filteredRules.length === 0 ? 'No rules for this card' : 'None'}</option>
-                {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
-                </select>
-                {selectedRule && (
-                <div className="flex items-center gap-2 pt-2">
-                    <Badge variant="secondary">Rate: {(selectedRule.rate * 100).toFixed(1)}%</Badge>
-                    {estimatedCashback > 0 && (
-                        <Badge variant="outline" className="text-emerald-600">
-                            Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}
-                        </Badge>
+                {/* --- Section 2: Categorization --- */}
+                <div className="space-y-4 border-t pt-6">
+                <div className="space-y-2">
+                    <label htmlFor="card">Card</label>
+                    <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="w-full p-2 border rounded cursor-pointer" required>
+                    {cards.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
+                    </select>
+                    {cashbackMonth && (
+                    <div className="flex items-center gap-2 pt-2">
+                        <span className="text-xs text-muted-foreground">Statement Month:</span>
+                        <Badge variant="outline">{cashbackMonth}</Badge>
+                    </div>
                     )}
                 </div>
+
+                <div className="space-y-2">
+                    <label htmlFor="rule">Applicable Cashback Rule</label>
+                    <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border rounded cursor-pointer" disabled={filteredRules.length === 0}>
+                    <option value="">{filteredRules.length === 0 ? 'No rules for this card' : 'None'}</option>
+                    {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
+                    </select>
+                    {selectedRule && (
+                    <div className="flex items-center gap-2 pt-2">
+                        <Badge variant="secondary">Rate: {(selectedRule.rate * 100).toFixed(1)}%</Badge>
+                        {estimatedCashback > 0 && (
+                            <Badge variant="outline" className="text-emerald-600">
+                                Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}
+                            </Badge>
+                        )}
+                    </div>
+                    )}
+                </div>
+
+                {/* --- Monthly Summary Field --- */}
+                {applicableRuleId && (
+                <div className="space-y-2">
+                    <label htmlFor="summary">Link to Monthly Summary</label>
+                    <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="w-full p-2 border rounded cursor-pointer">
+                    <option value="new">Create New Summary</option>
+                    {filteredSummaries.map(summary => <option key={summary.id} value={summary.id}>{summary.summaryId}</option>)}
+                    </select>
+                </div>
                 )}
-            </div>
+                
+                <div className="space-y-2">
+                    <label htmlFor="category">Internal Category</label>
+                    <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded cursor-pointer">
+                        <option value="">None</option>
+                        {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                </div>
+                </div>
 
-            {/* --- Monthly Summary Field --- */}
-            {applicableRuleId && (
-            <div className="space-y-2">
-                <label htmlFor="summary">Link to Monthly Summary</label>
-                <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="w-full p-2 border rounded cursor-pointer">
-                <option value="new">Create New Summary</option>
-                {filteredSummaries.map(summary => <option key={summary.id} value={summary.id}>{summary.summaryId}</option>)}
-                </select>
-            </div>
-            )}
-            
-            <div className="space-y-2">
-                <label htmlFor="category">Internal Category</label>
-                <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded cursor-pointer">
-                    <option value="">None</option>
-                    {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-            </div>
-            </div>
+                {/* --- Submit Button --- */}
+                <div className="pt-2">
+                <Button type="submit" disabled={isSubmitting} size="lg" className="w-full">
+                    {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Add Transaction"}
+                </Button>
+                </div>
+            </form>
 
-            {/* --- Submit Button --- */}
-            <div className="pt-2">
-            <Button type="submit" disabled={isSubmitting} size="lg" className="w-full">
-                {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Add Transaction"}
-            </Button>
-            </div>
-        </form>
-
-        <MccSearchResultsDialog
-            open={isMccDialogOpen}
-            onOpenChange={setIsMccDialogOpen}
-            results={mccResults}
-            onSelect={(selectedMcc) => {
-                setMccCode(selectedMcc);
-                setIsMccDialogOpen(false); // Close dialog on selection
-            }}
-        />
-      </>      
+            <MccSearchResultsDialog
+                open={isMccDialogOpen}
+                onOpenChange={setIsMccDialogOpen}
+                results={mccResults}
+                onSelect={(selectedMcc) => {
+                    setMccCode(selectedMcc);
+                    setIsMccDialogOpen(false); // Close dialog on selection
+                }}
+            />
+        </>      
     );
 }
 
@@ -2255,128 +2252,128 @@ function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
 }
 
 function DatePicker({ date, setDate }) {
-  const selectedDate = date ? new Date(date) : null;
+    const selectedDate = date ? new Date(date) : null;
 
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant={"outline"}
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            !date && "text-muted-foreground"
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 bg-white">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          onSelect={(newDate) => {
-            if (newDate) {
-              // Adjust for timezone offset to prevent date from changing
-              const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-              const adjustedDate = new Date(newDate.getTime() - timezoneOffset);
-              setDate(adjustedDate.toISOString().split('T')[0]);
-            }
-          }}
-          initialFocus
-        />
-      </PopoverContent>
-    </Popover>
-  );
+    return (
+        <Popover>
+        <PopoverTrigger asChild>
+            <Button
+            variant={"outline"}
+            className={cn(
+                "w-full justify-start text-left font-normal",
+                !date && "text-muted-foreground"
+            )}
+            >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+            </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0 bg-white">
+            <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(newDate) => {
+                if (newDate) {
+                // Adjust for timezone offset to prevent date from changing
+                const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                const adjustedDate = new Date(newDate.getTime() - timezoneOffset);
+                setDate(adjustedDate.toISOString().split('T')[0]);
+                }
+            }}
+            initialFocus
+            />
+        </PopoverContent>
+        </Popover>
+    );
 }
 
 function CustomLineChartTooltip({ active, payload, label, currencyFn, cards }) {
-  if (active && payload?.length) {
-    // Group payload items by card name
-    const dataByCard = payload.reduce((acc, entry) => {
-      const cardName = cards.find(c => entry.dataKey.startsWith(c.name))?.name;
-      if (!cardName) return acc;
-      
-      const type = entry.dataKey.includes('Spend') ? 'spend' : 'cashback';
-      
-      if (!acc[cardName]) {
-        acc[cardName] = { color: entry.stroke, name: cardName };
-      }
-      acc[cardName][type] = entry.value;
+    if (active && payload?.length) {
+        // Group payload items by card name
+        const dataByCard = payload.reduce((acc, entry) => {
+        const cardName = cards.find(c => entry.dataKey.startsWith(c.name))?.name;
+        if (!cardName) return acc;
+        
+        const type = entry.dataKey.includes('Spend') ? 'spend' : 'cashback';
+        
+        if (!acc[cardName]) {
+            acc[cardName] = { color: entry.stroke, name: cardName };
+        }
+        acc[cardName][type] = entry.value;
 
-      return acc;
-    }, {});
+        return acc;
+        }, {});
 
-    return (
-      <div className="rounded-lg border bg-white/90 backdrop-blur-sm p-3 text-xs shadow-lg">
-        <p className="font-bold mb-2 text-sm">{label}</p>
-        <div className="space-y-2">
-          {Object.values(dataByCard).map(cardData => (
-            <div key={cardData.name}>
-              <p className="font-semibold" style={{ color: cardData.color }}>{cardData.name}</p>
-              <div className="grid grid-cols-[1fr_auto] gap-x-4">
-                  <span className="text-muted-foreground">Spend:</span>
-                  <span className="font-medium text-right">{currencyFn(cardData.spend)}</span>
-                  <span className="text-muted-foreground">Cashback:</span>
-                  <span className="font-medium text-right">{currencyFn(cardData.cashback)}</span>
-              </div>
+        return (
+        <div className="rounded-lg border bg-white/90 backdrop-blur-sm p-3 text-xs shadow-lg">
+            <p className="font-bold mb-2 text-sm">{label}</p>
+            <div className="space-y-2">
+            {Object.values(dataByCard).map(cardData => (
+                <div key={cardData.name}>
+                <p className="font-semibold" style={{ color: cardData.color }}>{cardData.name}</p>
+                <div className="grid grid-cols-[1fr_auto] gap-x-4">
+                    <span className="text-muted-foreground">Spend:</span>
+                    <span className="font-medium text-right">{currencyFn(cardData.spend)}</span>
+                    <span className="text-muted-foreground">Cashback:</span>
+                    <span className="font-medium text-right">{currencyFn(cardData.cashback)}</span>
+                </div>
+                </div>
+            ))}
             </div>
-          ))}
         </div>
-      </div>
-    );
-  }
+        );
+    }
 
-  return null;
+    return null;
 }
 
 function TransactionDetailsDialog({ isOpen, onClose, details, transactions, isLoading, currencyFn }) {
-  if (!isOpen) return null;
+    if (!isOpen) return null;
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl bg-white">
-        <DialogHeader>
-          <DialogTitle>
-            Transactions for {details.cardName}
-          </DialogTitle>
-          <DialogDescription>
-            Statement Month: {details.month}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="max-h-[60vh] overflow-y-auto pr-4">
-          {isLoading ? (
-            <div className="flex justify-center items-center h-48">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-2xl bg-white">
+            <DialogHeader>
+            <DialogTitle>
+                Transactions for {details.cardName}
+            </DialogTitle>
+            <DialogDescription>
+                Statement Month: {details.month}
+            </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto pr-4">
+            {isLoading ? (
+                <div className="flex justify-center items-center h-48">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            ) : transactions.length > 0 ? (
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Transaction</TableHead>
+                    <TableHead className="text-right">Cashback</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {transactions.map(tx => (
+                    <TableRow key={tx.id}>
+                        <TableCell>{tx['Transaction Date']}</TableCell>
+                        <TableCell className="font-medium">{tx['Transaction Name']}</TableCell>
+                        <TableCell className="text-right text-emerald-600 font-medium">{currencyFn(tx.estCashback)}</TableCell>
+                        <TableCell className="text-right">{currencyFn(tx['Amount'])}</TableCell>
+                    </TableRow>
+                    ))}
+                </TableBody>
+                </Table>
+            ) : (
+                <div className="flex justify-center items-center h-48 text-muted-foreground">
+                <p>No transactions found for this period.</p>
+                </div>
+            )}
             </div>
-          ) : transactions.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Transaction</TableHead>
-                  <TableHead className="text-right">Cashback</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map(tx => (
-                  <TableRow key={tx.id}>
-                    <TableCell>{tx['Transaction Date']}</TableCell>
-                    <TableCell className="font-medium">{tx['Transaction Name']}</TableCell>
-                    <TableCell className="text-right text-emerald-600 font-medium">{currencyFn(tx.estCashback)}</TableCell>
-                    <TableCell className="text-right">{currencyFn(tx['Amount'])}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="flex justify-center items-center h-48 text-muted-foreground">
-              <p>No transactions found for this period.</p>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+        </DialogContent>
+        </Dialog>
+    );
 }
