@@ -104,10 +104,12 @@ app.get('/api/transactions', async (req, res) => {
 
         // This is the updated filter that we send to Notion
         const filter = {
-            property: 'Transaction Date', // The name of your date column
-            date: {
-                on_or_after: startDate.toISOString().split('T')[0], // e.g., '2025-08-01'
-                on_or_before: endDate.toISOString().split('T')[0],   // e.g., '2025-08-31'
+            // The key is now the actual property name from Notion
+            'Transaction Date': { 
+                date: {
+                    on_or_after: startDate.toISOString().split('T')[0],
+                    on_or_before: endDate.toISOString().split('T')[0],
+                }
             },
         };
 
