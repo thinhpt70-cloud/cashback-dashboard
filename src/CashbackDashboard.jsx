@@ -95,6 +95,7 @@ export default function CashbackDashboard() {
   const [monthlyCashbackCategories, setMonthlyCashbackCategories] = useState([]);
   const [allCategories, setAllCategories] = useState([]); // 1. Add new state
   const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
+  const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
 
     const handleTransactionAdded = (newTransaction) => {
     // 1. Instantly update the list for the current month
@@ -199,7 +200,7 @@ export default function CashbackDashboard() {
         const fetchMonthlyTransactions = async () => {
             setIsMonthlyTxLoading(true); // Set loading to true
             try {
-                const res = await fetch(`${API_BASE_URL}/transactions?month=${activeMonth}`);
+                const res = await fetch(`${API_BASE_URL}/transactions?month=${activeMonth}&filterBy=${transactionFilterType}`);
                 if (!res.ok) {
                     throw new Error('Failed to fetch monthly transactions');
                 }
@@ -508,14 +509,17 @@ export default function CashbackDashboard() {
 
             <TabsContent value="transactions" className="pt-4">
               <TransactionsTab
-                  // UPDATE these props
-                  transactions={monthlyTransactions}
-                  isLoading={isMonthlyTxLoading}
-                  // The rest of the props stay the same
-                  activeMonth={activeMonth}
-                  cardMap={cardMap}
-                  mccNameFn={mccName}
-                  allCards={cards}
+                    // UPDATE these props
+                    transactions={monthlyTransactions}
+                    isLoading={isMonthlyTxLoading}
+                    // The rest of the props stay the same
+                    activeMonth={activeMonth}
+                    cardMap={cardMap}
+                    mccNameFn={mccName}
+                    allCards={cards}
+                    // 3. PASS THE NEW PROPS DOWN
+                    filterType={transactionFilterType}
+                    onFilterTypeChange={setTransactionFilterType}
               />
             </TabsContent>  
 
@@ -781,7 +785,7 @@ function CardInfoDialog({ card, rules }) {
   );
 }
 
-function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards }) {
+function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [cardFilter, setCardFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -872,21 +876,33 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
     <Card>
       <CardHeader>
         <div className="flex flex-col gap-4">
-            <CardTitle>Transactions for {fmtYMShort(activeMonth)}</CardTitle>
-            <div className="flex flex-col sm:flex-row gap-2">
-            {/* Search bar takes full width on mobile, auto on larger screens */}
-            <div className="relative w-full sm:w-64">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input type="search" placeholder="Search..." className="w-full pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <CardTitle>Transactions for {fmtYMShort(activeMonth)}</CardTitle>
+                
+                {/* This is the new filter switch */}
+                <Tabs value={filterType} onValueChange={onFilterTypeChange} className="w-full sm:w-[260px]">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="date">By Transaction Date</TabsTrigger>
+                        <TabsTrigger value="cashbackMonth">By Cashback Month</TabsTrigger>
+                    </TabsList>
+                </Tabs>
             </div>
-            {/* Dropdowns grow on mobile, auto on larger screens */}
-            <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
-                <option value="all">All Cards</option>
-                {allCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
-                {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
-            </select>
+
+            {/* The existing search and filter dropdowns */}
+            <div className="flex flex-col sm:flex-row gap-2">
+                {/* Search bar takes full width on mobile, auto on larger screens */}
+                <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input type="search" placeholder="Search..." className="w-full pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                </div>
+                {/* Dropdowns grow on mobile, auto on larger screens */}
+                <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
+                    <option value="all">All Cards</option>
+                    {allCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
+                    {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
+                </select>
             </div>
         </div>
       </CardHeader>
