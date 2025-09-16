@@ -88,28 +88,33 @@ app.get('/api/transactions', async (req, res) => {
     // Get the month from the query parameters (e.g., "202508")
     const { month } = req.query;
 
-    if (!month) {
-        return res.status(400).json({ error: 'A month query parameter is required.' });
+    if (!month || month.length !== 6) {
+        return res.status(400).json({ error: 'A month query parameter in YYYYMM format is required.' });
     }
 
     try {
+        const year = parseInt(month.substring(0, 4), 10);
+        const monthIndex = parseInt(month.substring(4, 6), 10) - 1; // JS months are 0-indexed
+
+        const startDate = new Date(year, monthIndex, 1);
+        const endDate = new Date(year, monthIndex + 1, 0); // The 0th day of the next month is the last day of the current month
+
         const allResults = [];
         let nextCursor = undefined;
 
-        // This is the filter that we send to Notion
+        // This is the updated filter that we send to Notion
         const filter = {
-            property: 'Cashback Month', // The name of your formula column
-            formula: {
-                string: {
-                    equals: month,
-                },
+            property: 'Transaction Date', // The name of your date column
+            date: {
+                on_or_after: startDate.toISOString().split('T')[0], // e.g., '2025-08-01'
+                on_or_before: endDate.toISOString().split('T')[0],   // e.g., '2025-08-31'
             },
         };
 
         do {
             const response = await notion.databases.query({
                 database_id: transactionsDbId,
-                filter: filter, // Apply the filter to the query
+                filter: filter, // Apply the updated filter to the query
                 start_cursor: nextCursor,
                 sorts: [{ property: 'Transaction Date', direction: 'descending' }],
             });
