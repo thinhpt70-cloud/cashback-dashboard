@@ -637,9 +637,9 @@ export default function CashbackDashboard() {
                 
                 <TabsContent value="payments" className="space-y-4 pt-4">
                     {/* Create a grid for the two components */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                         {/* The summary table takes up 2/3 of the space on large screens */}
-                        <div className="lg:col-span-2">
+                        <div className="lg:col-span-3">
                             <PaymentsTab 
                                 cards={cards}
                                 monthlySummary={monthlySummary}
@@ -1373,7 +1373,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                                             <TableCell><Badge variant="outline">{fmtYMShortFn(stmt.month)}</Badge></TableCell>
                                                                             <TableCell>{stmt.statementDate}</TableCell>
                                                                             <TableCell>{stmt.paymentDate}</TableCell>
-                                                                            <TableCell><Badge variant="secondary">{stmt.daysLeft} days left</Badge></TableCell>
+                                                                            <TableCell><Badge variant="outline">{stmt.daysLeft} days</Badge></TableCell>
                                                                             <TableCell className="text-right">{currencyFn(stmt.spend)}</TableCell>
                                                                             <TableCell className="text-right text-emerald-600">{currencyFn(stmt.cashback)}</TableCell>
                                                                             <TableCell className="text-right font-semibold">{currencyFn(stmt.finalPayment)}</TableCell>
