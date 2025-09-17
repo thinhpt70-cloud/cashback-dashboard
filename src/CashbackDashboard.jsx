@@ -547,92 +547,91 @@ export default function CashbackDashboard() {
                 </TabsContent>  
 
                 <TabsContent value="cards" className="space-y-4 pt-4">
-                
-                <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
+                    <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
 
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {cards.map(card => {
-                        // --- LOGIC TO GET ALL STATS FOR THE CARD ---
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {cards.map(card => {
+                            // --- LOGIC TO GET ALL STATS FOR THE CARD ---
 
-                        // 1. Get Monthly Stats (for the selected month)
-                        const cardMonthSummary = monthlySummary.find(
-                            summary => summary.cardId === card.id && summary.month === activeMonth
-                        );
-                        const totalSpendMonth = cardMonthSummary ? cardMonthSummary.spend : 0;
-                        const estCashbackMonth = cardMonthSummary ? cardMonthSummary.cashback : 0;
-                        const effectiveRate = totalSpendMonth > 0 ? (estCashbackMonth / totalSpendMonth) * 100 : 0;
+                            // 1. Get Monthly Stats (for the selected month)
+                            const cardMonthSummary = monthlySummary.find(
+                                summary => summary.cardId === card.id && summary.month === activeMonth
+                            );
+                            const totalSpendMonth = cardMonthSummary ? cardMonthSummary.spend : 0;
+                            const estCashbackMonth = cardMonthSummary ? cardMonthSummary.cashback : 0;
+                            const effectiveRate = totalSpendMonth > 0 ? (estCashbackMonth / totalSpendMonth) * 100 : 0;
 
-                        // 2. Calculate Total YTD Spend by summing up all months from the summary data
-                        const totalSpendYTD = monthlySummary
-                            .filter(summary => summary.cardId === card.id)
-                            .reduce((acc, summary) => acc + (summary.spend || 0), 0);
+                            // 2. Calculate Total YTD Spend by summing up all months from the summary data
+                            const totalSpendYTD = monthlySummary
+                                .filter(summary => summary.cardId === card.id)
+                                .reduce((acc, summary) => acc + (summary.spend || 0), 0);
 
-                        return (
-                            <Card key={card.id}>
-                                <CardHeader>
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle className="text-lg">{card.name} &bull;&bull;&bull;{card.last4}</CardTitle>
-                                        <Badge variant="outline">{card.bank}</Badge>
-                                    </div>
-                                    <p className="text-sm text-gray-500 pt-1">
-                                        Statement Due Day: {card.statementDay} &bull; Payment Due Day: {card.paymentDueDay}
-                                    </p>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {/* --- NEW TWO-ROW LAYOUT --- */}
-
-                                    {/* Row 1: Year-to-Date Totals */}
-                                    <div className="grid grid-cols-2 gap-4 text-center">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Total Spending</p>
-                                            <p className="font-semibold text-xl">{currency(totalSpendYTD)}</p>
+                            return (
+                                <Card key={card.id}>
+                                    <CardHeader>
+                                        <div className="flex items-center justify-between">
+                                            <CardTitle className="text-lg">{card.name} &bull;&bull;&bull;{card.last4}</CardTitle>
+                                            <Badge variant="outline">{card.bank}</Badge>
                                         </div>
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Total Cashback</p>
-                                            <p className="font-semibold text-xl text-emerald-600">{currency(card.estYtdCashback)}</p>
-                                        </div>
-                                    </div>
+                                        <p className="text-sm text-gray-500 pt-1">
+                                            Statement Due Day: {card.statementDay} &bull; Payment Due Day: {card.paymentDueDay}
+                                        </p>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        {/* --- NEW TWO-ROW LAYOUT --- */}
 
-                                    {/* Divider for visual separation */}
-                                    <div className="border-t"></div>
-
-                                    {/* Row 2: Selected Month's Stats */}
-                                    <div className="grid grid-cols-3 gap-4 text-center">
-                                        <div>
-                                            <p className="font-semibold text-lg">{currency(totalSpendMonth)}</p>
-                                            <p className="text-sm text-muted-foreground">Spend</p>
-                                            <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
+                                        {/* Row 1: Year-to-Date Totals */}
+                                        <div className="grid grid-cols-2 gap-4 text-center">
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Total Spending</p>
+                                                <p className="font-semibold text-xl">{currency(totalSpendYTD)}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Total Cashback</p>
+                                                <p className="font-semibold text-xl text-emerald-600">{currency(card.estYtdCashback)}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-semibold text-lg text-emerald-600">{currency(estCashbackMonth)}</p>
-                                            <p className="text-sm text-muted-foreground">Cashback</p>
-                                            <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-lg">{effectiveRate.toFixed(2)}%</p>
-                                            <p className="text-sm text-muted-foreground">% Rate</p>
-                                            <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
-                                        </div>
-                                    </div>
 
-                                    <div className="flex justify-end pt-2">
-                                        <CardInfoDialog card={card} rules={rules.filter(r => r.cardId === card.id)} />
-                                    </div>
+                                        {/* Divider for visual separation */}
+                                        <div className="border-t"></div>
 
-                                    <div className="border-t pt-4">
-                                        <CategoryCapsUsage 
-                                            card={card}
-                                            activeMonth={activeMonth}
-                                            monthlyCategorySummary={monthlyCategorySummary}
-                                            monthlySummary={monthlySummary} 
-                                            currencyFn={currency}
-                                        />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
-                </div>
+                                        {/* Row 2: Selected Month's Stats */}
+                                        <div className="grid grid-cols-3 gap-4 text-center">
+                                            <div>
+                                                <p className="font-semibold text-lg">{currency(totalSpendMonth)}</p>
+                                                <p className="text-sm text-muted-foreground">Spend</p>
+                                                <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-lg text-emerald-600">{currency(estCashbackMonth)}</p>
+                                                <p className="text-sm text-muted-foreground">Cashback</p>
+                                                <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-lg">{effectiveRate.toFixed(2)}%</p>
+                                                <p className="text-sm text-muted-foreground">% Rate</p>
+                                                <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-end pt-2">
+                                            <CardInfoDialog card={card} rules={rules.filter(r => r.cardId === card.id)} />
+                                        </div>
+
+                                        <div className="border-t pt-4">
+                                            <CategoryCapsUsage 
+                                                card={card}
+                                                activeMonth={activeMonth}
+                                                monthlyCategorySummary={monthlyCategorySummary}
+                                                monthlySummary={monthlySummary} 
+                                                currencyFn={currency}
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
+                    </div>
                 </TabsContent>
                 
                 <TabsContent value="payments" className="space-y-4 pt-4">
@@ -1772,7 +1771,7 @@ function RecentTransactionsCarousel({ transactions, cardMap, currencyFn }) {
                                         <p className="font-semibold truncate" title={tx['Transaction Name']}>{tx['Transaction Name']}</p>
                                         <p className="text-xs text-gray-500">{tx['Transaction Date']}</p>
                                     </div>
-                                    {card && <Badge className="bg-gray-200 text-gray-800 outline">{card.name}</Badge>}
+                                    {card && <Badge variant="outline" className="text-xs h-5 shrink-0">{card.name}</Badge>}
                                 </div>
                                 <div className="text-right">
                                     <p className="font-bold text-lg">{currencyFn(tx['Amount'])}</p>
