@@ -1336,7 +1336,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                             variant={mainStatement.daysLeft <= 3 ? "destructive" : "outline"}
                                                             className={mainStatement.daysLeft > 3 && mainStatement.daysLeft <= 7 ? "bg-yellow-200 text-yellow-800 border-yellow-300" : ""}
                                                         >
-                                                            {mainStatement.daysLeft} days
+                                                            {mainStatement.daysLeft} days left
                                                         </Badge>
                                                     </div>
                                                 )}
