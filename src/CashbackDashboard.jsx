@@ -1342,7 +1342,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                                     : "" // No extra classes, so the default outline shows
                                                             }
                                                         >
-                                                            {mainStatement.daysLeft} days
+                                                            {mainStatement.daysLeft} days left
                                                         </Badge>
                                                     </div>
                                                 )}
