@@ -1333,10 +1333,16 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                 {mainStatement?.daysLeft !== null && (
                                                     <div className="mt-1">
                                                         <Badge
-                                                            variant={mainStatement.daysLeft <= 3 ? "bg-red-200 text-red-800 border-red-300" : "outline"}
-                                                            className={mainStatement.daysLeft > 3 && mainStatement.daysLeft <= 7 ? "bg-yellow-200 text-yellow-800 border-yellow-300" : ""}
+                                                            variant="outline" // The base variant is always "outline"
+                                                            className={
+                                                                mainStatement.daysLeft <= 3
+                                                                    ? "bg-red-200 text-red-800 border-red-300" // Your custom red style
+                                                                    : mainStatement.daysLeft <= 7
+                                                                    ? "bg-yellow-200 text-yellow-800 border-yellow-300" // The yellow style
+                                                                    : "" // No extra classes, so the default outline shows
+                                                            }
                                                         >
-                                                            {mainStatement.daysLeft} days left
+                                                            {mainStatement.daysLeft} days
                                                         </Badge>
                                                     </div>
                                                 )}
