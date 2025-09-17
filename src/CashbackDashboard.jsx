@@ -1772,7 +1772,7 @@ function RecentTransactionsCarousel({ transactions, cardMap, currencyFn }) {
                                         <p className="font-semibold truncate" title={tx['Transaction Name']}>{tx['Transaction Name']}</p>
                                         <p className="text-xs text-gray-500">{tx['Transaction Date']}</p>
                                     </div>
-                                    {card && <Badge variant="secondary">{card.name}</Badge>}
+                                    {card && <Badge className="bg-gray-200 text-gray-800 outline">{card.name}</Badge>}
                                 </div>
                                 <div className="text-right">
                                     <p className="font-bold text-lg">{currencyFn(tx['Amount'])}</p>
