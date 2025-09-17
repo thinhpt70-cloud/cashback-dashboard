@@ -1209,7 +1209,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
     };
 
     const paymentData = useMemo(() => {
-        // This logic remains the same as the previous update
+        // This logic remains the same
         const data = cards.map(card => {
             const allCardSummaries = monthlySummary.filter(s => s.cardId === card.id);
             if (allCardSummaries.length === 0) {
@@ -1290,7 +1290,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                             <TableHead className="w-[250px]">Card</TableHead>
                             <TableHead>Statement Month</TableHead>
                             <TableHead>Payment Date</TableHead>
-                            <TableHead>Days Left</TableHead>
+                            {/* "Days Left" Header is removed */}
                             <TableHead className="text-right">Total Payment</TableHead>
                             <TableHead className="text-right">Total Cashback</TableHead>
                             <TableHead className="text-right">Final Payment</TableHead>
@@ -1326,13 +1326,21 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                 </Badge>
                                             )}
                                         </TableCell>
-                                        <TableCell>{mainStatement?.paymentDate || 'N/A'}</TableCell>
+                                        {/* THIS IS THE COMBINED CELL */}
                                         <TableCell>
-                                            {mainStatement?.daysLeft !== null && (
-                                                <Badge variant={mainStatement.daysLeft <= 3 ? "destructive" : mainStatement.daysLeft <= 7 ? "secondary" : "outline"}>
-                                                    {mainStatement.daysLeft} days
-                                                </Badge>
-                                            )}
+                                            <div>
+                                                <span>{mainStatement?.paymentDate || 'N/A'}</span>
+                                                {mainStatement?.daysLeft !== null && (
+                                                    <div className="mt-1">
+                                                        <Badge
+                                                            variant={mainStatement.daysLeft <= 3 ? "destructive" : "outline"}
+                                                            className={mainStatement.daysLeft > 3 && mainStatement.daysLeft <= 7 ? "bg-yellow-200 text-yellow-800 border-yellow-300" : ""}
+                                                        >
+                                                            {mainStatement.daysLeft} days
+                                                        </Badge>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </TableCell>
                                         <TableCell className="text-right">{currencyFn(mainStatement?.spend)}</TableCell>
                                         <TableCell className="text-right text-emerald-600">{currencyFn(mainStatement?.cashback)}</TableCell>
@@ -1345,10 +1353,10 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                             )}
                                         </TableCell>
                                     </TableRow>
-                                    {/* --- UPDATED EXPANDABLE SECTION --- */}
+                                    {/* --- EXPANDABLE SECTION --- */}
                                     {expandedRows[card.id] && (
                                         <TableRow>
-                                            <TableCell colSpan={8} className="p-0">
+                                            <TableCell colSpan={7} className="p-0"> {/* Adjusted colSpan */}
                                                 <div className="p-4 bg-slate-50 space-y-6">
                                                     {/* Upcoming Statements */}
                                                     {card.upcomingStatements.length > 0 && (
@@ -1360,7 +1368,6 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                                         <TableHead>Month</TableHead>
                                                                         <TableHead>Statement Date</TableHead>
                                                                         <TableHead>Payment Date</TableHead>
-                                                                        <TableHead>Days Left</TableHead>
                                                                         <TableHead className="text-right">Total Payment</TableHead>
                                                                         <TableHead className="text-right">Total Cashback</TableHead>
                                                                         <TableHead className="text-right">Final Payment</TableHead>
@@ -1372,8 +1379,15 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                                         <TableRow key={stmt.month}>
                                                                             <TableCell><Badge variant="outline">{fmtYMShortFn(stmt.month)}</Badge></TableCell>
                                                                             <TableCell>{stmt.statementDate}</TableCell>
-                                                                            <TableCell>{stmt.paymentDate}</TableCell>
-                                                                            <TableCell><Badge variant="outline">{stmt.daysLeft} days</Badge></TableCell>
+                                                                            {/* THIS IS THE COMBINED CELL FOR UPCOMING STATEMENTS */}
+                                                                            <TableCell>
+                                                                                <div>
+                                                                                    <span>{stmt.paymentDate}</span>
+                                                                                    <div className="mt-1">
+                                                                                        <Badge variant="outline">{stmt.daysLeft} days left</Badge>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </TableCell>
                                                                             <TableCell className="text-right">{currencyFn(stmt.spend)}</TableCell>
                                                                             <TableCell className="text-right text-emerald-600">{currencyFn(stmt.cashback)}</TableCell>
                                                                             <TableCell className="text-right font-semibold">{currencyFn(stmt.finalPayment)}</TableCell>
@@ -1434,7 +1448,8 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                     </TableBody>
                     <tfoot className="border-t-2 border-slate-200">
                         <TableRow>
-                            <TableCell colSpan={4} className="font-semibold text-right">Totals</TableCell>
+                            {/* Adjusted colSpan from 4 to 3 */}
+                            <TableCell colSpan={3} className="font-semibold text-right">Totals</TableCell>
                             <TableCell className="text-right font-bold">{currencyFn(totals.totalPayment)}</TableCell>
                             <TableCell className="text-right font-bold text-emerald-600">{currencyFn(totals.totalCashback)}</TableCell>
                             <TableCell className="text-right font-extrabold">{currencyFn(totals.finalPayment)}</TableCell>
