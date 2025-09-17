@@ -1220,16 +1220,27 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
             // Calculate details for all previous statements (for the expandable view)
             const previousStatements = allCardSummaries.slice(1).map(stmt => {
                 const year = parseInt(stmt.month.slice(0, 4), 10);
-                const month = parseInt(stmt.month.slice(4, 6), 10);
-                let paymentDate = "N/A";
-                if (card.paymentDueDay) {
-                    const dueDate = new Date(year, month, card.paymentDueDay);
-                    paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
-                }
+                const month = parseInt(stmt.month.slice(4, 6), 10); // 1-indexed month
+
                 let statementDate = "N/A";
                 if (card.statementDay) {
-                    statementDate = `${year}-${String(month).padStart(2, '0')}-${String(card.statementDay).padStart(2, '0')}`;
+                    // Correctly create the statement date using the Date constructor
+                    const statement = new Date(year, month - 1, card.statementDay);
+                    statementDate = `${statement.getFullYear()}-${String(statement.getMonth() + 1).padStart(2, '0')}-${String(statement.getDate()).padStart(2, '0')}`;
                 }
+
+                let paymentDate = "N/A";
+                if (card.paymentDueDay) {
+                    let paymentMonth = month;
+                    // Apply the rollover logic: if payment day is before statement day, move to next month
+                    if (card.paymentDueDay < card.statementDay) {
+                        paymentMonth += 1;
+                    }
+                    // Correctly create the payment due date
+                    const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
+                    paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+                }
+
                 return { ...stmt, paymentDate, statementDate };
             });
 
@@ -1249,21 +1260,34 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
 
             if (latestMonth) {
                 const year = parseInt(latestMonth.slice(0, 4), 10);
-                const month = parseInt(latestMonth.slice(4, 6), 10);
+                const month = parseInt(latestMonth.slice(4, 6), 10); // This is 1-indexed (e.g., 9 for September)
 
-                // Calculate statement date and check if it has passed
+                // --- Statement Date Calculation ---
+                // Create a valid Date object for the statement.
+                // We use 'month - 1' because the Date constructor is 0-indexed (0=Jan, 1=Feb, etc.)
                 if (card.statementDay) {
-                    statementDate = `${year}-${String(month).padStart(2, '0')}-${String(card.statementDay).padStart(2, '0')}`;
+                    const statement = new Date(year, month - 1, card.statementDay);
+                    statementDate = `${statement.getFullYear()}-${String(statement.getMonth() + 1).padStart(2, '0')}-${String(statement.getDate()).padStart(2, '0')}`;
                     
-                    const statementDateObj = new Date(statementDate);
-                    if (!isNaN(statementDateObj)) {
-                        isStatementClosed = today >= statementDateObj;
-                    }
+                    // This part for checking if the statement is closed is correct
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    isStatementClosed = today >= statement;
                 }
 
-                // Calculate payment due date and days left
+                // --- Payment Due Date Calculation ---
                 if (card.paymentDueDay) {
-                    const dueDate = new Date(year, month, card.paymentDueDay);
+                    // Start with the same month as the statement
+                    let paymentMonth = month;
+
+                    // If the payment day is *before* the statement day, it means the payment is due in the *next* month.
+                    if (card.paymentDueDay < card.statementDay) {
+                        paymentMonth += 1; // Increment the month
+                    }
+
+                    // Create the due date. The Date object will handle year rollovers automatically
+                    // (e.g., if month is 12 and we add 1, it will correctly become month 1 of the next year).
+                    const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
                     paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
                     daysLeft = daysLeftFn(paymentDate);
                 }
