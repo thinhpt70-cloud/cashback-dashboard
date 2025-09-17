@@ -1209,24 +1209,20 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
     };
 
     const paymentData = useMemo(() => {
-        // --- NEW LOGIC START ---
+        // This logic remains the same as the previous update
         const data = cards.map(card => {
-            // 1. Get all summaries for the current card
             const allCardSummaries = monthlySummary.filter(s => s.cardId === card.id);
             if (allCardSummaries.length === 0) {
                 return { ...card, mainStatement: null, upcomingStatements: [], pastStatements: [] };
             }
 
-            // 2. Process EVERY summary to calculate its payment date and days left
             const processedStatements = allCardSummaries.map(stmt => {
                 const year = parseInt(stmt.month.slice(0, 4), 10);
-                const month = parseInt(stmt.month.slice(4, 6), 10); // 1-indexed
+                const month = parseInt(stmt.month.slice(4, 6), 10);
 
-                // Calculate Statement Date
                 const statement = new Date(year, month - 1, card.statementDay);
                 const statementDate = `${statement.getFullYear()}-${String(statement.getMonth() + 1).padStart(2, '0')}-${String(statement.getDate()).padStart(2, '0')}`;
 
-                // Calculate Payment Due Date
                 let paymentMonth = month;
                 if (card.paymentDueDay < card.statementDay) {
                     paymentMonth += 1;
@@ -1241,45 +1237,38 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                 return { ...stmt, paymentDate, paymentDateObj, statementDate, daysLeft, finalPayment };
             });
 
-            // 3. Separate statements into upcoming and past
             const upcoming = processedStatements.filter(s => s.daysLeft !== null);
             const past = processedStatements.filter(s => s.daysLeft === null);
 
-            // 4. Sort upcoming by nearest date, and past by most recent date
             upcoming.sort((a, b) => a.daysLeft - b.daysLeft);
             past.sort((a, b) => b.paymentDateObj - a.paymentDateObj);
 
-            // 5. The main statement is the one with the nearest upcoming payment date
             const mainStatement = upcoming.length > 0 ? upcoming[0] : (past.length > 0 ? past[0] : null);
 
             return {
                 ...card,
                 mainStatement,
-                upcomingStatements: upcoming.slice(1), // The rest of the upcoming statements
+                upcomingStatements: upcoming.slice(1),
                 pastStatements: past,
             };
         });
 
-        // 6. Sort cards to show those with the nearest payments first
         data.sort((a, b) => {
             const aDays = a.mainStatement?.daysLeft;
             const bDays = b.mainStatement?.daysLeft;
             
-            if (aDays !== null && bDays === null) return -1; // 'a' is upcoming, 'b' is not
-            if (aDays === null && bDays !== null) return 1;  // 'b' is upcoming, 'a' is not
-            if (aDays !== null && bDays !== null) return aDays - bDays; // both are upcoming, sort by days
+            if (aDays !== null && bDays === null) return -1;
+            if (aDays === null && bDays !== null) return 1;
+            if (aDays !== null && bDays !== null) return aDays - bDays;
             
-            // If both are past, sort by the most recent payment date
             if (a.mainStatement?.paymentDateObj && b.mainStatement?.paymentDateObj) {
                 return b.mainStatement.paymentDateObj - a.mainStatement.paymentDateObj;
             }
             return 0;
         });
-        // --- NEW LOGIC END ---
         return data;
     }, [cards, monthlySummary, daysLeftFn]);
 
-    // This hook is updated to correctly calculate totals from the 'mainStatement'
     const totals = useMemo(() => {
         return paymentData.reduce((acc, card) => {
             if (card.mainStatement) {
@@ -1311,7 +1300,6 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                     <TableBody>
                         {paymentData.map(card => {
                             const mainStatement = card.mainStatement;
-                            // This logic is now inside the map to be specific to the main statement
                             const isStatementClosed = mainStatement && new Date() >= new Date(mainStatement.statementDate);
                             
                             return (
@@ -1357,7 +1345,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                             )}
                                         </TableCell>
                                     </TableRow>
-                                    {/* --- NEW EXPANDABLE SECTION --- */}
+                                    {/* --- UPDATED EXPANDABLE SECTION --- */}
                                     {expandedRows[card.id] && (
                                         <TableRow>
                                             <TableCell colSpan={8} className="p-0">
@@ -1367,14 +1355,29 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                         <div>
                                                             <h4 className="font-semibold text-sm mb-2">Upcoming Statements</h4>
                                                             <Table>
+                                                                <TableHeader>
+                                                                    <TableRow>
+                                                                        <TableHead>Month</TableHead>
+                                                                        <TableHead>Statement Date</TableHead>
+                                                                        <TableHead>Payment Date</TableHead>
+                                                                        <TableHead>Days Left</TableHead>
+                                                                        <TableHead className="text-right">Total Payment</TableHead>
+                                                                        <TableHead className="text-right">Total Cashback</TableHead>
+                                                                        <TableHead className="text-right">Final Payment</TableHead>
+                                                                        <TableHead className="w-[50px]"></TableHead>
+                                                                    </TableRow>
+                                                                </TableHeader>
                                                                 <TableBody>
                                                                     {card.upcomingStatements.map(stmt => (
                                                                         <TableRow key={stmt.month}>
                                                                             <TableCell><Badge variant="outline">{fmtYMShortFn(stmt.month)}</Badge></TableCell>
-                                                                            <TableCell>Due: {stmt.paymentDate}</TableCell>
-                                                                            <TableCell><Badge variant="outline">{stmt.daysLeft} days left</Badge></TableCell>
+                                                                            <TableCell>{stmt.statementDate}</TableCell>
+                                                                            <TableCell>{stmt.paymentDate}</TableCell>
+                                                                            <TableCell><Badge variant="secondary">{stmt.daysLeft} days left</Badge></TableCell>
+                                                                            <TableCell className="text-right">{currencyFn(stmt.spend)}</TableCell>
+                                                                            <TableCell className="text-right text-emerald-600">{currencyFn(stmt.cashback)}</TableCell>
                                                                             <TableCell className="text-right font-semibold">{currencyFn(stmt.finalPayment)}</TableCell>
-                                                                            <TableCell className="text-center w-[50px]">
+                                                                            <TableCell className="text-center">
                                                                                 <Button variant="ghost" size="icon" onClick={() => onViewTransactions(card.id, card.name, stmt.month, fmtYMShortFn(stmt.month))}>
                                                                                     <List className="h-4 w-4" />
                                                                                 </Button>
@@ -1390,13 +1393,27 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                         <div>
                                                             <h4 className="font-semibold text-sm mb-2">Previous Statements</h4>
                                                             <Table>
+                                                                <TableHeader>
+                                                                    <TableRow>
+                                                                        <TableHead>Month</TableHead>
+                                                                        <TableHead>Statement Date</TableHead>
+                                                                        <TableHead>Payment Date</TableHead>
+                                                                        <TableHead className="text-right">Total Payment</TableHead>
+                                                                        <TableHead className="text-right">Total Cashback</TableHead>
+                                                                        <TableHead className="text-right">Final Payment</TableHead>
+                                                                        <TableHead className="w-[50px]"></TableHead>
+                                                                    </TableRow>
+                                                                </TableHeader>
                                                                 <TableBody>
                                                                     {card.pastStatements.map(stmt => (
                                                                         <TableRow key={stmt.month}>
                                                                             <TableCell><Badge variant="outline">{fmtYMShortFn(stmt.month)}</Badge></TableCell>
-                                                                            <TableCell>Paid: {stmt.paymentDate}</TableCell>
+                                                                            <TableCell>{stmt.statementDate}</TableCell>
+                                                                            <TableCell>{stmt.paymentDate}</TableCell>
+                                                                            <TableCell className="text-right">{currencyFn(stmt.spend)}</TableCell>
+                                                                            <TableCell className="text-right text-emerald-600">{currencyFn(stmt.cashback)}</TableCell>
                                                                             <TableCell className="text-right font-semibold">{currencyFn(stmt.finalPayment)}</TableCell>
-                                                                            <TableCell className="text-center w-[50px]">
+                                                                            <TableCell className="text-center">
                                                                                 <Button variant="ghost" size="icon" onClick={() => onViewTransactions(card.id, card.name, stmt.month, fmtYMShortFn(stmt.month))}>
                                                                                     <List className="h-4 w-4" />
                                                                                 </Button>
@@ -1415,7 +1432,6 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                             )
                         })}
                     </TableBody>
-                    {/* The footer now uses the updated totals calculation */}
                     <tfoot className="border-t-2 border-slate-200">
                         <TableRow>
                             <TableCell colSpan={4} className="font-semibold text-right">Totals</TableCell>
