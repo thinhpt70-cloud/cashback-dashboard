@@ -1199,6 +1199,8 @@ function CardsOverviewMetrics({ stats, currencyFn }) {
 function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeftFn, onViewTransactions }) {
     // State to track which card's previous statements are expanded
     const [expandedRows, setExpandedRows] = useState({});
+    const [paymentData, setPaymentData] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const handleToggleRow = (cardId) => {
         setExpandedRows(prev => ({
