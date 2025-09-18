@@ -1207,66 +1207,95 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
         }));
     };
 
-    const paymentData = useMemo(() => {
-        // This logic remains the same
-        const data = cards.map(card => {
-            const allCardSummaries = monthlySummary.filter(s => s.cardId === card.id);
-            if (allCardSummaries.length === 0) {
-                return { ...card, mainStatement: null, upcomingStatements: [], pastStatements: [] };
+    // This useEffect hook now calculates the payment data, fetching new data for HSBC cards
+    useEffect(() => {
+        const calculatePaymentData = async () => {
+            if (cards.length === 0 || monthlySummary.length === 0) {
+                setIsLoading(false);
+                return;
             }
+            
+            setIsLoading(true);
 
-            const processedStatements = allCardSummaries.map(stmt => {
-                const year = parseInt(stmt.month.slice(0, 4), 10);
-                const month = parseInt(stmt.month.slice(4, 6), 10);
-
-                const statement = new Date(year, month - 1, card.statementDay);
-                const statementDate = `${statement.getFullYear()}-${String(statement.getMonth() + 1).padStart(2, '0')}-${String(statement.getDate()).padStart(2, '0')}`;
-
-                let paymentMonth = month;
-                if (card.paymentDueDay < card.statementDay) {
-                    paymentMonth += 1;
+            const dataPromises = cards.map(async (card) => {
+                const allCardSummaries = monthlySummary.filter(s => s.cardId === card.id);
+                if (allCardSummaries.length === 0) {
+                    return { ...card, mainStatement: null, upcomingStatements: [], pastStatements: [] };
                 }
-                const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
-                const paymentDateObj = dueDate;
-                const paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
-                
-                const daysLeft = daysLeftFn(paymentDate);
-                const finalPayment = (stmt.spend || 0) - (stmt.cashback || 0);
 
-                return { ...stmt, paymentDate, paymentDateObj, statementDate, daysLeft, finalPayment };
+                let processedStatements;
+
+                // ** THIS IS THE CORE LOGIC CHANGE **
+                // If it's an HSBC card, fetch fresh data based on Statement Month
+                if (card.useStatementMonthForPayments) {
+                    const statementPromises = allCardSummaries.map(async (stmt) => {
+                        const statementMonth = stmt.month; // For HSBC, this month code is the Statement Month
+                        
+                        try {
+                            const res = await fetch(`${API_BASE_URL}/transactions?month=${statementMonth}&filterBy=statementMonth&cardId=${card.id}`);
+                            if (!res.ok) throw new Error('Failed to fetch statement transactions');
+                            const transactions = await res.json();
+
+                            // Calculate totals from the fetched transactions
+                            const spend = transactions.reduce((acc, tx) => acc + (tx['Amount'] || 0), 0);
+                            const cashback = transactions.reduce((acc, tx) => acc + (tx.estCashback || 0), 0);
+                            
+                            return { ...stmt, spend, cashback }; // Return a summary object with correct totals
+                        } catch (error) {
+                            console.error(`Error fetching HSBC data for ${card.name} month ${statementMonth}:`, error);
+                            return { ...stmt, spend: 0, cashback: 0 }; // Fallback on error
+                        }
+                    });
+                    processedStatements = await Promise.all(statementPromises);
+
+                } else {
+                    // For all other cards, use the existing summary data (it's already correct)
+                    processedStatements = allCardSummaries;
+                }
+                
+                // This logic to calculate dates and sort remains the same
+                const finalStatements = processedStatements.map(stmt => {
+                    const year = parseInt(stmt.month.slice(0, 4), 10);
+                    const month = parseInt(stmt.month.slice(4, 6), 10);
+                    const statement = new Date(year, month - 1, card.statementDay);
+                    const statementDate = `${statement.getFullYear()}-${String(statement.getMonth() + 1).padStart(2, '0')}-${String(statement.getDate()).padStart(2, '0')}`;
+                    let paymentMonth = month;
+                    if (card.paymentDueDay < card.statementDay) paymentMonth += 1;
+                    const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
+                    const paymentDateObj = dueDate;
+                    const paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+                    const daysLeft = daysLeftFn(paymentDate);
+                    const finalPayment = (stmt.spend || 0) - (stmt.cashback || 0);
+                    return { ...stmt, paymentDate, paymentDateObj, statementDate, daysLeft, finalPayment };
+                });
+
+                const upcoming = finalStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
+                const past = finalStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
+                const mainStatement = upcoming.length > 0 ? upcoming[0] : (past.length > 0 ? past[0] : null);
+
+                return { ...card, mainStatement, upcomingStatements: upcoming.slice(1), pastStatements: past };
             });
 
-            const upcoming = processedStatements.filter(s => s.daysLeft !== null);
-            const past = processedStatements.filter(s => s.daysLeft === null);
-
-            upcoming.sort((a, b) => a.daysLeft - b.daysLeft);
-            past.sort((a, b) => b.paymentDateObj - a.paymentDateObj);
-
-            const mainStatement = upcoming.length > 0 ? upcoming[0] : (past.length > 0 ? past[0] : null);
-
-            return {
-                ...card,
-                mainStatement,
-                upcomingStatements: upcoming.slice(1),
-                pastStatements: past,
-            };
-        });
-
-        data.sort((a, b) => {
-            const aDays = a.mainStatement?.daysLeft;
-            const bDays = b.mainStatement?.daysLeft;
+            const resolvedData = await Promise.all(dataPromises);
             
-            if (aDays !== null && bDays === null) return -1;
-            if (aDays === null && bDays !== null) return 1;
-            if (aDays !== null && bDays !== null) return aDays - bDays;
+            resolvedData.sort((a, b) => {
+                const aDays = a.mainStatement?.daysLeft;
+                const bDays = b.mainStatement?.daysLeft;
+                if (aDays !== null && bDays === null) return -1;
+                if (aDays === null && bDays !== null) return 1;
+                if (aDays !== null && bDays !== null) return aDays - bDays;
+                if (a.mainStatement?.paymentDateObj && b.mainStatement?.paymentDateObj) {
+                    return b.mainStatement.paymentDateObj - a.mainStatement.paymentDateObj;
+                }
+                return 0;
+            });
             
-            if (a.mainStatement?.paymentDateObj && b.mainStatement?.paymentDateObj) {
-                return b.mainStatement.paymentDateObj - a.mainStatement.paymentDateObj;
-            }
-            return 0;
-        });
-        return data;
-    }, [cards, monthlySummary, daysLeftFn]);
+            setPaymentData(resolvedData);
+            setIsLoading(false);
+        };
+
+        calculatePaymentData();
+    }, [cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeftFn]);
 
     const totals = useMemo(() => {
         return paymentData.reduce((acc, card) => {
@@ -1278,6 +1307,18 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
             return acc;
         }, { totalPayment: 0, totalCashback: 0, finalPayment: 0 });
     }, [paymentData]);
+
+    if (isLoading) {
+        return (
+            <Card>
+                <CardHeader><CardTitle>Monthly Statement Summary</CardTitle></CardHeader>
+                <CardContent className="flex items-center justify-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="ml-4 text-muted-foreground">Calculating statement totals...</p>
+                </CardContent>
+            </Card>
+        );
+    }
 
     return (
         <Card>
@@ -1951,7 +1992,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         const statementDay = selectedCard.statementDay;
 
         // Replicate "Cashback Month" logic for HSBC cards
-        if (selectedCard.name.includes("HSBC")) {
+        if (selectedCard.useStatementMonthForPayments) {
             const year = transactionDate.getFullYear();
             const month = transactionDate.getMonth() + 1; // JS months are 0-indexed
             return `${year}${String(month).padStart(2, '0')}`;

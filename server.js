@@ -75,6 +75,9 @@ const parseNotionPageProperties = (page) => {
                 }
                 // You could add more handlers here for other rollup types if needed
                 break;
+            case 'checkbox':
+                result[key] = prop.checkbox; // This will be true or false
+                break;
             default:
                 result[key] = prop; // Keep the original object for unhandled types
         }
@@ -124,6 +127,32 @@ app.get('/api/transactions', async (req, res) => {
                 filter = monthFilter;
             }
         } 
+        else if (filterBy === 'statementMonth') {
+            const monthFilter = {
+                property: 'Statement Month', // Target the 'Statement Month' property
+                formula: {
+                    string: {
+                        equals: month,
+                    },
+                },
+            };
+
+            if (cardId) {
+                filter = {
+                    and: [
+                        monthFilter,
+                        {
+                            property: 'Card',
+                            relation: {
+                                contains: cardId,
+                            },
+                        }
+                    ]
+                };
+            } else {
+                filter = monthFilter;
+            }
+        }
         // This is the default block, which builds the filter for "Transaction Date".
         else {
             // Calculate the first and last day of the given month.
@@ -218,6 +247,7 @@ app.get('/api/cards', async (req, res) => {
                 minimumMonthlySpend: parsed['Minimum Monthly Spend'],
                 nextAnnualFeeDate: parsed['Next Annual Payment Date'],
                 cardOpenDate: parsed['Card Open Date'],
+                useStatementMonthForPayments: parsed['Cashback <> Statement Month'] || false,
             };
         });
         res.json(results);
@@ -349,34 +379,34 @@ app.get('/api/recent-transactions', async (req, res) => {
 });
 
 app.post('/api/login', (req, res) => {
-  const pin = String((req.body && req.body.pin) ?? '').trim();
-  const correct = String(process.env.ACCESS_PASSWORD ?? '').trim();
-  if (pin && pin === correct) return res.status(200).json({ success: true });
-  return res.status(401).json({ success: false, message: 'Incorrect PIN' });
+    const pin = String((req.body && req.body.pin) ?? '').trim();
+    const correct = String(process.env.ACCESS_PASSWORD ?? '').trim();
+    if (pin && pin === correct) return res.status(200).json({ success: true });
+    return res.status(401).json({ success: false, message: 'Incorrect PIN' });
 });
 
 app.get('/api/mcc-search', async (req, res) => {
-  const { keyword } = req.query;
-  if (!keyword) {
-    return res.status(400).json({ error: 'Search keyword is required' });
-  }
-  try {
-    const fetch = (await import('node-fetch')).default;
-    const mccResponse = await fetch(`https://tc-mcc.tungpun.site/mcc?keyword=${encodeURIComponent(keyword)}`);
-    if (!mccResponse.ok) {
-      throw new Error('Failed to fetch from external MCC API');
+    const { keyword } = req.query;
+    if (!keyword) {
+        return res.status(400).json({ error: 'Search keyword is required' });
     }
-    const data = await mccResponse.json();
+    try {
+        const fetch = (await import('node-fetch')).default;
+        const mccResponse = await fetch(`https://tc-mcc.tungpun.site/mcc?keyword=${encodeURIComponent(keyword)}`);
+        if (!mccResponse.ok) {
+        throw new Error('Failed to fetch from external MCC API');
+        }
+        const data = await mccResponse.json();
 
-    if (data.results) {
-      data.results = data.results.slice(0, 10);
+        if (data.results) {
+        data.results = data.results.slice(0, 10);
+        }
+
+        res.json(data);
+    } catch (error) {
+        console.error('MCC Search Error:', error);
+        res.status(500).json({ error: 'Failed to search for MCC code' });
     }
-
-    res.json(data);
-  } catch (error) {
-    console.error('MCC Search Error:', error);
-    res.status(500).json({ error: 'Failed to search for MCC code' });
-  }
 });
 
 // POST /api/transactions - Add a new transaction
