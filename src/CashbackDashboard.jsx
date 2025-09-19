@@ -1201,11 +1201,19 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
     const [expandedRows, setExpandedRows] = useState({});
     const [paymentData, setPaymentData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [visiblePastCount, setVisiblePastCount] = useState({});
 
     const handleToggleRow = (cardId) => {
         setExpandedRows(prev => ({
             ...prev,
             [cardId]: !prev[cardId]
+        }));
+    };
+
+    const handleLoadMore = (cardId) => {
+        setVisiblePastCount(prev => ({
+            ...prev,
+            [cardId]: (prev[cardId] || 3) + 3 // Start with 3, then add 3
         }));
     };
 
@@ -1454,36 +1462,80 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                     {card.pastStatements.length > 0 && (
                                                         <div>
                                                             <h4 className="font-semibold text-sm mb-2">Previous Statements</h4>
-                                                            <Table>
-                                                                <TableHeader>
-                                                                    <TableRow>
-                                                                        <TableHead>Month</TableHead>
-                                                                        <TableHead>Statement Date</TableHead>
-                                                                        <TableHead>Payment Date</TableHead>
-                                                                        <TableHead className="text-right">Total Payment</TableHead>
-                                                                        <TableHead className="text-right">Total Cashback</TableHead>
-                                                                        <TableHead className="text-right">Final Payment</TableHead>
-                                                                        <TableHead className="w-[50px]"></TableHead>
-                                                                    </TableRow>
-                                                                </TableHeader>
-                                                                <TableBody>
-                                                                    {card.pastStatements.map(stmt => (
-                                                                        <TableRow key={stmt.month}>
-                                                                            <TableCell><Badge variant="outline">{fmtYMShortFn(stmt.month)}</Badge></TableCell>
-                                                                            <TableCell>{stmt.statementDate}</TableCell>
-                                                                            <TableCell>{stmt.paymentDate}</TableCell>
-                                                                            <TableCell className="text-right">{currencyFn(stmt.spend)}</TableCell>
-                                                                            <TableCell className="text-right text-emerald-600">{currencyFn(stmt.cashback)}</TableCell>
-                                                                            <TableCell className="text-right font-semibold">{currencyFn(stmt.finalPayment)}</TableCell>
-                                                                            <TableCell className="text-center">
-                                                                                <Button variant="ghost" size="icon" onClick={() => onViewTransactions(card.id, card.name, stmt.month, fmtYMShortFn(stmt.month))}>
-                                                                                    <List className="h-4 w-4" />
-                                                                                </Button>
-                                                                            </TableCell>
+                                                            {/* --- THIS IS THE NEW CONDITIONAL LOGIC --- */}
+                                                            {card.useStatementMonthForPayments ? (
+                                                                <Table>
+                                                                    <TableHeader>
+                                                                        <TableRow>
+                                                                            <TableHead>Month</TableHead>
+                                                                            <TableHead>Statement Date</TableHead>
+                                                                            <TableHead>Payment Date</TableHead>
+                                                                            <TableHead className="text-right">Total Payment</TableHead>
+                                                                            <TableHead className="text-right">Total Cashback</TableHead>
+                                                                            <TableHead className="text-right">Final Payment</TableHead>
+                                                                            <TableHead className="w-[50px]"></TableHead>
                                                                         </TableRow>
-                                                                    ))}
-                                                                </TableBody>
-                                                            </Table>
+                                                                    </TableHeader>
+                                                                    <TableBody>
+                                                                        {card.pastStatements.slice(0, visiblePastCount[card.id] || 3).map(stmt => (
+                                                                            <TableRow key={stmt.month}>
+                                                                                <TableCell><Badge variant="outline">{fmtYMShortFn(stmt.month)}</Badge></TableCell>
+                                                                                <TableCell>{stmt.statementDate}</TableCell>
+                                                                                <TableCell>{stmt.paymentDate}</TableCell>
+                                                                                <TableCell className="text-right">{currencyFn(stmt.spend)}</TableCell>
+                                                                                <TableCell className="text-right text-emerald-600">{currencyFn(stmt.cashback)}</TableCell>
+                                                                                <TableCell className="text-right font-semibold">{currencyFn(stmt.finalPayment)}</TableCell>
+                                                                                <TableCell className="text-center">
+                                                                                    <Button variant="ghost" size="icon" onClick={() => onViewTransactions(card.id, card.name, stmt.month, fmtYMShortFn(stmt.month))}>
+                                                                                        <List className="h-4 w-4" />
+                                                                                    </Button>
+                                                                                </TableCell>
+                                                                            </TableRow>
+                                                                        ))}
+                                                                        {card.pastStatements.length > (visiblePastCount[card.id] || 3) && (
+                                                                            <TableRow>
+                                                                                <TableCell colSpan={7} className="text-center p-2">
+                                                                                    <Button variant="ghost" size="sm" onClick={() => handleLoadMore(card.id)}>
+                                                                                        <ChevronDown className="mr-2 h-4 w-4" />
+                                                                                        Load More Previous Statements
+                                                                                    </Button>
+                                                                                </TableCell>
+                                                                            </TableRow>
+                                                                        )}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            ) : (
+                                                                <Table>
+                                                                    <TableHeader>
+                                                                        <TableRow>
+                                                                            <TableHead>Month</TableHead>
+                                                                            <TableHead>Statement Date</TableHead>
+                                                                            <TableHead>Payment Date</TableHead>
+                                                                            <TableHead className="text-right">Total Payment</TableHead>
+                                                                            <TableHead className="text-right">Total Cashback</TableHead>
+                                                                            <TableHead className="text-right">Final Payment</TableHead>
+                                                                            <TableHead className="w-[50px]"></TableHead>
+                                                                        </TableRow>
+                                                                    </TableHeader>
+                                                                    <TableBody>
+                                                                        {card.pastStatements.map(stmt => (
+                                                                            <TableRow key={stmt.month}>
+                                                                                <TableCell><Badge variant="outline">{fmtYMShortFn(stmt.month)}</Badge></TableCell>
+                                                                                <TableCell>{stmt.statementDate}</TableCell>
+                                                                                <TableCell>{stmt.paymentDate}</TableCell>
+                                                                                <TableCell className="text-right">{currencyFn(stmt.spend)}</TableCell>
+                                                                                <TableCell className="text-right text-emerald-600">{currencyFn(stmt.cashback)}</TableCell>
+                                                                                <TableCell className="text-right font-semibold">{currencyFn(stmt.finalPayment)}</TableCell>
+                                                                                <TableCell className="text-center">
+                                                                                    <Button variant="ghost" size="icon" onClick={() => onViewTransactions(card.id, card.name, stmt.month, fmtYMShortFn(stmt.month))}>
+                                                                                        <List className="h-4 w-4" />
+                                                                                    </Button>
+                                                                                </TableCell>
+                                                                            </TableRow>
+                                                                        ))}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
