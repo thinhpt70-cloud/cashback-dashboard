@@ -291,6 +291,8 @@ app.get('/api/monthly-summary', async (req, res) => {
         const results = response.results.map(page => {
 
             const parsed = parseNotionPageProperties(page);
+            console.log('--- Parsed Notion Row ---', parsed);
+            
             return {
                 id: parsed.id,
                 month: parsed['Month'],
