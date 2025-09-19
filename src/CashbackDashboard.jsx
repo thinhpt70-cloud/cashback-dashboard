@@ -1202,6 +1202,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
     const [paymentData, setPaymentData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [visiblePastCount, setVisiblePastCount] = useState({});
+    const [isLoadingMore, setIsLoadingMore] = useState({});
 
     const handleToggleRow = (cardId) => {
         setExpandedRows(prev => ({
@@ -1210,12 +1211,58 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
         }));
     };
 
-    const handleLoadMore = (cardId) => {
-        setVisiblePastCount(prev => ({
-            ...prev,
-            [cardId]: (prev[cardId] || 3) + 3 // Start with 3, then add 3
-        }));
-    };
+    const handleLoadMore = useCallback(async (cardId) => {
+        setIsLoadingMore(prev => ({ ...prev, [cardId]: true }));
+
+        // Find the specific card's data from the current state
+        const cardData = paymentData.find(c => c.id === cardId);
+        if (!cardData || !cardData.remainingPastSummaries || cardData.remainingPastSummaries.length === 0) {
+            setIsLoadingMore(prev => ({ ...prev, [cardId]: false }));
+            return;
+        }
+
+        // Take the next 3 summaries to process
+        const summariesToProcess = cardData.remainingPastSummaries.slice(0, 3);
+        const remainingSummaries = cardData.remainingPastSummaries.slice(3);
+
+        try {
+            // Process these 3 summaries by fetching their transaction data
+            const statementPromises = summariesToProcess.map(async (stmt) => {
+                const res = await fetch(`${API_BASE_URL}/transactions?month=${stmt.month}&filterBy=statementMonth&cardId=${cardId}`);
+                if (!res.ok) throw new Error(`Failed to fetch transactions for ${stmt.month}`);
+                const transactions = await res.json();
+                const spend = transactions.reduce((acc, tx) => acc + (tx['Amount'] || 0), 0);
+                const cashback = transactions.reduce((acc, tx) => acc + (tx.estCashback || 0), 0);
+                const finalPayment = spend - cashback;
+                // Return a fully processed statement object
+                return { ...stmt, spend, cashback, finalPayment };
+            });
+
+            const newPastStatements = await Promise.all(statementPromises);
+
+            // Update the state immutably
+            setPaymentData(currentData =>
+                currentData.map(cd => {
+                    if (cd.id === cardId) {
+                        return {
+                            ...cd,
+                            // Add the newly loaded statements to the existing list
+                            pastStatements: [...cd.pastStatements, ...newPastStatements],
+                            // Update the list of remaining summaries
+                            remainingPastSummaries: remainingSummaries
+                        };
+                    }
+                    return cd;
+                })
+            );
+
+        } catch (error) {
+            console.error("Error loading more statements:", error);
+            toast.error("Could not load more statements.");
+        } finally {
+            setIsLoadingMore(prev => ({ ...prev, [cardId]: false }));
+        }
+    }, [paymentData]); // Dependency ensures we have the latest data
 
     // This useEffect hook now calculates the payment data, fetching new data for HSBC cards
     useEffect(() => {
@@ -1238,52 +1285,88 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                 // ** THIS IS THE CORE LOGIC CHANGE **
                 // If it's an HSBC card, fetch fresh data based on Statement Month
                 if (card.useStatementMonthForPayments) {
-                    const statementPromises = allCardSummaries.map(async (stmt) => {
-                        const statementMonth = stmt.month; // For HSBC, this month code is the Statement Month
-                        
+                    // Step 1: Temporarily calculate dates for ALL summaries to sort them
+                    const tempStatements = allCardSummaries.map(stmt => {
+                        const year = parseInt(stmt.month.slice(0, 4), 10);
+                        const month = parseInt(stmt.month.slice(4, 6), 10);
+                        let paymentMonth = month;
+                        if (card.paymentDueDay < card.statementDay) paymentMonth += 1;
+                        const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
+                        const paymentDateObj = dueDate;
+                        const daysLeft = daysLeftFn(`${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`);
+                        return { ...stmt, paymentDateObj, daysLeft };
+                    });
+
+                    // Step 2: Split into upcoming and all past summaries
+                    const upcomingSummaries = tempStatements.filter(s => s.daysLeft !== null);
+                    const allPastSummaries = tempStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
+                    
+                    // Step 3: Take only the first 3 past summaries to process initially
+                    const initialPastToProcess = allPastSummaries.slice(0, 3);
+                    const remainingPastSummaries = allPastSummaries.slice(3);
+
+                    // Step 4: Combine upcoming and initial past summaries for the initial fetch
+                    const summariesToProcess = [...upcomingSummaries, ...initialPastToProcess];
+                    
+                    const statementPromises = summariesToProcess.map(async (stmt) => {
                         try {
-                            const res = await fetch(`${API_BASE_URL}/transactions?month=${statementMonth}&filterBy=statementMonth&cardId=${card.id}`);
+                            const res = await fetch(`${API_BASE_URL}/transactions?month=${stmt.month}&filterBy=statementMonth&cardId=${card.id}`);
                             if (!res.ok) throw new Error('Failed to fetch statement transactions');
                             const transactions = await res.json();
-
-                            // Calculate totals from the fetched transactions
                             const spend = transactions.reduce((acc, tx) => acc + (tx['Amount'] || 0), 0);
                             const cashback = transactions.reduce((acc, tx) => acc + (tx.estCashback || 0), 0);
-                            
-                            return { ...stmt, spend, cashback }; // Return a summary object with correct totals
+                            return { ...stmt, spend, cashback };
                         } catch (error) {
-                            console.error(`Error fetching HSBC data for ${card.name} month ${statementMonth}:`, error);
-                            return { ...stmt, spend: 0, cashback: 0 }; // Fallback on error
+                            console.error(`Error fetching data for ${card.name} month ${stmt.month}:`, error);
+                            return { ...stmt, spend: 0, cashback: 0 };
                         }
                     });
-                    processedStatements = await Promise.all(statementPromises);
+
+                    const processedStatements = await Promise.all(statementPromises);
+                    // This logic to finalize dates remains the same
+                    const finalStatements = processedStatements.map(stmt => {
+                        const year = parseInt(stmt.month.slice(0, 4), 10);
+                        const month = parseInt(stmt.month.slice(4, 6), 10);
+                        const statement = new Date(year, month - 1, card.statementDay);
+                        const statementDate = `${statement.getFullYear()}-${String(statement.getMonth() + 1).padStart(2, '0')}-${String(statement.getDate()).padStart(2, '0')}`;
+                        let paymentMonth = month;
+                        if (card.paymentDueDay < card.statementDay) paymentMonth += 1;
+                        const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
+                        const paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+                        const daysLeft = daysLeftFn(paymentDate);
+                        const finalPayment = (stmt.spend || 0) - (stmt.cashback || 0);
+                        return { ...stmt, paymentDate, paymentDateObj: dueDate, statementDate, daysLeft, finalPayment };
+                    });
+
+                    const upcoming = finalStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
+                    const past = finalStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
+                    const mainStatement = upcoming.length > 0 ? upcoming[0] : (past.length > 0 ? past[0] : null);
+
+                    return { ...card, mainStatement, upcomingStatements: upcoming.slice(1), pastStatements: past, remainingPastSummaries };
 
                 } else {
-                    // For all other cards, use the existing summary data (it's already correct)
-                    processedStatements = allCardSummaries;
+                    // This is the original logic for all other cards, which remains unchanged
+                    const finalStatements = allCardSummaries.map(stmt => {
+                        const year = parseInt(stmt.month.slice(0, 4), 10);
+                        const month = parseInt(stmt.month.slice(4, 6), 10);
+                        const statement = new Date(year, month - 1, card.statementDay);
+                        const statementDate = `${statement.getFullYear()}-${String(statement.getMonth() + 1).padStart(2, '0')}-${String(statement.getDate()).padStart(2, '0')}`;
+                        let paymentMonth = month;
+                        if (card.paymentDueDay < card.statementDay) paymentMonth += 1;
+                        const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
+                        const paymentDateObj = dueDate;
+                        const paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+                        const daysLeft = daysLeftFn(paymentDate);
+                        const finalPayment = (stmt.spend || 0) - (stmt.cashback || 0);
+                        return { ...stmt, paymentDate, paymentDateObj, statementDate, daysLeft, finalPayment };
+                    });
+
+                    const upcoming = finalStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
+                    const past = finalStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
+                    const mainStatement = upcoming.length > 0 ? upcoming[0] : (past.length > 0 ? past[0] : null);
+
+                    return { ...card, mainStatement, upcomingStatements: upcoming.slice(1), pastStatements: past };
                 }
-                
-                // This logic to calculate dates and sort remains the same
-                const finalStatements = processedStatements.map(stmt => {
-                    const year = parseInt(stmt.month.slice(0, 4), 10);
-                    const month = parseInt(stmt.month.slice(4, 6), 10);
-                    const statement = new Date(year, month - 1, card.statementDay);
-                    const statementDate = `${statement.getFullYear()}-${String(statement.getMonth() + 1).padStart(2, '0')}-${String(statement.getDate()).padStart(2, '0')}`;
-                    let paymentMonth = month;
-                    if (card.paymentDueDay < card.statementDay) paymentMonth += 1;
-                    const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
-                    const paymentDateObj = dueDate;
-                    const paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
-                    const daysLeft = daysLeftFn(paymentDate);
-                    const finalPayment = (stmt.spend || 0) - (stmt.cashback || 0);
-                    return { ...stmt, paymentDate, paymentDateObj, statementDate, daysLeft, finalPayment };
-                });
-
-                const upcoming = finalStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
-                const past = finalStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
-                const mainStatement = upcoming.length > 0 ? upcoming[0] : (past.length > 0 ? past[0] : null);
-
-                return { ...card, mainStatement, upcomingStatements: upcoming.slice(1), pastStatements: past };
             });
 
             const resolvedData = await Promise.all(dataPromises);
@@ -1492,12 +1575,21 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                                                 </TableCell>
                                                                             </TableRow>
                                                                         ))}
-                                                                        {card.pastStatements.length > (visiblePastCount[card.id] || 3) && (
+                                                                        {card.useStatementMonthForPayments && (card.remainingPastSummaries?.length || 0) > 0 && (
                                                                             <TableRow>
                                                                                 <TableCell colSpan={7} className="text-center p-2">
-                                                                                    <Button variant="ghost" size="sm" onClick={() => handleLoadMore(card.id)}>
-                                                                                        <ChevronDown className="mr-2 h-4 w-4" />
-                                                                                        Load More Previous Statements
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="sm"
+                                                                                        onClick={() => handleLoadMore(card.id)}
+                                                                                        disabled={isLoadingMore[card.id]}
+                                                                                    >
+                                                                                        {isLoadingMore[card.id] ? (
+                                                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                                        ) : (
+                                                                                            <ChevronDown className="mr-2 h-4 w-4" />
+                                                                                        )}
+                                                                                        Load More ({card.remainingPastSummaries.length} remaining)
                                                                                     </Button>
                                                                                 </TableCell>
                                                                             </TableRow>
