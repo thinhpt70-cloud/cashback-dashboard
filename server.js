@@ -336,7 +336,7 @@ app.get('/api/monthly-category-summary', async (req, res) => {
                 id: parsed.id,
                 month: parsed['Month'],
                 cardId: parsed['Card'] ? parsed['Card'][0] : null,
-                cashback: parsed['Final Monthly Cashback'],
+                cashback: parsed['Final Category Cashback'],
                 summaryId: parsed['Summary ID'], 
                 categoryLimit: parsed['Category Limit'],
             };
