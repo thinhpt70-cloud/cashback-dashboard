@@ -1201,7 +1201,6 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
     const [expandedRows, setExpandedRows] = useState({});
     const [paymentData, setPaymentData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [visiblePastCount] = useState({});
     const [isLoadingMore, setIsLoadingMore] = useState({});
 
     const handleToggleRow = (cardId) => {
