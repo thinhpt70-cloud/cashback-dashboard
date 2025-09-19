@@ -1950,8 +1950,8 @@ function RecentTransactionsCarousel({ transactions, cardMap, currencyFn }) {
                         const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
                         return (
                             <div key={tx.id} className="flex-shrink-0 w-64 border rounded-lg p-3 space-y-2">
-                                <div className="flex justify-between items-start">
-                                    <div className="max-w-[70%]">
+                                <div className="flex justify-between items-start gap-2">
+                                    <div className="flex-1 min-w-0">
                                         <p className="font-semibold truncate" title={tx['Transaction Name']}>{tx['Transaction Name']}</p>
                                         <p className="text-xs text-gray-500">{tx['Transaction Date']}</p>
                                     </div>
@@ -2251,27 +2251,19 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         e.preventDefault();
         setIsSubmitting(true);
 
-        // Use a variable to hold the final summary ID
-        let finalSummaryId = cardSummaryCategoryId;
+        // This will hold the ID of the summary to link to.
+        let finalSummaryId = null; 
 
-        // --- NEW LOGIC START ---
-        // Check if the user wants to create a new summary
-        if (cardSummaryCategoryId === 'new') {
-            // Ensure we have the required data to create a summary
-            if (!cardId || !cashbackMonth || !applicableRuleId) {
-                console.error("Cannot create a new summary: Missing Card, Cashback Month, or Applicable Rule.");
-                // You might want to show an error to the user here
-                return; 
-            }
-
-            try {
-                // 1. First API Call: Create the new summary
+        try {
+            // --- RESTRUCTURED LOGIC ---
+            // Only try to create a new summary if a rule is selected AND the user chose "Create New".
+            if (applicableRuleId && cardSummaryCategoryId === 'new') {
                 const summaryResponse = await fetch('/api/summaries', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         cardId: cardId,
-                        month: cashbackMonth, // Use the calculated cashbackMonth
+                        month: cashbackMonth,
                         ruleId: applicableRuleId,
                     }),
                 });
@@ -2281,47 +2273,45 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 }
                 
                 const newSummary = await summaryResponse.json();
-                // Store the ID of the newly created summary
-                finalSummaryId = newSummary.id; 
+                finalSummaryId = newSummary.id; // Use the ID of the newly created summary.
 
-            } catch (error) {
-                console.error('Error creating summary:', error);
-                // Optionally, show an error message to the user
-                return; // Stop the submission process if summary creation fails
+            // If the user selected an existing summary, use its ID.
+            } else if (applicableRuleId && cardSummaryCategoryId !== 'new') {
+                finalSummaryId = cardSummaryCategoryId;
             }
-        }
-        // --- NEW LOGIC END ---
+            // --- END OF RESTRUCTURED LOGIC ---
 
-        const transactionData = {
-            merchant,
-            amount: parseFloat(String(amount).replace(/,/g, '')),
-            date,
-            cardId,
-            category: category || null,
-            mccCode: mccCode || null,
-            applicableRuleId: applicableRuleId || null,
-            cardSummaryCategoryId: finalSummaryId === 'new' ? null : finalSummaryId,
-        };
+            const transactionData = {
+                merchant,
+                amount: parseFloat(String(amount).replace(/,/g, '')),
+                date,
+                cardId,
+                category: category || null,
+                mccCode: mccCode || null,
+                applicableRuleId: applicableRuleId || null,
+                // Pass the finalSummaryId, which will be null if no rule was selected.
+                cardSummaryCategoryId: finalSummaryId,
+            };
 
-        try {
             const response = await fetch('/api/transactions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(transactionData),
             });
+
             if (!response.ok) throw new Error('Failed to add transaction');
+            
             const newTransaction = await response.json();
-
-            toast.success("Transaction added successfully!"); // Display success notification
-
+            toast.success("Transaction added successfully!");
             onTransactionAdded(newTransaction);
-            resetForm(); // Reset form fields
-            onFormSubmit(); 
-        } catch (error) {
-            console.error('Error:', error);
+            resetForm();
+            onFormSubmit();
 
+        } catch (error) {
+            console.error('Error during transaction submission:', error);
             toast.error("Failed to add transaction. Please try again.");
         } finally {
+            // This will now always be called, resetting the button.
             setIsSubmitting(false); 
         }
     };
@@ -2479,37 +2469,46 @@ function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
 }
 
 function DatePicker({ date, setDate }) {
-    const selectedDate = date ? new Date(date) : null;
+    // FIX: This part correctly converts the date string (e.g., "2025-09-20")
+    // into a Date object that the calendar can understand and highlight,
+    // avoiding timezone errors.
+    const selectedDate = useMemo(() => {
+        if (!date) return null;
+        const [year, month, day] = date.split('-').map(Number);
+        return new Date(year, month - 1, day); // month is 0-indexed
+    }, [date]);
 
     return (
         <Popover>
-        <PopoverTrigger asChild>
-            <Button
-            variant={"outline"}
-            className={cn(
-                "w-full justify-start text-left font-normal",
-                !date && "text-muted-foreground"
-            )}
-            >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-            </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 bg-white">
-            <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={(newDate) => {
-                if (newDate) {
-                // Adjust for timezone offset to prevent date from changing
-                const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                const adjustedDate = new Date(newDate.getTime() - timezoneOffset);
-                setDate(adjustedDate.toISOString().split('T')[0]);
-                }
-            }}
-            initialFocus
-            />
-        </PopoverContent>
+            <PopoverTrigger asChild>
+                <Button
+                    variant={"outline"}
+                    className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !date && "text-muted-foreground"
+                    )}
+                >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-white">
+                <Calendar
+                    mode="single"
+                    selected={selectedDate} // This now receives the correctly formatted date
+                    onSelect={(newDate) => {
+                        if (newDate) {
+                            const year = newDate.getFullYear();
+                            const month = String(newDate.getMonth() + 1).padStart(2, '0');
+                            const day = String(newDate.getDate()).padStart(2, '0');
+                            setDate(`${year}-${month}-${day}`);
+                        } else {
+                            setDate(null);
+                        }
+                    }}
+                    initialFocus
+                />
+            </PopoverContent>
         </Popover>
     );
 }
