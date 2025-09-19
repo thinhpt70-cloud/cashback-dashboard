@@ -35,7 +35,7 @@ import {
 // --------------------------
 const API_BASE_URL = '/api';
 
-const calculateDaysLeft = useCallback((paymentDateString) => {
+const calculateDaysLeft = (paymentDateString) => {
     if (!paymentDateString || paymentDateString === "N/A") return null;
 
     // Use a fixed "today" for consistent results in this example
@@ -49,7 +49,7 @@ const calculateDaysLeft = useCallback((paymentDateString) => {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     return diffDays >= 0 ? diffDays : null;
-}, []);
+};
 
 const calculateDaysUntilStatement = (statementDay, activeMonth) => {
     if (!statementDay || !activeMonth) return { days: null, status: 'N/A' };
