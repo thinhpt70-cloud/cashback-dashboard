@@ -1201,7 +1201,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
     const [expandedRows, setExpandedRows] = useState({});
     const [paymentData, setPaymentData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [visiblePastCount, setVisiblePastCount] = useState({});
+    const [visiblePastCount] = useState({});
     const [isLoadingMore, setIsLoadingMore] = useState({});
 
     const handleToggleRow = (cardId) => {
@@ -1279,8 +1279,6 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                 if (allCardSummaries.length === 0) {
                     return { ...card, mainStatement: null, upcomingStatements: [], pastStatements: [] };
                 }
-
-                let processedStatements;
 
                 // ** THIS IS THE CORE LOGIC CHANGE **
                 // If it's an HSBC card, fetch fresh data based on Statement Month
