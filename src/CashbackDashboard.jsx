@@ -35,45 +35,45 @@ import {
 // --------------------------
 const API_BASE_URL = '/api';
 
-const calculateDaysLeft = (paymentDateString) => {
-        if (!paymentDateString || paymentDateString === "N/A") return null;
+const calculateDaysLeft = useCallback((paymentDateString) => {
+    if (!paymentDateString || paymentDateString === "N/A") return null;
 
-        // Use a fixed "today" for consistent results in this example
-        const today = new Date(); 
-        today.setHours(0, 0, 0, 0);
-        const dueDate = new Date(paymentDateString + "T00:00:00Z");
-        
-        if (isNaN(dueDate)) return null;
+    // Use a fixed "today" for consistent results in this example
+    const today = new Date(); 
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(paymentDateString + "T00:00:00Z");
+    
+    if (isNaN(dueDate)) return null;
 
-        const diffTime = dueDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        return diffDays >= 0 ? diffDays : null;
-    };
+    const diffTime = dueDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays >= 0 ? diffDays : null;
+}, []);
 
-    const calculateDaysUntilStatement = (statementDay, activeMonth) => {
-        if (!statementDay || !activeMonth) return { days: null, status: 'N/A' };
+const calculateDaysUntilStatement = (statementDay, activeMonth) => {
+    if (!statementDay || !activeMonth) return { days: null, status: 'N/A' };
 
-        const today = new Date(); // Using today's date
-        today.setHours(0, 0, 0, 0); // Normalize to the beginning of the day
+    const today = new Date(); // Using today's date
+    today.setHours(0, 0, 0, 0); // Normalize to the beginning of the day
 
-        const year = parseInt(activeMonth.slice(0, 4), 10);
-        const month = parseInt(activeMonth.slice(4, 6), 10);
-        
-        // Create the statement date for the active month
-        const statementDate = new Date(year, month - 1, statementDay);
+    const year = parseInt(activeMonth.slice(0, 4), 10);
+    const month = parseInt(activeMonth.slice(4, 6), 10);
+    
+    // Create the statement date for the active month
+    const statementDate = new Date(year, month - 1, statementDay);
 
-        if (isNaN(statementDate.getTime())) return { days: null, status: 'N/A' };
-        
-        // Calculate the difference in days
-        const diffTime = statementDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (isNaN(statementDate.getTime())) return { days: null, status: 'N/A' };
+    
+    // Calculate the difference in days
+    const diffTime = statementDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        if (diffDays < 0) {
-            return { days: null, status: 'Completed' };
-        }
-        return { days: diffDays, status: 'Upcoming' };
-    };
+    if (diffDays < 0) {
+        return { days: null, status: 'Completed' };
+    }
+    return { days: diffDays, status: 'Upcoming' };
+};
 
 export default function CashbackDashboard() {
 
@@ -115,14 +115,14 @@ export default function CashbackDashboard() {
         fetchData(true); 
     };
 
-    const handleViewTransactions = async (cardId, cardName, month, monthLabel) => {
+    const handleViewTransactions = useCallback(async (cardId, cardName, month, monthLabel) => {
         setDialogDetails({ cardId, cardName, month, monthLabel });
         setIsDialogLoading(true);
         setDialogTransactions([]);
 
         try {
             // Use 'cashbackMonth' filter as it aligns with statement periods
-            const res = await fetch(`${API_BASE_URL}/transactions?month=${month}&filterBy=cashbackMonth&cardId=${cardId}`);
+            const res = await fetch(`${API_BASE_URL}/transactions?month=${month}&filterBy=statementMonth&cardId=${cardId}`);
             if (!res.ok) throw new Error('Failed to fetch transactions for dialog');
             const data = await res.json();
 
@@ -136,7 +136,7 @@ export default function CashbackDashboard() {
         } finally {
             setIsDialogLoading(false);
         }
-    };
+    }, []);
 
     // --- DATA FETCHING ---
     const fetchData = async (isSilent = false) => {
@@ -247,7 +247,7 @@ export default function CashbackDashboard() {
     // --------------------------
 
     // --- UTILITIES ---
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+    const currency = useCallback((n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }), []);
     const mccName = (code) => mccMap[code]?.vn || "Unknown";
 
     // Dynamic list of available months from transactions
