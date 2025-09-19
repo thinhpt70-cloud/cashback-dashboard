@@ -297,8 +297,8 @@ app.get('/api/monthly-summary', async (req, res) => {
                 month: parsed['Month'],
                 cardId: parsed['Card'] ? parsed['Card'][0] : null,
                 spend: parsed['Total Spend - Formula'],
-                cashback: parsed['Actual Cashback'] || 0,
-                actualCashback: parsed['Actual Cashback'] || 0,
+                cashback: parsed['Actual Cashback'],
+                actualCashback: parsed['Actual Cashback'],
             };
         });
         res.json(results);
