@@ -1558,7 +1558,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                                         </TableRow>
                                                                     </TableHeader>
                                                                     <TableBody>
-                                                                        {card.pastStatements.slice(0, visiblePastCount[card.id] || 3).map(stmt => (
+                                                                        {card.pastStatements.map(stmt => (
                                                                             <TableRow key={stmt.month}>
                                                                                 <TableCell><Badge variant="outline">{fmtYMShortFn(stmt.month)}</Badge></TableCell>
                                                                                 <TableCell>{stmt.statementDate}</TableCell>
