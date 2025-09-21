@@ -1054,7 +1054,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
                                 "text-xs h-5 shrink-0",
                                 p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
                             )}>
-                            {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days`}
+                            {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
                             </Badge>
                         </div>
                         
@@ -1472,7 +1472,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                                     : "" // No extra classes, so the default outline shows
                                                             }
                                                         >
-                                                            {mainStatement.daysLeft} days left
+                                                            {mainStatement.daysLeft} days
                                                         </Badge>
                                                     </div>
                                                 )}
@@ -1520,7 +1520,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                                                 <div>
                                                                                     <span>{stmt.paymentDate}</span>
                                                                                     <div className="mt-1">
-                                                                                        <Badge variant="outline">{stmt.daysLeft} days left</Badge>
+                                                                                        <Badge variant="outline">{stmt.daysLeft} days</Badge>
                                                                                     </div>
                                                                                 </div>
                                                                             </TableCell>
@@ -1549,6 +1549,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                                 acc.finalPayment += stmt.finalPayment || 0;
                                                                 return acc;
                                                             }, { spend: 0, cashback: 0, finalPayment: 0 });
+                                                            return (
                                                                 <Table>
                                                                     <TableHeader>
                                                                         <TableRow>
@@ -1610,6 +1611,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                                         </TableRow>
                                                                     </tfoot>
                                                                 </Table>
+                                                            );
                                                             })()}
                                                         </div>
                                                     )}
