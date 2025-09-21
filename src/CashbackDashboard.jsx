@@ -2340,14 +2340,14 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     </div>
 
                     <div className="grid grid-cols-10 gap-4 items-start">
-                        <div className="space-y-2 col-span-7">
+                        <div className="space-y-2 col-span-6">
+                            <label htmlFor="merchantLookup">Merchant</label>
+                            <Input id="merchantLookup" value={merchantLookup} onChange={(e) => setMerchantLookup(e.target.value)} placeholder="Merchant Name" />
+                        </div>
+                        <div className="space-y-2 col-span-4">
                             <label htmlFor="mcc">MCC</label>
                             <Input id="mcc" value={mccCode} onChange={(e) => setMccCode(e.target.value)} placeholder="Enter code or use Lookup" />
                             {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
-                        </div>
-                        <div className="space-y-2 col-span-3">
-                            <label htmlFor="merchantLookup">Merchant</label>
-                            <Input id="merchantLookup" value={merchantLookup} onChange={(e) => setMerchantLookup(e.target.value)} placeholder="Autofilled" />
                         </div>
                     </div>
 
