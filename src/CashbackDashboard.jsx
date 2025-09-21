@@ -440,13 +440,13 @@ export default function CashbackDashboard() {
                         </DialogHeader>
                         {/* The form is now inside the popup content */}
                         <AddTransactionForm
-                        cards={cards}
-                        categories={allCategories}
-                        rules={cashbackRules}
-                        monthlyCategories={monthlyCashbackCategories}
-                        mccMap={mccMap}
-                        onTransactionAdded={handleTransactionAdded}
-                        onFormSubmit={() => setIsAddTxDialogOpen(false)}
+                            cards={cards}
+                            categories={allCategories}
+                            rules={cashbackRules}
+                            monthlyCategories={monthlyCashbackCategories}
+                            mccMap={mccMap}
+                            onTransactionAdded={handleTransactionAdded}
+                            onFormSubmit={() => setIsAddTxDialogOpen(false)}
                         />
                     </DialogContent>
                     </Dialog>
@@ -1054,7 +1054,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
                                 "text-xs h-5 shrink-0",
                                 p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
                             )}>
-                            {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
+                            {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days`}
                             </Badge>
                         </div>
                         
@@ -1542,8 +1542,13 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                     {card.pastStatements.length > 0 && (
                                                         <div>
                                                             <h4 className="font-semibold text-sm mb-2">Previous Statements</h4>
-                                                            {/* --- THIS IS THE NEW CONDITIONAL LOGIC --- */}
-                                                            {card.useStatementMonthForPayments ? (
+                                                            {(() => {
+                                                            const pastStatementTotals = card.pastStatements.reduce((acc, stmt) => {
+                                                                acc.spend += stmt.spend || 0;
+                                                                acc.cashback += stmt.cashback || 0;
+                                                                acc.finalPayment += stmt.finalPayment || 0;
+                                                                return acc;
+                                                            }, { spend: 0, cashback: 0, finalPayment: 0 });
                                                                 <Table>
                                                                     <TableHeader>
                                                                         <TableRow>
@@ -1592,39 +1597,20 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                                                             </TableRow>
                                                                         )}
                                                                     </TableBody>
-                                                                </Table>
-                                                            ) : (
-                                                                <Table>
-                                                                    <TableHeader>
+                                                                    <tfoot className="border-t-2 font-semibold">
                                                                         <TableRow>
-                                                                            <TableHead>Month</TableHead>
-                                                                            <TableHead>Statement Date</TableHead>
-                                                                            <TableHead>Payment Date</TableHead>
-                                                                            <TableHead className="text-right">Total Payment</TableHead>
-                                                                            <TableHead className="text-right">Total Cashback</TableHead>
-                                                                            <TableHead className="text-right">Final Payment</TableHead>
-                                                                            <TableHead className="w-[50px]"></TableHead>
+                                                                            <TableCell colSpan={3} className="text-right">
+                                                                                {/* 3. Add a dynamic label */}
+                                                                                {card.remainingPastSummaries?.length > 0 ? 'Loaded Totals' : 'Totals'}
+                                                                            </TableCell>
+                                                                            <TableCell className="text-right">{currencyFn(pastStatementTotals.spend)}</TableCell>
+                                                                            <TableCell className="text-right text-emerald-600">{currencyFn(pastStatementTotals.cashback)}</TableCell>
+                                                                            <TableCell className="text-right font-bold">{currencyFn(pastStatementTotals.finalPayment)}</TableCell>
+                                                                            <TableCell></TableCell>
                                                                         </TableRow>
-                                                                    </TableHeader>
-                                                                    <TableBody>
-                                                                        {card.pastStatements.map(stmt => (
-                                                                            <TableRow key={stmt.month}>
-                                                                                <TableCell><Badge variant="outline">{fmtYMShortFn(stmt.month)}</Badge></TableCell>
-                                                                                <TableCell>{stmt.statementDate}</TableCell>
-                                                                                <TableCell>{stmt.paymentDate}</TableCell>
-                                                                                <TableCell className="text-right">{currencyFn(stmt.spend)}</TableCell>
-                                                                                <TableCell className="text-right text-emerald-600">{currencyFn(stmt.cashback)}</TableCell>
-                                                                                <TableCell className="text-right font-semibold">{currencyFn(stmt.finalPayment)}</TableCell>
-                                                                                <TableCell className="text-center">
-                                                                                    <Button variant="ghost" size="icon" onClick={() => onViewTransactions(card.id, card.name, stmt.month, fmtYMShortFn(stmt.month))}>
-                                                                                        <List className="h-4 w-4" />
-                                                                                    </Button>
-                                                                                </TableCell>
-                                                                            </TableRow>
-                                                                        ))}
-                                                                    </TableBody>
+                                                                    </tfoot>
                                                                 </Table>
-                                                            )}
+                                                            })()}
                                                         </div>
                                                     )}
                                                 </div>
@@ -1833,7 +1819,7 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
 
 function CardPerformanceLineChart({ data, cards, currencyFn }) {
     const [view, setView] = useState('All'); 
-    const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899'];
+    const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#e95fa4ff', '#c6212eff'];
     
     // The CustomDot helper is no longer needed and has been removed.
 
@@ -2109,6 +2095,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [cardId, setCardId] = useState('');
     const [category, setCategory] = useState('');
     const [mccCode, setMccCode] = useState('');
+    const [merchantLookup, setMerchantLookup] = useState(''); // <-- ADD THIS LINE
     const [mccName, setMccName] = useState('');
     const [applicableRuleId, setApplicableRuleId] = useState('');
     const [cardSummaryCategoryId, setCardSummaryCategoryId] = useState('new');
@@ -2169,6 +2156,19 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     }, [cardId, monthlyCategories, selectedRule, cashbackMonth]);
 
     // --- Effects ---
+
+    // This effect automatically selects the best summary link when dependencies change.
+    useEffect(() => {
+        // If a suitable summary already exists in the list...
+        if (filteredSummaries.length > 0) {
+            // ...set the dropdown to select the first (and likely only) match by default.
+            setCardSummaryCategoryId(filteredSummaries[0].id);
+        } else {
+            // ...otherwise, ensure the dropdown defaults back to "Create New Summary".
+            setCardSummaryCategoryId('new');
+        }
+    }, [filteredSummaries]); // This hook runs whenever the list of suitable summaries changes.
+
     useEffect(() => {
         if (cards.length > 0 && !cardId) {
             setCardId(cards[0].id);
@@ -2211,6 +2211,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         setCardId(cards.length > 0 ? cards[0].id : '');
         setCategory('');
         setMccCode('');
+        setMerchantLookup(''); // <-- ADD THIS LINE
         setApplicableRuleId('');
         setCardSummaryCategoryId('new');
     };
@@ -2288,6 +2289,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 cardId,
                 category: category || null,
                 mccCode: mccCode || null,
+                merchantLookup: merchantLookup || null, // <-- ADD THIS LINE
                 applicableRuleId: applicableRuleId || null,
                 // Pass the finalSummaryId, which will be null if no rule was selected.
                 cardSummaryCategoryId: finalSummaryId,
@@ -2301,9 +2303,13 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
             if (!response.ok) throw new Error('Failed to add transaction');
             
-            const newTransaction = await response.json();
+            const newTransactionFromServer = await response.json();
+            const optimisticTransaction = {
+                ...newTransactionFromServer,
+                estCashback: estimatedCashback, // Use the locally calculated cashback
+            };
             toast.success("Transaction added successfully!");
-            onTransactionAdded(newTransaction);
+            onTransactionAdded(optimisticTransaction);
             resetForm();
             onFormSubmit();
 
@@ -2331,10 +2337,16 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label htmlFor="mcc">MCC (Merchant Category Code)</label>
-                        <Input id="mcc" value={mccCode} onChange={(e) => setMccCode(e.target.value)} placeholder="Enter code or use Lookup" />
-                        {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
+                    <div className="grid grid-cols-10 gap-4 items-start">
+                        <div className="space-y-2 col-span-7">
+                            <label htmlFor="mcc">MCC</label>
+                            <Input id="mcc" value={mccCode} onChange={(e) => setMccCode(e.target.value)} placeholder="Enter code or use Lookup" />
+                            {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
+                        </div>
+                        <div className="space-y-2 col-span-3">
+                            <label htmlFor="merchantLookup">Merchant</label>
+                            <Input id="merchantLookup" value={merchantLookup} onChange={(e) => setMerchantLookup(e.target.value)} placeholder="Autofilled" />
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2413,9 +2425,12 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             <MccSearchResultsDialog
                 open={isMccDialogOpen}
                 onOpenChange={setIsMccDialogOpen}
-                results={mccResults}
-                onSelect={(selectedMcc) => {
-                    setMccCode(selectedMcc);
+                results={mccResults}                
+                onSelect={(selectedResult) => {
+                    const merchantNameFromResult = selectedResult[1]; // Merchant name is at index 1
+                    const mccCodeFromResult = selectedResult[2]; // MCC code is at index 2
+                    setMccCode(mccCodeFromResult);
+                    setMerchantLookup(merchantNameFromResult); // Autofill the new merchant field
                     setIsMccDialogOpen(false); // Close dialog on selection
                 }}
             />
@@ -2425,9 +2440,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
 function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
     const handleSelect = (result) => {
-        // The MCC code is the 3rd item (index 2)
-        const mccCode = result[2];
-        onSelect(mccCode);
+        onSelect(result);
     };
 
     return (
@@ -2505,6 +2518,9 @@ function DatePicker({ date, setDate }) {
                         } else {
                             setDate(null);
                         }
+                    }}
+                    classNames={{
+                        day_selected: "bg-black text-white hover:bg-black hover:text-white focus:bg-black focus:text-white",
                     }}
                     initialFocus
                 />

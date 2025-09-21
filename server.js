@@ -420,6 +420,7 @@ app.post('/api/transactions', async (req, res) => {
             cardId,
             category,
             mccCode,
+            merchantLookup,
             applicableRuleId,
             cardSummaryCategoryId, // This ID is now correctly used
         } = req.body;
@@ -441,6 +442,12 @@ app.post('/api/transactions', async (req, res) => {
         
         if (mccCode) {
             properties['MCC Code'] = { rich_text: [{ text: { content: String(mccCode) } }] };
+        }
+
+        // 2. Add the merchant lookup data to the Notion properties
+        // IMPORTANT: Ensure 'Merchant' exactly matches the column name in your Notion database.
+        if (merchantLookup) {
+            properties['Merchant'] = { rich_text: [{ text: { content: String(merchantLookup) } }] };
         }
         
         if (applicableRuleId) {
