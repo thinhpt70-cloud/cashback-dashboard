@@ -2130,16 +2130,24 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             return `${year}${String(month).padStart(2, '0')}`;
         }
 
-        // Simplified "Statement Month" logic for all other cards
-        let statementDate = new Date(transactionDate);
+        // Handle month/year logic numerically to avoid JavaScript's Date object rollover issues.
+        let year = transactionDate.getFullYear();
+        let month = transactionDate.getMonth(); // 0-indexed (0 = Jan, 11 = Dec)
+
         if (transactionDate.getDate() >= statementDay) {
-            // If the transaction is on or after the statement day, the statement is for the *next* month.
-            statementDate.setMonth(statementDate.getMonth() + 1);
+            // If transaction is on/after statement day, it belongs to the next month's statement.
+            month += 1;
         }
-        
-        const year = statementDate.getFullYear();
-        const month = statementDate.getMonth() + 1;
-        return `${year}${String(month).padStart(2, '0')}`;
+
+        // If the month rolls over to the next year (e.g., from Dec to Jan)
+        if (month > 11) {
+            month = 0; // Reset to January
+            year += 1; // Increment the year
+        }
+
+        // The final month for the string needs to be 1-indexed (1-12)
+        const finalMonth = month + 1;
+        return `${year}${String(finalMonth).padStart(2, '0')}`;
         
     }, [selectedCard, date]);
 
@@ -2522,7 +2530,8 @@ function DatePicker({ date, setDate }) {
                         }
                     }}
                     classNames={{
-                        day_selected: "bg-black text-white hover:bg-black hover:text-white focus:bg-black focus:text-white",
+                        day_outside: "text-muted-foreground opacity-50", // Styles the grayed-out dates
+                        day_selected: "!bg-black !text-white",           // Force-overrides the selected date style
                     }}
                     initialFocus
                 />
