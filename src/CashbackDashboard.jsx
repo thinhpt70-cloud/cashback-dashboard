@@ -321,7 +321,7 @@ export default function CashbackDashboard() {
             map.set(card.name, COLORS[index % COLORS.length]);
         });
         return map;
-    }, [cards]);
+    }, [cards, COLORS]);
 
     const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
 
