@@ -51,6 +51,29 @@ const calculateDaysLeft = (paymentDateString) => {
     return diffDays >= 0 ? diffDays : null;
 };
 
+const calculateDaysLeftInCashbackMonth = (cashbackMonth) => {
+    if (!cashbackMonth) return { days: null, status: 'N/A' };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const year = parseInt(cashbackMonth.slice(0, 4), 10);
+    const month = parseInt(cashbackMonth.slice(4, 6), 10); // e.g., 10 for October
+
+    // Get the last day of the given cashback month by getting day 0 of the *next* month
+    const lastDayOfMonth = new Date(year, month, 0);
+    
+    if (isNaN(lastDayOfMonth.getTime())) return { days: null, status: 'N/A' };
+
+    const diffTime = lastDayOfMonth.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+        return { days: null, status: 'Completed' };
+    }
+    return { days: diffDays, status: 'Upcoming' };
+};
+
 const calculateDaysUntilStatement = (statementDay, activeMonth) => {
     if (!statementDay || !activeMonth) return { days: null, status: 'N/A' };
 
@@ -280,8 +303,26 @@ export default function CashbackDashboard() {
             </text>
         );
     };
+
+    const sortedCards = useMemo(() => {
+        // Create a shallow copy to avoid mutating the original state array, then sort it
+        return [...cards].sort((a, b) => a.name.localeCompare(b.name));
+    }, [cards]); // The dependency array ensures this runs only when 'cards' data changes
     
     // --- MEMOIZED DATA PROCESSING ---
+
+    const COLORS = ['#3b82f6', '#8b5cf6', '#f97316', '#10b981', '#ec4899', '#ef4444', '#f59e0b'];
+
+    const cardColorMap = useMemo(() => {
+        const map = new Map();
+        // Sort cards by name to ensure color assignment is stable
+        const sortedCards = [...cards].sort((a, b) => a.name.localeCompare(b.name));
+        sortedCards.forEach((card, index) => {
+            map.set(card.name, COLORS[index % COLORS.length]);
+        });
+        return map;
+    }, [cards]);
+
     const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
 
     const overviewStats = useMemo(() => {
@@ -297,12 +338,12 @@ export default function CashbackDashboard() {
         const spendByCard = monthData.map(item => ({
             name: cardMap.get(item.cardId)?.name || "Unknown Card",
             value: item.spend || 0,
-        }));
+        })).sort((a, b) => b.value - a.value);
         
         const cashbackByCard = monthData.map(item => ({
             name: cardMap.get(item.cardId)?.name || "Unknown Card",
             value: item.cashback || 0,
-        }));
+        })).sort((a, b) => b.value - a.value);
 
         return { totalSpend, totalCashback, effectiveRate, spendByCard, cashbackByCard };
     }, [activeMonth, monthlySummary, cardMap]);
@@ -446,7 +487,6 @@ export default function CashbackDashboard() {
                             monthlyCategories={monthlyCashbackCategories}
                             mccMap={mccMap}
                             onTransactionAdded={handleTransactionAdded}
-                            onFormSubmit={() => setIsAddTxDialogOpen(false)}
                         />
                     </DialogContent>
                     </Dialog>
@@ -514,6 +554,7 @@ export default function CashbackDashboard() {
                             data={cardPerformanceData}
                             cards={cards}
                             currencyFn={currency}
+                            cardColorMap={cardColorMap} 
                         />
                     </div>
                         
@@ -521,10 +562,12 @@ export default function CashbackDashboard() {
                         <SpendByCardChart
                             spendData={overviewStats.spendByCard}
                             currencyFn={currency}
+                            cardColorMap={cardColorMap}
                         />
                         <CashbackByCardChart
                             cashbackData={overviewStats.cashbackByCard}
                             currencyFn={currency}
+                            cardColorMap={cardColorMap}
                         />
                     </div>
                 
@@ -550,7 +593,7 @@ export default function CashbackDashboard() {
                     <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
 
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {cards.map(card => {
+                        {sortedCards.map(card => {
                             // --- LOGIC TO GET ALL STATS FOR THE CARD ---
 
                             // 1. Get Monthly Stats (for the selected month)
@@ -615,6 +658,19 @@ export default function CashbackDashboard() {
                                         </div>
 
                                         <div className="flex justify-end pt-2">
+                                            {card.status && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className={cn(
+                                                        'capitalize', // Ensures the first letter is uppercase
+                                                        card.status === 'Active' && 'bg-emerald-100 text-emerald-800 border-emerald-200', // Green
+                                                        card.status === 'Closed' && 'bg-red-100 text-red-800 border-red-200',       // Red
+                                                        card.status === 'Frozen' && 'bg-blue-100 text-blue-800 border-blue-200' 
+                                                    )}
+                                                >
+                                                    {card.status}
+                                                </Badge>
+                                            )}
                                             <CardInfoDialog card={card} rules={rules.filter(r => r.cardId === card.id)} />
                                         </div>
 
@@ -943,7 +999,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                 <Table>
                     <TableHeader>
                         <TableRow>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
+                        <TableHead className="w-[120px]"><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
                         <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction Name <SortIcon columnKey="Transaction Name" /></Button></TableHead>
                         <TableHead className="w-[150px]"><Button variant="ghost" onClick={() => requestSort('Cashback Month')} className="px-2 whitespace-normal h-auto text-left justify-start">S. Month <SortIcon columnKey="Statement Month" /></Button></TableHead>
                         <TableHead className="w-[200px]"><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2 whitespace-normal h-auto text-left justify-start">Card <SortIcon columnKey="Card" /></Button></TableHead>
@@ -1014,26 +1070,28 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
         return cards
         .filter(card => card.overallMonthlyLimit > 0)
         .map(card => {
-            // Find the specific summary for this card and the active month
             const cardMonthSummary = monthlySummary.find(
-            summary => summary.cardId === card.id && summary.month === activeMonth
+                summary => summary.cardId === card.id && summary.month === activeMonth
             );
-
-            // Get the pre-calculated cashback from that summary
             const currentCashback = cardMonthSummary ? cardMonthSummary.cashback : 0;
             const monthlyLimit = card.overallMonthlyLimit;
             const usedPct = monthlyLimit > 0 ? Math.min(100, Math.round((currentCashback / monthlyLimit) * 100)) : 0;
             
-            const { days, status } = calculateDaysUntilStatement(card.statementDay, activeMonth);
+            // --- THIS IS THE ADJUSTED LOGIC ---
+            // If the card uses statement month, calculate days left in that month.
+            // Otherwise, calculate days left until the next statement day.
+            const { days, status } = card.useStatementMonthForPayments
+                ? calculateDaysLeftInCashbackMonth(activeMonth)
+                : calculateDaysUntilStatement(card.statementDay, activeMonth);
 
             return {
-            cardId: card.id,
-            cardName: card.name,
-            currentCashback,
-            monthlyLimit,
-            usedPct,
-            daysLeft: days,
-            cycleStatus: status,
+                cardId: card.id,
+                cardName: card.name,
+                currentCashback,
+                monthlyLimit,
+                usedPct,
+                daysLeft: days,
+                cycleStatus: status,
             };
         });
     }, [cards, activeMonth, monthlySummary]);
@@ -1045,9 +1103,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
             </CardHeader>
             <CardContent className="space-y-4">
                 {cardSpendsCapProgress.map(p => (
-                    // Use CSS Grid for a structured layout
                     <div key={p.cardId} className="space-y-2">
-                        {/* Row 1: Card Name and Days Left Badge (Unchanged) */}
                         <div className="flex justify-between items-center gap-4">
                             <p className="font-medium text-sm truncate">{p.cardName}</p>
                             <Badge variant="outline" className={cn(
@@ -1057,8 +1113,6 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
                             {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
                             </Badge>
                         </div>
-                        
-                        {/* Row 2: Progress Bar and Amounts are now grouped together */}
                         <div>
                             <Tooltip>
                                 <TooltipTrigger className="w-full">
@@ -1083,9 +1137,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
     );
 }
 
-function SpendByCardChart({ spendData, currencyFn }) {
-    const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899'];
-
+function SpendByCardChart({ spendData, currencyFn, cardColorMap }) {
     const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
         const RADIAN = Math.PI / 180;
         const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -1093,36 +1145,33 @@ function SpendByCardChart({ spendData, currencyFn }) {
         const y = cy + radius * Math.sin(-midAngle * RADIAN);
         if (percent < 0.05) return null;
         return (
-        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-xs font-semibold">
-            {`${(percent * 100).toFixed(0)}%`}
-        </text>
+            <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-xs font-semibold">
+                {`${(percent * 100).toFixed(0)}%`}
+            </text>
         );
     };
 
     return (
         <Card>
-        <CardHeader><CardTitle>Spending by Card</CardTitle></CardHeader>
-        <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-                <Pie data={spendData} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} innerRadius={60} outerRadius={90} dataKey="value" nameKey="name" paddingAngle={3}>
-                {spendData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-                </Pie>
-                <RechartsTooltip formatter={(value) => currencyFn(value)} />
-                <Legend wrapperStyle={{ marginTop: '24px' }}/>
-            </PieChart>
-            </ResponsiveContainer>
-        </CardContent>
+            <CardHeader><CardTitle>Spending by Card</CardTitle></CardHeader>
+            <CardContent>
+                <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                        <Pie data={spendData} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} innerRadius={60} outerRadius={90} dataKey="value" nameKey="name" paddingAngle={3}>
+                            {spendData.map((entry) => (
+                                <Cell key={`cell-${entry.name}`} fill={cardColorMap.get(entry.name) || '#cccccc'} />
+                            ))}
+                        </Pie>
+                        <RechartsTooltip formatter={(value) => currencyFn(value)} />
+                        <Legend wrapperStyle={{ marginTop: '24px' }}/>
+                    </PieChart>
+                </ResponsiveContainer>
+            </CardContent>
         </Card>
     );
 }
 
-// NEW COMPONENT 2: CashbackByCardChart
-function CashbackByCardChart({ cashbackData, currencyFn }) {
-    const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899'];
-
+function CashbackByCardChart({ cashbackData, currencyFn, cardColorMap }) {
     const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
         const RADIAN = Math.PI / 180;
         const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -1130,28 +1179,28 @@ function CashbackByCardChart({ cashbackData, currencyFn }) {
         const y = cy + radius * Math.sin(-midAngle * RADIAN);
         if (percent < 0.05) return null;
         return (
-        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-xs font-semibold">
-            {`${(percent * 100).toFixed(0)}%`}
-        </text>
+            <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-xs font-semibold">
+                {`${(percent * 100).toFixed(0)}%`}
+            </text>
         );
     };
 
     return (
         <Card>
-        <CardHeader><CardTitle>Cashback by Card</CardTitle></CardHeader>
-        <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-                <Pie data={cashbackData} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} innerRadius={60} outerRadius={90} dataKey="value" nameKey="name" paddingAngle={3}>
-                {cashbackData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-                </Pie>
-                <RechartsTooltip formatter={(value) => currencyFn(value)} />
-                <Legend wrapperStyle={{ marginTop: '24px' }} />
-            </PieChart>
-            </ResponsiveContainer>
-        </CardContent>
+            <CardHeader><CardTitle>Cashback by Card</CardTitle></CardHeader>
+            <CardContent>
+                <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                        <Pie data={cashbackData} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} innerRadius={60} outerRadius={90} dataKey="value" nameKey="name" paddingAngle={3}>
+                            {cashbackData.map((entry) => (
+                                <Cell key={`cell-${entry.name}`} fill={cardColorMap.get(entry.name) || '#cccccc'} />
+                            ))}
+                        </Pie>
+                        <RechartsTooltip formatter={(value) => currencyFn(value)} />
+                        <Legend wrapperStyle={{ marginTop: '24px' }} />
+                    </PieChart>
+                </ResponsiveContainer>
+            </CardContent>
         </Card>
     );
 }
@@ -1648,12 +1697,9 @@ function CardRoi({ cards, currencyFn, feeCycleProgressFn }) {
             return { ...card, totalValue, isNetPositive, daysPast, progressPercent };
         });
         
-        // Sort by the nearest upcoming annual fee date
-        data.sort((a, b) => {
-            if (!a.nextAnnualFeeDate) return 1;
-            if (!b.nextAnnualFeeDate) return -1;
-            return new Date(a.nextAnnualFeeDate) - new Date(b.nextAnnualFeeDate);
-        });
+        // --- THIS IS THE UPDATED SORTING LOGIC ---
+        // Sort by progress percentage from highest to lowest
+        data.sort((a, b) => b.progressPercent - a.progressPercent);
 
         return data;
     }, [cards, feeCycleProgressFn]);
@@ -1671,10 +1717,10 @@ function CardRoi({ cards, currencyFn, feeCycleProgressFn }) {
                                 <p className="text-sm text-gray-500">Next Fee: {card.nextAnnualFeeDate || "N/A"}</p>
                             </div>
                             <Badge className={cn(
-                                "font-semibold", // Base styles for both
+                                "font-semibold",
                                 card.isNetPositive
-                                    ? "border-gray-300 border text-gray-600" // Style for "Net Positive"
-                                    : "bg-red-500 text-white border-transparent" // Style for "Net Negative"
+                                    ? "border-gray-300 border text-gray-600"
+                                    : "bg-red-500 text-white border-transparent"
                             )}>
                                 {card.isNetPositive ? "Net Positive" : "Net Negative"}
                             </Badge>
@@ -1711,13 +1757,12 @@ function CardRoi({ cards, currencyFn, feeCycleProgressFn }) {
     );
 }
 
-// ... at the bottom of src/CashbackDashboard.jsx
-
 function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlySummary, currencyFn }) {
-    // --- NEW: Calculate the cycle status once for the card ---
-    const { days, status } = calculateDaysUntilStatement(card.statementDay, activeMonth);
+    // --- THIS IS THE ADJUSTED LOGIC ---
+    const { days, status } = card.useStatementMonthForPayments
+        ? calculateDaysLeftInCashbackMonth(activeMonth)
+        : calculateDaysUntilStatement(card.statementDay, activeMonth);
 
-    // Logic to calculate the individual category caps (remains the same)
     const categoryCapData = useMemo(() => {
         const summaries = monthlyCategorySummary.filter(
             summary => summary.cardId === card.id && summary.month === activeMonth
@@ -1737,7 +1782,6 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
         });
     }, [card, activeMonth, monthlyCategorySummary]);
 
-    // Logic to calculate the data for the "Total" box (remains the same)
     const totalCardData = useMemo(() => {
         const summary = monthlySummary.find(
             s => s.cardId === card.id && s.month === activeMonth
@@ -1753,7 +1797,6 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
     return (
         <div>
             <h4 className="text-sm font-semibold text-center text-muted-foreground mb-2">Category Caps Usage</h4>
-            {/* --- NEW: Add status badge for the "Total" box --- */}
             <div className="flex justify-center mb-3" style={{ marginBottom: '24px' }}>
                 <Badge variant="outline" className={cn(
                     "text-xs",
@@ -1762,13 +1805,8 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
                     {status === 'Completed' ? 'Completed' : `${days} days left`}
                 </Badge>
             </div>
-            {/* THIS IS THE NEW, SIMPLIFIED LOGIC */}
-            {/* Check if there is any category data to display */}
             {categoryCapData.length > 0 ? (
-                // If YES, render the grid with the "Total" box and the category boxes
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    
-                    {/* The "Total" box will only appear if it has data AND there are categories */}
                     {totalCardData && (
                         <div className="border p-3 rounded-lg space-y-2 flex flex-col bg-slate-100">
                             <div className="flex justify-between items-start">
@@ -1785,8 +1823,6 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
                             </div>
                         </div>
                     )}
-
-                    {/* The category caps boxes */}
                     {categoryCapData.map(cap => (
                         <div key={cap.id} className="border p-3 rounded-lg space-y-2 flex flex-col">
                             <div className="flex justify-between items-start">
@@ -1810,7 +1846,6 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
                     ))}
                 </div>
             ) : (
-                // If NO, render the placeholder box
                 <div className="border p-3 rounded-lg flex items-center justify-center h-24">
                     <p className="text-xs text-muted-foreground">No specific categories for this month</p>
                 </div>
@@ -1819,11 +1854,15 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
     );
 }
 
-function CardPerformanceLineChart({ data, cards, currencyFn }) {
-    const [view, setView] = useState('All'); 
-    const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#e95fa4ff', '#c6212eff'];
+function CardPerformanceLineChart({ data, cards, currencyFn, cardColorMap }) {
+    const [view, setView] = useState('All');
     
-    // The CustomDot helper is no longer needed and has been removed.
+    const SquareDot = (props) => {
+        const { cx, cy, stroke, value } = props;
+        const size = 7;
+        if (value === null || value === undefined) return null;
+        return <rect x={cx - size / 2} y={cy - size / 2} width={size} height={size} fill={stroke} />;
+    };
 
     return (
         <Card>
@@ -1844,19 +1883,17 @@ function CardPerformanceLineChart({ data, cards, currencyFn }) {
                         {view === 'All' && (
                             <YAxis yAxisId="right" domain={[0, 'auto']} orientation="right" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                         )}
-                        <RechartsTooltip 
-                            content={<CustomLineChartTooltip currencyFn={currencyFn} cards={cards} />} 
-                        />
+                        <RechartsTooltip content={<CustomLineChartTooltip currencyFn={currencyFn} cards={cards} />} />
                         
-                        {cards.map((card, index) => {
-                            const cardColor = COLORS[index % COLORS.length];
+                        {cards.map((card) => {
+                            const cardColor = cardColorMap.get(card.name) || '#cccccc'; // Get color from map
                             return (
                                 <React.Fragment key={card.id}>
                                     {(view === 'All' || view === 'Spending') && (
-                                        <Line type="linear" connectNulls dataKey={`${card.name} Spend`} stroke={cardColor} strokeWidth={2} yAxisId="left" activeDot={{ r: 6 }} />
+                                        <Line type="linear" connectNulls dataKey={`${card.name} Spend`} stroke={cardColor} strokeWidth={2} yAxisId="left" activeDot={{ r: 6 }} dot={{ r: 4 }} />
                                     )}
                                     {(view === 'All' || view === 'Cashback') && (
-                                        <Line type="linear" connectNulls dataKey={`${card.name} Cashback`} stroke={cardColor} strokeWidth={2} strokeDasharray="5 5" yAxisId={view === 'All' ? 'right' : 'left'} activeDot={{ r: 6 }} />
+                                        <Line type="linear" connectNulls dataKey={`${card.name} Cashback`} stroke={cardColor} strokeWidth={2} strokeDasharray="5 5" yAxisId={view === 'All' ? 'right' : 'left'} activeDot={{ r: 6 }} dot={<SquareDot />} />
                                     )}
                                 </React.Fragment>
                             )
@@ -1864,11 +1901,11 @@ function CardPerformanceLineChart({ data, cards, currencyFn }) {
                     </LineChart>
                 </ResponsiveContainer>
                 <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs">
-                    {cards.map((card, index) => (
+                    {cards.map((card) => (
                         <div key={card.id} className="flex items-center gap-1.5">
                             <span
                                 className="h-2.5 w-2.5 rounded-full"
-                                style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                style={{ backgroundColor: cardColorMap.get(card.name) || '#cccccc' }} // Use map for legend color
                             />
                             <span>{card.name}</span>
                         </div>
@@ -1878,8 +1915,6 @@ function CardPerformanceLineChart({ data, cards, currencyFn }) {
         </Card>
     );
 }
-
-// ... at the bottom of src/CashbackDashboard.jsx
 
 function RecentTransactionsCarousel({ transactions, cardMap, currencyFn }) {
     const scrollContainerRef = useRef(null);
@@ -2087,7 +2122,7 @@ function LoginScreen({ onLoginSuccess }) {
     );
 }
 
-// --- FINAL AddTransactionForm COMPONENT ---
+// CashbackDashboard.jsx
 
 function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, onFormSubmit }) {
     // --- State Management ---
@@ -2097,87 +2132,65 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [cardId, setCardId] = useState('');
     const [category, setCategory] = useState('');
     const [mccCode, setMccCode] = useState('');
-    const [merchantLookup, setMerchantLookup] = useState(''); // <-- ADD THIS LINE
+    const [merchantLookup, setMerchantLookup] = useState('');
     const [mccName, setMccName] = useState('');
     const [applicableRuleId, setApplicableRuleId] = useState('');
     const [cardSummaryCategoryId, setCardSummaryCategoryId] = useState('new');
     const [isMccSearching, setIsMccSearching] = useState(false);
     const [mccResults, setMccResults] = useState([]);
     const [isMccDialogOpen, setIsMccDialogOpen] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false); // <-- ADD THIS LINE
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // --- Memoized Calculations ---
     const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cardId, cards]);
 
     const filteredRules = useMemo(() => {
         if (!cardId) return [];
-        return rules.filter(rule => rule.cardId === cardId);
+        // --- THIS IS THE UPDATED FILTER LOGIC ---
+        // Only show rules for the selected card that are also "Active"
+        return rules.filter(rule => rule.cardId === cardId && rule.status === 'Active');
     }, [cardId, rules]);
 
     const selectedRule = useMemo(() => rules.find(r => r.id === applicableRuleId), [applicableRuleId, rules]);
 
     const cashbackMonth = useMemo(() => {
         if (!selectedCard || !date) return null;
-
-        // Create date objects for easier comparison
         const transactionDate = new Date(date);
         const statementDay = selectedCard.statementDay;
-
-        // Replicate "Cashback Month" logic for HSBC cards
         if (selectedCard.useStatementMonthForPayments) {
             const year = transactionDate.getFullYear();
-            const month = transactionDate.getMonth() + 1; // JS months are 0-indexed
+            const month = transactionDate.getMonth() + 1;
             return `${year}${String(month).padStart(2, '0')}`;
         }
-
-        // Handle month/year logic numerically to avoid JavaScript's Date object rollover issues.
         let year = transactionDate.getFullYear();
-        let month = transactionDate.getMonth(); // 0-indexed (0 = Jan, 11 = Dec)
-
+        let month = transactionDate.getMonth();
         if (transactionDate.getDate() >= statementDay) {
-            // If transaction is on/after statement day, it belongs to the next month's statement.
             month += 1;
         }
-
-        // If the month rolls over to the next year (e.g., from Dec to Jan)
         if (month > 11) {
-            month = 0; // Reset to January
-            year += 1; // Increment the year
+            month = 0;
+            year += 1;
         }
-
-        // The final month for the string needs to be 1-indexed (1-12)
         const finalMonth = month + 1;
         return `${year}${String(finalMonth).padStart(2, '0')}`;
-        
     }, [selectedCard, date]);
 
     const filteredSummaries = useMemo(() => {
-        // Don't filter if we don't have the required info yet
         if (!selectedRule || !cardId || !cashbackMonth) return [];
-
-        // This replicates your "Reference Summary ID" logic
         const targetSummaryId = `${cashbackMonth} - ${selectedRule.name}`;
-
         return monthlyCategories.filter(summary => {
-            // Find summaries for the correct card that match the target ID
             return summary.cardId === cardId && summary.summaryId === targetSummaryId;
         });
-        // Add cashbackMonth to the dependency array
     }, [cardId, monthlyCategories, selectedRule, cashbackMonth]);
 
     // --- Effects ---
-
-    // This effect automatically selects the best summary link when dependencies change.
     useEffect(() => {
-        // If a suitable summary already exists in the list...
         if (filteredSummaries.length > 0) {
-            // ...set the dropdown to select the first (and likely only) match by default.
             setCardSummaryCategoryId(filteredSummaries[0].id);
         } else {
-            // ...otherwise, ensure the dropdown defaults back to "Create New Summary".
             setCardSummaryCategoryId('new');
         }
-    }, [filteredSummaries]); // This hook runs whenever the list of suitable summaries changes.
+    }, [filteredSummaries]);
 
     useEffect(() => {
         if (cards.length > 0 && !cardId) {
@@ -2201,15 +2214,11 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         if (isNaN(numericAmount)) {
             return 0;
         }
-
         const calculatedCashback = numericAmount * selectedRule.rate;
         const cap = selectedRule.capPerTransaction;
-
-        // If there's a cap and the cashback exceeds it, return the cap
         if (cap > 0 && calculatedCashback > cap) {
             return cap;
         }
-        
         return calculatedCashback;
     }, [amount, selectedRule]);
 
@@ -2217,11 +2226,11 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const resetForm = () => {
         setMerchant('');
         setAmount('');
-        setDate(new Date().toISOString().split('T')[0]);
-        setCardId(cards.length > 0 ? cards[0].id : '');
+        // setDate(new Date().toISOString().split('T')[0]);
+        // setCardId(cards.length > 0 ? cards[0].id : '');
         setCategory('');
         setMccCode('');
-        setMerchantLookup(''); // <-- ADD THIS LINE
+        setMerchantLookup('');
         setApplicableRuleId('');
         setCardSummaryCategoryId('new');
     };
@@ -2238,21 +2247,68 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const handleMccSearch = async () => {
         if (!merchant) return;
         setIsMccSearching(true);
-        try {
-            const response = await fetch(`/api/mcc-search?keyword=${encodeURIComponent(merchant)}`);
-            if (!response.ok) throw new Error('MCC search failed');
-            const data = await response.json();
+        setMccResults([]);
 
-            // Check if the 'results' array exists and is not empty
-            if (data.results && data.results.length > 0) {
-                // Get the first item from the results array
-                setMccResults(data.results);
+        try {
+            const keyword = encodeURIComponent(merchant);
+
+            // 1. Fetch from both internal and external APIs in parallel
+            const [internalRes, externalRes] = await Promise.all([
+                fetch(`/api/internal-mcc-search?keyword=${keyword}`),
+                fetch(`/api/mcc-search?keyword=${keyword}`)
+            ]);
+
+            // 2. Process results, handling potential errors for each
+            let internalData = [];
+            if (internalRes.ok) {
+                const rawInternal = await internalRes.json();
+                // Transform internal data to match the external format for the dialog
+                internalData = rawInternal.map(item => ([
+                    "Your History", // Source
+                    item.merchant,  // Merchant Name
+                    item.mcc,       // MCC Code
+                    mccMap[item.mcc]?.en || "Unknown", // English Category Name
+                    mccMap[item.mcc]?.vn || "Không rõ", // Vietnamese Category Name
+                ]));
+            } else {
+                console.error("Internal MCC search failed");
+            }
+
+            let externalData = [];
+            if (externalRes.ok) {
+                const rawExternal = await externalRes.json();
+                if (rawExternal.results) {
+                    externalData = rawExternal.results;
+                }
+            } else {
+                console.error("External MCC search failed");
+            }
+            
+            // 3. Combine and de-duplicate results, prioritizing internal data
+            const combinedResults = [...internalData, ...externalData];
+            const uniqueResults = new Map();
+
+            combinedResults.forEach(result => {
+                const merchantName = result[1];
+                const mcc = result[2];
+                const key = `${merchantName}|${mcc}`; // Unique key
+                if (!uniqueResults.has(key)) {
+                    uniqueResults.set(key, result);
+                }
+            });
+
+            const finalResults = Array.from(uniqueResults.values());
+
+            if (finalResults.length > 0) {
+                setMccResults(finalResults);
                 setIsMccDialogOpen(true);
             } else {
-                setMccResults([]);
+                toast.info("No MCC suggestions found for this merchant.");
             }
+
         } catch (error) {
             console.error("MCC Search Error:", error);
+            toast.error("Could not perform MCC search.");
         } finally {
             setIsMccSearching(false);
         }
@@ -2261,13 +2317,8 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-
-        // This will hold the ID of the summary to link to.
         let finalSummaryId = null; 
-
         try {
-            // --- RESTRUCTURED LOGIC ---
-            // Only try to create a new summary if a rule is selected AND the user chose "Create New".
             if (applicableRuleId && cardSummaryCategoryId === 'new') {
                 const summaryResponse = await fetch('/api/summaries', {
                     method: 'POST',
@@ -2278,19 +2329,14 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                         ruleId: applicableRuleId,
                     }),
                 });
-
                 if (!summaryResponse.ok) {
                     throw new Error('Failed to create new monthly summary.');
                 }
-                
                 const newSummary = await summaryResponse.json();
-                finalSummaryId = newSummary.id; // Use the ID of the newly created summary.
-
-            // If the user selected an existing summary, use its ID.
+                finalSummaryId = newSummary.id;
             } else if (applicableRuleId && cardSummaryCategoryId !== 'new') {
                 finalSummaryId = cardSummaryCategoryId;
             }
-            // --- END OF RESTRUCTURED LOGIC ---
 
             const transactionData = {
                 merchant,
@@ -2299,9 +2345,8 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 cardId,
                 category: category || null,
                 mccCode: mccCode || null,
-                merchantLookup: merchantLookup || null, // <-- ADD THIS LINE
+                merchantLookup: merchantLookup || null,
                 applicableRuleId: applicableRuleId || null,
-                // Pass the finalSummaryId, which will be null if no rule was selected.
                 cardSummaryCategoryId: finalSummaryId,
             };
 
@@ -2316,18 +2361,15 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             const newTransactionFromServer = await response.json();
             const optimisticTransaction = {
                 ...newTransactionFromServer,
-                estCashback: estimatedCashback, // Use the locally calculated cashback
+                estCashback: estimatedCashback,
             };
             toast.success("Transaction added successfully!");
             onTransactionAdded(optimisticTransaction);
             resetForm();
-            onFormSubmit();
-
         } catch (error) {
             console.error('Error during transaction submission:', error);
             toast.error("Failed to add transaction. Please try again.");
         } finally {
-            // This will now always be called, resetting the button.
             setIsSubmitting(false); 
         }
     };
@@ -2346,7 +2388,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                             </Button>
                         </div>
                     </div>
-
                     <div className="grid grid-cols-10 gap-4 items-start">
                         <div className="space-y-2 col-span-6">
                             <label htmlFor="merchantLookup">Merchant</label>
@@ -2358,7 +2399,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                             {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
                         </div>
                     </div>
-
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label htmlFor="amount">Amount</label>
@@ -2385,11 +2425,10 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     </div>
                     )}
                 </div>
-
                 <div className="space-y-2">
                     <label htmlFor="rule">Applicable Cashback Rule</label>
                     <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border rounded cursor-pointer" disabled={filteredRules.length === 0}>
-                    <option value="">{filteredRules.length === 0 ? 'No rules for this card' : 'None'}</option>
+                    <option value="">{filteredRules.length === 0 ? 'No active rules for this card' : 'None'}</option>
                     {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
                     </select>
                     {selectedRule && (
@@ -2403,8 +2442,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     </div>
                     )}
                 </div>
-
-                {/* --- Monthly Summary Field --- */}
                 {applicableRuleId && (
                 <div className="space-y-2">
                     <label htmlFor="summary">Link to Monthly Summary</label>
@@ -2414,7 +2451,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     </select>
                 </div>
                 )}
-                
                 <div className="space-y-2">
                     <label htmlFor="category">Internal Category</label>
                     <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded cursor-pointer">
@@ -2431,17 +2467,16 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 </Button>
                 </div>
             </form>
-
             <MccSearchResultsDialog
                 open={isMccDialogOpen}
                 onOpenChange={setIsMccDialogOpen}
                 results={mccResults}                
                 onSelect={(selectedResult) => {
-                    const merchantNameFromResult = selectedResult[1]; // Merchant name is at index 1
-                    const mccCodeFromResult = selectedResult[2]; // MCC code is at index 2
+                    const merchantNameFromResult = selectedResult[1];
+                    const mccCodeFromResult = selectedResult[2];
                     setMccCode(mccCodeFromResult);
-                    setMerchantLookup(merchantNameFromResult); // Autofill the new merchant field
-                    setIsMccDialogOpen(false); // Close dialog on selection
+                    setMerchantLookup(merchantNameFromResult);
+                    setIsMccDialogOpen(false);
                 }}
             />
         </>      
@@ -2492,13 +2527,10 @@ function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
 }
 
 function DatePicker({ date, setDate }) {
-    // FIX: This part correctly converts the date string (e.g., "2025-09-20")
-    // into a Date object that the calendar can understand and highlight,
-    // avoiding timezone errors.
     const selectedDate = useMemo(() => {
         if (!date) return null;
         const [year, month, day] = date.split('-').map(Number);
-        return new Date(year, month - 1, day); // month is 0-indexed
+        return new Date(year, month - 1, day);
     }, [date]);
 
     return (
@@ -2518,7 +2550,7 @@ function DatePicker({ date, setDate }) {
             <PopoverContent className="w-auto p-0 bg-white">
                 <Calendar
                     mode="single"
-                    selected={selectedDate} // This now receives the correctly formatted date
+                    selected={selectedDate}
                     onSelect={(newDate) => {
                         if (newDate) {
                             const year = newDate.getFullYear();
@@ -2530,8 +2562,9 @@ function DatePicker({ date, setDate }) {
                         }
                     }}
                     classNames={{
-                        day_outside: "text-muted-foreground opacity-50", // Styles the grayed-out dates
-                        day_selected: "!bg-black !text-white",           // Force-overrides the selected date style
+                        day_outside: "text-muted-foreground opacity-50",
+                        day_selected: "!bg-black !text-white",
+                        day_today: "bg-accent text-accent-foreground", // <-- ADD THIS LINE
                     }}
                     initialFocus
                 />

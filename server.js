@@ -78,6 +78,9 @@ const parseNotionPageProperties = (page) => {
             case 'checkbox':
                 result[key] = prop.checkbox; // This will be true or false
                 break;
+            case 'status':
+                result[key] = prop.status?.name || null;
+                break;
             default:
                 result[key] = prop; // Keep the original object for unhandled types
         }
@@ -248,6 +251,7 @@ app.get('/api/cards', async (req, res) => {
                 nextAnnualFeeDate: parsed['Next Annual Payment Date'],
                 cardOpenDate: parsed['Card Open Date'],
                 useStatementMonthForPayments: parsed['Cashback <> Statement Month'] || false,
+                status: parsed['Status'],
             };
         });
         res.json(results);
@@ -272,6 +276,7 @@ app.get('/api/rules', async (req, res) => {
                 category: parsed['Category'],
                 rate: parsed['Cashback Rate'],
                 capPerTransaction: parsed['Limit per Transaction'],
+                status: parsed['Status']
             };
         });
         res.json(results);
@@ -530,6 +535,55 @@ app.post('/api/summaries', async (req, res) => {
     } catch (error) {
         console.error('Error creating summary:', error);
         res.status(500).json({ error: 'Failed to create summary' });
+    }
+});
+
+app.get('/api/internal-mcc-search', async (req, res) => {
+    const { keyword } = req.query;
+    if (!keyword) {
+        return res.status(400).json({ error: 'Search keyword is required' });
+    }
+
+    try {
+        const response = await notion.databases.query({
+            database_id: transactionsDbId,
+            page_size: 50, // Limit to a reasonable number of recent transactions
+            filter: {
+                and: [
+                    // Ensure we only get transactions that have been categorized
+                    { property: 'MCC Code', rich_text: { is_not_empty: true } },
+                    { property: 'Merchant', rich_text: { is_not_empty: true } },
+                    // Match the keyword against either the transaction name or the merchant name
+                    {
+                        or: [
+                            { property: 'Transaction Name', title: { contains: keyword } },
+                            { property: 'Merchant', rich_text: { contains: keyword } }
+                        ]
+                    }
+                ]
+            },
+            sorts: [{ property: 'Transaction Date', direction: 'descending' }]
+        });
+        
+        const parsedResults = response.results.map(page => parseNotionPageProperties(page));
+
+        // Create a unique set of Merchant/MCC pairs from the results
+        const uniqueResultsMap = new Map();
+        parsedResults.forEach(tx => {
+            const merchant = tx['Merchant'];
+            const mcc = tx['MCC Code'];
+            const key = `${merchant}|${mcc}`; // Use a unique key
+            if (!uniqueResultsMap.has(key)) {
+                uniqueResultsMap.set(key, { merchant, mcc });
+            }
+        });
+
+        const finalResults = Array.from(uniqueResultsMap.values());
+        res.json(finalResults);
+
+    } catch (error) {
+        console.error('Internal MCC Search Error:', error.body || error);
+        res.status(500).json({ error: 'Failed to search internal transactions' });
     }
 });
 
