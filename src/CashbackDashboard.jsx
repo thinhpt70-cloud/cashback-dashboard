@@ -98,6 +98,9 @@ const calculateDaysUntilStatement = (statementDay, activeMonth) => {
     return { days: diffDays, status: 'Upcoming' };
 };
 
+const COLORS = ['#3b82f6', '#8b5cf6', '#f97316', '#10b981', '#ec4899', '#ef4444', '#f59e0b'];
+
+
 export default function CashbackDashboard() {
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -311,8 +314,6 @@ export default function CashbackDashboard() {
     
     // --- MEMOIZED DATA PROCESSING ---
 
-    const COLORS = ['#3b82f6', '#8b5cf6', '#f97316', '#10b981', '#ec4899', '#ef4444', '#f59e0b'];
-
     const cardColorMap = useMemo(() => {
         const map = new Map();
         // Sort cards by name to ensure color assignment is stable
@@ -321,7 +322,7 @@ export default function CashbackDashboard() {
             map.set(card.name, COLORS[index % COLORS.length]);
         });
         return map;
-    }, [cards, COLORS]);
+    }, [cards]);
 
     const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
 
