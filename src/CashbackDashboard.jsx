@@ -2196,9 +2196,20 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
     useEffect(() => {
         if (cards.length > 0 && !cardId) {
-            setCardId(cards[0].id);
+            const lastUsedCardId = localStorage.getItem('lastUsedCardId');
+            
+            // Check if the last-used ID exists and is a valid option in the current cards list
+            const lastUsedCardIsValid = lastUsedCardId && cards.some(c => c.id === lastUsedCardId);
+
+            if (lastUsedCardIsValid) {
+                setCardId(lastUsedCardId);
+            } else {
+                // Fallback to the first card in the list if no valid last-used card is found
+                setCardId(cards[0].id);
+            }
         }
     }, [cards, cardId]);
+    
 
     useEffect(() => {
         if (mccMap && mccCode && mccMap[mccCode]) {
@@ -2367,6 +2378,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 estCashback: estimatedCashback,
             };
             toast.success("Transaction added successfully!");
+            localStorage.setItem('lastUsedCardId', cardId);
             onTransactionAdded(optimisticTransaction);
             resetForm();
         } catch (error) {
