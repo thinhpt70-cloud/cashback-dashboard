@@ -2409,12 +2409,12 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                         </div>
                         <div className="space-y-2">
                             <label htmlFor="date">Date</label>
-                            <div className="relative">
-                                <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <div className="relative flex items-center">
+                                <CalendarDays className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     id="date"
                                     type="date"
-                                    className="pl-10" // Add padding to make space for the icon
+                                    className="relative block w-full py-2 pl-10 text-left"
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
                                     required
