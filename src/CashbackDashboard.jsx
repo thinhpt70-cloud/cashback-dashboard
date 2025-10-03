@@ -2414,7 +2414,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                                 <Input
                                     id="date"
                                     type="date"
-                                    className="relative block w-full py-2 pl-10 text-left"
+                                    className="relative flex items-center w-full py-2 pl-10 text-left"
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
                                     required
