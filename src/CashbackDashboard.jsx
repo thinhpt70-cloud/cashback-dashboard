@@ -603,8 +603,16 @@ export default function CashbackDashboard() {
                                 .filter(summary => summary.cardId === card.id)
                                 .reduce((acc, summary) => acc + (summary.spend || 0), 0);
 
+                            const isMaxedOut = card.overallMonthlyLimit > 0 && estCashbackMonth >= card.overallMonthlyLimit;
+
                             return (
-                                <Card key={card.id}>
+                                <Card 
+                                    key={card.id} 
+                                    className={cn(
+                                        "transition-shadow duration-300",
+                                        isMaxedOut && "shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-500"
+                                    )}
+                                >
                                     <CardHeader>
                                         <div className="flex items-center justify-between">
                                             <CardTitle className="text-lg">{card.name} &bull;&bull;&bull;{card.last4}</CardTitle>
