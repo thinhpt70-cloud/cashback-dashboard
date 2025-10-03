@@ -2611,11 +2611,7 @@ function DatePicker({ date, setDate }) {
                             setDate(null);
                         }
                     }}
-                    classNames={{
-                        day_outside: "text-muted-foreground opacity-50",
-                        day_selected: "!bg-black !text-white",
-                        day_today: "bg-accent text-accent-foreground", // <-- ADD THIS LINE
-                    }}
+                    weekStartsOn={1}
                     initialFocus
                 />
             </PopoverContent>
