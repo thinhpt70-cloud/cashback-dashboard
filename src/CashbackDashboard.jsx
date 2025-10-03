@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarIcon } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
@@ -20,13 +20,6 @@ import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTo
 import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, List } from "lucide-react";
 import { cn } from "./lib/utils";
 import { Toaster, toast } from 'sonner';
-import { Calendar } from "./components/ui/calendar";
-import { format } from "date-fns";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "./components/ui/popover";
 
 
 
@@ -2135,7 +2128,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     // --- State Management ---
     const [merchant, setMerchant] = useState('');
     const [amount, setAmount] = useState('');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
     const [cardId, setCardId] = useState('');
     const [category, setCategory] = useState('');
     const [mccCode, setMccCode] = useState('');
@@ -2416,7 +2409,13 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                         </div>
                         <div className="space-y-2">
                             <label htmlFor="date">Date</label>
-                            <DatePicker date={date} setDate={setDate} />
+                            <input
+                                type="date"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                                className="p-2 border rounded"
+                                required
+                            />
                         </div>
                     </div>
                 </div>
@@ -2573,49 +2572,6 @@ function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
                 </div>
             </DialogContent>
         </Dialog>
-    );
-}
-
-function DatePicker({ date, setDate }) {
-    const selectedDate = useMemo(() => {
-        if (!date) return null;
-        const [year, month, day] = date.split('-').map(Number);
-        return new Date(year, month - 1, day);
-    }, [date]);
-
-    return (
-        <Popover>
-            <PopoverTrigger asChild>
-                <Button
-                    variant={"outline"}
-                    className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !date && "text-muted-foreground"
-                    )}
-                >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-white">
-                <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(newDate) => {
-                        if (newDate) {
-                            const year = newDate.getFullYear();
-                            const month = String(newDate.getMonth() + 1).padStart(2, '0');
-                            const day = String(newDate.getDate()).padStart(2, '0');
-                            setDate(`${year}-${month}-${day}`);
-                        } else {
-                            setDate(null);
-                        }
-                    }}
-                    weekStartsOn={1}
-                    initialFocus
-                />
-            </PopoverContent>
-        </Popover>
     );
 }
 
