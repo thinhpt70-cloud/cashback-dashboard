@@ -98,7 +98,7 @@ const calculateDaysUntilStatement = (statementDay, activeMonth) => {
     return { days: diffDays, status: 'Upcoming' };
 };
 
-const COLORS = ['#3b82f6', '#8b5cf6', '#f97316', '#10b981', '#ec4899', '#ef4444', '#f59e0b'];
+const COLORS = ['#0ea5e9', '#84cc16', '#f43f5e', '#f59e0b', '#6366f1', '#14b8a6', '#d946ef'];
 
 
 export default function CashbackDashboard() {
@@ -658,17 +658,23 @@ export default function CashbackDashboard() {
                                             </div>
                                         </div>
 
-                                        <div className="flex justify-end pt-2">
+                                        <div className="flex justify-end items-center gap-2 pt-2">
                                             {card.status && (
                                                 <Badge
                                                     variant="outline"
                                                     className={cn(
-                                                        'capitalize', // Ensures the first letter is uppercase
-                                                        card.status === 'Active' && 'bg-emerald-100 text-emerald-800 border-emerald-200', // Green
-                                                        card.status === 'Closed' && 'bg-red-100 text-red-800 border-red-200',       // Red
-                                                        card.status === 'Frozen' && 'bg-blue-100 text-blue-800 border-blue-200' 
+                                                        'capitalize rounded-md', // Override pill shape to match button
+                                                        card.status === 'Active' && 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                                                        card.status === 'Closed' && 'bg-red-100 text-red-800 border-red-200',
+                                                        card.status === 'Frozen' && 'bg-blue-100 text-blue-800 border-blue-200'
                                                     )}
                                                 >
+                                                    <span className={cn( // The new status dot
+                                                        "mr-2 h-2 w-2 rounded-full",
+                                                        card.status === 'Active' && 'bg-emerald-500',
+                                                        card.status === 'Closed' && 'bg-red-500',
+                                                        card.status === 'Frozen' && 'bg-blue-500'
+                                                    )} />
                                                     {card.status}
                                                 </Badge>
                                             )}
@@ -2149,7 +2155,9 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         if (!cardId) return [];
         // --- THIS IS THE UPDATED FILTER LOGIC ---
         // Only show rules for the selected card that are also "Active"
-        return rules.filter(rule => rule.cardId === cardId && rule.status === 'Active');
+        return rules
+            .filter(rule => rule.cardId === cardId && rule.status === 'Active')
+            .sort((a, b) => a.name.localeCompare(b.name));
     }, [cardId, rules]);
 
     const selectedRule = useMemo(() => rules.find(r => r.id === applicableRuleId), [applicableRuleId, rules]);
@@ -2270,6 +2278,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     item.mcc,       // MCC Code
                     mccMap[item.mcc]?.en || "Unknown", // English Category Name
                     mccMap[item.mcc]?.vn || "Không rõ", // Vietnamese Category Name
+                    null // Add a null placeholder for PTTT data
                 ]));
             } else {
                 console.error("Internal MCC search failed");
@@ -2417,7 +2426,10 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 <div className="space-y-2">
                     <label htmlFor="card">Card</label>
                     <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="w-full p-2 border rounded cursor-pointer" required>
-                    {cards.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
+                    {[...cards]
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map(card => <option key={card.id} value={card.id}>{card.name}</option>)
+                    }
                     </select>
                     {cashbackMonth && (
                     <div className="flex items-center gap-2 pt-2">
@@ -2456,7 +2468,10 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     <label htmlFor="category">Internal Category</label>
                     <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded cursor-pointer">
                         <option value="">None</option>
-                        {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                        {[...categories]
+                            .sort((a, b) => a.localeCompare(b))
+                            .map(cat => <option key={cat} value={cat}>{cat}</option>)
+                        }
                     </select>
                 </div>
                 </div>
@@ -2491,7 +2506,7 @@ function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>MCC Search Results</DialogTitle>
                     <DialogDescription>
@@ -2502,6 +2517,7 @@ function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead className="w-[120px]">Source</TableHead>
                                 <TableHead>Merchant</TableHead>
                                 <TableHead>MCC</TableHead>
                                 <TableHead>Category</TableHead>
@@ -2514,6 +2530,39 @@ function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
                                     onClick={() => handleSelect(result)}
                                     className="cursor-pointer hover:bg-muted/50"
                                 >
+                                    <TableCell>
+                                        {(() => {
+                                            const sourceType = result[0];
+                                            const pttt = result[5]; // PTTT info is at index 5
+
+                                            if (sourceType === 'Your History') {
+                                                return (
+                                                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">
+                                                        History
+                                                    </Badge>
+                                                );
+                                            }
+
+                                            if (pttt === 'eCom') {
+                                                return (
+                                                    <Badge variant="destructive">
+                                                        eCom
+                                                    </Badge>
+                                                );
+                                            }
+
+                                            if (pttt === 'POS') {
+                                                return (
+                                                    <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100">
+                                                        POS
+                                                    </Badge>
+                                                );
+                                            }
+
+                                            // Fallback for any other lookup source
+                                            return <Badge variant="secondary">{sourceType}</Badge>;
+                                        })()}
+                                    </TableCell>
                                     <TableCell>{result[1]}</TableCell>
                                     <TableCell className="font-medium">{result[2]}</TableCell>
                                     <TableCell>{result[4]}</TableCell>
