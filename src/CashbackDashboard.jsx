@@ -2409,11 +2409,11 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                         </div>
                         <div className="space-y-2">
                             <label htmlFor="date">Date</label>
-                            <input
+                            <Input
+                                id="date"
                                 type="date"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="p-2 border rounded"
                                 required
                             />
                         </div>
