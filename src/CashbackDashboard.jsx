@@ -656,7 +656,7 @@ export default function CashbackDashboard() {
                                                 <Badge
                                                     variant="outline"
                                                     className={cn(
-                                                        'capitalize rounded-md', // Override pill shape to match button
+                                                        'capitalize rounded-md h-7', // Override pill shape to match button
                                                         card.status === 'Active' && 'bg-emerald-100 text-emerald-800 border-emerald-200',
                                                         card.status === 'Closed' && 'bg-red-100 text-red-800 border-red-200',
                                                         card.status === 'Frozen' && 'bg-blue-100 text-blue-800 border-blue-200'
@@ -1811,7 +1811,7 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
                         <div className="border p-3 rounded-lg space-y-2 flex flex-col bg-slate-100">
                             <div className="flex justify-between items-start">
                                 <p className="font-semibold text-sm truncate pr-2">Total</p>
-                                <Badge className={cn("font-mono", totalCardData.usedPct >= 100 ? "bg-emerald-500 text-white border-transparent" : "bg-background text-foreground border")}>
+                                <Badge className={cn("font-mono", totalCardData.usedPct >= 100 ? "bg-emerald-500 text-white border-transparent" : "bg-background text-foreground border border-input")}>
                                     {totalCardData.usedPct}%
                                 </Badge>
                             </div>
@@ -1832,7 +1832,7 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
                                     </TooltipTrigger>
                                     <TooltipContent><p>{cap.category}</p></TooltipContent>
                                 </Tooltip>
-                                <Badge className={cn("font-mono", cap.usedPct >= 100 ? "bg-emerald-500 text-white border-transparent" : "bg-background text-foreground border")}>
+                                <Badge className={cn("font-mono", cap.usedPct >= 100 ? "bg-emerald-500 text-white border-transparent" : "bg-background text-foreground border border-input")}>
                                     {cap.usedPct}%
                                 </Badge>
                             </div>
