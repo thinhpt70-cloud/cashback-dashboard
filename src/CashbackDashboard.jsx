@@ -1811,7 +1811,7 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
                         <div className="border p-3 rounded-lg space-y-2 flex flex-col bg-slate-100">
                             <div className="flex justify-between items-start">
                                 <p className="font-semibold text-sm truncate pr-2">Total</p>
-                                <Badge className={cn("font-mono", totalCardData.usedPct >= 90 ? "bg-emerald-500 text-white border-transparent" : "border border-input text-foreground")}>
+                                <Badge className={cn("font-mono", totalCardData.usedPct >= 100 ? "bg-emerald-500 text-white border-transparent" : "bg-background text-foreground border")}>
                                     {totalCardData.usedPct}%
                                 </Badge>
                             </div>
@@ -1832,7 +1832,7 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
                                     </TooltipTrigger>
                                     <TooltipContent><p>{cap.category}</p></TooltipContent>
                                 </Tooltip>
-                                <Badge className={cn("font-mono", cap.usedPct >= 90 ? "bg-emerald-500 text-white border-transparent" : "border border-input text-foreground")}>
+                                <Badge className={cn("font-mono", cap.usedPct >= 100 ? "bg-emerald-500 text-white border-transparent" : "bg-background text-foreground border")}>
                                     {cap.usedPct}%
                                 </Badge>
                             </div>
