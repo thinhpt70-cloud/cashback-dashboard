@@ -1080,7 +1080,6 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
 function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
-    // 1. All calculation and sorting logic is now in a useMemo hook for efficiency.
     const cardSpendsCapProgress = useMemo(() => {
         return cards
             .filter(card => card.overallMonthlyLimit > 0)
@@ -1106,62 +1105,58 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
                     cycleStatus: status,
                 };
             })
-            // 2. Sort the cards by usage percentage, highest first.
             .sort((a, b) => b.usedPct - a.usedPct);
     }, [cards, activeMonth, monthlySummary]);
 
-    // 3. A function to determine the progress bar color based on usage.
     const getProgressColor = (percentage) => {
-        if (percentage >= 100) return "bg-emerald-500"; // Green for completed
-        if (percentage > 85) return "bg-orange-500"; // Orange for warning
-        return "bg-sky-500"; // Blue for default
+        if (percentage >= 100) return "bg-emerald-500";
+        if (percentage > 85) return "bg-orange-500";
+        return "bg-sky-500";
     };
+
+    const DaysLeftBadge = ({ status, days }) => (
+        <Badge
+            variant="outline"
+            className={cn(
+                "text-xs h-6 font-semibold shrink-0", // Added shrink-0 to prevent growing
+                status === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
+            )}
+        >
+            {status === 'Completed' ? 'Done' : `${days} days`}
+        </Badge>
+    );
 
     return (
         <Card className="lg:col-span-3">
             <CardHeader>
                 <CardTitle>Card Spends Cap</CardTitle>
-                <p className="text-sm text-muted-foreground pt-1">
-                    Monthly cashback limits sorted by highest usage.
-                </p>
             </CardHeader>
             <CardContent>
-                {/* 4. The main content is now a Table. */}
                 {cardSpendsCapProgress.length > 0 ? (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Card</TableHead>
-                                <TableHead className="w-[120px]">Usage</TableHead>
-                                <TableHead className="text-right">Amount (Earned / Limit)</TableHead>
-                                <TableHead className="text-right w-[100px]">Days Left</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {cardSpendsCapProgress.map(p => (
-                                <TableRow key={p.cardId}>
-                                    <TableCell className="font-medium">{p.cardName}</TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Progress value={p.usedPct} indicatorClassName={getProgressColor(p.usedPct)} />
-                                            <span className="text-xs font-semibold text-muted-foreground w-8">{p.usedPct}%</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right text-sm text-muted-foreground">
-                                        {currency(p.currentCashback)} / {currency(p.monthlyLimit)}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Badge
-                                            variant="outline"
-                                            className={cn("text-xs h-6", p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200")}
-                                        >
-                                            {p.cycleStatus === 'Completed' ? 'Done' : `${p.daysLeft} days`}
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                    <div className="space-y-4">
+                        {cardSpendsCapProgress.map(p => (
+                            <div key={p.cardId} className="space-y-2 rounded-lg border p-3">
+                                {/* Row 1: Card Name & Days Left */}
+                                <div className="flex justify-between items-center gap-4">
+                                    <p className="font-semibold truncate">{p.cardName}</p>
+                                    <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
+                                </div>
+                                
+                                {/* Row 2: Progress Bar & Percentage */}
+                                <div className="flex items-center gap-2">
+                                    <Progress value={p.usedPct} indicatorClassName={getProgressColor(p.usedPct)} className="h-2"/>
+                                    <span className="text-sm font-semibold text-muted-foreground w-10 text-right">{p.usedPct}%</span>
+                                </div>
+
+                                {/* Row 3: Amount Details */}
+                                <div className="text-sm text-muted-foreground text-right">
+                                    <span>{currency(p.currentCashback)}</span>
+                                    <span className="mx-1">/</span>
+                                    <span>{currency(p.monthlyLimit)}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 ) : (
                     <p className="text-sm text-muted-foreground text-center py-4">No monthly limits defined for your cards.</p>
                 )}

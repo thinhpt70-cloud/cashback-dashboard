@@ -649,6 +649,57 @@ app.get('/api/common-vendors', async (req, res) => {
     }
 });
 
+app.get('/api/internal-mcc-search', async (req, res) => {
+  const { keyword } = req.query;
+  const transactionsDbId = process.env.NOTION_TRANSACTIONS_DB_ID;
+
+  if (!keyword) {
+    return res.status(400).json({ error: 'Keyword is required' });
+  }
+
+  try {
+    // This query searches for transactions where "Transaction Name" contains the keyword.
+    const response = await notion.databases.query({
+      database_id: transactionsDbId,
+      filter: {
+        property: 'Transaction Name',
+        rich_text: {
+          contains: keyword,
+        },
+      },
+      sorts: [
+        {
+            property: 'Transaction Date',
+            direction: 'descending',
+        },
+      ],
+    });
+
+    // Process the results to find unique merchant/MCC combinations
+    const uniqueResults = new Map();
+    response.results.forEach(page => {
+      // Ensure these property names exactly match your Notion database columns
+      const merchant = page.properties['Merchant']?.rich_text[0]?.plain_text;
+      const mcc = page.properties['MCC Code']?.rich_text[0]?.plain_text;
+
+      if (merchant && mcc) {
+        const key = `${merchant}|${mcc}`; // Create a unique key
+        if (!uniqueResults.has(key)) {
+          uniqueResults.set(key, { merchant, mcc });
+        }
+      }
+    });
+
+    // Convert the map of unique results back to an array and send it
+    res.status(200).json(Array.from(uniqueResults.values()));
+
+  } catch (error) {
+    console.error('Error searching internal transactions:', error);
+    res.status(500).json({ error: 'Failed to search internal transactions' });
+  }
+});
+
+
 if (process.env.NODE_ENV !== 'production') {
     app.listen(port, () => {
         console.log(`Server is running on http://localhost:${port}`);
