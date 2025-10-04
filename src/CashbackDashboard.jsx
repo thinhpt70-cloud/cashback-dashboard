@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
@@ -2600,80 +2600,91 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     );
 }
 
-function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
+function MccSearchResultsDialog({ open, onOpenchaNge, results, onSelect }) {
+    // 1. We use useMemo to automatically group results into "History" and "General"
+    const { historyResults, generalResults } = useMemo(() => {
+        const history = results.filter(r => r[0] === 'Your History');
+        const general = results.filter(r => r[0] !== 'Your History');
+        return { historyResults: history, generalResults: general };
+    }, [results]);
+
     const handleSelect = (result) => {
         onSelect(result);
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl">
+        <Dialog open={open} onOpenChange={onchaNge}>
+            <DialogContent className="sm:max-w-2xl bg-background">
                 <DialogHeader>
                     <DialogTitle>MCC Search Results</DialogTitle>
                     <DialogDescription>
-                        Select the most relevant merchant category code.
+                        Select the most relevant merchant category code. Your past results are shown first.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[120px]">Source</TableHead>
-                                <TableHead>Merchant</TableHead>
-                                <TableHead>MCC</TableHead>
-                                <TableHead>Category</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {results.map((result, index) => (
-                                <TableRow 
-                                    key={index} 
-                                    onClick={() => handleSelect(result)}
-                                    className="cursor-pointer hover:bg-muted/50"
-                                >
-                                    <TableCell>
-                                        {(() => {
-                                            const sourceType = result[0];
-                                            const pttt = result[5]; // PTTT info is at index 5
+                {/* 2. The main container is now a flexible div, not a table */}
+                <div className="max-h-[60vh] overflow-y-auto space-y-6 p-1">
+                    {/* 3. Render the "History" section only if there are history results */}
+                    {historyResults.length > 0 && (
+                        <div className="space-y-2">
+                            <h4 className="font-semibold text-sm text-muted-foreground px-3">From Your History</h4>
+                            <div className="space-y-1">
+                                {historyResults.map((result, index) => (
+                                    <ResultItem key={`hist-${index}`} result={result} onSelect={handleSelect} isHistory={true} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
-                                            if (sourceType === 'Your History') {
-                                                return (
-                                                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">
-                                                        History
-                                                    </Badge>
-                                                );
-                                            }
-
-                                            if (pttt === 'eCom') {
-                                                return (
-                                                    <Badge variant="destructive">
-                                                        eCom
-                                                    </Badge>
-                                                );
-                                            }
-
-                                            if (pttt === 'POS') {
-                                                return (
-                                                    <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100">
-                                                        POS
-                                                    </Badge>
-                                                );
-                                            }
-
-                                            // Fallback for any other lookup source
-                                            return <Badge variant="secondary">{sourceType}</Badge>;
-                                        })()}
-                                    </TableCell>
-                                    <TableCell>{result[1]}</TableCell>
-                                    <TableCell className="font-medium">{result[2]}</TableCell>
-                                    <TableCell>{result[4]}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                    {/* 4. Render the "General" section only if there are general results */}
+                    {generalResults.length > 0 && (
+                        <div className="space-y-2">
+                            <h4 className="font-semibold text-sm text-muted-foreground px-3">General Suggestions</h4>
+                            <div className="space-y-1">
+                                {generalResults.map((result, index) => (
+                                    <ResultItem key={`gen-${index}`} result={result} onSelect={handleSelect} isHistory={false} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>
+    );
+}
+
+// 5. A new sub-component to render each result item beautifully
+function ResultItem({ result, onSelect, isHistory }) {
+    // Safely extract data based on its source (History vs General)
+    const merchantName = result[1];
+    const mcc = result[2];
+    const vietnameseCategory = result[4];
+    // English category only exists for history items
+    const englishCategory = isHistory ? result[3] : null;
+
+    return (
+        <div
+            onClick={() => onSelect(result)}
+            className="flex items-center gap-4 rounded-lg p-3 cursor-pointer transition-colors hover:bg-muted"
+        >
+            {/* Left Side: Icon */}
+            <div className="text-muted-foreground">
+                {isHistory ? <History className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
+            </div>
+
+            {/* Center: Text Content */}
+            <div className="flex-1 min-w-0">
+                <p className="font-semibold truncate">{merchantName}</p>
+                <p className="text-sm text-muted-foreground truncate">
+                    {vietnameseCategory}
+                    {englishCategory && ` (${englishCategory})`}
+                </p>
+            </div>
+
+            {/* Right Side: MCC Tag */}
+            <Badge variant="outline" className="font-mono text-sm py-1 px-2">
+                {mcc}
+            </Badge>
+        </div>
     );
 }
 
