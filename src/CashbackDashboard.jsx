@@ -2154,6 +2154,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [mccResults, setMccResults] = useState([]);
     const [isMccDialogOpen, setIsMccDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isPredicting, setIsPredicting] = useState(false);
 
     const amountInputRef = useRef(null);
 
@@ -2229,6 +2230,42 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     }, [cardId, monthlyCategories, selectedRule, cashbackMonth]);
 
     // --- Effects ---
+
+    useEffect(() => {
+        // Don't search if the input is too short
+        if (merchant.trim().length < 3) {
+            setIsPredicting(false);
+            return;
+        }
+
+        setIsPredicting(true);
+
+        // Set a timer to run after 500ms
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/predict-merchant-profile?keyword=${encodeURIComponent(merchant)}`);
+                const profile = await res.json();
+
+                // If a profile was found, auto-fill the fields
+                if (profile) {
+                    setMerchantLookup(profile.merchant || '');
+                    setMccCode(profile.mcc || '');
+                    setCategory(profile.category || '');
+                }
+            } catch (error) {
+                console.error("Failed to fetch merchant profile:", error);
+            } finally {
+                setIsPredicting(false);
+            }
+        }, 500); // 500ms delay
+
+        // This cleanup function runs every time the 'merchant' state changes.
+        // It cancels the previous timer, so the API call only happens once you stop typing.
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [merchant]); // This effect runs whenever the 'merchant' input value changes
+
     useEffect(() => {
         if (filteredSummaries.length > 0) {
             setCardSummaryCategoryId(filteredSummaries[0].id);
@@ -2442,6 +2479,11 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                         <label htmlFor="merchant">Transaction Name</label>
                         <div className="flex items-center gap-2">
                             <Input id="merchant" value={merchant} onChange={(e) => setMerchant(e.target.value)} required />
+                            {isPredicting && (
+                                <div className="absolute right-2">
+                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                </div>
+                            )}
                             <Button type="button" size="icon" variant="outline" onClick={handleMccSearch} disabled={!merchant || isMccSearching}>
                                 {isMccSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                             </Button>

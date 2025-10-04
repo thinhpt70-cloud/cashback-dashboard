@@ -540,52 +540,69 @@ app.post('/api/summaries', async (req, res) => {
     }
 });
 
-app.get('/api/internal-mcc-search', async (req, res) => {
+app.get('/api/predict-merchant-profile', async (req, res) => {
     const { keyword } = req.query;
-    if (!keyword) {
-        return res.status(400).json({ error: 'Search keyword is required' });
+    if (!keyword || keyword.length < 3) {
+        // Only start searching after 3 characters to avoid overly broad matches
+        return res.json(null);
     }
 
     try {
         const response = await notion.databases.query({
             database_id: transactionsDbId,
-            page_size: 50, // Limit to a reasonable number of recent transactions
+            page_size: 100, // Look at the last 100 relevant transactions
             filter: {
-                and: [
-                    // Ensure we only get transactions that have been categorized
-                    { property: 'MCC Code', rich_text: { is_not_empty: true } },
-                    { property: 'Merchant', rich_text: { is_not_empty: true } },
-                    // Match the keyword against either the transaction name or the merchant name
-                    {
-                        or: [
-                            { property: 'Transaction Name', title: { contains: keyword } },
-                            { property: 'Merchant', rich_text: { contains: keyword } }
-                        ]
-                    }
-                ]
+                // Find transactions where the name contains the keyword
+                property: 'Transaction Name',
+                title: {
+                    contains: keyword,
+                },
             },
-            sorts: [{ property: 'Transaction Date', direction: 'descending' }]
         });
         
         const parsedResults = response.results.map(page => parseNotionPageProperties(page));
 
-        // Create a unique set of Merchant/MCC pairs from the results
-        const uniqueResultsMap = new Map();
+        if (parsedResults.length === 0) {
+            return res.json(null); // No history found
+        }
+
+        // --- Frequency Counter Logic ---
+        // This finds the most common combination of Merchant, MCC, and Category
+        const frequencyMap = new Map();
         parsedResults.forEach(tx => {
             const merchant = tx['Merchant'];
             const mcc = tx['MCC Code'];
-            const key = `${merchant}|${mcc}`; // Use a unique key
-            if (!uniqueResultsMap.has(key)) {
-                uniqueResultsMap.set(key, { merchant, mcc });
+            const category = tx['Category'];
+
+            // We only care about transactions that have been fully categorized
+            if (merchant && mcc && category) {
+                const key = `${merchant}|${mcc}|${category}`;
+                frequencyMap.set(key, (frequencyMap.get(key) || 0) + 1);
             }
         });
 
-        const finalResults = Array.from(uniqueResultsMap.values());
-        res.json(finalResults);
+        if (frequencyMap.size === 0) {
+            return res.json(null); // No complete profiles found
+        }
+
+        // Find the key with the highest count
+        let mostCommonKey = '';
+        let maxCount = 0;
+        for (const [key, count] of frequencyMap.entries()) {
+            if (count > maxCount) {
+                maxCount = count;
+                mostCommonKey = key;
+            }
+        }
+
+        // Split the winning key back into its parts
+        const [merchant, mcc, category] = mostCommonKey.split('|');
+
+        res.json({ merchant, mcc, category });
 
     } catch (error) {
-        console.error('Internal MCC Search Error:', error.body || error);
-        res.status(500).json({ error: 'Failed to search internal transactions' });
+        console.error('Merchant Profile Prediction Error:', error.body || error);
+        res.status(500).json({ error: 'Failed to predict merchant profile' });
     }
 });
 
