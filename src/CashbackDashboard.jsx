@@ -16,6 +16,13 @@ import {
     DialogDescription,
     DialogTrigger,
 } from "./components/ui/dialog";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "./components/ui/sheet";
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
 import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, List } from "lucide-react";
 import { cn } from "./lib/utils";
@@ -469,27 +476,26 @@ export default function CashbackDashboard() {
                 )}
                 <Button variant="outline" size="icon" onClick={() => fetchData(false)}><RefreshCw className="h-4 w-4" /></Button>
                 <div className="ml-auto flex items-center gap-4">
-                    {/* This Dialog component creates the popup */}
-                    <Dialog open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="icon"><Plus className="h-4 w-4" /></Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                        <DialogTitle>Add a New Transaction</DialogTitle>
-                        </DialogHeader>
-                        {/* The form is now inside the popup content */}
-                        <AddTransactionForm
-                            cards={cards}
-                            categories={allCategories}
-                            rules={cashbackRules}
-                            monthlyCategories={monthlyCashbackCategories}
-                            mccMap={mccMap}
-                            onTransactionAdded={handleTransactionAdded}
-                            commonVendors={commonVendors}
-                        />
-                    </DialogContent>
-                    </Dialog>
+                    {/* This Sheet component creates the slide-over panel */}
+                    <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
+                        <SheetTrigger asChild>
+                            <Button variant="outline" size="icon"><Plus className="h-4 w-4" /></Button>
+                        </SheetTrigger>
+                        <SheetContent className="overflow-y-auto">
+                            <SheetHeader>
+                                <SheetTitle>Add a New Transaction</SheetTitle>
+                            </SheetHeader>
+                            <AddTransactionForm
+                                cards={cards}
+                                categories={allCategories}
+                                rules={cashbackRules}
+                                monthlyCategories={monthlyCashbackCategories}
+                                mccMap={mccMap}
+                                onTransactionAdded={handleTransactionAdded}
+                                commonVendors={commonVendors}
+                            />
+                        </SheetContent>
+                    </Sheet>
                 </div>
             </div>
             </header>
@@ -2172,34 +2178,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
     // --- START: SAFARI SCROLL FIX ---
     const formRef = useRef(null); // 1. Create a ref to attach to the form element
-
-    useEffect(() => {
-        const formElement = formRef.current;
-        if (!formElement) return;
-
-        const inputs = formElement.querySelectorAll('input, select');
-
-        // This function will be called when an input field loses focus
-        const handleBlur = () => {
-            // A short delay ensures the keyboard has finished its dismiss animation
-            setTimeout(() => {
-                window.scrollTo(0, 0); // Force the window to scroll to the top
-            }, 100);
-        };
-
-        // Add the listener to every input and select field in the form
-        inputs.forEach(input => {
-            input.addEventListener('blur', handleBlur);
-        });
-
-        // Cleanup: Remove the listeners when the component is no longer on screen
-        return () => {
-            inputs.forEach(input => {
-                input.removeEventListener('blur', handleBlur);
-            });
-        };
-    }, []); // The empty array ensures this runs only once when the form appears
-    // --- END: SAFARI SCROLL FIX ---
 
     const handleVendorSelect = (vendor) => {
         setMerchant(vendor.transactionName || '');
