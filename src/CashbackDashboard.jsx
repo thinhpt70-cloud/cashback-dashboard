@@ -1080,71 +1080,90 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
 function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
+    // 1. All calculation and sorting logic is now in a useMemo hook for efficiency.
     const cardSpendsCapProgress = useMemo(() => {
         return cards
-        .filter(card => card.overallMonthlyLimit > 0)
-        .map(card => {
-            const cardMonthSummary = monthlySummary.find(
-                summary => summary.cardId === card.id && summary.month === activeMonth
-            );
-            const currentCashback = cardMonthSummary ? cardMonthSummary.cashback : 0;
-            const monthlyLimit = card.overallMonthlyLimit;
-            const usedPct = monthlyLimit > 0 ? Math.min(100, Math.round((currentCashback / monthlyLimit) * 100)) : 0;
-            
-            // --- THIS IS THE ADJUSTED LOGIC ---
-            // If the card uses statement month, calculate days left in that month.
-            // Otherwise, calculate days left until the next statement day.
-            const { days, status } = card.useStatementMonthForPayments
-                ? calculateDaysLeftInCashbackMonth(activeMonth)
-                : calculateDaysUntilStatement(card.statementDay, activeMonth);
+            .filter(card => card.overallMonthlyLimit > 0)
+            .map(card => {
+                const cardMonthSummary = monthlySummary.find(
+                    summary => summary.cardId === card.id && summary.month === activeMonth
+                );
+                const currentCashback = cardMonthSummary ? cardMonthSummary.cashback : 0;
+                const monthlyLimit = card.overallMonthlyLimit;
+                const usedPct = monthlyLimit > 0 ? Math.min(100, Math.round((currentCashback / monthlyLimit) * 100)) : 0;
+                
+                const { days, status } = card.useStatementMonthForPayments
+                    ? calculateDaysLeftInCashbackMonth(activeMonth)
+                    : calculateDaysUntilStatement(card.statementDay, activeMonth);
 
-            return {
-                cardId: card.id,
-                cardName: card.name,
-                currentCashback,
-                monthlyLimit,
-                usedPct,
-                daysLeft: days,
-                cycleStatus: status,
-            };
-        });
+                return {
+                    cardId: card.id,
+                    cardName: card.name,
+                    currentCashback,
+                    monthlyLimit,
+                    usedPct,
+                    daysLeft: days,
+                    cycleStatus: status,
+                };
+            })
+            // 2. Sort the cards by usage percentage, highest first.
+            .sort((a, b) => b.usedPct - a.usedPct);
     }, [cards, activeMonth, monthlySummary]);
+
+    // 3. A function to determine the progress bar color based on usage.
+    const getProgressColor = (percentage) => {
+        if (percentage >= 100) return "bg-emerald-500"; // Green for completed
+        if (percentage > 85) return "bg-orange-500"; // Orange for warning
+        return "bg-sky-500"; // Blue for default
+    };
 
     return (
         <Card className="lg:col-span-3">
             <CardHeader>
                 <CardTitle>Card Spends Cap</CardTitle>
+                <p className="text-sm text-muted-foreground pt-1">
+                    Monthly cashback limits sorted by highest usage.
+                </p>
             </CardHeader>
-            <CardContent className="space-y-4">
-                {cardSpendsCapProgress.map(p => (
-                    <div key={p.cardId} className="space-y-2">
-                        <div className="flex justify-between items-center gap-4">
-                            <p className="font-medium text-sm truncate">{p.cardName}</p>
-                            <Badge variant="outline" className={cn(
-                                "text-xs h-5 shrink-0",
-                                p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
-                            )}>
-                            {p.cycleStatus === 'Completed' ? 'Completed' : `${p.daysLeft} days left`}
-                            </Badge>
-                        </div>
-                        <div>
-                            <Tooltip>
-                                <TooltipTrigger className="w-full">
-                                    <Progress value={p.usedPct} />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>{p.usedPct}% used. {currency(p.monthlyLimit - p.currentCashback)} remaining.</p>
-                                </TooltipContent>
-                            </Tooltip>
-                            <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                                <span>{currency(p.currentCashback)}</span>
-                                <span>{currency(p.monthlyLimit)}</span>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-                {cardSpendsCapProgress.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">No monthly limits defined for your cards.</p>
+            <CardContent>
+                {/* 4. The main content is now a Table. */}
+                {cardSpendsCapProgress.length > 0 ? (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Card</TableHead>
+                                <TableHead className="w-[120px]">Usage</TableHead>
+                                <TableHead className="text-right">Amount (Earned / Limit)</TableHead>
+                                <TableHead className="text-right w-[100px]">Days Left</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {cardSpendsCapProgress.map(p => (
+                                <TableRow key={p.cardId}>
+                                    <TableCell className="font-medium">{p.cardName}</TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <Progress value={p.usedPct} indicatorClassName={getProgressColor(p.usedPct)} />
+                                            <span className="text-xs font-semibold text-muted-foreground w-8">{p.usedPct}%</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right text-sm text-muted-foreground">
+                                        {currency(p.currentCashback)} / {currency(p.monthlyLimit)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Badge
+                                            variant="outline"
+                                            className={cn("text-xs h-6", p.cycleStatus === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200")}
+                                        >
+                                            {p.cycleStatus === 'Completed' ? 'Done' : `${p.daysLeft} days`}
+                                        </Badge>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">No monthly limits defined for your cards.</p>
                 )}
             </CardContent>
         </Card>
