@@ -2619,7 +2619,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     );
 }
 
-function MccSearchResultsDialog({ open, onOpenchaNge, results, onSelect }) {
+function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
     // 1. We use useMemo to automatically group results into "History" and "General"
     const { historyResults, generalResults } = useMemo(() => {
         const history = results.filter(r => r[0] === 'Your History');
@@ -2632,7 +2632,7 @@ function MccSearchResultsDialog({ open, onOpenchaNge, results, onSelect }) {
     };
 
     return (
-        <Dialog open={open} onOpenChange={onChange}>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-2xl bg-background">
                 <DialogHeader>
                     <DialogTitle>MCC Search Results</DialogTitle>
