@@ -1130,9 +1130,6 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
         <Card className="lg:col-span-3">
             <CardHeader>
                 <CardTitle>Card Spends Cap</CardTitle>
-                <p className="text-sm text-muted-foreground pt-1">
-                    Monthly cashback limits sorted by highest usage.
-                </p>
             </CardHeader>
             <CardContent>
                 {cardSpendsCapProgress.length > 0 ? (
@@ -1147,14 +1144,13 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
                                     <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
                                 </div>
 
-                                {/* Bottom Row: Progress bar with amount overlay */}
-                                <div className="relative h-5 w-full">
-                                    <Progress value={p.usedPct} indicatorClassName={getProgressColor(p.usedPct)} className="h-5" />
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <span className="text-xs font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0, 0, 0, 0.6)' }}>
-                                            {currency(p.currentCashback)} / {currency(p.monthlyLimit)}
-                                        </span>
-                                    </div>
+                                {/* Bottom Row: Progress bar with amount on the side */}
+                                <div className="flex items-center gap-2">
+                                    {/* THIS IS THE CHANGED LINE */}
+                                    <Progress value={p.usedPct} indicatorClassName={getProgressColor(p.usedPct)} className="h-1.5 flex-grow" />
+                                    <span className="text-xs font-medium text-muted-foreground shrink-0 text-right w-[160px]">
+                                        {currency(p.currentCashback)} / {currency(p.monthlyLimit)}
+                                    </span>
                                 </div>
                             </div>
                         ))}
