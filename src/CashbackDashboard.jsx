@@ -2632,7 +2632,7 @@ function MccSearchResultsDialog({ open, onOpenchaNge, results, onSelect }) {
     };
 
     return (
-        <Dialog open={open} onOpenChange={onchaNge}>
+        <Dialog open={open} onOpenChange={onChange}>
             <DialogContent className="sm:max-w-2xl bg-background">
                 <DialogHeader>
                     <DialogTitle>MCC Search Results</DialogTitle>
