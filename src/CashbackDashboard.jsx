@@ -1118,7 +1118,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
         <Badge
             variant="outline"
             className={cn(
-                "text-xs h-6 font-semibold shrink-0 w-[60px] justify-center", // Set a fixed width
+                "text-xs h-6 px-2 font-semibold justify-center",
                 status === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
             )}
         >
@@ -1130,25 +1130,31 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
         <Card className="lg:col-span-3">
             <CardHeader>
                 <CardTitle>Card Spends Cap</CardTitle>
+                <p className="text-sm text-muted-foreground pt-1">
+                    Monthly cashback limits sorted by highest usage.
+                </p>
             </CardHeader>
             <CardContent>
                 {cardSpendsCapProgress.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         {cardSpendsCapProgress.map(p => (
-                            <div key={p.cardId} className="space-y-3 rounded-lg border p-3">
-                                {/* Top Row: Card Name and Amount */}
-                                <div className="flex justify-between items-baseline gap-2">
-                                    <p className="font-semibold truncate" title={p.cardName}>{p.cardName}</p>
-                                    <p className="text-sm text-muted-foreground shrink-0 font-medium">
-                                        {currency(p.currentCashback)} / {currency(p.monthlyLimit)}
+                            <div key={p.cardId} className="space-y-2">
+                                {/* Top Row: Card Name and Days Left */}
+                                <div className="flex justify-between items-center">
+                                    <p className="font-semibold truncate" title={p.cardName}>
+                                        {p.cardName}
                                     </p>
-                                </div>
-                                
-                                {/* Bottom Row: Progress Bar, Percentage, and Days Left */}
-                                <div className="flex items-center gap-3">
-                                    <Progress value={p.usedPct} indicatorClassName={getProgressColor(p.usedPct)} className="h-2 flex-grow"/>
-                                    <span className="text-sm font-semibold text-muted-foreground w-10 text-right">{p.usedPct}%</span>
                                     <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
+                                </div>
+
+                                {/* Bottom Row: Progress bar with amount overlay */}
+                                <div className="relative h-5 w-full">
+                                    <Progress value={p.usedPct} indicatorClassName={getProgressColor(p.usedPct)} className="h-5" />
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <span className="text-xs font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0, 0, 0, 0.6)' }}>
+                                            {currency(p.currentCashback)} / {currency(p.monthlyLimit)}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         ))}
