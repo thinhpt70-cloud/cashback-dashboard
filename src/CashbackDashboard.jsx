@@ -2176,9 +2176,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
     const amountInputRef = useRef(null);
 
-    // --- START: SAFARI SCROLL FIX ---
-    const formRef = useRef(null); // 1. Create a ref to attach to the form element
-
     const handleVendorSelect = (vendor) => {
         setMerchant(vendor.transactionName || '');
         setMerchantLookup(vendor.merchant || '');
