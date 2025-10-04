@@ -1742,7 +1742,7 @@ function CardRoi({ cards, currencyFn, feeCycleProgressFn }) {
                                 <p className="text-sm text-gray-500">Open since: {card.cardOpenDate || "N/A"}</p>
                                 <p className="text-sm text-gray-500">Next Fee: {card.nextAnnualFeeDate || "N/A"}</p>
                             </div>
-                            <Badge className={cn(
+                            <Badge variant="outline" className={cn(
                                 "font-semibold",
                                 card.isNetPositive
                                     ? "border-gray-300 border text-gray-600"
@@ -1837,7 +1837,7 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
                         <div className="border p-3 rounded-lg space-y-2 flex flex-col bg-slate-100">
                             <div className="flex justify-between items-start">
                                 <p className="font-semibold text-sm truncate pr-2">Total</p>
-                                <Badge className={cn("font-mono", totalCardData.usedPct >= 100 ? "bg-emerald-500 text-white border-transparent" : "bg-background text-foreground border border-input")}>
+                                <Badge variant="outline" className={cn("font-mono", totalCardData.usedPct >= 100 ? "bg-emerald-500 text-white border-transparent" : "bg-background text-foreground border border-input")}>
                                     {totalCardData.usedPct}%
                                 </Badge>
                             </div>
@@ -1858,7 +1858,7 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
                                     </TooltipTrigger>
                                     <TooltipContent><p>{cap.category}</p></TooltipContent>
                                 </Tooltip>
-                                <Badge className={cn("font-mono", cap.usedPct >= 100 ? "bg-emerald-500 text-white border-transparent" : "bg-background text-foreground border border-input")}>
+                                <Badge variant="outline" className={cn("font-mono", cap.usedPct >= 100 ? "bg-emerald-500 text-white border-transparent" : "bg-background text-foreground border border-input")}>
                                     {cap.usedPct}%
                                 </Badge>
                             </div>
@@ -2169,6 +2169,37 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [isPredicting, setIsPredicting] = useState(false);
 
     const amountInputRef = useRef(null);
+
+    // --- START: SAFARI SCROLL FIX ---
+    const formRef = useRef(null); // 1. Create a ref to attach to the form element
+
+    useEffect(() => {
+        const formElement = formRef.current;
+        if (!formElement) return;
+
+        const inputs = formElement.querySelectorAll('input, select');
+
+        // This function will be called when an input field loses focus
+        const handleBlur = () => {
+            // A short delay ensures the keyboard has finished its dismiss animation
+            setTimeout(() => {
+                window.scrollTo(0, 0); // Force the window to scroll to the top
+            }, 100);
+        };
+
+        // Add the listener to every input and select field in the form
+        inputs.forEach(input => {
+            input.addEventListener('blur', handleBlur);
+        });
+
+        // Cleanup: Remove the listeners when the component is no longer on screen
+        return () => {
+            inputs.forEach(input => {
+                input.removeEventListener('blur', handleBlur);
+            });
+        };
+    }, []); // The empty array ensures this runs only once when the form appears
+    // --- END: SAFARI SCROLL FIX ---
 
     const handleVendorSelect = (vendor) => {
         setMerchant(vendor.transactionName || '');
@@ -2501,12 +2532,12 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                             </Button>
                         </div>
                     </div>
-                    <div className="grid grid-cols-10 gap-4 items-start">
-                        <div className="space-y-2 col-span-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-10 gap-4 items-start">
+                        <div className="space-y-2 col-span-1 sm:col-span-6">
                             <label htmlFor="merchantLookup">Merchant</label>
                             <Input id="merchantLookup" value={merchantLookup} onChange={(e) => setMerchantLookup(e.target.value)} placeholder="Merchant Name" />
                         </div>
-                        <div className="space-y-2 col-span-4">
+                        <div className="space-y-2 col-span-1 sm:col-span-4">
                             <label htmlFor="mcc">MCC</label>
                             <Input id="mcc" value={mccCode} onChange={(e) => setMccCode(e.target.value)} placeholder="Enter code or use Lookup" />
                             {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
