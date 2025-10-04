@@ -118,6 +118,7 @@ export default function CashbackDashboard() {
     const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
     const [dialogTransactions, setDialogTransactions] = useState([]);
     const [isDialogLoading, setIsDialogLoading] = useState(false);
+    const [commonVendors, setCommonVendors] = useState([]);
 
     const handleTransactionAdded = (newTransaction) => {
         // 1. Instantly update the list for the current month
@@ -172,7 +173,8 @@ export default function CashbackDashboard() {
                 mccRes, 
                 monthlyCatRes,
                 recentTxRes,
-                categoriesRes
+                categoriesRes,
+                commonVendorsRes
             ] = await Promise.all([
                 fetch(`${API_BASE_URL}/cards`),
                 fetch(`${API_BASE_URL}/rules`),
@@ -181,10 +183,11 @@ export default function CashbackDashboard() {
                 fetch(`${API_BASE_URL}/monthly-category-summary`), // Fetches data for the optimized overview
                 fetch(`${API_BASE_URL}/recent-transactions`),
                 fetch(`${API_BASE_URL}/categories`),
+                fetch(`${API_BASE_URL}/common-vendors`),
             ]);
 
             // Check if all network responses are successful
-            if (!cardsRes.ok || !rulesRes.ok || !monthlyRes.ok || !mccRes.ok || !monthlyCatRes.ok || !recentTxRes.ok || !categoriesRes.ok) {
+            if (!cardsRes.ok || !rulesRes.ok || !monthlyRes.ok || !mccRes.ok || !monthlyCatRes.ok || !recentTxRes.ok || !categoriesRes.ok || !commonVendorsRes.ok) {
                 throw new Error('A network response was not ok. Please check the server.');
             }
 
@@ -196,6 +199,7 @@ export default function CashbackDashboard() {
             const monthlyCatData = await monthlyCatRes.json();
             const recentTxData = await recentTxRes.json(); 
             const categoriesData = await categoriesRes.json(); 
+            const commonVendorsData = await commonVendorsRes.json();
 
             // Set all the state variables for the application
             setCards(cardsData);
@@ -205,6 +209,7 @@ export default function CashbackDashboard() {
             setMonthlyCategorySummary(monthlyCatData); // Set the new state for the overview tab
             setRecentTransactions(recentTxData); // Set the new state
             setAllCategories(categoriesData); // Set the new state for all categories
+            setCommonVendors(commonVendorsData);
 
             const mappedRules = rulesData.map(r => ({ ...r, name: r.ruleName }));
             const mappedMonthlyCats = monthlyCatData.map(c => ({ ...c, name: c.summaryId }));
@@ -481,6 +486,7 @@ export default function CashbackDashboard() {
                             monthlyCategories={monthlyCashbackCategories}
                             mccMap={mccMap}
                             onTransactionAdded={handleTransactionAdded}
+                            commonVendors={commonVendors}
                         />
                     </DialogContent>
                     </Dialog>
@@ -2132,7 +2138,7 @@ function LoginScreen({ onLoginSuccess }) {
 
 // CashbackDashboard.jsx
 
-function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, onFormSubmit }) {
+function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors }) {
     // --- State Management ---
     const [merchant, setMerchant] = useState('');
     const [amount, setAmount] = useState('');
@@ -2148,6 +2154,35 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [mccResults, setMccResults] = useState([]);
     const [isMccDialogOpen, setIsMccDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const amountInputRef = useRef(null);
+
+    const handleVendorSelect = (vendor) => {
+        setMerchant(vendor.transactionName || '');
+        setMerchantLookup(vendor.merchant || '');
+        setMccCode(vendor.mcc || '');
+        setCategory(vendor.category || '');
+
+        // --- NEW LOGIC ---
+        // Set the card first, if a preferred one is specified.
+        if (vendor.preferredCardId) {
+            setCardId(vendor.preferredCardId);
+        }
+
+        // Then, set the preferred rule.
+        // This works because setting the card above will trigger React to update
+        // the list of available rules before this line runs.
+        if (vendor.preferredRuleId) {
+            setApplicableRuleId(vendor.preferredRuleId);
+        } else {
+            // If the vendor has no preferred rule, clear any existing selection.
+            setApplicableRuleId('');
+        }
+        // --- END NEW LOGIC ---
+
+        // Focus the amount field so the user can type the amount immediately.
+        amountInputRef.current?.focus();
+    };
 
     // --- Memoized Calculations ---
     const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cardId, cards]);
@@ -2400,6 +2435,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     return (
         <>
             <form onSubmit={handleSubmit} className="space-y-6 py-4">
+                <QuickAddButtons vendors={commonVendors} onSelect={handleVendorSelect} />
                 {/* --- Section 1: Transaction Details --- */}
                 <div className="space-y-4">
                     <div className="space-y-2">
@@ -2425,7 +2461,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label htmlFor="amount">Amount</label>
-                            <Input id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
+                            <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
                         </div>
                         <div className="space-y-2">
                             <label htmlFor="date">Date</label>
@@ -2707,5 +2743,30 @@ function TransactionDetailsDialog({ isOpen, onClose, details, transactions, isLo
             </div>
         </DialogContent>
         </Dialog>
+    );
+}
+
+function QuickAddButtons({ vendors, onSelect }) {
+    if (!vendors || vendors.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="mb-4 space-y-2">
+            <label className="text-sm font-medium">Quick Add</label>
+            <div className="flex flex-wrap gap-2">
+                {vendors.map(vendor => (
+                    <Button
+                        key={vendor.id}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onSelect(vendor)}
+                        className="h-8"
+                    >
+                        {vendor.name}
+                    </Button>
+                ))}
+            </div>
+        </div>
     );
 }

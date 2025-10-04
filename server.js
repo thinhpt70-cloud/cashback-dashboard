@@ -20,6 +20,8 @@ const cardsDbId = process.env.NOTION_CARDS_DB_ID;
 const rulesDbId = process.env.NOTION_RULES_DB_ID;
 const monthlySummaryDbId = process.env.NOTION_MONTHLY_SUMMARY_DB_ID; // ADDED: For the new database
 const monthlyCategoryDbId = process.env.NOTION_MONTHLY_CATEGORY_DB_ID;
+const vendorsDbId = process.env.NOTION_VENDORS_DB_ID;
+// Helper function to map Notion transaction page to a simpler object
 
 const mapTransaction = (tx) => ({
     id: tx.id,
@@ -584,6 +586,49 @@ app.get('/api/internal-mcc-search', async (req, res) => {
     } catch (error) {
         console.error('Internal MCC Search Error:', error.body || error);
         res.status(500).json({ error: 'Failed to search internal transactions' });
+    }
+});
+
+app.get('/api/common-vendors', async (req, res) => {
+    try {
+        const response = await notion.databases.query({
+            database_id: vendorsDbId,
+            // Filter to only get vendors where the "Active" checkbox is checked
+            filter: {
+                property: 'Active',
+                checkbox: {
+                    equals: true,
+                },
+            },
+            // Sort the vendors based on the "Sort Order" column
+            sorts: [
+                {
+                    property: 'Sort Order',
+                    direction: 'ascending',
+                },
+            ],
+        });
+
+        // Map the Notion data to a clean JSON format
+        const vendors = response.results.map((page) => {
+            const parsed = parseNotionPageProperties(page);
+            return {
+                id: parsed.id,
+                name: parsed['Name'],
+                transactionName: parsed['Transaction Name'],
+                merchant: parsed['Merchant'],
+                mcc: parsed['MCC'],
+                category: parsed['Category'],
+                // Safely extract the first ID from the relation arrays
+                preferredCardId: parsed['Preferred Card']?.[0] || null,
+                preferredRuleId: parsed['Preferred Cashback Rule']?.[0] || null,
+            };
+        });
+
+        res.json(vendors);
+    } catch (error) {
+        console.error('Failed to fetch common vendors:', error.body || error);
+        res.status(500).json({ error: 'Failed to fetch data from Notion' });
     }
 });
 
