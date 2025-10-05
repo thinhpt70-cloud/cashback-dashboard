@@ -1484,7 +1484,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
     };
 
     const paymentGroups = useMemo(() => {
-        if (!paymentData) {
+        if (!processedPaymentData) {
             return { pastDue: [], upcoming: [], completed: [] };
         }
 
@@ -1492,30 +1492,38 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
         const upcoming = [];
         const completed = [];
 
-        paymentData.forEach(p => {
+        processedPaymentData.forEach(p => {
             if (!p.mainStatement) {
                 return; 
             }
 
-            const { daysLeft, statementAmount = 0, paidAmount = 0 } = p.mainStatement;
-            const remaining = statementAmount - paidAmount;
+            // --- THIS IS THE CORRECTED LOGIC ---
+            const { 
+                daysLeft, 
+                statementAmount: rawStatementAmount = 0, 
+                paidAmount = 0,
+                spend = 0,
+                cashback = 0
+            } = p.mainStatement;
 
-            // Condition for unpaid, past-due bills
+            // Use the actual amount if it exists, otherwise use the live estimated balance.
+            const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : (spend - cashback);
+            const remaining = finalStatementAmount - paidAmount;
+            // --- END OF CORRECTION ---
+
             if (daysLeft === null && remaining > 0) {
                 pastDue.push(p);
             } 
-            // Condition for any unpaid bill with a future due date
             else if (daysLeft !== null && remaining > 0) {
                 upcoming.push(p);
             }
-            // All other cases (fully paid, no payment needed)
             else {
                 completed.push(p);
             }
         });
         
         return { pastDue, upcoming, completed };
-    }, [paymentData]);
+    }, [processedPaymentData]);
 
     const handleSavePayment = (statementId, newPaidAmount) => {
         setPaymentData(currentData => 
