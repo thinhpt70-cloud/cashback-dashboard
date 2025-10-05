@@ -38,15 +38,15 @@ const API_BASE_URL = '/api';
 const calculateDaysLeft = (paymentDateString) => {
     if (!paymentDateString || paymentDateString === "N/A") return null;
 
-    // Use a fixed "today" for consistent results in this example
     const today = new Date(); 
     today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(paymentDateString + "T00:00:00Z");
+    const dueDate = new Date(paymentDateString);
+    dueDate.setHours(0, 0, 0, 0);
     
     if (isNaN(dueDate)) return null;
 
     const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
     
     return diffDays >= 0 ? diffDays : null;
 };
@@ -1802,9 +1802,12 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                         <>
                             <div className="flex-1 bg-slate-100/80 rounded-lg p-3">
                                 {/* Label changed from ACTUAL BALANCE */}
-                                <p className="text-xs text-slate-500 font-semibold">STATEMENT BALANCE</p>
+                                <div className="flex items-center gap-2">
+                                    <p className="text-xs text-slate-500 font-semibold">STATEMENT BALANCE</p>
+                                    {/* Move the badge logic here and remove the top margin */}
+                                    {(rawStatementAmount === 0 || rawStatementAmount === null) && <Badge variant="outline">Estimated</Badge>}
+                                </div>
                                 <p className="text-3xl font-extrabold text-slate-800 tracking-tight">{currencyFn(statementAmount)}</p>
-                                {(rawStatementAmount === 0 || rawStatementAmount === null) && <Badge variant="outline" className="mt-1">Estimated</Badge>}
                                 <div className="mt-2 space-y-1 text-sm">
                                     <div className="flex justify-between items-center"><span className="text-slate-500">Paid:</span><span className="font-medium text-slate-600">{currencyFn(paidAmount)}</span></div>
                                     <div className="flex justify-between items-center font-bold"><span className="text-slate-500">Remaining:</span><span className={cn(isPaid ? "text-emerald-600" : "text-red-600")}>{currencyFn(remaining)}</span></div>
@@ -1825,7 +1828,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                 
                 <div className="mt-4 flex justify-end items-center gap-2">
                     <Button onClick={() => onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month))} variant="outline" size="sm"><List className="h-4 w-4 mr-1.5" />Details</Button>
-                    <Button onClick={() => setHistoryOpen(!historyOpen)} variant="outline" size="icon" className="text-slate-500"><History className="h-4 w-4" /><span className="sr-only">View History</span></Button>
+                    <Button onClick={() => setHistoryOpen(!historyOpen)} variant="outline" size="sm"><History className="h-4 w-4 mr-1.5" />View Statements</Button>
                     {!noPaymentNeeded && (
                         <Button onClick={() => onLogPayment(statement)} disabled={isPaid} size="sm">
                             {isPaid ? 'Paid' : 'Log Payment'}
@@ -1844,11 +1847,17 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                         </div>
                         
                         {/* Horizontally Aligned Content */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center md:text-left">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center md:text-left">
                             {/* --- Statement Month --- */}
                             <div>
                                 <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Statement Month</p>
                                 <p className="text-lg font-bold text-sky-900">{fmtYMShortFn(nextUpcomingStatement.month)}</p>
+                            </div>
+
+                            {/* --- NEW: Est. Statement Due --- */}
+                            <div>
+                                <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Est. Statement Due</p>
+                                <p className="text-lg font-bold text-sky-900">{nextUpcomingStatement.statementDate}</p>
                             </div>
                             
                             {/* --- Est. Payment Due --- */}
@@ -1865,6 +1874,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                 </p>
                             </div>
                         </div>
+
                     </div>
                 </div>
             )}
