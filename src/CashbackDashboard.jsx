@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
@@ -1420,9 +1420,23 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
 
                     const upcoming = finalStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
                     const past = finalStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
-                    const mainStatement = upcoming.length > 0 ? upcoming[0] : (past.length > 0 ? past[0] : null);
 
-                    return { ...card, mainStatement, upcomingStatements: upcoming.slice(1), pastStatements: past, remainingPastSummaries };
+                    let mainStatement = null;
+                    let pastStatements = [];
+                    let upcomingStatements = [];
+
+                    if (upcoming.length > 0) {
+                        // If there are upcoming payments, the first is the main one
+                        mainStatement = upcoming[0];
+                        upcomingStatements = upcoming.slice(1);
+                        pastStatements = past;
+                    } else if (past.length > 0) {
+                        // Otherwise, the most recent past payment is the main one
+                        mainStatement = past[0];
+                        pastStatements = past.slice(1); // The rest are "previous"
+                    }
+
+                    return { ...card, mainStatement, upcomingStatements, pastStatements };
 
                 } else {
                     // This is the original logic for all other cards, which remains unchanged
@@ -1543,22 +1557,29 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                                         <TableCell>
                                             <div>
                                                 <span>{mainStatement?.paymentDate || 'N/A'}</span>
-                                                {mainStatement?.daysLeft !== null && (
+                                                {mainStatement?.daysLeft !== null ? (
                                                     <div className="mt-1">
                                                         <Badge
-                                                            variant="outline" // The base variant is always "outline"
+                                                            variant="outline"
                                                             className={
                                                                 mainStatement.daysLeft <= 3
-                                                                    ? "bg-red-200 text-red-800 border-red-300" // Your custom red style
+                                                                    ? "bg-red-200 text-red-800 border-red-300"
                                                                     : mainStatement.daysLeft <= 7
-                                                                    ? "bg-yellow-200 text-yellow-800 border-yellow-300" // The yellow style
-                                                                    : "" // No extra classes, so the default outline shows
+                                                                    ? "bg-yellow-200 text-yellow-800 border-yellow-300"
+                                                                    : ""
                                                             }
                                                         >
                                                             {mainStatement.daysLeft} days
                                                         </Badge>
                                                     </div>
-                                                )}
+                                                ) : mainStatement ? ( // THIS 'ELSE' BLOCK IS THE NEW LOGIC
+                                                    <div className="mt-1">
+                                                        <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 font-medium">
+                                                            <Check className="mr-1.5 h-3.5 w-3.5" />
+                                                            Completed
+                                                        </Badge>
+                                                    </div>
+                                                ) : null}
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">{currencyFn(mainStatement?.spend)}</TableCell>
