@@ -1495,23 +1495,39 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
             return { dueSoon: [], upcoming: [], completed: [] };
         }
 
-        const dueSoon = paymentData.filter(p => {
-            const { daysLeft, statementAmount = 0, paidAmount = 0 } = p.mainStatement;
-            const remaining = statementAmount - paidAmount;
-            return daysLeft !== null && daysLeft <= 7 && remaining > 0;
-        });
+        const dueSoon = [];
+        const upcoming = [];
+        const completed = [];
 
-        const upcoming = paymentData.filter(p => {
-            const { daysLeft, statementAmount = 0, paidAmount = 0 } = p.mainStatement;
-            const remaining = statementAmount - paidAmount;
-            return daysLeft !== null && daysLeft > 7 && remaining > 0;
-        });
+        // This new logic iterates through each card once and places it in the correct group.
+        paymentData.forEach(p => {
+            // This check prevents errors if a card has no statements
+            if (!p.mainStatement) {
+                return; 
+            }
 
-        const completed = paymentData.filter(p => {
             const { daysLeft, statementAmount = 0, paidAmount = 0 } = p.mainStatement;
             const remaining = statementAmount - paidAmount;
-            return remaining <= 0 || (daysLeft === null && remaining > 0);
-        }).sort((a, b) => b.mainStatement.paymentDateObj - a.mainStatement.paymentDateObj);
+
+            // Condition for unpaid, upcoming bills
+            if (daysLeft !== null && remaining > 0) {
+                if (daysLeft <= 7) {
+                    dueSoon.push(p);
+                } else {
+                    upcoming.push(p);
+                }
+            } 
+            // All other cases (paid bills or past-due bills) go here
+            else {
+                completed.push(p);
+            }
+        });
+        
+        // Sort the completed list by date, as before
+        completed.sort((a, b) => {
+            if (!a.mainStatement || !b.mainStatement) return 0;
+            return b.mainStatement.paymentDateObj - a.mainStatement.paymentDateObj
+        });
 
         return { dueSoon, upcoming, completed };
     }, [paymentData]);
@@ -1653,8 +1669,16 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
         statementAmount: rawStatementAmount = 0, // Get the raw amount
         paidAmount = 0,
         spend = 0,
-        cashback = 0
+        cashback = 0,
+        statementDateObj
     } = statement;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isNotFinalized = statementDateObj && today < statementDateObj;
+
+    // A balance is estimated if the statement isn't final OR if it is final but no actual amount has been logged.
+    const isEstimated = isNotFinalized || rawStatementAmount === 0;
 
     // Calculate estimated balance first
     const estimatedBalance = spend - cashback;
@@ -1736,12 +1760,39 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                 <div className="flex justify-between items-start mb-4">
                     <div>
                         <p className="font-bold text-slate-800 text-lg">{card.name} <span className="text-base font-medium text-slate-400">•••• {card.last4}</span></p>
-                        <p className="text-sm text-slate-500">Statement: {fmtYMShortFn(statement.month)}</p>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
+                            <span>
+                                Statement: <span className="font-medium text-slate-600">{fmtYMShortFn(statement.month)}</span>
+                            </span>
+                            <span className="text-slate-400">•</span>
+                            <span>
+                                Issued: <span className="font-medium text-slate-600">{statement.statementDate}</span>
+                            </span>
+                            <span className="text-slate-400">•</span>
+                            <span>
+                                Due: <span className="font-medium text-slate-600">{statement.paymentDate}</span>
+                            </span>
+                        </div>
                     </div>
                     <div className={cn("text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 inline-flex items-center", status.className)}>
                         {status.icon}{status.text}
                     </div>
                 </div>
+
+                {/* --- NEW: "Not Finalized" Banner --- */}
+                {isNotFinalized && (
+                    <div className="mb-4 p-3 rounded-lg bg-sky-50 border border-sky-200">
+                        <div className="flex items-start gap-3">
+                            <CalendarClock className="h-5 w-5 text-sky-600 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <h4 className="font-bold text-sm text-sky-800">Statement Not Finalized</h4>
+                                <p className="mt-1 text-xs text-sky-700">
+                                    This balance is an active estimate and will be finalized on the statement date.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="flex flex-col md:flex-row gap-4">
                     {noPaymentNeeded ? (
@@ -1756,7 +1807,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                 {/* Label changed from ACTUAL BALANCE */}
                                 <p className="text-xs text-slate-500 font-semibold">STATEMENT BALANCE</p>
                                 <p className="text-3xl font-extrabold text-slate-800 tracking-tight">{currencyFn(statementAmount)}</p>
-                                {rawStatementAmount === 0 && <Badge variant="outline" className="mt-1">Estimated</Badge>}
+                                {(rawStatementAmount === 0 || rawStatementAmount === null) && <Badge variant="outline" className="mt-1">Estimated</Badge>}
                                 <div className="mt-2 space-y-1 text-sm">
                                     <div className="flex justify-between items-center"><span className="text-slate-500">Paid:</span><span className="font-medium text-slate-600">{currencyFn(paidAmount)}</span></div>
                                     <div className="flex justify-between items-center font-bold"><span className="text-slate-500">Remaining:</span><span className={cn(isPaid ? "text-emerald-600" : "text-red-600")}>{currencyFn(remaining)}</span></div>
@@ -1788,25 +1839,33 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
             {isPaid && nextUpcomingStatement && (
                 <div className="p-4 border-t border-slate-200 bg-slate-50/50">
-                    <div className="p-3 rounded-lg bg-sky-50 border border-sky-200">
-                         <div className="flex items-start gap-3">
-                            <CalendarClock className="h-5 w-5 text-sky-600 mt-0.5 flex-shrink-0" />
+                    <div className="p-4 rounded-lg bg-sky-50 border border-sky-200">
+                        {/* Header Section */}
+                        <div className="flex items-center gap-2 mb-3">
+                            <CalendarClock className="h-5 w-5 text-sky-600" />
+                            <h4 className="font-bold text-sm text-sky-800">Next Statement Preview</h4>
+                        </div>
+                        
+                        {/* Horizontally Aligned Content */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center md:text-left">
+                            {/* --- Statement Month --- */}
                             <div>
-                                <h4 className="font-bold text-sm text-sky-800">Next Statement Preview</h4>
-                                <div className="mt-2 text-xs text-sky-900 space-y-1.5">
-                                    <div className="flex justify-between">
-                                        <span>Statement Month:</span>
-                                        <span className="font-semibold">{fmtYMShortFn(nextUpcomingStatement.month)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>Est. Payment Due:</span>
-                                        <span className="font-semibold">{nextUpcomingStatement.paymentDate}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>Current Est. Balance:</span>
-                                        <span className="font-semibold">{currencyFn(nextUpcomingStatement.spend - nextUpcomingStatement.cashback)}</span>
-                                    </div>
-                                </div>
+                                <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Statement Month</p>
+                                <p className="text-lg font-bold text-sky-900">{fmtYMShortFn(nextUpcomingStatement.month)}</p>
+                            </div>
+                            
+                            {/* --- Est. Payment Due --- */}
+                            <div>
+                                <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Est. Payment Due</p>
+                                <p className="text-lg font-bold text-sky-900">{nextUpcomingStatement.paymentDate}</p>
+                            </div>
+
+                            {/* --- Current Est. Balance --- */}
+                            <div className="md:text-right">
+                                <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Current Est. Balance</p>
+                                <p className="text-2xl font-extrabold text-sky-900 tracking-tight">
+                                    {currencyFn(nextUpcomingStatement.spend - nextUpcomingStatement.cashback)}
+                                </p>
                             </div>
                         </div>
                     </div>
