@@ -1643,7 +1643,7 @@ function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtY
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Log Payment</DialogTitle>
-                    <DialogDescription>For {statement.card.name} - {fmtYMShort(statement.month)}</DialogDescription>
+                    <DialogDescription>For {statement.card.name} - {fmtYMShortFn(statement.month)}</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="text-sm">
