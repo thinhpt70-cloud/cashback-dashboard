@@ -1344,7 +1344,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
         } finally {
             setIsLoadingMore(prev => ({ ...prev, [cardId]: false }));
         }
-    }, [paymentData]); // Dependency ensures we have the latest data
+    }, [paymentData, remainingPastSummaries]); // Dependency ensures we have the latest data
 
     // This useEffect hook now calculates the payment data, fetching new data for HSBC cards
     useEffect(() => {
