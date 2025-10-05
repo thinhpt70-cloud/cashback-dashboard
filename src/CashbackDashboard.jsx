@@ -717,7 +717,7 @@ export default function CashbackDashboard() {
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                         {/* The summary table takes up 2/3 of the space on large screens */}
                         <div className="lg:col-span-3">
-                            <PaymentsTab 
+                            <PaymentsTabV2 
                                 cards={cards}
                                 monthlySummary={monthlySummary}
                                 currencyFn={currency}
@@ -1279,113 +1279,90 @@ function CardsOverviewMetrics({ stats, currencyFn }) {
     );
 }
 
-function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeftFn, onViewTransactions }) {
-    // State to track which card's previous statements are expanded
-    const [expandedRows, setExpandedRows] = useState({});
+function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeftFn, onViewTransactions }) {
     const [paymentData, setPaymentData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isLoadingMore, setIsLoadingMore] = useState({});
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [activeStatement, setActiveStatement] = useState(null);
+    const [isLoadingMore, setIsLoadingMore] = useState({}); // ADD THIS STATE BACK
 
-    const handleToggleRow = (cardId) => {
-        setExpandedRows(prev => ({
-            ...prev,
-            [cardId]: !prev[cardId]
-        }));
-    };
-
+    // RE-INTRODUCE THE "LOAD MORE" HANDLER
     const handleLoadMore = useCallback(async (cardId) => {
         setIsLoadingMore(prev => ({ ...prev, [cardId]: true }));
-
-        // Find the specific card's data from the current state
-        const cardData = paymentData.find(c => c.id === cardId);
+        const cardData = paymentData.find(p => p.mainStatement.card.id === cardId);
+        
         if (!cardData || !cardData.remainingPastSummaries || cardData.remainingPastSummaries.length === 0) {
             setIsLoadingMore(prev => ({ ...prev, [cardId]: false }));
             return;
         }
 
-        // Take the next 3 summaries to process
         const summariesToProcess = cardData.remainingPastSummaries.slice(0, 3);
         const remainingSummaries = cardData.remainingPastSummaries.slice(3);
 
         try {
-            // Process these 3 summaries by fetching their transaction data
             const statementPromises = summariesToProcess.map(async (stmt) => {
                 const res = await fetch(`${API_BASE_URL}/transactions?month=${stmt.month}&filterBy=statementMonth&cardId=${cardId}`);
-                if (!res.ok) throw new Error(`Failed to fetch transactions for ${stmt.month}`);
+                if (!res.ok) throw new Error('Failed to fetch transactions');
                 const transactions = await res.json();
                 const spend = transactions.reduce((acc, tx) => acc + (tx['Amount'] || 0), 0);
                 const cashback = transactions.reduce((acc, tx) => acc + (tx.estCashback || 0), 0);
-                const finalPayment = spend - cashback;
-                // Return a fully processed statement object
-                return { ...stmt, spend, cashback, finalPayment };
+                return { ...stmt, spend, cashback };
             });
 
             const newPastStatements = await Promise.all(statementPromises);
 
-            // Update the state immutably
             setPaymentData(currentData =>
                 currentData.map(cd => {
-                    if (cd.id === cardId) {
+                    if (cd.mainStatement.card.id === cardId) {
                         return {
                             ...cd,
-                            // Add the newly loaded statements to the existing list
                             pastStatements: [...cd.pastStatements, ...newPastStatements],
-                            // Update the list of remaining summaries
                             remainingPastSummaries: remainingSummaries
                         };
                     }
                     return cd;
                 })
             );
-
         } catch (error) {
             console.error("Error loading more statements:", error);
             toast.error("Could not load more statements.");
         } finally {
             setIsLoadingMore(prev => ({ ...prev, [cardId]: false }));
         }
-    }, [paymentData]); // Dependency ensures we have the latest data
+    }, [paymentData]);
 
-    // This useEffect hook now calculates the payment data, fetching new data for HSBC cards
     useEffect(() => {
         const calculatePaymentData = async () => {
             if (cards.length === 0 || monthlySummary.length === 0) {
                 setIsLoading(false);
                 return;
             }
-            
             setIsLoading(true);
 
+            // THIS IS THE UPDATED DATA PROCESSING LOGIC
             const dataPromises = cards.map(async (card) => {
                 const allCardSummaries = monthlySummary.filter(s => s.cardId === card.id);
-                if (allCardSummaries.length === 0) {
-                    return { ...card, mainStatement: null, upcomingStatements: [], pastStatements: [] };
-                }
+                if (allCardSummaries.length === 0) return null;
 
-                // ** THIS IS THE CORE LOGIC CHANGE **
-                // If it's an HSBC card, fetch fresh data based on Statement Month
+                let finalResult;
+
                 if (card.useStatementMonthForPayments) {
-                    // Step 1: Temporarily calculate dates for ALL summaries to sort them
+                    // --- SPECIAL HANDLING LOGIC ---
                     const tempStatements = allCardSummaries.map(stmt => {
                         const year = parseInt(stmt.month.slice(0, 4), 10);
                         const month = parseInt(stmt.month.slice(4, 6), 10);
                         let paymentMonth = month;
                         if (card.paymentDueDay < card.statementDay) paymentMonth += 1;
                         const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
-                        const paymentDateObj = dueDate;
-                        const daysLeft = daysLeftFn(`${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`);
-                        return { ...stmt, paymentDateObj, daysLeft };
+                        const paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
+                        return { ...stmt, paymentDateObj: dueDate, daysLeft: daysLeftFn(paymentDate), paymentDate, card };
                     });
 
-                    // Step 2: Split into upcoming and all past summaries
                     const upcomingSummaries = tempStatements.filter(s => s.daysLeft !== null);
                     const allPastSummaries = tempStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
                     
-                    // Step 3: Take only the first 3 past summaries to process initially
                     const initialPastToProcess = allPastSummaries.slice(0, 3);
                     const remainingPastSummaries = allPastSummaries.slice(3);
-
-                    // Step 4: Combine upcoming and initial past summaries for the initial fetch
                     const summariesToProcess = [...upcomingSummaries, ...initialPastToProcess];
                     
                     const statementPromises = summariesToProcess.map(async (stmt) => {
@@ -1396,74 +1373,35 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                             const spend = transactions.reduce((acc, tx) => acc + (tx['Amount'] || 0), 0);
                             const cashback = transactions.reduce((acc, tx) => acc + (tx.estCashback || 0), 0);
                             return { ...stmt, spend, cashback };
-                        } catch (error) {
-                            console.error(`Error fetching data for ${card.name} month ${stmt.month}:`, error);
-                            return { ...stmt, spend: 0, cashback: 0 };
-                        }
+                        } catch (error) { return { ...stmt, spend: 0, cashback: 0 }; }
                     });
 
                     const processedStatements = await Promise.all(statementPromises);
-                    // This logic to finalize dates remains the same
-                    const finalStatements = processedStatements.map(stmt => {
-                        const year = parseInt(stmt.month.slice(0, 4), 10);
-                        const month = parseInt(stmt.month.slice(4, 6), 10);
-                        const statement = new Date(year, month - 1, card.statementDay);
-                        const statementDate = `${statement.getFullYear()}-${String(statement.getMonth() + 1).padStart(2, '0')}-${String(statement.getDate()).padStart(2, '0')}`;
-                        let paymentMonth = month;
-                        if (card.paymentDueDay < card.statementDay) paymentMonth += 1;
-                        const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
-                        const paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
-                        const daysLeft = daysLeftFn(paymentDate);
-                        const finalPayment = (stmt.spend || 0) - (stmt.cashback || 0);
-                        return { ...stmt, paymentDate, paymentDateObj: dueDate, statementDate, daysLeft, finalPayment };
-                    });
-
-                    const upcoming = finalStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
-                    const past = finalStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
-
-                    let mainStatement = null;
-                    let pastStatements = [];
-                    let upcomingStatements = [];
-
-                    if (upcoming.length > 0) {
-                        // If there are upcoming payments, the first is the main one
-                        mainStatement = upcoming[0];
-                        upcomingStatements = upcoming.slice(1);
-                        pastStatements = past;
-                    } else if (past.length > 0) {
-                        // Otherwise, the most recent past payment is the main one
-                        mainStatement = past[0];
-                        pastStatements = past.slice(1); // The rest are "previous"
-                    }
-
-                    return { ...card, mainStatement, upcomingStatements, pastStatements, remainingPastSummaries };
+                    const upcoming = processedStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
+                    const past = processedStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
+                    
+                    finalResult = { mainStatement: upcoming[0] || past[0], upcomingStatements: upcoming.slice(1), pastStatements: past, remainingPastSummaries };
 
                 } else {
-                    // This is the original logic for all other cards, which remains unchanged
+                    // --- STANDARD HANDLING LOGIC ---
                     const finalStatements = allCardSummaries.map(stmt => {
-                        const year = parseInt(stmt.month.slice(0, 4), 10);
+                         const year = parseInt(stmt.month.slice(0, 4), 10);
                         const month = parseInt(stmt.month.slice(4, 6), 10);
-                        const statement = new Date(year, month - 1, card.statementDay);
-                        const statementDate = `${statement.getFullYear()}-${String(statement.getMonth() + 1).padStart(2, '0')}-${String(statement.getDate()).padStart(2, '0')}`;
                         let paymentMonth = month;
                         if (card.paymentDueDay < card.statementDay) paymentMonth += 1;
                         const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
-                        const paymentDateObj = dueDate;
                         const paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
-                        const daysLeft = daysLeftFn(paymentDate);
-                        const finalPayment = (stmt.spend || 0) - (stmt.cashback || 0);
-                        return { ...stmt, paymentDate, paymentDateObj, statementDate, daysLeft, finalPayment };
+                        return { ...stmt, paymentDateObj: dueDate, daysLeft: daysLeftFn(paymentDate), paymentDate, card };
                     });
 
                     const upcoming = finalStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
                     const past = finalStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
-                    const mainStatement = upcoming.length > 0 ? upcoming[0] : (past.length > 0 ? past[0] : null);
-
-                    return { ...card, mainStatement, upcomingStatements: upcoming.slice(1), pastStatements: past, remainingPastSummaries: [] };
+                    finalResult = { mainStatement: upcoming[0] || past[0], upcomingStatements: upcoming.slice(1), pastStatements: past };
                 }
+                 return finalResult;
             });
 
-            const resolvedData = await Promise.all(dataPromises);
+            const resolvedData = (await Promise.all(dataPromises)).filter(Boolean);
             
             resolvedData.sort((a, b) => {
                 const aDays = a.mainStatement?.daysLeft;
@@ -1471,275 +1409,346 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                 if (aDays !== null && bDays === null) return -1;
                 if (aDays === null && bDays !== null) return 1;
                 if (aDays !== null && bDays !== null) return aDays - bDays;
-                if (a.mainStatement?.paymentDateObj && b.mainStatement?.paymentDateObj) {
-                    return b.mainStatement.paymentDateObj - a.mainStatement.paymentDateObj;
-                }
-                return 0;
+                return b.mainStatement.paymentDateObj - a.mainStatement.paymentDateObj;
             });
             
             setPaymentData(resolvedData);
             setIsLoading(false);
         };
-
         calculatePaymentData();
-    }, [cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeftFn]);
+    }, [cards, monthlySummary, daysLeftFn]);
 
-    const totals = useMemo(() => {
-        return paymentData.reduce((acc, card) => {
-            if (card.mainStatement) {
-                acc.totalPayment += card.mainStatement.spend || 0;
-                acc.totalCashback += card.mainStatement.cashback || 0;
-                acc.finalPayment += card.mainStatement.finalPayment || 0;
-            }
-            return acc;
-        }, { totalPayment: 0, totalCashback: 0, finalPayment: 0 });
+    const handleLogPaymentClick = (statement) => {
+        setActiveStatement(statement);
+        setDialogOpen(true);
+    };
+
+    // This function will simulate the update. In a real app, it would call your API.
+    const handleSavePayment = (statementId, newPaidAmount) => {
+        setPaymentData(currentData => 
+            currentData.map(group => {
+                if (group.mainStatement.id === statementId) {
+                    const updatedStatement = { ...group.mainStatement, paidAmount: newPaidAmount };
+                    return { ...group, mainStatement: updatedStatement };
+                }
+                return group;
+            })
+        );
+        toast.success("Payment logged successfully!");
+    };
+    
+    // Calculate summary stats
+    const summaryStats = useMemo(() => {
+        const upcomingBills = paymentData.filter(p => p.mainStatement.daysLeft !== null && (p.mainStatement.statementAmount - p.mainStatement.paidAmount > 0));
+        
+        const totalDue = upcomingBills.reduce((acc, curr) => acc + (curr.mainStatement.statementAmount - curr.mainStatement.paidAmount), 0);
+        const nextPayment = upcomingBills.length > 0 ? upcomingBills[0] : null;
+
+        return {
+            totalDue,
+            billCount: upcomingBills.length,
+            nextPaymentAmount: nextPayment ? (nextPayment.mainStatement.statementAmount - nextPayment.mainStatement.paidAmount) : 0,
+            nextPaymentCard: nextPayment ? nextPayment.mainStatement.card.name : 'N/A',
+        };
     }, [paymentData]);
 
     if (isLoading) {
-        return (
-            <Card>
-                <CardHeader><CardTitle>Monthly Statement Summary</CardTitle></CardHeader>
-                <CardContent className="flex items-center justify-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="ml-4 text-muted-foreground">Calculating statement totals...</p>
-                </CardContent>
-            </Card>
-        );
+        return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
 
     return (
-        <Card>
-            <CardHeader><CardTitle>Monthly Statement Summary</CardTitle></CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[250px]">Card</TableHead>
-                            <TableHead>Statement Month</TableHead>
-                            <TableHead>Payment Date</TableHead>
-                            {/* "Days Left" Header is removed */}
-                            <TableHead className="text-right">Total Payment</TableHead>
-                            <TableHead className="text-right">Total Cashback</TableHead>
-                            <TableHead className="text-right">Final Payment</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {paymentData.map(card => {
-                            const mainStatement = card.mainStatement;
-                            const isStatementClosed = mainStatement && new Date() >= new Date(mainStatement.statementDate);
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                <StatCard title="Total Due Soon" value={currencyFn(summaryStats.totalDue)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
+                <StatCard title="Upcoming Bills" value={summaryStats.billCount} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
+                <StatCard title="Next Payment" value={currencyFn(summaryStats.nextPaymentAmount)} icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />} valueClassName="text-red-600" />
+            </div>
+
+            <div className="space-y-4">
+                {paymentData.map(({ mainStatement, upcomingStatements, pastStatements }) => (
+                    <PaymentCard 
+                        key={mainStatement.id}
+                        statement={mainStatement}
+                        upcomingStatements={upcomingStatements}
+                        pastStatements={pastStatements}
+                        onLogPayment={handleLogPaymentClick}
+                        onViewTransactions={onViewTransactions}
+                        currencyFn={currencyFn}
+                        fmtYMShortFn={fmtYMShortFn}
+                    />
+                ))}
+            </div>
+
+            {activeStatement && (
+                 <PaymentLogDialog
+                    isOpen={dialogOpen}
+                    onClose={() => setDialogOpen(false)}
+                    statement={activeStatement}
+                    onSave={handleSavePayment}
+                    currencyFn={currencyFn}
+                />
+            )}
+        </div>
+    );
+}
+
+// -------------------------------------------------
+// 2. ADD THE NEW PAYMENT CARD COMPONENT
+// -------------------------------------------------
+function PaymentCard({ statement, upcomingStatements, pastStatements, onLogPayment, onViewTransactions, currencyFn, fmtYMShortFn }) {
+    const [historyOpen, setHistoryOpen] = useState(false);
+    
+    const { 
+        card, 
+        daysLeft, 
+        statementAmount = 0, // Default to 0 if data is missing
+        paidAmount = 0,
+        spend = 0,
+        cashback = 0
+    } = statement;
+
+    const remaining = statementAmount - paidAmount;
+    const isPaid = remaining <= 0;
+    const isPartiallyPaid = paidAmount > 0 && !isPaid;
+    const estimatedBalance = spend - cashback;
+
+    const getStatus = () => {
+        if (isPaid) return { 
+            text: 'Fully Paid', 
+            className: 'bg-emerald-100 text-emerald-800', 
+            icon: <Check className="h-3 w-3 mr-1.5" />
+        };
+        if (isPartiallyPaid) return { 
+            text: 'Partially Paid', 
+            className: 'bg-yellow-100 text-yellow-800' 
+        };
+        if (daysLeft === null) return {
+            text: 'Completed',
+            className: 'bg-slate-100 text-slate-600'
+        };
+         if (daysLeft <= 3) return { 
+            text: `${daysLeft} days left`, 
+            className: 'bg-red-100 text-red-800' 
+        };
+        if (daysLeft <= 7) return { 
+            text: `${daysLeft} days left`, 
+            className: 'bg-yellow-100 text-yellow-800' 
+        };
+        return { 
+            text: `${daysLeft} days left`, 
+            className: 'bg-slate-100 text-slate-800' 
+        };
+    };
+    
+    const status = getStatus();
+
+    return (
+        <div className={cn("bg-white rounded-xl shadow-sm overflow-hidden border",
+            isPaid && "opacity-70",
+            !isPaid && daysLeft !== null && daysLeft <= 3 && "border-2 border-red-500",
+            isPartiallyPaid && "border-2 border-yellow-500"
+        )}>
+            <div className="p-4">
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <p className="font-bold text-slate-800 text-lg">{card.name} <span className="text-base font-medium text-slate-400">•••• {card.last4}</span></p>
+                        <p className="text-sm text-slate-500">Statement: {fmtYMShortFn(statement.month)}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                         <div className={cn("text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 inline-flex items-center", status.className)}>
+                            {status.icon}{status.text}
+                        </div>
+                        <button onClick={() => onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month))} title="View Transactions" className="text-slate-400 hover:text-slate-600">
+                             <List className="h-6 w-6"/>
+                        </button>
+                    </div>
+                </div>
+                <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1 bg-slate-100/80 rounded-lg p-3">
+                        <p className="text-xs text-slate-500 font-semibold">ACTUAL BALANCE</p>
+                        <p className="text-3xl font-extrabold text-slate-800 tracking-tight">{currencyFn(statementAmount)}</p>
+                        <div className="mt-2 space-y-1 text-sm">
+                            <div className="flex justify-between items-center"><span className="text-slate-500">Paid:</span><span className="font-medium text-slate-600">{currencyFn(paidAmount)}</span></div>
+                            <div className="flex justify-between items-center font-bold"><span className="text-slate-500">Remaining:</span><span className={cn(isPaid ? "text-emerald-600" : "text-red-600")}>{currencyFn(remaining)}</span></div>
+                        </div>
+                    </div>
+                    <div className="w-full md:w-64 bg-slate-50/70 rounded-lg p-3">
+                        <p className="text-xs text-slate-500 font-semibold">ESTIMATED BALANCE</p>
+                        <p className="text-2xl font-bold text-slate-500 tracking-tight">{currencyFn(estimatedBalance)}</p>
+                        <div className="mt-2 space-y-1 text-sm">
+                            <div className="flex justify-between items-center"><span className="text-slate-500">Total Spend:</span><span className="font-medium text-slate-600">{currencyFn(spend)}</span></div>
+                            <div className="flex justify-between items-center"><span className="text-slate-500">Cashback:</span><span className="font-medium text-emerald-600">-{currencyFn(cashback)}</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div className="mt-4 flex gap-3">
+                   <Button onClick={() => onLogPayment(statement)} disabled={isPaid} className="flex-1 h-10">{isPaid ? 'Fully Paid' : 'Log Payment'}</Button>
+                   <Button onClick={() => setHistoryOpen(!historyOpen)} variant="outline" className="flex-1 h-10">History</Button>
+                </div>
+            </div>
+                {historyOpen && (
+                    <div className="p-4 border-t border-slate-200 bg-slate-50/50 space-y-4">
+                        <StatementHistoryTable
+                            title="Upcoming Statements"
+                            statements={upcomingStatements}
+                            currencyFn={currencyFn}
+                            fmtYMShortFn={fmtYMShortFn}
+                            onViewTransactions={onViewTransactions}
+                        />
+                        <StatementHistoryTable
+                            title="Past Statements"
+                            statements={pastStatements}
+                            remainingCount={statement.remainingPastSummaries?.length || 0}
+                            onLoadMore={() => onLoadMore(statement.card.id)}
+                            isLoadingMore={isLoadingMore[statement.card.id]}
+                            currencyFn={currencyFn}
+                            fmtYMShortFn={fmtYMShortFn}
+                            onViewTransactions={onViewTransactions}
+                        />
+                    </div>
+                )}
+        </div>
+    );
+}
+
+// -------------------------------------------------
+// 3. ADD THE NEW PAYMENT LOG DIALOG COMPONENT
+// -------------------------------------------------
+function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn }) {
+    const [amount, setAmount] = useState('');
+    
+    useEffect(() => {
+        if (isOpen) {
+            // Pre-fill with remaining amount for convenience
+            const remaining = (statement.statementAmount || 0) - (statement.paidAmount || 0);
+            setAmount(remaining > 0 ? remaining : '');
+        }
+    }, [isOpen, statement]);
+
+    const handleSave = () => {
+        const newPaidAmount = (statement.paidAmount || 0) + Number(amount);
+        onSave(statement.id, newPaidAmount);
+        onClose();
+    };
+
+    if (!statement) return null;
+    
+    const remaining = (statement.statementAmount || 0) - (statement.paidAmount || 0);
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Log Payment</DialogTitle>
+                    <DialogDescription>For {statement.card.name} - {fmtYMShort(statement.month)}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="text-sm">
+                        <p>Actual Balance: <span className="font-medium">{currencyFn(statement.statementAmount)}</span></p>
+                        <p>Currently Paid: <span className="font-medium">{currencyFn(statement.paidAmount)}</span></p>
+                        <p className="font-bold">Remaining: <span className="text-red-600">{currencyFn(remaining)}</span></p>
+                    </div>
+                    <div className="space-y-2">
+                        <label htmlFor="payment-amount" className="text-sm font-medium">Amount to Log</label>
+                        <Input 
+                            id="payment-amount" 
+                            type="number"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            placeholder="Enter amount paid"
+                        />
+                    </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={onClose}>Cancel</Button>
+                    <Button onClick={handleSave}>Save Payment</Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, isLoadingMore, currencyFn, fmtYMShortFn, onViewTransactions }) {
+    if (!statements || statements.length === 0) {
+        return null; // Don't render anything if there are no statements
+    }
+
+    return (
+        <div>
+            <h3 className="text-sm font-semibold mb-2 text-slate-600">{title}</h3>
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-sm whitespace-nowrap">
+                    <thead className="text-left text-slate-500 bg-slate-100">
+                        <tr>
+                            <th className="p-2 font-medium">Month</th>
+                            <th className="p-2 font-medium">Status</th>
+                            <th className="p-2 font-medium">Statement Date</th>
+                            <th className="p-2 font-medium">Payment Date</th>
+                            <th className="p-2 font-medium text-right">Spend</th>
+                            <th className="p-2 font-medium text-right">Cashback</th>
+                            <th className="p-2 font-medium text-right">Actual Balance</th>
+                            <th className="p-2 font-medium text-right">Paid</th>
+                            <th className="p-2 font-medium text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                        {statements.map(stmt => {
+                            const remaining = (stmt.statementAmount || 0) - (stmt.paidAmount || 0);
+                            const isPaid = remaining <= 0 && stmt.statementAmount > 0;
+                            
+                            let statusBadge;
+                            if (stmt.daysLeft === null) {
+                                statusBadge = <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">Completed</span>;
+                            } else {
+                                statusBadge = <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2 py-0.5 rounded-full">Upcoming</span>;
+                            }
                             
                             return (
-                                <React.Fragment key={card.id}>
-                                    <TableRow>
-                                        <TableCell>
-                                            <div className="flex items-center">
-                                                <Button variant="ghost" size="sm" onClick={() => handleToggleRow(card.id)} className="mr-2">
-                                                    {expandedRows[card.id] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                                </Button>
-                                                <div>
-                                                    <div className="font-medium">{card.name} ***{card.last4}</div>
-                                                    <div className="text-xs text-gray-500">Statement: {mainStatement?.statementDate || 'N/A'}</div>
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            {mainStatement?.month && (
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn(isStatementClosed && mainStatement.daysLeft !== null && "bg-emerald-100 text-emerald-800 border-emerald-200")}
-                                                >
-                                                    {fmtYMShortFn(mainStatement.month)}
-                                                </Badge>
-                                            )}
-                                        </TableCell>
-                                        {/* THIS IS THE COMBINED CELL */}
-                                        <TableCell>
-                                            <div>
-                                                <span>{mainStatement?.paymentDate || 'N/A'}</span>
-                                                {mainStatement?.daysLeft !== null ? (
-                                                    <div className="mt-1">
-                                                        <Badge
-                                                            variant="outline"
-                                                            className={
-                                                                mainStatement.daysLeft <= 3
-                                                                    ? "bg-red-200 text-red-800 border-red-300"
-                                                                    : mainStatement.daysLeft <= 7
-                                                                    ? "bg-yellow-200 text-yellow-800 border-yellow-300"
-                                                                    : ""
-                                                            }
-                                                        >
-                                                            {mainStatement.daysLeft} days
-                                                        </Badge>
-                                                    </div>
-                                                ) : mainStatement ? ( // THIS 'ELSE' BLOCK IS THE NEW LOGIC
-                                                    <div className="mt-1">
-                                                        <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 font-medium">
-                                                            <Check className="mr-1.5 h-3.5 w-3.5" />
-                                                            Completed
-                                                        </Badge>
-                                                    </div>
-                                                ) : null}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right">{currencyFn(mainStatement?.spend)}</TableCell>
-                                        <TableCell className="text-right text-emerald-600">{currencyFn(mainStatement?.cashback)}</TableCell>
-                                        <TableCell className="text-right font-semibold">{currencyFn(mainStatement?.finalPayment)}</TableCell>
-                                        <TableCell className="text-center">
-                                            {mainStatement && (
-                                                <Button variant="ghost" size="icon" onClick={() => onViewTransactions(card.id, card.name, mainStatement.month, fmtYMShortFn(mainStatement.month))}>
-                                                    <List className="h-4 w-4" />
-                                                </Button>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                    {/* --- EXPANDABLE SECTION --- */}
-                                    {expandedRows[card.id] && (
-                                        <TableRow>
-                                            <TableCell colSpan={7} className="p-0"> {/* Adjusted colSpan */}
-                                                <div className="p-4 bg-slate-50 space-y-6">
-                                                    {/* Upcoming Statements */}
-                                                    {card.upcomingStatements.length > 0 && (
-                                                        <div>
-                                                            <h4 className="font-semibold text-sm mb-2">Upcoming Statements</h4>
-                                                            <Table>
-                                                                <TableHeader>
-                                                                    <TableRow>
-                                                                        <TableHead>Month</TableHead>
-                                                                        <TableHead>Statement Date</TableHead>
-                                                                        <TableHead>Payment Date</TableHead>
-                                                                        <TableHead className="text-right">Total Payment</TableHead>
-                                                                        <TableHead className="text-right">Total Cashback</TableHead>
-                                                                        <TableHead className="text-right">Final Payment</TableHead>
-                                                                        <TableHead className="w-[50px]"></TableHead>
-                                                                    </TableRow>
-                                                                </TableHeader>
-                                                                <TableBody>
-                                                                    {card.upcomingStatements.map(stmt => (
-                                                                        <TableRow key={stmt.month}>
-                                                                            <TableCell><Badge variant="outline">{fmtYMShortFn(stmt.month)}</Badge></TableCell>
-                                                                            <TableCell>{stmt.statementDate}</TableCell>
-                                                                            {/* THIS IS THE COMBINED CELL FOR UPCOMING STATEMENTS */}
-                                                                            <TableCell>
-                                                                                <div>
-                                                                                    <span>{stmt.paymentDate}</span>
-                                                                                    <div className="mt-1">
-                                                                                        <Badge variant="outline">{stmt.daysLeft} days</Badge>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </TableCell>
-                                                                            <TableCell className="text-right">{currencyFn(stmt.spend)}</TableCell>
-                                                                            <TableCell className="text-right text-emerald-600">{currencyFn(stmt.cashback)}</TableCell>
-                                                                            <TableCell className="text-right font-semibold">{currencyFn(stmt.finalPayment)}</TableCell>
-                                                                            <TableCell className="text-center">
-                                                                                <Button variant="ghost" size="icon" onClick={() => onViewTransactions(card.id, card.name, stmt.month, fmtYMShortFn(stmt.month))}>
-                                                                                    <List className="h-4 w-4" />
-                                                                                </Button>
-                                                                            </TableCell>
-                                                                        </TableRow>
-                                                                    ))}
-                                                                </TableBody>
-                                                            </Table>
-                                                        </div>
-                                                    )}
-                                                    {/* Previous Statements */}
-                                                    {card.pastStatements.length > 0 && (
-                                                        <div>
-                                                            <h4 className="font-semibold text-sm mb-2">Previous Statements</h4>
-                                                            {(() => {
-                                                            const pastStatementTotals = card.pastStatements.reduce((acc, stmt) => {
-                                                                acc.spend += stmt.spend || 0;
-                                                                acc.cashback += stmt.cashback || 0;
-                                                                acc.finalPayment += stmt.finalPayment || 0;
-                                                                return acc;
-                                                            }, { spend: 0, cashback: 0, finalPayment: 0 });
-                                                            return (
-                                                                <Table>
-                                                                    <TableHeader>
-                                                                        <TableRow>
-                                                                            <TableHead>Month</TableHead>
-                                                                            <TableHead>Statement Date</TableHead>
-                                                                            <TableHead>Payment Date</TableHead>
-                                                                            <TableHead className="text-right">Total Payment</TableHead>
-                                                                            <TableHead className="text-right">Total Cashback</TableHead>
-                                                                            <TableHead className="text-right">Final Payment</TableHead>
-                                                                            <TableHead className="w-[50px]"></TableHead>
-                                                                        </TableRow>
-                                                                    </TableHeader>
-                                                                    <TableBody>
-                                                                        {card.pastStatements.map(stmt => (
-                                                                            <TableRow key={stmt.month}>
-                                                                                <TableCell><Badge variant="outline">{fmtYMShortFn(stmt.month)}</Badge></TableCell>
-                                                                                <TableCell>{stmt.statementDate}</TableCell>
-                                                                                <TableCell>{stmt.paymentDate}</TableCell>
-                                                                                <TableCell className="text-right">{currencyFn(stmt.spend)}</TableCell>
-                                                                                <TableCell className="text-right text-emerald-600">{currencyFn(stmt.cashback)}</TableCell>
-                                                                                <TableCell className="text-right font-semibold">{currencyFn(stmt.finalPayment)}</TableCell>
-                                                                                <TableCell className="text-center">
-                                                                                    <Button variant="ghost" size="icon" onClick={() => onViewTransactions(card.id, card.name, stmt.month, fmtYMShortFn(stmt.month))}>
-                                                                                        <List className="h-4 w-4" />
-                                                                                    </Button>
-                                                                                </TableCell>
-                                                                            </TableRow>
-                                                                        ))}
-                                                                        {card.useStatementMonthForPayments && (card.remainingPastSummaries?.length || 0) > 0 && (
-                                                                            <TableRow>
-                                                                                <TableCell colSpan={7} className="text-center p-2">
-                                                                                    <Button
-                                                                                        variant="ghost"
-                                                                                        size="sm"
-                                                                                        onClick={() => handleLoadMore(card.id)}
-                                                                                        disabled={isLoadingMore[card.id]}
-                                                                                    >
-                                                                                        {isLoadingMore[card.id] ? (
-                                                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                                                        ) : (
-                                                                                            <ChevronDown className="mr-2 h-4 w-4" />
-                                                                                        )}
-                                                                                        Load More ({card.remainingPastSummaries.length} remaining)
-                                                                                    </Button>
-                                                                                </TableCell>
-                                                                            </TableRow>
-                                                                        )}
-                                                                    </TableBody>
-                                                                    <tfoot className="border-t-2 font-semibold">
-                                                                        <TableRow>
-                                                                            <TableCell colSpan={3} className="text-right">
-                                                                                {/* 3. Add a dynamic label */}
-                                                                                {card.remainingPastSummaries?.length > 0 ? 'Loaded Totals' : 'Totals'}
-                                                                            </TableCell>
-                                                                            <TableCell className="text-right">{currencyFn(pastStatementTotals.spend)}</TableCell>
-                                                                            <TableCell className="text-right text-emerald-600">{currencyFn(pastStatementTotals.cashback)}</TableCell>
-                                                                            <TableCell className="text-right font-bold">{currencyFn(pastStatementTotals.finalPayment)}</TableCell>
-                                                                            <TableCell></TableCell>
-                                                                        </TableRow>
-                                                                    </tfoot>
-                                                                </Table>
-                                                            );
-                                                            })()}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </React.Fragment>
-                            )
+                                <tr key={stmt.id} className="hover:bg-slate-50">
+                                    <td className="p-2"><span className="bg-slate-200 text-slate-700 font-medium px-2 py-1 rounded-md text-xs">{fmtYMShortFn(stmt.month)}</span></td>
+                                    <td className="p-2">{statusBadge}</td>
+                                    <td className="p-2">{stmt.statementDate}</td>
+                                    <td className="p-2">{stmt.paymentDate}</td>
+                                    <td className="p-2 text-right">{currencyFn(stmt.spend)}</td>
+                                    <td className="p-2 text-right text-emerald-600">-{currencyFn(stmt.cashback)}</td>
+                                    <td className="p-2 text-right font-bold text-slate-700">{currencyFn(stmt.statementAmount)}</td>
+                                    <td className="p-2 text-right">{currencyFn(stmt.paidAmount)}</td>
+                                    <td className="p-2 text-center">
+                                        <button 
+                                            onClick={() => onViewTransactions(stmt.card.id, stmt.card.name, stmt.month, fmtYMShortFn(stmt.month))}
+                                            className="text-slate-400 hover:text-slate-600"
+                                        >
+                                            <List className="h-5 w-5"/>
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
                         })}
-                    </TableBody>
-                    <tfoot className="border-t-2 border-slate-200">
-                        <TableRow>
-                            {/* Adjusted colSpan from 4 to 3 */}
-                            <TableCell colSpan={3} className="font-semibold text-right">Totals</TableCell>
-                            <TableCell className="text-right font-bold">{currencyFn(totals.totalPayment)}</TableCell>
-                            <TableCell className="text-right font-bold text-emerald-600">{currencyFn(totals.totalCashback)}</TableCell>
-                            <TableCell className="text-right font-extrabold">{currencyFn(totals.finalPayment)}</TableCell>
-                            <TableCell></TableCell>
-                        </TableRow>
-                    </tfoot>
-                </Table>
-            </CardContent>
-        </Card>
+                    </tbody>
+                    {remainingCount > 0 && (
+                        <tfoot className="bg-slate-50">
+                            <tr>
+                                <td colSpan="9" className="text-center p-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={onLoadMore}
+                                        disabled={isLoadingMore}
+                                    >
+                                        {isLoadingMore ? (
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <ChevronDown className="mr-2 h-4 w-4" />
+                                        )}
+                                        Load More ({remainingCount} remaining)
+                                    </Button>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    )}
+                </table>
+            </div>
+        </div>
     );
 }
 
