@@ -459,8 +459,8 @@ export default function CashbackDashboard() {
     return (
         <TooltipProvider>
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-            <Toaster richColors position="top-right" />
-            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-white shadow-sm px-4 md:px-6 z-10">
+            <Toaster richColors position="top-center" />
+            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-white shadow-sm px-4 md:px-6 z-30">
             <h1 className="text-xl font-semibold flex items-center gap-2">Cashback Optimizer</h1>
             <div className="ml-auto flex items-center gap-4">
                 {statementMonths.length > 0 && (
@@ -485,15 +485,17 @@ export default function CashbackDashboard() {
                             <SheetHeader>
                                 <SheetTitle>Add a New Transaction</SheetTitle>
                             </SheetHeader>
-                            <AddTransactionForm
-                                cards={cards}
-                                categories={allCategories}
-                                rules={cashbackRules}
-                                monthlyCategories={monthlyCashbackCategories}
-                                mccMap={mccMap}
-                                onTransactionAdded={handleTransactionAdded}
-                                commonVendors={commonVendors}
-                            />
+                            <div className="flex-grow overflow-y-auto">
+                                <AddTransactionForm
+                                    cards={cards}
+                                    categories={allCategories}
+                                    rules={cashbackRules}
+                                    monthlyCategories={monthlyCashbackCategories}
+                                    mccMap={mccMap}
+                                    onTransactionAdded={handleTransactionAdded}
+                                    commonVendors={commonVendors}
+                                />
+                            </div>
                         </SheetContent>
                     </Sheet>
                 </div>
