@@ -1344,7 +1344,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
         } finally {
             setIsLoadingMore(prev => ({ ...prev, [cardId]: false }));
         }
-    }, [paymentData, remainingPastSummaries]); // Dependency ensures we have the latest data
+    }, [paymentData]); // Dependency ensures we have the latest data
 
     // This useEffect hook now calculates the payment data, fetching new data for HSBC cards
     useEffect(() => {
@@ -1436,7 +1436,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                         pastStatements = past.slice(1); // The rest are "previous"
                     }
 
-                    return { ...card, mainStatement, upcomingStatements, pastStatements };
+                    return { ...card, mainStatement, upcomingStatements, pastStatements, remainingPastSummaries };
 
                 } else {
                     // This is the original logic for all other cards, which remains unchanged
@@ -1459,7 +1459,7 @@ function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeft
                     const past = finalStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
                     const mainStatement = upcoming.length > 0 ? upcoming[0] : (past.length > 0 ? past[0] : null);
 
-                    return { ...card, mainStatement, upcomingStatements: upcoming.slice(1), pastStatements: past };
+                    return { ...card, mainStatement, upcomingStatements: upcoming.slice(1), pastStatements: past, remainingPastSummaries: [] };
                 }
             });
 
