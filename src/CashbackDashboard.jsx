@@ -1696,8 +1696,6 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
                         {statements.map(stmt => {
-                            const remaining = (stmt.statementAmount || 0) - (stmt.paidAmount || 0);
-                            
                             let statusBadge;
                             if (stmt.daysLeft === null) {
                                 statusBadge = <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">Completed</span>;
