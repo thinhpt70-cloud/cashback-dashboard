@@ -1484,7 +1484,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
     };
 
     const paymentGroups = useMemo(() => {
-        if (!processedPaymentData) {
+        if (!paymentData) {
             return { pastDue: [], upcoming: [], completed: [] };
         }
 
@@ -1492,7 +1492,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
         const upcoming = [];
         const completed = [];
 
-        processedPaymentData.forEach(p => {
+        paymentData.forEach(p => {
             if (!p.mainStatement) {
                 return; 
             }
@@ -1523,7 +1523,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
         });
         
         return { pastDue, upcoming, completed };
-    }, [processedPaymentData]);
+    }, [paymentData]);
 
     const handleSavePayment = (statementId, newPaidAmount) => {
         setPaymentData(currentData => 
@@ -3182,4 +3182,5 @@ function QuickAddButtons({ vendors, onSelect }) {
             </div>
         </div>
     );
+
 }
