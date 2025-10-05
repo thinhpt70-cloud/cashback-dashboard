@@ -1331,6 +1331,31 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
     }, [paymentData]);
 
     const partitionStatements = (allStatements) => {
+        // --- NEW: Prioritize the statement in its active payment window ---
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Normalize today's date for accurate comparison
+
+        // Find statements where today is between the statement date and the due date
+        const activeWindowStatements = allStatements
+            .filter(s => s.statementDateObj && s.paymentDateObj && today >= s.statementDateObj && today <= s.paymentDateObj)
+            .sort((a, b) => a.paymentDateObj - b.paymentDateObj); // Sort by soonest payment date
+
+        if (activeWindowStatements.length > 0) {
+            const mainStatement = activeWindowStatements[0]; // Pick the one due soonest
+            const otherStatements = allStatements.filter(s => s.id !== mainStatement.id);
+            
+            // Categorize the remaining statements for the history view
+            const upcomingStatements = otherStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
+            const pastStatements = otherStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
+            
+            return {
+                mainStatement,
+                upcomingStatements,
+                pastStatements
+            };
+        }
+
+        // --- FALLBACK to original logic if no statement is in the active window ---
         const upcoming = allStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
         const past = allStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
 
@@ -1379,13 +1404,24 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                 const createStatementObject = (stmt) => {
                     const year = parseInt(stmt.month.slice(0, 4), 10);
                     const month = parseInt(stmt.month.slice(4, 6), 10);
+                    
+                    // Create and normalize the statement date
                     const statementDateObj = new Date(year, month - 1, card.statementDay);
+                    statementDateObj.setHours(0, 0, 0, 0);
+                    
                     const calculatedStatementDate = `${statementDateObj.getFullYear()}-${String(statementDateObj.getMonth() + 1).padStart(2, '0')}-${String(statementDateObj.getDate()).padStart(2, '0')}`;
+                    
                     let paymentMonth = month;
                     if (card.paymentDueDay < card.statementDay) paymentMonth += 1;
+                    
+                    // Create and normalize the payment due date
                     const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
+                    dueDate.setHours(0, 0, 0, 0);
+
                     const paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
-                    return { ...stmt, statementDate: calculatedStatementDate, paymentDateObj: dueDate, daysLeft: daysLeftFn(paymentDate), paymentDate, card };
+                    
+                    // Add statementDateObj to the returned object
+                    return { ...stmt, statementDateObj, statementDate: calculatedStatementDate, paymentDateObj: dueDate, daysLeft: daysLeftFn(paymentDate), paymentDate, card };
                 };
                 
                 const processAndFinalize = (processedStatements, remainingPastSummaries = []) => {
@@ -1683,6 +1719,10 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                 {pastDueStatements.map(stmt => (
                                     <div key={stmt.id} className="flex justify-between items-center">
                                         <span>Statement for {fmtYMShortFn(stmt.month)}:</span>
+                                        <div className="text-xs text-slate-500 mt-2 flex items-center gap-4">
+                                            <span>Statement Date: <span className="font-medium text-slate-600">{statement.statementDate}</span></span>
+                                            <span>Payment Due: <span className="font-medium text-slate-600">{statement.paymentDate}</span></span>
+                                        </div>
                                         <span className="font-semibold ml-2">{currencyFn(stmt.statementAmount - (stmt.paidAmount || 0))}</span>
                                     </div>
                                 ))}
@@ -1736,8 +1776,8 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                 </div>
                 
                 <div className="mt-4 flex justify-end items-center gap-2">
-                    <Button onClick={() => onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month))} variant="ghost" size="sm"><List className="h-4 w-4 mr-1.5" />Details</Button>
-                    <Button onClick={() => setHistoryOpen(!historyOpen)} variant="ghost" size="icon" className="text-slate-500"><History className="h-4 w-4" /><span className="sr-only">View History</span></Button>
+                    <Button onClick={() => onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month))} variant="outline" size="sm"><List className="h-4 w-4 mr-1.5" />Details</Button>
+                    <Button onClick={() => setHistoryOpen(!historyOpen)} variant="outline" size="icon" className="text-slate-500"><History className="h-4 w-4" /><span className="sr-only">View History</span></Button>
                     {!noPaymentNeeded && (
                         <Button onClick={() => onLogPayment(statement)} disabled={isPaid} size="sm">
                             {isPaid ? 'Paid' : 'Log Payment'}
@@ -1791,14 +1831,29 @@ function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtY
     
     useEffect(() => {
         if (isOpen) {
-            // Pre-fill with remaining amount for convenience
+            // Pre-fill with remaining amount and format it with commas
             const remaining = (statement.statementAmount || 0) - (statement.paidAmount || 0);
-            setAmount(remaining > 0 ? remaining : '');
+            setAmount(remaining > 0 ? remaining.toLocaleString('en-US') : '');
         }
     }, [isOpen, statement]);
 
+    // --- NEW: Handler to format the input with commas ---
+    const handleAmountChange = (e) => {
+        const value = e.target.value.replace(/,/g, ''); // Remove existing commas
+        if (!isNaN(value) && value.length <= 15) {
+            // Format the number with commas, or set to empty if input is cleared
+            setAmount(value ? Number(value).toLocaleString('en-US') : '');
+        } else if (value === '') {
+            setAmount('');
+        }
+    };
+
     const handleSave = () => {
-        const newPaidAmount = (statement.paidAmount || 0) + Number(amount);
+        // --- UPDATED: Parse the comma-separated string back to a number ---
+        const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
+        if (isNaN(numericAmount) || numericAmount <= 0) return; 
+
+        const newPaidAmount = (statement.paidAmount || 0) + numericAmount;
         onSave(statement.id, newPaidAmount);
         onClose();
     };
@@ -1824,9 +1879,10 @@ function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtY
                         <label htmlFor="payment-amount" className="text-sm font-medium">Amount to Log</label>
                         <Input 
                             id="payment-amount" 
-                            type="number"
+                            type="text" // Changed from "number" to allow formatting
+                            inputMode="numeric" // Keeps numeric keyboard on mobile
                             value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
+                            onChange={handleAmountChange} // Use the new formatting handler
                             placeholder="Enter amount paid"
                         />
                     </div>
