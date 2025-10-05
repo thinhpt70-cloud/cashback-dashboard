@@ -1331,20 +1331,17 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
     }, [paymentData]);
 
     const partitionStatements = (allStatements) => {
-        // --- NEW: Prioritize the statement in its active payment window ---
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Normalize today's date for accurate comparison
+        today.setHours(0, 0, 0, 0); 
 
-        // Find statements where today is between the statement date and the due date
         const activeWindowStatements = allStatements
             .filter(s => s.statementDateObj && s.paymentDateObj && today >= s.statementDateObj && today <= s.paymentDateObj)
-            .sort((a, b) => a.paymentDateObj - b.paymentDateObj); // Sort by soonest payment date
+            .sort((a, b) => a.paymentDateObj - b.paymentDateObj);
 
         if (activeWindowStatements.length > 0) {
-            const mainStatement = activeWindowStatements[0]; // Pick the one due soonest
+            const mainStatement = activeWindowStatements[0];
             const otherStatements = allStatements.filter(s => s.id !== mainStatement.id);
             
-            // Categorize the remaining statements for the history view
             const upcomingStatements = otherStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
             const pastStatements = otherStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
             
@@ -1355,7 +1352,6 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
             };
         }
 
-        // --- FALLBACK to original logic if no statement is in the active window ---
         const upcoming = allStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
         const past = allStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
 
@@ -1405,7 +1401,6 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                     const year = parseInt(stmt.month.slice(0, 4), 10);
                     const month = parseInt(stmt.month.slice(4, 6), 10);
                     
-                    // Create and normalize the statement date
                     const statementDateObj = new Date(year, month - 1, card.statementDay);
                     statementDateObj.setHours(0, 0, 0, 0);
                     
@@ -1414,13 +1409,11 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                     let paymentMonth = month;
                     if (card.paymentDueDay < card.statementDay) paymentMonth += 1;
                     
-                    // Create and normalize the payment due date
                     const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
                     dueDate.setHours(0, 0, 0, 0);
 
                     const paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
                     
-                    // Add statementDateObj to the returned object
                     return { ...stmt, statementDateObj, statementDate: calculatedStatementDate, paymentDateObj: dueDate, daysLeft: daysLeftFn(paymentDate), paymentDate, card };
                 };
                 
@@ -1492,16 +1485,14 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
 
     const paymentGroups = useMemo(() => {
         if (!paymentData) {
-            return { dueSoon: [], upcoming: [], completed: [] };
+            return { pastDue: [], upcoming: [], completed: [] };
         }
 
-        const dueSoon = [];
+        const pastDue = [];
         const upcoming = [];
         const completed = [];
 
-        // This new logic iterates through each card once and places it in the correct group.
         paymentData.forEach(p => {
-            // This check prevents errors if a card has no statements
             if (!p.mainStatement) {
                 return; 
             }
@@ -1509,27 +1500,21 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
             const { daysLeft, statementAmount = 0, paidAmount = 0 } = p.mainStatement;
             const remaining = statementAmount - paidAmount;
 
-            // Condition for unpaid, upcoming bills
-            if (daysLeft !== null && remaining > 0) {
-                if (daysLeft <= 7) {
-                    dueSoon.push(p);
-                } else {
-                    upcoming.push(p);
-                }
+            // Condition for unpaid, past-due bills
+            if (daysLeft === null && remaining > 0) {
+                pastDue.push(p);
             } 
-            // All other cases (paid bills or past-due bills) go here
+            // Condition for any unpaid bill with a future due date
+            else if (daysLeft !== null && remaining > 0) {
+                upcoming.push(p);
+            }
+            // All other cases (fully paid, no payment needed)
             else {
                 completed.push(p);
             }
         });
         
-        // Sort the completed list by date, as before
-        completed.sort((a, b) => {
-            if (!a.mainStatement || !b.mainStatement) return 0;
-            return b.mainStatement.paymentDateObj - a.mainStatement.paymentDateObj
-        });
-
-        return { dueSoon, upcoming, completed };
+        return { pastDue, upcoming, completed };
     }, [paymentData]);
 
     const handleSavePayment = (statementId, newPaidAmount) => {
@@ -1571,15 +1556,15 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                <StatCard title="Total Due Soon" value={currencyFn(summaryStats.totalDue)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
+                <StatCard title="Total Upcoming" value={currencyFn(summaryStats.totalDue)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
                 <StatCard title="Upcoming Bills" value={summaryStats.billCount} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
-                <StatCard title="Next Payment" value={currencyFn(summaryStats.nextPaymentAmount)} icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />} valueClassName="text-red-600" />
+                <StatCard title="Next Payment" value={currencyFn(summaryStats.nextPaymentAmount)} icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />} valueClassName="text-orange-600" />
             </div>
             <div className="space-y-8">
-                {paymentGroups.dueSoon.length > 0 && (
+                {paymentGroups.pastDue.length > 0 && (
                     <div className="space-y-4">
-                        <h2 className="text-xl font-bold text-red-600">Due Soon</h2>
-                        {paymentGroups.dueSoon.map(({ mainStatement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement }) => (
+                        <h2 className="text-xl font-bold text-red-600">Past Due</h2>
+                        {paymentGroups.pastDue.map(({ mainStatement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement }) => (
                             <PaymentCard 
                                 key={mainStatement.id}
                                 statement={mainStatement}
@@ -1622,7 +1607,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
 
                 {paymentGroups.completed.length > 0 && (
                     <div className="space-y-4">
-                        <h2 className="text-xl font-bold text-slate-700">Completed & Past Due</h2>
+                        <h2 className="text-xl font-bold text-slate-700">Completed</h2>
                         {paymentGroups.completed.map(({ mainStatement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement }) => (
                             <PaymentCard 
                                 key={mainStatement.id}
@@ -1825,15 +1810,41 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                         </>
                     )}
                 </div>
-                
+
                 <div className="mt-4 flex justify-end items-center gap-2">
-                    <Button onClick={() => onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month))} variant="outline" size="sm"><List className="h-4 w-4 mr-1.5" />Details</Button>
-                    <Button onClick={() => setHistoryOpen(!historyOpen)} variant="outline" size="sm"><History className="h-4 w-4 mr-1.5" />View Statements</Button>
-                    {!noPaymentNeeded && (
-                        <Button onClick={() => onLogPayment(statement)} disabled={isPaid} size="sm">
-                            {isPaid ? 'Paid' : 'Log Payment'}
-                        </Button>
-                    )}
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button onClick={() => onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month))} variant="outline" size="icon" className="sm:w-auto sm:px-3">
+                                    <List className="h-4 w-4" />
+                                    <span className="hidden sm:inline ml-1.5">Details</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="sm:hidden"><p>View Transactions</p></TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button onClick={() => setHistoryOpen(!historyOpen)} variant="outline" size="icon" className="sm:w-auto sm:px-3">
+                                    <History className="h-4 w-4" />
+                                    <span className="hidden sm:inline ml-1.5">View Statements</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="sm:hidden"><p>View Statements</p></TooltipContent>
+                        </Tooltip>
+
+                        {!noPaymentNeeded && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button onClick={() => onLogPayment(statement)} disabled={isPaid} size="icon" className="sm:w-auto sm:px-3">
+                                        {isPaid ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                                        <span className="hidden sm:inline ml-1.5">{isPaid ? 'Paid' : 'Log Payment'}</span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent className="sm:hidden"><p>{isPaid ? 'Paid' : 'Log Payment'}</p></TooltipContent>
+                            </Tooltip>
+                        )}
+                    </TooltipProvider>
                 </div>
             </div>
 
