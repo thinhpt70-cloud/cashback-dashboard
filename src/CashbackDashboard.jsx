@@ -1677,9 +1677,6 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
     today.setHours(0, 0, 0, 0);
     const isNotFinalized = statementDateObj && today < statementDateObj;
 
-    // A balance is estimated if the statement isn't final OR if it is final but no actual amount has been logged.
-    const isEstimated = isNotFinalized || rawStatementAmount === 0;
-
     // Calculate estimated balance first
     const estimatedBalance = spend - cashback;
     // Use the actual amount if it exists, otherwise fall back to the estimated balance
