@@ -1475,6 +1475,8 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                         onViewTransactions={onViewTransactions}
                         currencyFn={currencyFn}
                         fmtYMShortFn={fmtYMShortFn}
+                        onLoadMore={handleLoadMore} 
+                        isLoadingMore={isLoadingMore}
                     />
                 ))}
             </div>
@@ -1495,7 +1497,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
 // -------------------------------------------------
 // 2. ADD THE NEW PAYMENT CARD COMPONENT
 // -------------------------------------------------
-function PaymentCard({ statement, upcomingStatements, pastStatements, onLogPayment, onViewTransactions, currencyFn, fmtYMShortFn }) {
+function PaymentCard({ statement, upcomingStatements, pastStatements, onLogPayment, onViewTransactions, currencyFn, fmtYMShortFn, onLoadMore, isLoadingMore }) {
     const [historyOpen, setHistoryOpen] = useState(false);
     
     const { 
