@@ -1697,7 +1697,6 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                     <tbody className="divide-y divide-slate-200 bg-white">
                         {statements.map(stmt => {
                             const remaining = (stmt.statementAmount || 0) - (stmt.paidAmount || 0);
-                            const isPaid = remaining <= 0 && stmt.statementAmount > 0;
                             
                             let statusBadge;
                             if (stmt.daysLeft === null) {
