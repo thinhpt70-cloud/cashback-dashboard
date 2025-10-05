@@ -1488,6 +1488,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                     statement={activeStatement}
                     onSave={handleSavePayment}
                     currencyFn={currencyFn}
+                    fmtYMShortFn={fmtYMShortFn}
                 />
             )}
         </div>
@@ -1616,7 +1617,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, onLogPayme
 // -------------------------------------------------
 // 3. ADD THE NEW PAYMENT LOG DIALOG COMPONENT
 // -------------------------------------------------
-function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn }) {
+function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtYMShortFn }) {
     const [amount, setAmount] = useState('');
     
     useEffect(() => {
