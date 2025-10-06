@@ -544,9 +544,11 @@ export default function CashbackDashboard() {
                         </Card>
 
                         <CardSpendsCap
-                        cards={cards}
-                        activeMonth={activeMonth}
-                        monthlySummary={monthlySummary} 
+                            cards={cards}
+                            activeMonth={activeMonth}
+                            monthlySummary={monthlySummary}
+                            monthlyCategorySummary={monthlyCategorySummary}
+                            currencyFn={currency}
                         />
                     </div>
 
@@ -726,17 +728,6 @@ export default function CashbackDashboard() {
                                                     <Progress value={progressPercent} />
                                                 </div>
                                             )}
-                                        </div>
-
-
-                                        <div className="border-t pt-4">
-                                            <CategoryCapsUsage 
-                                                card={card}
-                                                activeMonth={activeMonth}
-                                                monthlyCategorySummary={monthlyCategorySummary}
-                                                monthlySummary={monthlySummary} 
-                                                currencyFn={currency}
-                                            />
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -1108,8 +1099,14 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
     );
 }
 
-function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySummary, currencyFn }) {
+    // --- NEW: State to track which card row is expanded ---
+    const [expandedCardId, setExpandedCardId] = useState(null);
+
+    const handleToggleExpand = (cardId) => {
+        // If the clicked card is already expanded, collapse it. Otherwise, expand it.
+        setExpandedCardId(prevId => (prevId === cardId ? null : cardId));
+    };
 
     const cardSpendsCapProgress = useMemo(() => {
         return cards
@@ -1127,6 +1124,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
                     : calculateDaysUntilStatement(card.statementDay, activeMonth);
 
                 return {
+                    card, // --- NEW: Pass the full card object through
                     cardId: card.id,
                     cardName: card.name,
                     currentCashback,
@@ -1161,27 +1159,54 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary }) {
         <Card className="lg:col-span-3">
             <CardHeader>
                 <CardTitle>Card Spends Cap</CardTitle>
+                <DialogDescription>Overall monthly progress. Click a card to see category details.</DialogDescription>
             </CardHeader>
             <CardContent>
                 {cardSpendsCapProgress.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="space-y-1">
                         {cardSpendsCapProgress.map(p => (
-                            <div key={p.cardId} className="space-y-2">
-                                {/* Top Row: Card Name and Days Left */}
-                                <div className="flex justify-between items-center">
-                                    <p className="font-semibold truncate" title={p.cardName}>
-                                        {p.cardName}
-                                    </p>
-                                    <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
+                            <div key={p.cardId} className="border-b last:border-b-0">
+                                {/* --- Main Clickable Row --- */}
+                                <div 
+                                    className="flex items-center gap-2 p-2 cursor-pointer hover:bg-muted/50 rounded-md"
+                                    onClick={() => handleToggleExpand(p.cardId)}
+                                >
+                                    <div className="flex-grow space-y-2">
+                                        <div className="flex justify-between items-center">
+                                            <p className="font-semibold truncate" title={p.cardName}>{p.cardName}</p>
+                                            <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Progress value={p.usedPct} indicatorClassName={getProgressColor(p.usedPct)} className="h-1.5 flex-grow" />
+                                            <span className="text-xs font-medium text-muted-foreground shrink-0 text-right w-[160px]">
+                                                {currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {/* --- NEW: Chevron Icon for expanding --- */}
+                                    <ChevronDown className={cn(
+                                        "h-5 w-5 text-muted-foreground transition-transform duration-200",
+                                        expandedCardId === p.cardId && "rotate-180"
+                                    )} />
                                 </div>
 
-                                {/* Bottom Row: Progress bar with amount on the side */}
-                                <div className="flex items-center gap-2">
-                                    {/* THIS IS THE CHANGED LINE */}
-                                    <Progress value={p.usedPct} indicatorClassName={getProgressColor(p.usedPct)} className="h-1.5 flex-grow" />
-                                    <span className="text-xs font-medium text-muted-foreground shrink-0 text-right w-[160px]">
-                                        {currency(p.currentCashback)} / {currency(p.monthlyLimit)}
-                                    </span>
+                                {/* --- NEW: Expandable Area for Category Details --- */}
+                                <div className={cn(
+                                    "overflow-hidden transition-all duration-300 ease-in-out",
+                                    expandedCardId === p.cardId ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                                )}>
+                                    {/* We only render the content if it's the expanded card to save performance */}
+                                    {expandedCardId === p.cardId && (
+                                        <div className="pl-6 pr-2 py-4 border-t">
+                                            <CategoryCapsUsage 
+                                                card={p.card}
+                                                activeMonth={activeMonth}
+                                                monthlyCategorySummary={monthlyCategorySummary}
+                                                monthlySummary={monthlySummary}
+                                                currencyFn={currencyFn}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
