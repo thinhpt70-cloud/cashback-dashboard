@@ -3122,10 +3122,10 @@ function QuickAddButtons({ vendors, onSelect }) {
 }
 
 // ===================================================================================
-// START: NEW ENHANCED CARD COMPONENT (REPLACES THE OLD ONE)
+// START: REVISED ENHANCED CARD COMPONENT (CHIP REMOVED)
 // ===================================================================================
 
-// A new, reusable sub-component for displaying metrics consistently.
+// The MetricItem sub-component remains the same.
 function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = false }) {
     return (
         <div className="p-3 bg-slate-50/70 rounded-lg">
@@ -3142,15 +3142,6 @@ function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = fals
             </p>
         </div>
     );
-}
-
-// ===================================================================================
-// START: REVISED ENHANCED CARD COMPONENT (WITH GLOBAL VIEW PROP)
-// ===================================================================================
-
-// The MetricItem sub-component remains the same.
-function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = false }) {
-    // ... (no changes to this sub-component)
 }
 
 function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn, view }) {
@@ -3178,9 +3169,9 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
 
     return (
         <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col">
-            {/* Visual Card Header (no changes) */}
+            {/* Visual Card Header */}
             <div className={`relative rounded-t-xl p-5 ${theme.gradient} ${theme.textColor} flex-shrink-0`}>
-                <div className="flex justify-between items-start">
+                <div className="flex justify-between items-start mb-4">
                     <div>
                         <p className="font-bold text-lg">{card.bank}</p>
                         <p className="text-sm opacity-80">{card.cardType}</p>
@@ -3189,10 +3180,9 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                         {card.status}
                     </Badge>
                 </div>
-                <div className="w-12 h-8 bg-yellow-400/20 rounded-md my-4 border border-white/20 flex items-center justify-center">
-                    <CircleDot className="h-6 w-6 text-yellow-300/50" />
-                </div>
-                <div className="flex justify-between items-end">
+                {/* --- THIS BLOCK WAS REMOVED --- */}
+                {/* <div className="w-12 h-8 ..."> ... </div> */}
+                <div className="flex justify-between items-end mt-4">
                     <p className="font-mono text-xl tracking-wider">•••• {card.last4}</p>
                     <p className="font-semibold text-lg truncate text-right ml-4">{card.name}</p>
                 </div>
@@ -3203,9 +3193,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                     <p>Statement: <span className="font-medium text-slate-600">Day {card.statementDay}</span></p>
                     <p>Payment Due: <span className="font-medium text-slate-600">Day {card.paymentDueDay}</span></p>
                 </div>
-
-                {/* --- REMOVED THE INTERNAL TABS COMPONENT --- */}
-                {/* --- This container now uses the 'view' prop for conditional rendering --- */}
+                
                 <div className="flex-grow h-48 flex flex-col justify-center">
                     {view === 'month' && (
                         <div className="grid grid-cols-2 gap-4">
@@ -3271,7 +3259,6 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
         </div>
     );
 }
-
 // ===================================================================================
 // END: REVISED ENHANCED CARD COMPONENT
 // ===================================================================================
