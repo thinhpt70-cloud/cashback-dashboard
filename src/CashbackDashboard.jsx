@@ -101,20 +101,20 @@ const calculateDaysUntilStatement = (statementDay, activeMonth) => {
 const COLORS = ['#0ea5e9', '#84cc16', '#f43f5e', '#f59e0b', '#6366f1', '#14b8a6', '#d946ef'];
 
 const cardThemes = {
-    // Existing Themes
-    'VIB': { gradient: 'from-sky-500 to-sky-700', textColor: 'text-white' },
-    'HSBC': { gradient: 'from-red-600 to-red-800', textColor: 'text-white' },
-    'Shinhan Bank': { gradient: 'from-blue-400 to-blue-600', textColor: 'text-white' },
-    'Techcombank': { gradient: 'from-red-500 to-orange-500', textColor: 'text-white' },
+    // Existing Themes with full class names
+    'VIB': { gradient: 'bg-gradient-to-r from-sky-500 to-sky-700', textColor: 'text-white' },
+    'HSBC': { gradient: 'bg-gradient-to-r from-red-600 to-red-800', textColor: 'text-white' },
+    'Shinhan Bank': { gradient: 'bg-gradient-to-r from-blue-400 to-blue-600', textColor: 'text-white' },
+    'Techcombank': { gradient: 'bg-gradient-to-r from-red-500 to-orange-500', textColor: 'text-white' },
     
     // --- NEW THEMES TO ADD ---
-    'Kbank': { gradient: 'from-lime-500 to-green-600', textColor: 'text-white' },
-    'Cake': { gradient: 'from-pink-500 to-fuchsia-600', textColor: 'text-white' },
-    'MSB': { gradient: 'from-orange-500 to-orange-700', textColor: 'text-white' },
-    'UOB': { gradient: 'from-blue-700 to-blue-900', textColor: 'text-white' },
+    'Kbank': { gradient: 'bg-gradient-to-r from-lime-500 to-green-600', textColor: 'text-white' },
+    'Cake': { gradient: 'bg-gradient-to-r from-pink-500 to-fuchsia-600', textColor: 'text-white' },
+    'MSB': { gradient: 'bg-gradient-to-r from-orange-500 to-orange-700', textColor: 'text-white' },
+    'UOB': { gradient: 'bg-gradient-to-r from-blue-700 to-blue-900', textColor: 'text-white' },
     
     // Fallback Theme
-    'default': { gradient: 'from-slate-600 to-slate-800', textColor: 'text-white' },
+    'default': { gradient: 'bg-gradient-to-r from-slate-600 to-slate-800', textColor: 'text-white' },
 };
 
 
