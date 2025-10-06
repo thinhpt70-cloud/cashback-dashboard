@@ -426,6 +426,14 @@ export default function CashbackDashboard() {
         return Object.values(aggregated);
     }, [monthlySummary, fmtYMShort]);
 
+    const activeMonthSummariesMap = useMemo(() => {
+        const map = new Map();
+        monthlySummary
+            .filter(s => s.month === activeMonth)
+            .forEach(summary => map.set(summary.cardId, summary));
+        return map;
+    }, [activeMonth, monthlySummary]);
+
     const calculateFeeCycleProgress = (openDateStr, nextFeeDateStr) => {
         if (!openDateStr || !nextFeeDateStr) return { daysPast: 0, progressPercent: 0 };
         
@@ -624,7 +632,8 @@ export default function CashbackDashboard() {
                                 key={card.id}
                                 card={card}
                                 activeMonth={activeMonth}
-                                monthlySummary={monthlySummary}
+                                // Pass the specific summary object for this card
+                                cardMonthSummary={activeMonthSummariesMap.get(card.id)} 
                                 rules={rules.filter(r => r.cardId === card.id)}
                                 currencyFn={currency}
                                 fmtYMShortFn={fmtYMShort}
@@ -3106,25 +3115,39 @@ function QuickAddButtons({ vendors, onSelect }) {
 }
 
 // ===================================================================================
-// START: NEW ENHANCED CARD COMPONENT FOR 'MY CARDS' TAB
+// START: NEW ENHANCED CARD COMPONENT (REPLACES THE OLD ONE)
 // ===================================================================================
 
-function EnhancedCard({ card, activeMonth, monthlySummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn }) {
+// A new, reusable sub-component for displaying metrics consistently.
+function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = false }) {
+    return (
+        <div className="p-3 bg-slate-50/70 rounded-lg">
+            <div className="flex items-center text-xs text-slate-500 mb-1">
+                {Icon && <Icon className="h-3.5 w-3.5 mr-1.5" />}
+                <span>{label}</span>
+            </div>
+            <p className={cn(
+                "font-bold transition-all duration-300",
+                isPrimary ? "text-2xl text-slate-800" : "text-lg text-slate-700",
+                valueClassName
+            )}>
+                {value}
+            </p>
+        </div>
+    );
+}
+
+function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn }) {
     
     // --- Data Calculation ---
-    const cardMonthSummary = useMemo(() => 
-        monthlySummary.find(s => s.cardId === card.id && s.month === activeMonth),
-        [monthlySummary, card.id, activeMonth]
-    );
-
+    
+    // Monthly stats
     const totalSpendMonth = cardMonthSummary?.spend || 0;
     const estCashbackMonth = cardMonthSummary?.cashback || 0;
-    const effectiveRate = totalSpendMonth > 0 ? (estCashbackMonth / totalSpendMonth) * 100 : 0;
-
-    const totalSpendYTD = useMemo(() => 
-        monthlySummary.filter(s => s.cardId === card.id).reduce((acc, s) => acc + (s.spend || 0), 0),
-        [monthlySummary, card.id]
-    );
+    const monthlyEffectiveRate = totalSpendMonth > 0 ? (estCashbackMonth / totalSpendMonth) * 100 : 0;
+    
+    // FIX #5: Calculate YTD Effective Rate
+    const ytdEffectiveRate = card.totalSpendingYtd > 0 ? (card.estYtdCashback / card.totalSpendingYtd) * 100 : 0;
 
     const totalValue = (card.estYtdCashback || 0) - (card.annualFee || 0);
     const { daysPast, progressPercent } = calculateFeeCycleProgressFn(card.cardOpenDate, card.nextAnnualFeeDate);
@@ -3143,10 +3166,9 @@ function EnhancedCard({ card, activeMonth, monthlySummary, rules, currencyFn, fm
     const formattedOpenDate = card.cardOpenDate ? new Date(card.cardOpenDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
     const formattedNextFeeDate = card.nextAnnualFeeDate ? new Date(card.nextAnnualFeeDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
-
     return (
         <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col">
-            {/* --- Visual Card Representation --- */}
+            {/* FIX #1: Use backticks (``) for template literals to enable dynamic classes */}
             <div className={`relative rounded-t-xl p-5 ${theme.gradient} ${theme.textColor} flex-shrink-0`}>
                 <div className="flex justify-between items-start">
                     <div>
@@ -3172,91 +3194,74 @@ function EnhancedCard({ card, activeMonth, monthlySummary, rules, currencyFn, fm
                     <p>Payment Due: <span className="font-medium text-slate-600">Day {card.paymentDueDay}</span></p>
                 </div>
 
-                {/* --- Tabbed Information Section --- */}
                 <Tabs defaultValue="month" className="flex-grow flex flex-col">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="month">This Month</TabsTrigger>
                         <TabsTrigger value="ytd">YTD</TabsTrigger>
                         <TabsTrigger value="roi">ROI & Dates</TabsTrigger>
                     </TabsList>
+                    
+                    {/* FIX #4: Add a container with a fixed height to make all tab content equal size */}
+                    <div className="mt-4 flex-grow h-48 flex flex-col justify-center">
+                        <TabsContent value="month" className="mt-0">
+                            {/* FIX #2 & #3: A cleaner, more organized layout for metrics */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <MetricItem
+                                    label={`Rate (${fmtYMShortFn(activeMonth)})`}
+                                    value={`${monthlyEffectiveRate.toFixed(2)}%`}
+                                    isPrimary={true}
+                                    valueClassName={monthlyEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
+                                />
+                                <div className="space-y-2">
+                                    <MetricItem label="Spend" value={currencyFn(totalSpendMonth)} />
+                                    <MetricItem label="Cashback" value={currencyFn(estCashbackMonth)} />
+                                </div>
+                            </div>
+                        </TabsContent>
 
-                    <TabsContent value="month" className="flex-grow mt-4">
-                        <div className="flex flex-col items-center justify-center h-full text-center">
-                            <p className="text-sm text-slate-500 mb-1">Effective Rate ({fmtYMShortFn(activeMonth)})</p>
-                            <div className="relative h-28 w-28">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <RadialBarChart 
-                                        innerRadius="70%" 
-                                        outerRadius="100%" 
-                                        data={[{ name: 'rate', value: effectiveRate > 5 ? 5 : effectiveRate }]} // Cap at 5% for visual
-                                        startAngle={90} 
-                                        endAngle={-270}
-                                    >
-                                        <PolarAngleAxis type="number" domain={[0, 5]} angleAxisId={0} tick={false} />
-                                        <RadialBar background dataKey='value' cornerRadius={10} fill={cn(effectiveRate >= 2 ? 'hsl(142.1 76.2% 41.2%)' : 'hsl(221.2 83.2% 53.3%)')} angleAxisId={0} />
-                                    </RadialBarChart>
-                                </ResponsiveContainer>
-                                <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center">
-                                     <span className="text-3xl font-bold text-slate-800">{effectiveRate.toFixed(2)}<span className="text-lg">%</span></span>
+                        <TabsContent value="ytd" className="mt-0">
+                            <div className="grid grid-cols-2 gap-4">
+                                <MetricItem
+                                    label="YTD Effective Rate"
+                                    value={`${ytdEffectiveRate.toFixed(2)}%`}
+                                    isPrimary={true}
+                                    valueClassName={ytdEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
+                                />
+                                <div className="space-y-2">
+                                    <MetricItem label="Total Spend" value={currencyFn(card.totalSpendingYtd)} />
+                                    <MetricItem label="Total Cashback" value={currencyFn(card.estYtdCashback)} />
                                 </div>
                             </div>
-                           
-                            <div className="grid grid-cols-2 gap-4 mt-4 w-full">
-                                <div className="bg-slate-50 p-2 rounded-lg">
-                                    <p className="text-xs text-slate-500">Spend</p>
-                                    <p className="font-semibold text-slate-700">{currencyFn(totalSpendMonth)}</p>
-                                </div>
-                                <div className="bg-emerald-50 p-2 rounded-lg">
-                                    <p className="text-xs text-emerald-700">Cashback</p>
-                                    <p className="font-semibold text-emerald-800">{currencyFn(estCashbackMonth)}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </TabsContent>
+                        </TabsContent>
 
-                    <TabsContent value="ytd" className="flex-grow mt-4 flex flex-col justify-center">
-                         <div className="space-y-3 text-center">
-                            <div>
-                                <p className="text-sm text-slate-500">Total Spending (YTD)</p>
-                                <p className="text-2xl font-bold text-slate-800 flex items-center justify-center gap-2"><Wallet size={20} /> {currencyFn(totalSpendYTD)}</p>
-                            </div>
-                             <div>
-                                <p className="text-sm text-slate-500">Total Cashback (YTD)</p>
-                                <p className="text-2xl font-bold text-emerald-600 flex items-center justify-center gap-2"><PiggyBank size={20} /> {currencyFn(card.estYtdCashback)}</p>
-                            </div>
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="roi" className="flex-grow mt-4 flex flex-col justify-center">
-                       <div className="space-y-3">
-                            <div>
-                                <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-slate-500">Annual Fee</span>
-                                    <span className="font-medium text-slate-700">{currencyFn(card.annualFee)}</span>
-                                </div>
-                                 <div className="flex justify-between text-sm font-bold border-t pt-2 mt-2">
-                                    <span className="text-slate-800">Net Value (YTD)</span>
-                                    <span className={cn(totalValue >= 0 ? 'text-emerald-600' : 'text-red-600')}>{currencyFn(totalValue)}</span>
-                                </div>
-                            </div>
-                            {progressPercent > 0 && (
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-slate-500">
-                                        <span>Fee Cycle Progress</span>
-                                        <span>{daysPast} days</span>
+                        <TabsContent value="roi" className="mt-0">
+                           <div className="space-y-3">
+                               <div className="grid grid-cols-2 gap-4">
+                                   <MetricItem label="Annual Fee" value={currencyFn(card.annualFee)} />
+                                   <MetricItem 
+                                        label="Net Value (vs. Fee)" 
+                                        value={currencyFn(totalValue)} 
+                                        valueClassName={totalValue >= 0 ? 'text-emerald-600' : 'text-red-500'}
+                                   />
+                               </div>
+                                {progressPercent > 0 && (
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-slate-500">
+                                            <span>Fee Cycle Progress ({daysPast} days)</span>
+                                            <span>{progressPercent}%</span>
+                                        </div>
+                                        <Progress value={progressPercent} />
                                     </div>
-                                    <Progress value={progressPercent} />
+                                )}
+                                <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 pt-2 border-t mt-2">
+                                    <p>Opened: <span className="font-medium text-slate-600">{formattedOpenDate}</span></p>
+                                    <p>Next Fee: <span className="font-medium text-slate-600">{formattedNextFeeDate}</span></p>
                                 </div>
-                            )}
-                             <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 pt-2 border-t mt-3">
-                                <p>Opened: <span className="font-medium text-slate-600">{formattedOpenDate}</span></p>
-                                <p>Next Fee: <span className="font-medium text-slate-600">{formattedNextFeeDate}</span></p>
                             </div>
-                        </div>
-                    </TabsContent>
+                        </TabsContent>
+                    </div>
                 </Tabs>
 
-                {/* --- Footer with Actions --- */}
                 <div className="mt-auto pt-4 border-t flex justify-end">
                     <CardInfoDialog card={card} rules={rules} />
                 </div>
