@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe, Check, PiggyBank, Landmark, Calendar, CircleDot } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe, Check, PiggyBank, CircleDot } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
@@ -3153,8 +3153,8 @@ function EnhancedCard({ card, activeMonth, monthlySummary, rules, currencyFn, fm
                         <p className="font-bold text-lg">{card.bank}</p>
                         <p className="text-sm opacity-80">{card.cardType}</p>
                     </div>
-                    <Badge variant="outline" className={`capitalize rounded-md h-7 border-white/20 ${theme.textColor} bg-white/10`}>
-                       {card.status}
+                    <Badge variant="outline" className={cn('capitalize rounded-md h-7', getStatusClasses(card.status))}>
+                        {card.status}
                     </Badge>
                 </div>
                 <div className="w-12 h-8 bg-yellow-400/20 rounded-md my-4 border border-white/20 flex items-center justify-center">
