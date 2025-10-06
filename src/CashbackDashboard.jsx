@@ -143,6 +143,7 @@ export default function CashbackDashboard() {
     const [dialogTransactions, setDialogTransactions] = useState([]);
     const [isDialogLoading, setIsDialogLoading] = useState(false);
     const [commonVendors, setCommonVendors] = useState([]);
+    const [cardView, setCardView] = useState('month'); // 'month', 'ytd', or 'roi'
 
     const handleTransactionAdded = (newTransaction) => {
         // 1. Instantly update the list for the current month
@@ -626,23 +627,29 @@ export default function CashbackDashboard() {
 
                 <TabsContent value="cards" className="space-y-4 pt-4">
                     <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
+                    <Tabs defaultValue="month" value={cardView} onValueChange={(value) => setCardView(value)} className="w-full sm:w-auto">
+                        <TabsList className="grid w-full grid-cols-3 sm:w-auto">
+                            <TabsTrigger value="month">This Month</TabsTrigger>
+                            <TabsTrigger value="ytd">YTD</TabsTrigger>
+                            <TabsTrigger value="roi">ROI & Dates</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                         {sortedCards.map(card => (
                             <EnhancedCard 
                                 key={card.id}
                                 card={card}
                                 activeMonth={activeMonth}
-                                // Pass the specific summary object for this card
                                 cardMonthSummary={activeMonthSummariesMap.get(card.id)} 
                                 rules={rules.filter(r => r.cardId === card.id)}
                                 currencyFn={currency}
                                 fmtYMShortFn={fmtYMShort}
                                 calculateFeeCycleProgressFn={calculateFeeCycleProgress}
+                                view={cardView} // Pass the new state down as a 'view' prop
                             />
                         ))}
                     </div>
                 </TabsContent>
-                
                 <TabsContent value="payments" className="space-y-4 pt-4">
                     <PaymentsTabV2 
                         cards={cards}
@@ -3137,21 +3144,24 @@ function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = fals
     );
 }
 
-function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn }) {
+// ===================================================================================
+// START: REVISED ENHANCED CARD COMPONENT (WITH GLOBAL VIEW PROP)
+// ===================================================================================
+
+// The MetricItem sub-component remains the same.
+function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = false }) {
+    // ... (no changes to this sub-component)
+}
+
+function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn, view }) {
     
-    // --- Data Calculation ---
-    
-    // Monthly stats
+    // --- Data Calculations (no changes here) ---
     const totalSpendMonth = cardMonthSummary?.spend || 0;
     const estCashbackMonth = cardMonthSummary?.cashback || 0;
     const monthlyEffectiveRate = totalSpendMonth > 0 ? (estCashbackMonth / totalSpendMonth) * 100 : 0;
-    
-    // FIX #5: Calculate YTD Effective Rate
     const ytdEffectiveRate = card.totalSpendingYtd > 0 ? (card.estYtdCashback / card.totalSpendingYtd) * 100 : 0;
-
     const totalValue = (card.estYtdCashback || 0) - (card.annualFee || 0);
     const { daysPast, progressPercent } = calculateFeeCycleProgressFn(card.cardOpenDate, card.nextAnnualFeeDate);
-    
     const theme = cardThemes[card.bank] || cardThemes['default'];
 
     const getStatusClasses = (status) => {
@@ -3168,7 +3178,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
 
     return (
         <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col">
-            {/* FIX #1: Use backticks (``) for template literals to enable dynamic classes */}
+            {/* Visual Card Header (no changes) */}
             <div className={`relative rounded-t-xl p-5 ${theme.gradient} ${theme.textColor} flex-shrink-0`}>
                 <div className="flex justify-between items-start">
                     <div>
@@ -3189,78 +3199,70 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
             </div>
             
             <div className="p-5 flex-grow flex flex-col">
-                 <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 mb-4">
+                <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 mb-4">
                     <p>Statement: <span className="font-medium text-slate-600">Day {card.statementDay}</span></p>
                     <p>Payment Due: <span className="font-medium text-slate-600">Day {card.paymentDueDay}</span></p>
                 </div>
 
-                <Tabs defaultValue="month" className="flex-grow flex flex-col">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="month">This Month</TabsTrigger>
-                        <TabsTrigger value="ytd">YTD</TabsTrigger>
-                        <TabsTrigger value="roi">ROI & Dates</TabsTrigger>
-                    </TabsList>
-                    
-                    {/* FIX #4: Add a container with a fixed height to make all tab content equal size */}
-                    <div className="mt-4 flex-grow h-48 flex flex-col justify-center">
-                        <TabsContent value="month" className="mt-0">
-                            {/* FIX #2 & #3: A cleaner, more organized layout for metrics */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <MetricItem
-                                    label={`Rate (${fmtYMShortFn(activeMonth)})`}
-                                    value={`${monthlyEffectiveRate.toFixed(2)}%`}
-                                    isPrimary={true}
-                                    valueClassName={monthlyEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
-                                />
-                                <div className="space-y-2">
-                                    <MetricItem label="Spend" value={currencyFn(totalSpendMonth)} />
-                                    <MetricItem label="Cashback" value={currencyFn(estCashbackMonth)} />
-                                </div>
+                {/* --- REMOVED THE INTERNAL TABS COMPONENT --- */}
+                {/* --- This container now uses the 'view' prop for conditional rendering --- */}
+                <div className="flex-grow h-48 flex flex-col justify-center">
+                    {view === 'month' && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <MetricItem
+                                label={`Rate (${fmtYMShortFn(activeMonth)})`}
+                                value={`${monthlyEffectiveRate.toFixed(2)}%`}
+                                isPrimary={true}
+                                valueClassName={monthlyEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
+                            />
+                            <div className="space-y-2">
+                                <MetricItem label="Spend" value={currencyFn(totalSpendMonth)} />
+                                <MetricItem label="Cashback" value={currencyFn(estCashbackMonth)} />
                             </div>
-                        </TabsContent>
+                        </div>
+                    )}
 
-                        <TabsContent value="ytd" className="mt-0">
-                            <div className="grid grid-cols-2 gap-4">
-                                <MetricItem
-                                    label="YTD Effective Rate"
-                                    value={`${ytdEffectiveRate.toFixed(2)}%`}
-                                    isPrimary={true}
-                                    valueClassName={ytdEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
-                                />
-                                <div className="space-y-2">
-                                    <MetricItem label="Total Spend" value={currencyFn(card.totalSpendingYtd)} />
-                                    <MetricItem label="Total Cashback" value={currencyFn(card.estYtdCashback)} />
-                                </div>
+                    {view === 'ytd' && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <MetricItem
+                                label="YTD Effective Rate"
+                                value={`${ytdEffectiveRate.toFixed(2)}%`}
+                                isPrimary={true}
+                                valueClassName={ytdEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
+                            />
+                            <div className="space-y-2">
+                                <MetricItem label="Total Spend" value={currencyFn(card.totalSpendingYtd)} />
+                                <MetricItem label="Total Cashback" value={currencyFn(card.estYtdCashback)} />
                             </div>
-                        </TabsContent>
+                        </div>
+                    )}
 
-                        <TabsContent value="roi" className="mt-0">
-                           <div className="space-y-3">
-                               <div className="grid grid-cols-2 gap-4">
-                                   <MetricItem label="Annual Fee" value={currencyFn(card.annualFee)} />
-                                   <MetricItem 
-                                        label="Net Value (vs. Fee)" 
-                                        value={currencyFn(totalValue)} 
-                                        valueClassName={totalValue >= 0 ? 'text-emerald-600' : 'text-red-500'}
-                                   />
-                               </div>
-                                {progressPercent > 0 && (
-                                    <div>
-                                        <div className="flex justify-between text-xs mb-1 text-slate-500">
-                                            <span>Fee Cycle Progress ({daysPast} days)</span>
-                                            <span>{progressPercent}%</span>
-                                        </div>
-                                        <Progress value={progressPercent} />
+                    {view === 'roi' && (
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-4">
+                                <MetricItem label="Annual Fee" value={currencyFn(card.annualFee)} />
+                                <MetricItem 
+                                    label="Net Value (vs. Fee)" 
+                                    value={currencyFn(totalValue)} 
+                                    valueClassName={totalValue >= 0 ? 'text-emerald-600' : 'text-red-500'}
+                                />
+                            </div>
+                            {progressPercent > 0 && (
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-slate-500">
+                                        <span>Fee Cycle Progress ({daysPast} days)</span>
+                                        <span>{progressPercent}%</span>
                                     </div>
-                                )}
-                                <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 pt-2 border-t mt-2">
-                                    <p>Opened: <span className="font-medium text-slate-600">{formattedOpenDate}</span></p>
-                                    <p>Next Fee: <span className="font-medium text-slate-600">{formattedNextFeeDate}</span></p>
+                                    <Progress value={progressPercent} />
                                 </div>
+                            )}
+                            <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 pt-2 border-t mt-2">
+                                <p>Opened: <span className="font-medium text-slate-600">{formattedOpenDate}</span></p>
+                                <p>Next Fee: <span className="font-medium text-slate-600">{formattedNextFeeDate}</span></p>
                             </div>
-                        </TabsContent>
-                    </div>
-                </Tabs>
+                        </div>
+                    )}
+                </div>
 
                 <div className="mt-auto pt-4 border-t flex justify-end">
                     <CardInfoDialog card={card} rules={rules} />
@@ -3271,5 +3273,5 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
 }
 
 // ===================================================================================
-// END: NEW ENHANCED CARD COMPONENT
+// END: REVISED ENHANCED CARD COMPONENT
 // ===================================================================================
