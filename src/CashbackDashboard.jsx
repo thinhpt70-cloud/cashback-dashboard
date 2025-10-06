@@ -619,6 +619,12 @@ export default function CashbackDashboard() {
 
                             const isMaxedOut = card.overallMonthlyLimit > 0 && estCashbackMonth >= card.overallMonthlyLimit;
 
+                            // --- NEW: ROI CALCULATION LOGIC ---
+                            const totalValue = (card.estYtdCashback || 0) - (card.annualFee || 0);
+                            const isNetPositive = totalValue >= 0;
+                            const { daysPast, progressPercent } = calculateFeeCycleProgress(card.cardOpenDate, card.nextAnnualFeeDate);
+
+
                             return (
                                 <Card 
                                     key={card.id} 
@@ -637,8 +643,6 @@ export default function CashbackDashboard() {
                                         </p>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
-                                        {/* --- NEW TWO-ROW LAYOUT --- */}
-
                                         {/* Row 1: Year-to-Date Totals */}
                                         <div className="grid grid-cols-2 gap-4 text-center">
                                             <div>
@@ -695,6 +699,35 @@ export default function CashbackDashboard() {
                                             )}
                                             <CardInfoDialog card={card} rules={rules.filter(r => r.cardId === card.id)} />
                                         </div>
+                                        
+                                        {/* --- NEW: INTEGRATED ROI SECTION --- */}
+                                        <div className="border-t pt-4 space-y-3">
+                                            <h4 className="text-sm font-semibold text-center text-muted-foreground">
+                                                Return on Investment (YTD)
+                                            </h4>
+                                            <div className="grid grid-cols-2 gap-4 text-sm text-center">
+                                                <div>
+                                                    <p className="text-muted-foreground">Annual Fee</p>
+                                                    <p className="font-medium">{currency(card.annualFee)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-muted-foreground">Net Value</p>
+                                                    <p className={cn("font-medium", isNetPositive ? 'text-emerald-600' : 'text-orange-500')}>
+                                                        {currency(totalValue)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {progressPercent > 0 && (
+                                                <div>
+                                                    <div className="flex justify-between text-xs mb-1 text-gray-500">
+                                                        <span>{daysPast} days into fee cycle</span>
+                                                        <span>{progressPercent}%</span>
+                                                    </div>
+                                                    <Progress value={progressPercent} />
+                                                </div>
+                                            )}
+                                        </div>
+
 
                                         <div className="border-t pt-4">
                                             <CategoryCapsUsage 
@@ -713,24 +746,14 @@ export default function CashbackDashboard() {
                 </TabsContent>
                 
                 <TabsContent value="payments" className="space-y-4 pt-4">
-                    {/* Create a grid for the two components */}
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                        {/* The summary table takes up 2/3 of the space on large screens */}
-                        <div className="lg:col-span-3">
-                            <PaymentsTabV2 
-                                cards={cards}
-                                monthlySummary={monthlySummary}
-                                currencyFn={currency}
-                                fmtYMShortFn={fmtYMShort}
-                                daysLeftFn={calculateDaysLeft}
-                                onViewTransactions={handleViewTransactions}
-                            />
-                        </div>
-                        {/* The new ROI component takes up 1/3 of the space */}
-                        <div className="lg:col-span-1">
-                            <CardRoi cards={cards} currencyFn={currency} feeCycleProgressFn={calculateFeeCycleProgress} />
-                        </div>
-                    </div>
+                    <PaymentsTabV2 
+                        cards={cards}
+                        monthlySummary={monthlySummary}
+                        currencyFn={currency}
+                        fmtYMShortFn={fmtYMShort}
+                        daysLeftFn={calculateDaysLeft}
+                        onViewTransactions={handleViewTransactions}
+                    />
                 </TabsContent>
             </Tabs>
             </main>  
@@ -2059,75 +2082,6 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                 </table>
             </div>
         </div>
-    );
-}
-
-function CardRoi({ cards, currencyFn, feeCycleProgressFn }) {
-    const roiData = useMemo(() => {
-        const data = cards.map(card => {
-            const totalValue = (card.estYtdCashback || 0) - (card.annualFee || 0);
-            const isNetPositive = totalValue >= 0;
-            const { daysPast, progressPercent } = feeCycleProgressFn(card.cardOpenDate, card.nextAnnualFeeDate);
-            return { ...card, totalValue, isNetPositive, daysPast, progressPercent };
-        });
-        
-        // --- THIS IS THE UPDATED SORTING LOGIC ---
-        // Sort by progress percentage from highest to lowest
-        data.sort((a, b) => b.progressPercent - a.progressPercent);
-
-        return data;
-    }, [cards, feeCycleProgressFn]);
-
-    return (
-        <Card>
-            <CardHeader><CardTitle>Card ROI (Year-to-Date)</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-                {roiData.map(card => (
-                    <div key={card.id} className="p-4 rounded-lg border bg-background">
-                        <div className="flex justify-between items-start mb-2">
-                            <div>
-                                <p className="font-semibold">{card.name}</p>
-                                <p className="text-sm text-gray-500">Open since: {card.cardOpenDate || "N/A"}</p>
-                                <p className="text-sm text-gray-500">Next Fee: {card.nextAnnualFeeDate || "N/A"}</p>
-                            </div>
-                            <Badge variant="outline" className={cn(
-                                "font-semibold",
-                                card.isNetPositive
-                                    ? "border-gray-300 border text-gray-600"
-                                    : "bg-red-500 text-white border-transparent"
-                            )}>
-                                {card.isNetPositive ? "Net Positive" : "Net Negative"}
-                            </Badge>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 text-sm mb-3">
-                            <div>
-                                <p className="text-muted-foreground">Annual Fee</p>
-                                <p className="font-medium">{currencyFn(card.annualFee)}</p>
-                            </div>
-                            <div>
-                                <p className="text-muted-foreground">Total Value (YTD)</p>
-                                <p className={`font-medium ${card.isNetPositive ? 'text-emerald-600' : 'text-orange-500'}`}>
-                                    {currencyFn(card.totalValue)}
-                                </p>
-                            </div>
-                        </div>
-                        {card.progressPercent > 0 && (
-                            <div>
-                                <div className="flex justify-between text-xs mb-1">
-                                    <span className={"text-gray-500"}>
-                                        {card.daysPast} days past
-                                    </span>
-                                    <span className={"text-gray-500"}>
-                                        {card.progressPercent}%
-                                    </span>
-                                </div>
-                                <Progress value={card.progressPercent} />
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </CardContent>
-        </Card>
     );
 }
 
