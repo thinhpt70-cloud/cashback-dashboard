@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe, Check } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe, Check, PiggyBank, Landmark, Calendar, CircleDot } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
@@ -23,7 +23,7 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "./components/ui/sheet";
-import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
+import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line, RadialBarChart, RadialBar, PolarAngleAxis } from "recharts";
 import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, List } from "lucide-react";
 import { cn } from "./lib/utils";
 import { Toaster, toast } from 'sonner';
@@ -99,6 +99,23 @@ const calculateDaysUntilStatement = (statementDay, activeMonth) => {
 };
 
 const COLORS = ['#0ea5e9', '#84cc16', '#f43f5e', '#f59e0b', '#6366f1', '#14b8a6', '#d946ef'];
+
+const cardThemes = {
+    // Existing Themes
+    'VIB': { gradient: 'from-sky-500 to-sky-700', textColor: 'text-white' },
+    'HSBC': { gradient: 'from-red-600 to-red-800', textColor: 'text-white' },
+    'Shinhan Bank': { gradient: 'from-blue-400 to-blue-600', textColor: 'text-white' },
+    'Techcombank': { gradient: 'from-red-500 to-orange-500', textColor: 'text-white' },
+    
+    // --- NEW THEMES TO ADD ---
+    'Kbank': { gradient: 'from-lime-500 to-green-600', textColor: 'text-white' },
+    'Cake': { gradient: 'from-pink-500 to-fuchsia-600', textColor: 'text-white' },
+    'MSB': { gradient: 'from-orange-500 to-orange-700', textColor: 'text-white' },
+    'UOB': { gradient: 'from-blue-700 to-blue-900', textColor: 'text-white' },
+    
+    // Fallback Theme
+    'default': { gradient: 'from-slate-600 to-slate-800', textColor: 'text-white' },
+};
 
 
 export default function CashbackDashboard() {
@@ -601,138 +618,19 @@ export default function CashbackDashboard() {
 
                 <TabsContent value="cards" className="space-y-4 pt-4">
                     <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
-
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {sortedCards.map(card => {
-                            // --- LOGIC TO GET ALL STATS FOR THE CARD ---
-
-                            // 1. Get Monthly Stats (for the selected month)
-                            const cardMonthSummary = monthlySummary.find(
-                                summary => summary.cardId === card.id && summary.month === activeMonth
-                            );
-                            const totalSpendMonth = cardMonthSummary ? cardMonthSummary.spend : 0;
-                            const estCashbackMonth = cardMonthSummary ? cardMonthSummary.cashback : 0;
-                            const effectiveRate = totalSpendMonth > 0 ? (estCashbackMonth / totalSpendMonth) * 100 : 0;
-
-                            // 2. Calculate Total YTD Spend by summing up all months from the summary data
-                            const totalSpendYTD = monthlySummary
-                                .filter(summary => summary.cardId === card.id)
-                                .reduce((acc, summary) => acc + (summary.spend || 0), 0);
-
-                            const isMaxedOut = card.overallMonthlyLimit > 0 && estCashbackMonth >= card.overallMonthlyLimit;
-
-                            // --- NEW: ROI CALCULATION LOGIC ---
-                            const totalValue = (card.estYtdCashback || 0) - (card.annualFee || 0);
-                            const isNetPositive = totalValue >= 0;
-                            const { daysPast, progressPercent } = calculateFeeCycleProgress(card.cardOpenDate, card.nextAnnualFeeDate);
-
-
-                            return (
-                                <Card 
-                                    key={card.id} 
-                                    className={cn(
-                                        "transition-shadow duration-300",
-                                        isMaxedOut && "shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-500"
-                                    )}
-                                >
-                                    <CardHeader>
-                                        <div className="flex items-center justify-between">
-                                            <CardTitle className="text-lg">{card.name} &bull;&bull;&bull;{card.last4}</CardTitle>
-                                            <Badge variant="outline">{card.bank}</Badge>
-                                        </div>
-                                        <p className="text-sm text-gray-500 pt-1">
-                                            Statement Due Day: {card.statementDay} &bull; Payment Due Day: {card.paymentDueDay}
-                                        </p>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        {/* Row 1: Year-to-Date Totals */}
-                                        <div className="grid grid-cols-2 gap-4 text-center">
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Total Spending</p>
-                                                <p className="font-semibold text-xl">{currency(totalSpendYTD)}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Total Cashback</p>
-                                                <p className="font-semibold text-xl text-emerald-600">{currency(card.estYtdCashback)}</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Divider for visual separation */}
-                                        <div className="border-t"></div>
-
-                                        {/* Row 2: Selected Month's Stats */}
-                                        <div className="grid grid-cols-3 gap-4 text-center">
-                                            <div>
-                                                <p className="font-semibold text-lg">{currency(totalSpendMonth)}</p>
-                                                <p className="text-sm text-muted-foreground">Spend</p>
-                                                <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-lg text-emerald-600">{currency(estCashbackMonth)}</p>
-                                                <p className="text-sm text-muted-foreground">Cashback</p>
-                                                <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-lg">{effectiveRate.toFixed(2)}%</p>
-                                                <p className="text-sm text-muted-foreground">% Rate</p>
-                                                <p className="text-xs text-gray-500">{fmtYMShort(activeMonth)}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex justify-end items-center gap-2 pt-2">
-                                            {card.status && (
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn(
-                                                        'capitalize rounded-md h-7', // Override pill shape to match button
-                                                        card.status === 'Active' && 'bg-emerald-100 text-emerald-800 border-emerald-200',
-                                                        card.status === 'Closed' && 'bg-red-100 text-red-800 border-red-200',
-                                                        card.status === 'Frozen' && 'bg-blue-100 text-blue-800 border-blue-200'
-                                                    )}
-                                                >
-                                                    <span className={cn( // The new status dot
-                                                        "mr-2 h-2 w-2 rounded-full",
-                                                        card.status === 'Active' && 'bg-emerald-500',
-                                                        card.status === 'Closed' && 'bg-red-500',
-                                                        card.status === 'Frozen' && 'bg-blue-500'
-                                                    )} />
-                                                    {card.status}
-                                                </Badge>
-                                            )}
-                                            <CardInfoDialog card={card} rules={rules.filter(r => r.cardId === card.id)} />
-                                        </div>
-                                        
-                                        {/* --- NEW: INTEGRATED ROI SECTION --- */}
-                                        <div className="border-t pt-4 space-y-3">
-                                            <h4 className="text-sm font-semibold text-center text-muted-foreground">
-                                                Return on Investment (YTD)
-                                            </h4>
-                                            <div className="grid grid-cols-2 gap-4 text-sm text-center">
-                                                <div>
-                                                    <p className="text-muted-foreground">Annual Fee</p>
-                                                    <p className="font-medium">{currency(card.annualFee)}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-muted-foreground">Net Value</p>
-                                                    <p className={cn("font-medium", isNetPositive ? 'text-emerald-600' : 'text-orange-500')}>
-                                                        {currency(totalValue)}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            {progressPercent > 0 && (
-                                                <div>
-                                                    <div className="flex justify-between text-xs mb-1 text-gray-500">
-                                                        <span>{daysPast} days into fee cycle</span>
-                                                        <span>{progressPercent}%</span>
-                                                    </div>
-                                                    <Progress value={progressPercent} />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            );
-                        })}
+                        {sortedCards.map(card => (
+                            <EnhancedCard 
+                                key={card.id}
+                                card={card}
+                                activeMonth={activeMonth}
+                                monthlySummary={monthlySummary}
+                                rules={rules.filter(r => r.cardId === card.id)}
+                                currencyFn={currency}
+                                fmtYMShortFn={fmtYMShort}
+                                calculateFeeCycleProgressFn={calculateFeeCycleProgress}
+                            />
+                        ))}
                     </div>
                 </TabsContent>
                 
@@ -3206,3 +3104,167 @@ function QuickAddButtons({ vendors, onSelect }) {
     );
 
 }
+
+// ===================================================================================
+// START: NEW ENHANCED CARD COMPONENT FOR 'MY CARDS' TAB
+// ===================================================================================
+
+function EnhancedCard({ card, activeMonth, monthlySummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn }) {
+    
+    // --- Data Calculation ---
+    const cardMonthSummary = useMemo(() => 
+        monthlySummary.find(s => s.cardId === card.id && s.month === activeMonth),
+        [monthlySummary, card.id, activeMonth]
+    );
+
+    const totalSpendMonth = cardMonthSummary?.spend || 0;
+    const estCashbackMonth = cardMonthSummary?.cashback || 0;
+    const effectiveRate = totalSpendMonth > 0 ? (estCashbackMonth / totalSpendMonth) * 100 : 0;
+
+    const totalSpendYTD = useMemo(() => 
+        monthlySummary.filter(s => s.cardId === card.id).reduce((acc, s) => acc + (s.spend || 0), 0),
+        [monthlySummary, card.id]
+    );
+
+    const totalValue = (card.estYtdCashback || 0) - (card.annualFee || 0);
+    const { daysPast, progressPercent } = calculateFeeCycleProgressFn(card.cardOpenDate, card.nextAnnualFeeDate);
+    
+    const theme = cardThemes[card.bank] || cardThemes['default'];
+
+    const getStatusClasses = (status) => {
+        switch (status) {
+            case 'Active': return 'bg-emerald-100 text-emerald-800';
+            case 'Frozen': return 'bg-blue-100 text-blue-800';
+            case 'Closed': return 'bg-red-100 text-red-800';
+            default: return 'bg-slate-100 text-slate-800';
+        }
+    };
+    
+    const formattedOpenDate = card.cardOpenDate ? new Date(card.cardOpenDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+    const formattedNextFeeDate = card.nextAnnualFeeDate ? new Date(card.nextAnnualFeeDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+
+
+    return (
+        <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col">
+            {/* --- Visual Card Representation --- */}
+            <div className={`relative rounded-t-xl p-5 ${theme.gradient} ${theme.textColor} flex-shrink-0`}>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="font-bold text-lg">{card.bank}</p>
+                        <p className="text-sm opacity-80">{card.cardType}</p>
+                    </div>
+                    <Badge variant="outline" className={`capitalize rounded-md h-7 border-white/20 ${theme.textColor} bg-white/10`}>
+                       {card.status}
+                    </Badge>
+                </div>
+                <div className="w-12 h-8 bg-yellow-400/20 rounded-md my-4 border border-white/20 flex items-center justify-center">
+                    <CircleDot className="h-6 w-6 text-yellow-300/50" />
+                </div>
+                <div className="flex justify-between items-end">
+                    <p className="font-mono text-xl tracking-wider">•••• {card.last4}</p>
+                    <p className="font-semibold text-lg truncate text-right ml-4">{card.name}</p>
+                </div>
+            </div>
+            
+            <div className="p-5 flex-grow flex flex-col">
+                 <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 mb-4">
+                    <p>Statement: <span className="font-medium text-slate-600">Day {card.statementDay}</span></p>
+                    <p>Payment Due: <span className="font-medium text-slate-600">Day {card.paymentDueDay}</span></p>
+                </div>
+
+                {/* --- Tabbed Information Section --- */}
+                <Tabs defaultValue="month" className="flex-grow flex flex-col">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="month">This Month</TabsTrigger>
+                        <TabsTrigger value="ytd">YTD</TabsTrigger>
+                        <TabsTrigger value="roi">ROI & Dates</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="month" className="flex-grow mt-4">
+                        <div className="flex flex-col items-center justify-center h-full text-center">
+                            <p className="text-sm text-slate-500 mb-1">Effective Rate ({fmtYMShortFn(activeMonth)})</p>
+                            <div className="relative h-28 w-28">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <RadialBarChart 
+                                        innerRadius="70%" 
+                                        outerRadius="100%" 
+                                        data={[{ name: 'rate', value: effectiveRate > 5 ? 5 : effectiveRate }]} // Cap at 5% for visual
+                                        startAngle={90} 
+                                        endAngle={-270}
+                                    >
+                                        <PolarAngleAxis type="number" domain={[0, 5]} angleAxisId={0} tick={false} />
+                                        <RadialBar background dataKey='value' cornerRadius={10} fill={cn(effectiveRate >= 2 ? 'hsl(142.1 76.2% 41.2%)' : 'hsl(221.2 83.2% 53.3%)')} angleAxisId={0} />
+                                    </RadialBarChart>
+                                </ResponsiveContainer>
+                                <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center">
+                                     <span className="text-3xl font-bold text-slate-800">{effectiveRate.toFixed(2)}<span className="text-lg">%</span></span>
+                                </div>
+                            </div>
+                           
+                            <div className="grid grid-cols-2 gap-4 mt-4 w-full">
+                                <div className="bg-slate-50 p-2 rounded-lg">
+                                    <p className="text-xs text-slate-500">Spend</p>
+                                    <p className="font-semibold text-slate-700">{currencyFn(totalSpendMonth)}</p>
+                                </div>
+                                <div className="bg-emerald-50 p-2 rounded-lg">
+                                    <p className="text-xs text-emerald-700">Cashback</p>
+                                    <p className="font-semibold text-emerald-800">{currencyFn(estCashbackMonth)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="ytd" className="flex-grow mt-4 flex flex-col justify-center">
+                         <div className="space-y-3 text-center">
+                            <div>
+                                <p className="text-sm text-slate-500">Total Spending (YTD)</p>
+                                <p className="text-2xl font-bold text-slate-800 flex items-center justify-center gap-2"><Wallet size={20} /> {currencyFn(totalSpendYTD)}</p>
+                            </div>
+                             <div>
+                                <p className="text-sm text-slate-500">Total Cashback (YTD)</p>
+                                <p className="text-2xl font-bold text-emerald-600 flex items-center justify-center gap-2"><PiggyBank size={20} /> {currencyFn(card.estYtdCashback)}</p>
+                            </div>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="roi" className="flex-grow mt-4 flex flex-col justify-center">
+                       <div className="space-y-3">
+                            <div>
+                                <div className="flex justify-between text-sm mb-1">
+                                    <span className="text-slate-500">Annual Fee</span>
+                                    <span className="font-medium text-slate-700">{currencyFn(card.annualFee)}</span>
+                                </div>
+                                 <div className="flex justify-between text-sm font-bold border-t pt-2 mt-2">
+                                    <span className="text-slate-800">Net Value (YTD)</span>
+                                    <span className={cn(totalValue >= 0 ? 'text-emerald-600' : 'text-red-600')}>{currencyFn(totalValue)}</span>
+                                </div>
+                            </div>
+                            {progressPercent > 0 && (
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-slate-500">
+                                        <span>Fee Cycle Progress</span>
+                                        <span>{daysPast} days</span>
+                                    </div>
+                                    <Progress value={progressPercent} />
+                                </div>
+                            )}
+                             <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 pt-2 border-t mt-3">
+                                <p>Opened: <span className="font-medium text-slate-600">{formattedOpenDate}</span></p>
+                                <p>Next Fee: <span className="font-medium text-slate-600">{formattedNextFeeDate}</span></p>
+                            </div>
+                        </div>
+                    </TabsContent>
+                </Tabs>
+
+                {/* --- Footer with Actions --- */}
+                <div className="mt-auto pt-4 border-t flex justify-end">
+                    <CardInfoDialog card={card} rules={rules} />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ===================================================================================
+// END: NEW ENHANCED CARD COMPONENT
+// ===================================================================================
