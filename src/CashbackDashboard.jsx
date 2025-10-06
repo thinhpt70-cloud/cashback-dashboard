@@ -1824,21 +1824,21 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button onClick={() => onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month))} variant="outline" size="icon" className="sm:w-auto sm:px-3">
-                                    <List className="h-4 w-4" />
-                                    <span className="hidden sm:inline ml-1.5">Details</span>
+                                    <History className="h-4 w-4" />
+                                    <span className="hidden sm:inline ml-1.5">Transaction Details</span>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent className="sm:hidden"><p>View Transactions</p></TooltipContent>
+                            <TooltipContent className="sm:hidden"><p>Transaction Details</p></TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button onClick={() => setHistoryOpen(!historyOpen)} variant="outline" size="icon" className="sm:w-auto sm:px-3">
-                                    <History className="h-4 w-4" />
-                                    <span className="hidden sm:inline ml-1.5">View Statements</span>
+                                    <List className="h-4 w-4" />
+                                    <span className="hidden sm:inline ml-1.5">Statements</span>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent className="sm:hidden"><p>View Statements</p></TooltipContent>
+                            <TooltipContent className="sm:hidden"><p>Statements</p></TooltipContent>
                         </Tooltip>
 
                         {!noPaymentNeeded && (
@@ -3098,6 +3098,13 @@ function TransactionDetailsDialog({ isOpen, onClose, details, transactions, isLo
         }, { totalCashback: 0, totalAmount: 0 });
     }, [transactions]);
 
+    const sortedTransactions = useMemo(() => {
+        // Create a shallow copy to avoid mutating the original prop array
+        return [...transactions].sort((a, b) => 
+            new Date(a['Transaction Date']) - new Date(b['Transaction Date'])
+        );
+    }, [transactions]);
+
     if (!isOpen) return null;
 
     return (
@@ -3122,17 +3129,17 @@ function TransactionDetailsDialog({ isOpen, onClose, details, transactions, isLo
                     <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Transaction</TableHead>
-                    <TableHead className="text-right">Cashback</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Cashback</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {transactions.map(tx => (
+                    {sortedTransactions.map(tx => (
                     <TableRow key={tx.id}>
                         <TableCell>{tx['Transaction Date']}</TableCell>
                         <TableCell className="font-medium">{tx['Transaction Name']}</TableCell>
-                        <TableCell className="text-right text-emerald-600 font-medium">{currencyFn(tx.estCashback)}</TableCell>
                         <TableCell className="text-right">{currencyFn(tx['Amount'])}</TableCell>
+                        <TableCell className="text-right text-emerald-600 font-medium">{currencyFn(tx.estCashback)}</TableCell>
                     </TableRow>
                     ))}
                 </TableBody>
