@@ -1159,7 +1159,8 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
         <Card className="lg:col-span-3">
             <CardHeader>
                 <CardTitle>Card Spends Cap</CardTitle>
-                <DialogDescription>Overall monthly progress. Click a card to see category details.</DialogDescription>
+                {/* --- THIS IS THE FIX --- */}
+                <p className="text-sm text-muted-foreground">Overall monthly progress. Click a card to see category details.</p>
             </CardHeader>
             <CardContent>
                 {cardSpendsCapProgress.length > 0 ? (
