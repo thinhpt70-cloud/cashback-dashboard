@@ -83,6 +83,9 @@ const parseNotionPageProperties = (page) => {
             case 'status':
                 result[key] = prop.status?.name || null;
                 break;
+            case 'multi_select':
+                result[key] = prop.multi_select.map(option => option.name);
+                break;
             default:
                 result[key] = prop; // Keep the original object for unhandled types
         }
