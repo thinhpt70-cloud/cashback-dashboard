@@ -1927,6 +1927,8 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 // -------------------------------------------------
 function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtYMShortFn }) {
     const [amount, setAmount] = useState('');
+
+    useIOSKeyboardGapFix();
     
     useEffect(() => {
         if (isOpen) {
