@@ -550,6 +550,15 @@ export default function CashbackDashboard() {
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
+                        <div className="lg:col-span-7 flex flex-col">
+                            <CardSpendsCap
+                                cards={cards}
+                                activeMonth={activeMonth}
+                                monthlySummary={monthlySummary}
+                                monthlyCategorySummary={monthlyCategorySummary}
+                                currencyFn={currency}
+                            />
+                        </div>
                         <div className="lg:col-span-5 flex flex-col">
                             <EnhancedSuggestions
                                 rules={rules}
@@ -557,15 +566,6 @@ export default function CashbackDashboard() {
                                 monthlyCategorySummary={monthlyCategorySummary}
                                 monthlySummary={monthlySummary}
                                 activeMonth={activeMonth}
-                                currencyFn={currency}
-                            />
-                        </div>
-                        <div className="lg:col-span-7 flex flex-col">
-                            <CardSpendsCap
-                                cards={cards}
-                                activeMonth={activeMonth}
-                                monthlySummary={monthlySummary}
-                                monthlyCategorySummary={monthlyCategorySummary}
                                 currencyFn={currency}
                             />
                         </div>
@@ -1088,8 +1088,6 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
         <Card className="lg:col-span-3">
             <CardHeader>
                 <CardTitle>Card Spends Cap</CardTitle>
-                {/* --- THIS IS THE FIX --- */}
-                <p className="text-sm text-muted-foreground">Overall monthly progress. Click a card to see category details.</p>
             </CardHeader>
             <CardContent>
                 {cardSpendsCapProgress.length > 0 ? (
@@ -2041,17 +2039,13 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
 }
 
 function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlySummary, currencyFn }) {
-    // --- THIS IS THE ADJUSTED LOGIC ---
-    const { days, status } = card.useStatementMonthForPayments
-        ? calculateDaysLeftInCashbackMonth(activeMonth)
-        : calculateDaysUntilStatement(card.statementDay, activeMonth);
-
     const categoryCapData = useMemo(() => {
         const summaries = monthlyCategorySummary.filter(
             summary => summary.cardId === card.id && summary.month === activeMonth
         );
         if (!summaries.length) return [];
-        return summaries.map(summary => {
+        
+        const data = summaries.map(summary => {
             const currentCashback = summary.cashback || 0;
             const categoryLimit = summary.categoryLimit || 0;
             const usedPct = categoryLimit > 0 ? Math.min(100, Math.round((currentCashback / categoryLimit) * 100)) : 0;
@@ -2063,6 +2057,10 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
             }
             return { id: summary.id, category: categoryName, currentCashback, limit: categoryLimit, usedPct, remaining };
         });
+
+        // NEW: Sort by current cashback amount from highest to lowest
+        return data.sort((a, b) => b.currentCashback - a.currentCashback);
+
     }, [card, activeMonth, monthlyCategorySummary]);
 
     const totalCardData = useMemo(() => {
@@ -2078,50 +2076,38 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
     }, [card, activeMonth, monthlySummary]);
 
     return (
+        // CHANGED: The entire component has been redesigned for a more compact list view
         <div>
-            <h4 className="text-sm font-semibold text-center text-muted-foreground mb-2">Category Caps Usage</h4>
-            <div className="flex justify-center mb-3" style={{ marginBottom: '24px' }}>
-                <Badge variant="outline" className={cn(
-                    "text-xs",
-                    status === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
-                )}>
-                    {status === 'Completed' ? 'Completed' : `${days} days left`}
-                </Badge>
-            </div>
+            <h4 className="text-sm font-semibold text-center text-muted-foreground mb-4">Category Caps Usage</h4>
+            
+            {/* REMOVED: The redundant "days left" badge has been taken out */}
+
             {categoryCapData.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
+                    {/* Total progress is now a compact list item */}
                     {totalCardData && (
-                        <div className="border p-3 rounded-lg space-y-2 flex flex-col bg-slate-100">
-                            <div className="flex justify-between items-start">
-                                <p className="font-semibold text-sm truncate pr-2">Total</p>
-                                <Badge variant="outline" className={cn("font-mono", totalCardData.usedPct >= 100 ? "bg-emerald-500 text-white border-transparent" : "bg-background text-foreground border border-input")}>
-                                    {totalCardData.usedPct}%
-                                </Badge>
+                        <div className="pb-3 border-b">
+                            <div className="flex justify-between items-center text-sm mb-1">
+                                <p className="font-semibold text-slate-800">Total Progress</p>
+                                <span className="font-mono text-xs font-semibold text-slate-500">{totalCardData.usedPct}%</span>
                             </div>
-                            <div className="flex-grow"></div> 
-                            <Progress value={totalCardData.usedPct} className="h-2" />
-                            <div className="flex justify-between text-xs text-muted-foreground">
+                            <Progress value={totalCardData.usedPct} className="h-1.5" />
+                            <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                                 <span>{currencyFn(totalCardData.totalCashback)} / {currencyFn(totalCardData.limit)}</span>
-                                <span className="font-medium">{currencyFn(totalCardData.remaining)} left</span>
+                                <span className="font-medium text-emerald-600">{currencyFn(totalCardData.remaining)} left</span>
                             </div>
                         </div>
                     )}
+
+                    {/* Each category is now a compact list item */}
                     {categoryCapData.map(cap => (
-                        <div key={cap.id} className="border p-3 rounded-lg space-y-2 flex flex-col">
-                            <div className="flex justify-between items-start">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <p className="font-medium text-sm truncate pr-2" title={cap.category}>{cap.category}</p>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>{cap.category}</p></TooltipContent>
-                                </Tooltip>
-                                <Badge variant="outline" className={cn("font-mono", cap.usedPct >= 100 ? "bg-emerald-500 text-white border-transparent" : "bg-background text-foreground border border-input")}>
-                                    {cap.usedPct}%
-                                </Badge>
+                        <div key={cap.id}>
+                            <div className="flex justify-between items-center text-sm mb-1">
+                                <p className="font-medium text-slate-700 truncate pr-4" title={cap.category}>{cap.category}</p>
+                                <span className="font-mono text-xs font-semibold text-slate-500">{cap.usedPct}%</span>
                             </div>
-                            <div className="flex-grow"></div> 
-                            <Progress value={cap.usedPct} className="h-2" />
-                            <div className="flex justify-between text-xs text-muted-foreground">
+                            <Progress value={cap.usedPct} className="h-1.5" />
+                            <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                                 <span>{currencyFn(cap.currentCashback)} / {currencyFn(cap.limit)}</span>
                                 <span className="font-medium">{currencyFn(cap.remaining)} left</span>
                             </div>
