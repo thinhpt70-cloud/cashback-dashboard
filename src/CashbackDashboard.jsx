@@ -145,6 +145,8 @@ export default function CashbackDashboard() {
     const [commonVendors, setCommonVendors] = useState([]);
     const [cardView, setCardView] = useState('month'); // 'month', 'ytd', or 'roi'
 
+    const cardSpendsCapRef = useRef(null);
+
     const handleTransactionAdded = (newTransaction) => {
         // 1. Instantly update the list for the current month
         // This makes the UI feel immediate
@@ -550,6 +552,7 @@ export default function CashbackDashboard() {
 
                     <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
                         <div className="lg:col-span-7 flex flex-col">
+                            <div ref={cardSpendsCapRef} className="lg:col-span-7 flex flex-col"></div>
                             <CardSpendsCap
                                 cards={cards}
                                 activeMonth={activeMonth}
@@ -560,6 +563,7 @@ export default function CashbackDashboard() {
                         </div>
                         <div className="lg:col-span-5 flex flex-col">
                             <EnhancedSuggestions
+                                containerToMatchRef={cardSpendsCapRef}
                                 rules={rules}
                                 cards={cards}
                                 monthlyCategorySummary={monthlyCategorySummary}
@@ -1071,14 +1075,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                     cycleStatus: status,
                 };
             })
-            .sort((a, b) => {
-                // Prioritize cards that haven't met min spend
-                if (a.minSpendMet !== b.minSpendMet) {
-                    return a.minSpendMet ? 1 : -1;
-                }
-                // Then sort by cap usage percentage
-                return b.usedCapPct - a.usedCapPct;
-            });
+            .sort((a, b) => b.usedCapPct - a.usedCapPct);
     }, [cards, activeMonth, monthlySummary]);
 
     const getProgressColor = (percentage) => {
@@ -3254,112 +3251,90 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
     );
 }
 
-function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn }) {
+function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, containerToMatchRef }) {
     const [startIndex, setStartIndex] = useState(0);
-    // --- NEW: State to hold the dynamic number of visible items ---
-    const [visibleItems, setVisibleItems] = useState(3); 
-    // --- NEW: Ref to measure the component's container ---
-    const cardRef = useRef(null);
+    const [visibleItems, setVisibleItems] = useState(3);
+    const headerRef = useRef(null);
 
-    // --- NEW: Effect to calculate how many items can fit ---
+    // This effect now observes the sibling component for height changes
     useEffect(() => {
-        const calculateVisibleItems = () => {
-            // Default to 3 on mobile viewports
-            if (window.innerWidth < 1024) { // lg breakpoint in Tailwind
-                setVisibleItems(3);
-                return;
-            }
+        const targetElement = containerToMatchRef.current;
+        if (!targetElement) return;
 
-            if (cardRef.current) {
-                // Estimate heights: 72px for header, 115px per suggestion item (including margins)
-                const headerHeight = 72;
+        const observer = new ResizeObserver(entries => {
+            const targetEntry = entries[0];
+            if (targetEntry) {
+                // Default to 3 on mobile viewports
+                if (window.innerWidth < 1024) { // lg breakpoint
+                    setVisibleItems(3);
+                    return;
+                }
+                
+                // Estimate heights: header height is measured, item height is an average
+                const headerHeight = headerRef.current?.clientHeight || 72;
                 const itemHeight = 115;
-                const availableHeight = cardRef.current.clientHeight - headerHeight;
+                const availableHeight = targetEntry.contentRect.height - headerHeight - 24; // Subtract padding too
                 
                 if (availableHeight > 0) {
                     const count = Math.floor(availableHeight / itemHeight);
                     setVisibleItems(Math.max(1, count)); // Ensure at least 1 is shown
                 }
             }
-        };
+        });
 
-        // Calculate on mount and on window resize
-        calculateVisibleItems();
-        window.addEventListener('resize', calculateVisibleItems);
+        observer.observe(targetElement);
 
-        // Cleanup listener
-        return () => window.removeEventListener('resize', calculateVisibleItems);
-    }, []); // Empty dependency array ensures this runs once on mount
+        // Cleanup observer
+        return () => observer.unobserve(targetElement);
+    }, [containerToMatchRef]);
 
     const suggestions = useMemo(() => {
         if (!Array.isArray(rules)) return [];
-        
         const MINIMUM_RATE_THRESHOLD = 0.02;
-
         const candidates = rules.flatMap(rule => {
             if (rule.rate < MINIMUM_RATE_THRESHOLD || rule.status !== 'Active') return [];
             const applicableCategories = rule.applicableCategories?.length ? rule.applicableCategories : [rule.ruleName];
-            return applicableCategories.map(category => ({
-                ...rule,
-                suggestionFor: category,
-                parentRuleName: rule.ruleName,
-            }));
+            return applicableCategories.map(category => ({ ...rule, suggestionFor: category, parentRuleName: rule.ruleName }));
         });
-
         const enrichedCandidates = candidates.map(candidate => {
             const card = cards.find(c => c.id === candidate.cardId);
             if (!card || card.status !== 'Active') return null;
-
             const categorySummary = monthlyCategorySummary.find(s => s.cardId === candidate.cardId && s.month === activeMonth && s.summaryId.endsWith(candidate.parentRuleName));
             const currentCashbackForCategory = categorySummary?.cashback || 0;
-
             const cardSummary = monthlySummary.find(s => s.cardId === candidate.cardId && s.month === activeMonth);
             const currentTotalSpendForCard = cardSummary?.spend || 0;
-            
             const remainingCategoryCap = card.limitPerCategory > 0 ? Math.max(0, card.limitPerCategory - currentCashbackForCategory) : Infinity;
-            
             const hasMetMinSpend = card.minimumMonthlySpend > 0 ? currentTotalSpendForCard >= card.minimumMonthlySpend : true;
-            
             const spendingNeeded = remainingCategoryCap === Infinity ? Infinity : remainingCategoryCap / candidate.rate;
-
             return { ...candidate, cardName: card.name, remainingCategoryCap, hasMetMinSpend, spendingNeeded };
         }).filter(c => c && c.remainingCategoryCap > 0);
-
         enrichedCandidates.sort((a, b) => {
             if (b.rate !== a.rate) return b.rate - a.rate;
             if (a.hasMetMinSpend !== b.hasMetMinSpend) return a.hasMetMinSpend ? 1 : -1;
             return b.remainingCategoryCap - a.remainingCategoryCap;
         });
-
         return enrichedCandidates;
     }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth]);
 
-    const topSuggestions = suggestions.slice(0, 10); // Get a larger pool of suggestions
-    
-    // --- UPDATED: Scrolling logic now uses the dynamic `visibleItems` state ---
+    const topSuggestions = suggestions.slice(0, 10);
     const canScrollUp = startIndex > 0;
     const canScrollDown = startIndex < topSuggestions.length - visibleItems;
-    
+
     const handleScroll = (direction) => {
-        if (direction === 'up' && canScrollUp) {
-            setStartIndex(prev => prev - 1);
-        } else if (direction === 'down' && canScrollDown) {
-            setStartIndex(prev => prev + 1);
-        }
+        if (direction === 'up' && canScrollUp) setStartIndex(prev => prev - 1);
+        else if (direction === 'down' && canScrollDown) setStartIndex(prev => prev + 1);
     };
 
     const visibleSuggestions = topSuggestions.slice(startIndex, startIndex + visibleItems);
 
     return (
-        // --- NEW: Add the ref to the Card component ---
-        <Card ref={cardRef} className="h-full flex flex-col">
-            <CardHeader>
+        <Card className="h-full flex flex-col">
+            <CardHeader ref={headerRef}>
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-base font-semibold flex items-center gap-2">
                         <Lightbulb className="h-5 w-5 text-sky-500" />
                         Top Cashback Opportunities
                     </CardTitle>
-                    {/* --- UPDATED: Check if scrolling is needed based on dynamic height --- */}
                     {topSuggestions.length > visibleItems && (
                          <div className="flex items-center gap-1">
                             <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleScroll('up')} disabled={!canScrollUp}>
@@ -3389,20 +3364,10 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
                                         {(s.rate * 100).toFixed(1)}%
                                     </Badge>
                                 </div>
-                                
                                 <div className="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
-                                    <span className="flex items-center gap-1.5">
-                                        <DollarSign className="h-3.5 w-3.5 text-emerald-600"/>
-                                        <span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span>
-                                        <span>left</span>
-                                    </span>
-                                    <span className="flex items-center gap-1.5">
-                                        <ShoppingCart className="h-3.5 w-3.5"/>
-                                        <span>Spend</span>
-                                        <span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span>
-                                    </span>
+                                    <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600"/><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
+                                    <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5"/><span>Spend</span><span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
                                 </div>
-
                                 {!s.hasMetMinSpend && (
                                     <div className="mt-2 flex items-center gap-2 text-xs text-orange-700 bg-orange-50 p-2 rounded-md border border-orange-200">
                                         <AlertTriangle className="h-4 w-4 flex-shrink-0" />
