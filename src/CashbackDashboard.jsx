@@ -1094,16 +1094,16 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                         {cardSpendsCapProgress.map(p => (
                             <div 
                                 key={p.cardId} 
+                                // STYLE CHANGE 1: Apply background color instead of grayscale/opacity
                                 className={cn(
-                                    "border-b last:border-b-0 py-1 transition-all",
-                                    { "opacity-50 grayscale": p.isCapReached }
+                                    "border-b last:border-b-0 py-1 transition-colors duration-300",
+                                    { "bg-slate-50 rounded-md": p.isCapReached }
                                 )}
                             >
                                 <div 
                                     className="flex flex-col gap-2 p-2 cursor-pointer hover:bg-muted/50 rounded-md"
                                     onClick={() => handleToggleExpand(p.cardId)}
                                 >
-                                    {/* --- Top Row: Card Name & Days Left --- */}
                                     <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-2">
                                             {!p.minSpendMet ? (
@@ -1111,7 +1111,11 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                                             ) : p.isCapReached ? (
                                                 <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0" title="Monthly cap reached" />
                                             ) : null}
-                                            <p className="font-semibold truncate" title={p.cardName}>{p.cardName}</p>
+                                            {/* STYLE CHANGE 2: Conditionally grey out the card name text */}
+                                            <p className={cn(
+                                                "font-semibold truncate",
+                                                { "text-slate-400 font-normal": p.isCapReached }
+                                            )} title={p.cardName}>{p.cardName}</p>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
@@ -1121,22 +1125,27 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                                         </div>
                                     </div>
                                     
-                                    {/* --- MODIFICATION: New single-line layout for progress and amounts --- */}
                                     {p.monthlyLimit > 0 && (
                                         <div className="flex items-center gap-3 w-full text-sm">
-                                            <span className="font-medium text-emerald-600 w-32 shrink-0">
+                                            {/* STYLE CHANGE 3: Conditionally grey out the "left" amount text */}
+                                            <span className={cn(
+                                                "font-medium w-32 shrink-0",
+                                                p.isCapReached ? "text-slate-400" : "text-emerald-600"
+                                            )}>
                                                 {currencyFn(p.monthlyLimit - p.currentCashback)} left
                                             </span>
                                             <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-1.5 flex-grow" />
-                                            <span className="text-xs text-muted-foreground w-40 shrink-0 text-right">
+                                            {/* STYLE CHANGE 4: Conditionally grey out the progress text */}
+                                            <span className={cn(
+                                                "text-xs w-40 shrink-0 text-right",
+                                                p.isCapReached ? "text-slate-400" : "text-muted-foreground"
+                                            )}>
                                                 {currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}
                                             </span>
                                         </div>
                                     )}
-
                                 </div>
 
-                                {/* --- EXPANDABLE AREA (No changes here) --- */}
                                 <div className={cn( "overflow-hidden transition-all duration-300 ease-in-out",
                                     expandedCardId === p.cardId ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
                                 )}>
@@ -3290,22 +3299,31 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
         const bestCardPerCategory = Object.values(groupedByCategory).map(group => {
             const qualifiedCards = group.filter(c => c.hasMetMinSpend);
             const unqualifiedCards = group.filter(c => !c.hasMetMinSpend);
-
             const ranker = (a, b) => (b.rate - a.rate) || (b.remainingCategoryCap - a.remainingCategoryCap);
             qualifiedCards.sort(ranker);
             unqualifiedCards.sort(ranker);
-            
             const bestQualified = qualifiedCards[0];
             const bestUnqualified = unqualifiedCards[0];
 
-            // --- FINAL LOGIC ---
-            // If a qualified card exists, it always wins.
-            // Otherwise, fall back to the best unqualified card.
-            return bestQualified || bestUnqualified;
+            let finalChoice = bestQualified || bestUnqualified;
+
+            // --- NEW LOGIC TO ADD THE ALERT ---
+            if (finalChoice) {
+                let hasBetterChallenger = false;
+                // Check is only necessary if the chosen card is a qualified one
+                if (finalChoice.hasMetMinSpend && bestUnqualified) {
+                    // See if the best unqualified card is better than our choice
+                    if (bestUnqualified.rate > finalChoice.rate || bestUnqualified.remainingCategoryCap > finalChoice.remainingCategoryCap) {
+                        hasBetterChallenger = true;
+                    }
+                }
+                // Attach the new flag to the suggestion object
+                finalChoice = { ...finalChoice, hasBetterChallenger };
+            }
+            return finalChoice;
         }).filter(Boolean);
 
         bestCardPerCategory.sort((a, b) => {
-            // Sort the final list to prioritize qualified cards overall
             if (a.hasMetMinSpend !== b.hasMetMinSpend) return a.hasMetMinSpend ? -1 : 1;
             if (b.rate !== a.rate) return b.rate - a.rate;
             return b.remainingCategoryCap - a.remainingCategoryCap;
@@ -3364,6 +3382,19 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
                                                         </TooltipTrigger>
                                                         <TooltipContent>
                                                             <p>Minimum spend not met on this card.</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )}
+                                            {/* --- NEW ICON AND TOOLTIP --- */}
+                                            {s.hasBetterChallenger && (
+                                                <TooltipProvider delayDuration={100}>
+                                                    <Tooltip>
+                                                        <TooltipTrigger>
+                                                            <Sparkles className="h-4 w-4 text-blue-500" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>A better card exists but its minimum spend is not met.</p>
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 </TooltipProvider>
