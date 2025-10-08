@@ -145,8 +145,6 @@ export default function CashbackDashboard() {
     const [commonVendors, setCommonVendors] = useState([]);
     const [cardView, setCardView] = useState('month'); // 'month', 'ytd', or 'roi'
 
-    const cardSpendsCapRef = useRef(null);
-
     const handleTransactionAdded = (newTransaction) => {
         // 1. Instantly update the list for the current month
         // This makes the UI feel immediate
@@ -552,7 +550,6 @@ export default function CashbackDashboard() {
 
                     <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
                         <div className="lg:col-span-7 flex flex-col">
-                            <div ref={cardSpendsCapRef} className="lg:col-span-7 flex flex-col"></div>
                             <CardSpendsCap
                                 cards={cards}
                                 activeMonth={activeMonth}
@@ -563,7 +560,6 @@ export default function CashbackDashboard() {
                         </div>
                         <div className="lg:col-span-5 flex flex-col">
                             <EnhancedSuggestions
-                                containerToMatchRef={cardSpendsCapRef}
                                 rules={rules}
                                 cards={cards}
                                 monthlyCategorySummary={monthlyCategorySummary}
@@ -3246,37 +3242,8 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
     );
 }
 
-function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, containerToMatchRef }) {
+function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn }) {
     const [startIndex, setStartIndex] = useState(0);
-    const [visibleItems, setVisibleItems] = useState(3);
-    const headerRef = useRef(null);
-
-    useEffect(() => {
-        const targetElement = containerToMatchRef.current;
-        if (!targetElement) return;
-
-        const observer = new ResizeObserver(entries => {
-            const targetEntry = entries[0];
-            if (targetEntry) {
-                if (window.innerWidth < 1024) {
-                    setVisibleItems(3);
-                    return;
-                }
-                const headerHeight = headerRef.current?.clientHeight || 72;
-                // --- UPDATED: A more accurate item height now that the alert row is gone ---
-                const itemHeight = 95; 
-                const availableHeight = targetEntry.contentRect.height - headerHeight - 24;
-                
-                if (availableHeight > 0) {
-                    const count = Math.floor(availableHeight / itemHeight);
-                    setVisibleItems(Math.max(1, count));
-                }
-            }
-        });
-
-        observer.observe(targetElement);
-        return () => observer.unobserve(targetElement);
-    }, [containerToMatchRef]);
 
     const suggestions = useMemo(() => {
         if (!Array.isArray(rules)) return [];
@@ -3306,26 +3273,31 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
         return enrichedCandidates;
     }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth]);
 
-    const topSuggestions = suggestions.slice(0, 10);
+    // We'll show a maximum of 5 suggestions, and scroll if there are more
+    const topSuggestions = suggestions;
+    const VISIBLE_ITEMS = 5;
+    
     const canScrollUp = startIndex > 0;
-    const canScrollDown = startIndex < topSuggestions.length - visibleItems;
+    const canScrollDown = startIndex < topSuggestions.length - VISIBLE_ITEMS;
 
     const handleScroll = (direction) => {
         if (direction === 'up' && canScrollUp) setStartIndex(prev => prev - 1);
         else if (direction === 'down' && canScrollDown) setStartIndex(prev => prev + 1);
     };
 
-    const visibleSuggestions = topSuggestions.slice(startIndex, startIndex + visibleItems);
+    // Show up to 5 items, or all if less than 5
+    const visibleSuggestions = topSuggestions.slice(startIndex, startIndex + VISIBLE_ITEMS);
 
     return (
-        <Card className="h-full flex flex-col">
-            <CardHeader ref={headerRef}>
+        // --- MODIFICATION: Removed the h-full class to allow natural height ---
+        <Card className="flex flex-col">
+            <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-base font-semibold flex items-center gap-2">
                         <Lightbulb className="h-5 w-5 text-sky-500" />
                         Top Cashback Opportunities
                     </CardTitle>
-                    {topSuggestions.length > visibleItems && (
+                    {topSuggestions.length > VISIBLE_ITEMS && (
                          <div className="flex items-center gap-1">
                             <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleScroll('up')} disabled={!canScrollUp}><ChevronUp className="h-4 w-4" /></Button>
                             <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleScroll('down')} disabled={!canScrollDown}><ChevronDown className="h-4 w-4" /></Button>
@@ -3333,8 +3305,8 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
                     )}
                 </div>
             </CardHeader>
-            <CardContent className="flex-grow overflow-hidden">
-                {topSuggestions.length > 0 ? (
+            <CardContent className="flex-grow">
+                {visibleSuggestions.length > 0 ? (
                     <div className="space-y-3">
                         {visibleSuggestions.map((s, index) => (
                             <div key={`${s.id}-${s.suggestionFor}`} className="p-3 rounded-lg border bg-slate-50/70 shadow-sm">
@@ -3344,7 +3316,6 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
                                             <span className="text-sky-600 mr-2">#{startIndex + index + 1}</span>
                                             {s.suggestionFor}
                                         </p>
-                                        {/* --- MODIFICATION: Alert icon is now inline with the card name --- */}
                                         <div className="flex items-center gap-1.5 text-sm text-slate-500 ml-7">
                                             <span>{s.cardName}</span>
                                             {!s.hasMetMinSpend && (
@@ -3367,7 +3338,6 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
                                     <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600"/><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
                                     <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5"/><span>Spend</span><span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
                                 </div>
-                                {/* --- MODIFICATION: The old alert div has been removed from here --- */}
                             </div>
                         ))}
                     </div>
