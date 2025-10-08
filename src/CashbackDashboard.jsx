@@ -1061,18 +1061,9 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                     : calculateDaysUntilStatement(card.statementDay, activeMonth);
 
                 return {
-                    card,
-                    cardId: card.id,
-                    cardName: card.name,
-                    currentCashback,
-                    currentSpend,
-                    monthlyLimit,
-                    usedCapPct,
-                    minSpend,
-                    minSpendMet,
-                    minSpendPct,
-                    daysLeft: days,
-                    cycleStatus: status,
+                    card, cardId: card.id, cardName: card.name, currentCashback,
+                    currentSpend, monthlyLimit, usedCapPct, minSpend, minSpendMet,
+                    minSpendPct, daysLeft: days, cycleStatus: status,
                 };
             })
             .sort((a, b) => b.usedCapPct - a.usedCapPct);
@@ -1087,8 +1078,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
     const DaysLeftBadge = ({ status, days }) => (
         <Badge
             variant="outline"
-            className={cn(
-                "text-xs h-6 px-2 font-semibold justify-center",
+            className={cn( "text-xs h-6 px-2 font-semibold justify-center",
                 status === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
             )}
         >
@@ -1107,35 +1097,40 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                         {cardSpendsCapProgress.map(p => (
                             <div key={p.cardId} className="border-b last:border-b-0 py-1">
                                 <div 
-                                    className="flex items-center gap-2 p-2 cursor-pointer hover:bg-muted/50 rounded-md"
+                                    className="flex flex-col gap-2 p-2 cursor-pointer hover:bg-muted/50 rounded-md"
                                     onClick={() => handleToggleExpand(p.cardId)}
                                 >
-                                    <div className="flex-grow space-y-2">
-                                        <div className="flex justify-between items-center">
-                                            <div className="flex items-center gap-2">
-                                                {!p.minSpendMet && <div className="w-2 h-2 bg-yellow-500 rounded-full flex-shrink-0" title="Minimum spend not met" />}
-                                                <p className="font-semibold truncate" title={p.cardName}>{p.cardName}</p>
-                                            </div>
-                                            <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
+                                    {/* --- Top Row: Card Name & Days Left --- */}
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-2">
+                                            {!p.minSpendMet && <div className="w-2 h-2 bg-yellow-500 rounded-full flex-shrink-0" title="Minimum spend not met" />}
+                                            <p className="font-semibold truncate" title={p.cardName}>{p.cardName}</p>
                                         </div>
-                                        {p.monthlyLimit > 0 && (
-                                            <div>
-                                                <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-2" />
-                                                <div className="flex justify-between items-center text-xs text-muted-foreground mt-1.5">
-                                                    <span className="font-semibold text-emerald-600">{currencyFn(p.monthlyLimit - p.currentCashback)} left</span>
-                                                    <span>{currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}</span>
-                                                </div>
-                                            </div>
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
+                                            <ChevronDown className={cn( "h-5 w-5 text-muted-foreground transition-transform duration-200 flex-shrink-0",
+                                                expandedCardId === p.cardId && "rotate-180"
+                                            )} />
+                                        </div>
                                     </div>
-                                    <ChevronDown className={cn(
-                                        "h-5 w-5 text-muted-foreground transition-transform duration-200 flex-shrink-0",
-                                        expandedCardId === p.cardId && "rotate-180"
-                                    )} />
+                                    
+                                    {/* --- MODIFICATION: New single-line layout for progress and amounts --- */}
+                                    {p.monthlyLimit > 0 && (
+                                        <div className="flex items-center gap-3 w-full text-sm">
+                                            <span className="font-medium text-emerald-600 w-32 shrink-0">
+                                                {currencyFn(p.monthlyLimit - p.currentCashback)} left
+                                            </span>
+                                            <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-1.5 flex-grow" />
+                                            <span className="text-xs text-muted-foreground w-40 shrink-0 text-right">
+                                                {currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}
+                                            </span>
+                                        </div>
+                                    )}
+
                                 </div>
 
-                                <div className={cn(
-                                    "overflow-hidden transition-all duration-300 ease-in-out",
+                                {/* --- EXPANDABLE AREA (No changes here) --- */}
+                                <div className={cn( "overflow-hidden transition-all duration-300 ease-in-out",
                                     expandedCardId === p.cardId ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
                                 )}>
                                     {expandedCardId === p.cardId && (
