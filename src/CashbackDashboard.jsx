@@ -3256,7 +3256,6 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
     const [visibleItems, setVisibleItems] = useState(3);
     const headerRef = useRef(null);
 
-    // This effect now observes the sibling component for height changes
     useEffect(() => {
         const targetElement = containerToMatchRef.current;
         if (!targetElement) return;
@@ -3264,27 +3263,23 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
         const observer = new ResizeObserver(entries => {
             const targetEntry = entries[0];
             if (targetEntry) {
-                // Default to 3 on mobile viewports
-                if (window.innerWidth < 1024) { // lg breakpoint
+                if (window.innerWidth < 1024) {
                     setVisibleItems(3);
                     return;
                 }
-                
-                // Estimate heights: header height is measured, item height is an average
                 const headerHeight = headerRef.current?.clientHeight || 72;
-                const itemHeight = 115;
-                const availableHeight = targetEntry.contentRect.height - headerHeight - 24; // Subtract padding too
+                // --- UPDATED: A more accurate item height now that the alert row is gone ---
+                const itemHeight = 95; 
+                const availableHeight = targetEntry.contentRect.height - headerHeight - 24;
                 
                 if (availableHeight > 0) {
                     const count = Math.floor(availableHeight / itemHeight);
-                    setVisibleItems(Math.max(1, count)); // Ensure at least 1 is shown
+                    setVisibleItems(Math.max(1, count));
                 }
             }
         });
 
         observer.observe(targetElement);
-
-        // Cleanup observer
         return () => observer.unobserve(targetElement);
     }, [containerToMatchRef]);
 
@@ -3337,12 +3332,8 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
                     </CardTitle>
                     {topSuggestions.length > visibleItems && (
                          <div className="flex items-center gap-1">
-                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleScroll('up')} disabled={!canScrollUp}>
-                                <ChevronUp className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleScroll('down')} disabled={!canScrollDown}>
-                                <ChevronDown className="h-4 w-4" />
-                            </Button>
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleScroll('up')} disabled={!canScrollUp}><ChevronUp className="h-4 w-4" /></Button>
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleScroll('down')} disabled={!canScrollDown}><ChevronDown className="h-4 w-4" /></Button>
                         </div>
                     )}
                 </div>
@@ -3358,22 +3349,30 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
                                             <span className="text-sky-600 mr-2">#{startIndex + index + 1}</span>
                                             {s.suggestionFor}
                                         </p>
-                                        <p className="text-sm text-slate-500 ml-7">{s.cardName}</p>
+                                        {/* --- MODIFICATION: Alert icon is now inline with the card name --- */}
+                                        <div className="flex items-center gap-1.5 text-sm text-slate-500 ml-7">
+                                            <span>{s.cardName}</span>
+                                            {!s.hasMetMinSpend && (
+                                                <TooltipProvider delayDuration={100}>
+                                                    <Tooltip>
+                                                        <TooltipTrigger>
+                                                            <AlertTriangle className="h-4 w-4 text-orange-400" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Minimum spend not met on this card.</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )}
+                                        </div>
                                     </div>
-                                    <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200 px-2.5 py-1">
-                                        {(s.rate * 100).toFixed(1)}%
-                                    </Badge>
+                                    <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200 px-2.5 py-1">{(s.rate * 100).toFixed(1)}%</Badge>
                                 </div>
                                 <div className="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
                                     <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600"/><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
                                     <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5"/><span>Spend</span><span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
                                 </div>
-                                {!s.hasMetMinSpend && (
-                                    <div className="mt-2 flex items-center gap-2 text-xs text-orange-700 bg-orange-50 p-2 rounded-md border border-orange-200">
-                                        <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                                        <span>Minimum spend not met on this card.</span>
-                                    </div>
-                                )}
+                                {/* --- MODIFICATION: The old alert div has been removed from here --- */}
                             </div>
                         ))}
                     </div>
