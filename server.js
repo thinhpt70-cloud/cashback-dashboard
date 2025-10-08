@@ -84,22 +84,7 @@ const parseNotionPageProperties = (page) => {
                 result[key] = prop.status?.name || null;
                 break;
             case 'multi_select':
-                // If it's the 'Category' multi-select, we handle it specially.
-                if (key === 'Category' && prop.multi_select.length > 0) {
-                    // Create a separate object for each category
-                    return prop.multi_select.map(categoryOption => {
-                    const newPage = { ...properties, id: page.id }; // Copy existing properties
-                    for (const otherKey in page.properties) {
-                        if(otherKey !== 'Category'){
-                            newPage[otherKey] = parseNotionProperty(page.properties[otherKey]);
-                        }
-                    }
-                    newPage.Category = categoryOption.name; // Assign the single category
-                    return newPage;
-                    });
-                } else {
-                    properties[key] = prop.multi_select.map(option => option.name);
-                }
+                result[key] = prop.multi_select.map(option => option.name);
                 break;
             default:
                 result[key] = prop; // Keep the original object for unhandled types
