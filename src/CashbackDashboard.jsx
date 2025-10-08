@@ -1028,41 +1028,57 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
 }
 
 function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySummary, currencyFn }) {
-    // --- NEW: State to track which card row is expanded ---
     const [expandedCardId, setExpandedCardId] = useState(null);
 
     const handleToggleExpand = (cardId) => {
-        // If the clicked card is already expanded, collapse it. Otherwise, expand it.
         setExpandedCardId(prevId => (prevId === cardId ? null : cardId));
     };
 
     const cardSpendsCapProgress = useMemo(() => {
         return cards
-            .filter(card => card.overallMonthlyLimit > 0)
+            .filter(card => card.overallMonthlyLimit > 0 || card.minimumMonthlySpend > 0)
             .map(card => {
                 const cardMonthSummary = monthlySummary.find(
                     summary => summary.cardId === card.id && summary.month === activeMonth
                 );
-                const currentCashback = cardMonthSummary ? cardMonthSummary.cashback : 0;
-                const monthlyLimit = card.overallMonthlyLimit;
-                const usedPct = monthlyLimit > 0 ? Math.min(100, Math.round((currentCashback / monthlyLimit) * 100)) : 0;
                 
+                const currentCashback = cardMonthSummary?.cashback || 0;
+                const currentSpend = cardMonthSummary?.spend || 0;
+                
+                const monthlyLimit = card.overallMonthlyLimit;
+                const usedCapPct = monthlyLimit > 0 ? Math.min(100, Math.round((currentCashback / monthlyLimit) * 100)) : 0;
+                
+                const minSpend = card.minimumMonthlySpend || 0;
+                const minSpendMet = minSpend > 0 ? currentSpend >= minSpend : true;
+                const minSpendPct = minSpend > 0 ? Math.min(100, Math.round((currentSpend / minSpend) * 100)) : 100;
+
                 const { days, status } = card.useStatementMonthForPayments
                     ? calculateDaysLeftInCashbackMonth(activeMonth)
                     : calculateDaysUntilStatement(card.statementDay, activeMonth);
 
                 return {
-                    card, // --- NEW: Pass the full card object through
+                    card,
                     cardId: card.id,
                     cardName: card.name,
                     currentCashback,
+                    currentSpend,
                     monthlyLimit,
-                    usedPct,
+                    usedCapPct,
+                    minSpend,
+                    minSpendMet,
+                    minSpendPct,
                     daysLeft: days,
                     cycleStatus: status,
                 };
             })
-            .sort((a, b) => b.usedPct - a.usedPct);
+            .sort((a, b) => {
+                // Prioritize cards that haven't met min spend
+                if (a.minSpendMet !== b.minSpendMet) {
+                    return a.minSpendMet ? 1 : -1;
+                }
+                // Then sort by cap usage percentage
+                return b.usedCapPct - a.usedCapPct;
+            });
     }, [cards, activeMonth, monthlySummary]);
 
     const getProgressColor = (percentage) => {
@@ -1079,7 +1095,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                 status === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
             )}
         >
-            {status === 'Completed' ? 'Done' : `${days} days`}
+            {status === 'Completed' ? 'Done' : `${days} days left`}
         </Badge>
     );
 
@@ -1092,44 +1108,59 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                 {cardSpendsCapProgress.length > 0 ? (
                     <div className="space-y-1">
                         {cardSpendsCapProgress.map(p => (
-                            <div key={p.cardId} className="border-b last:border-b-0">
-                                {/* --- Main Clickable Row --- */}
+                            <div key={p.cardId} className="border-b last:border-b-0 py-1">
                                 <div 
                                     className="flex items-center gap-2 p-2 cursor-pointer hover:bg-muted/50 rounded-md"
                                     onClick={() => handleToggleExpand(p.cardId)}
                                 >
                                     <div className="flex-grow space-y-2">
                                         <div className="flex justify-between items-center">
-                                            <p className="font-semibold truncate" title={p.cardName}>{p.cardName}</p>
+                                            <div className="flex items-center gap-2">
+                                                {!p.minSpendMet && <div className="w-2 h-2 bg-yellow-500 rounded-full flex-shrink-0" title="Minimum spend not met" />}
+                                                <p className="font-semibold truncate" title={p.cardName}>{p.cardName}</p>
+                                            </div>
                                             <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <Progress value={p.usedPct} indicatorClassName={getProgressColor(p.usedPct)} className="h-1.5 flex-grow" />
-                                            <span className="text-xs font-medium text-muted-foreground shrink-0 text-right w-[160px]">
-                                                <span className="font-medium text-emerald-600">{currencyFn(p.monthlyLimit - p.currentCashback)} left</span> | {currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}
-                                            </span>
-                                        </div>
+                                        {p.monthlyLimit > 0 && (
+                                            <div>
+                                                <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-2" />
+                                                <div className="flex justify-between items-center text-xs text-muted-foreground mt-1.5">
+                                                    <span className="font-semibold text-emerald-600">{currencyFn(p.monthlyLimit - p.currentCashback)} left</span>
+                                                    <span>{currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}</span>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    {/* --- NEW: Chevron Icon for expanding --- */}
                                     <ChevronDown className={cn(
-                                        "h-5 w-5 text-muted-foreground transition-transform duration-200",
+                                        "h-5 w-5 text-muted-foreground transition-transform duration-200 flex-shrink-0",
                                         expandedCardId === p.cardId && "rotate-180"
                                     )} />
                                 </div>
 
-                                {/* --- NEW: Expandable Area for Category Details --- */}
                                 <div className={cn(
                                     "overflow-hidden transition-all duration-300 ease-in-out",
                                     expandedCardId === p.cardId ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
                                 )}>
-                                    {/* We only render the content if it's the expanded card to save performance */}
                                     {expandedCardId === p.cardId && (
-                                        <div className="pl-6 pr-2 py-4 border-t">
+                                        <div className="pl-6 pr-2 py-4 border-t space-y-4">
+                                            {p.minSpend > 0 && (
+                                                <div>
+                                                     <h4 className="text-sm font-semibold text-center text-muted-foreground mb-3">Minimum Spend Progress</h4>
+                                                     <div className="px-4">
+                                                        <Progress value={p.minSpendPct} className="h-2" indicatorClassName={p.minSpendMet ? "bg-emerald-500" : "bg-yellow-500"} />
+                                                        <div className="flex justify-between items-center text-xs text-muted-foreground mt-1.5">
+                                                            <span className={cn("font-semibold", p.minSpendMet ? "text-emerald-600" : "text-yellow-600")}>
+                                                                {p.minSpendMet ? 'Met' : `${currencyFn(p.minSpend - p.currentSpend)} to go`}
+                                                            </span>
+                                                            <span>{currencyFn(p.currentSpend)} / {currencyFn(p.minSpend)}</span>
+                                                        </div>
+                                                     </div>
+                                                </div>
+                                            )}
                                             <CategoryCapsUsage 
                                                 card={p.card}
                                                 activeMonth={activeMonth}
                                                 monthlyCategorySummary={monthlyCategorySummary}
-                                                monthlySummary={monthlySummary}
                                                 currencyFn={currencyFn}
                                             />
                                         </div>
@@ -1139,7 +1170,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                         ))}
                     </div>
                 ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">No monthly limits defined for your cards.</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">No monthly limits or minimums defined for your cards.</p>
                 )}
             </CardContent>
         </Card>
@@ -2037,7 +2068,7 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
     );
 }
 
-function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlySummary, currencyFn }) {
+function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, currencyFn }) {
     const categoryCapData = useMemo(() => {
         const summaries = monthlyCategorySummary.filter(
             summary => summary.cardId === card.id && summary.month === activeMonth
@@ -2057,25 +2088,24 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
             return { id: summary.id, category: categoryName, currentCashback, limit: categoryLimit, usedPct, remaining };
         });
 
-        // NEW: Sort by current cashback amount from highest to lowest
-        return data.sort((a, b) => b.currentCashback - a.currentCashback);
+        // Sort by the highest percentage used first
+        return data.sort((a, b) => b.usedPct - a.usedPct);
 
     }, [card, activeMonth, monthlyCategorySummary]);
 
     return (
-        // CHANGED: The entire component has been redesigned for a more compact list view
         <div>
             <h4 className="text-sm font-semibold text-center text-muted-foreground mb-4">Category Caps Usage</h4>
             {categoryCapData.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-4 px-4">
                     {categoryCapData.map(cap => (
                         <div key={cap.id}>
-                            <div className="flex justify-between items-center text-sm mb-1">
+                            <div className="flex justify-between items-center text-sm mb-1.5">
                                 <p className="font-medium text-slate-700 truncate pr-4" title={cap.category}>{cap.category}</p>
                                 <span className="font-mono text-xs font-semibold text-slate-500">{cap.usedPct}%</span>
                             </div>
-                            <Progress value={cap.usedPct} className="h-1.5" />
-                            <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                            <Progress value={cap.usedPct} className="h-2" />
+                            <div className="flex justify-between items-center text-xs text-muted-foreground mt-1.5">
                                 <span>{currencyFn(cap.currentCashback)} / {currencyFn(cap.limit)}</span>
                                 <span className="font-medium">{currencyFn(cap.remaining)} left</span>
                             </div>
@@ -2083,8 +2113,8 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
                     ))}
                 </div>
             ) : (
-                <div className="border p-3 rounded-lg flex items-center justify-center h-24">
-                    <p className="text-xs text-muted-foreground">No specific categories for this month</p>
+                <div className="text-center py-4">
+                    <p className="text-xs text-muted-foreground">No specific category data for this month.</p>
                 </div>
             )}
         </div>
@@ -3226,20 +3256,49 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
 
 function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn }) {
     const [startIndex, setStartIndex] = useState(0);
+    // --- NEW: State to hold the dynamic number of visible items ---
+    const [visibleItems, setVisibleItems] = useState(3); 
+    // --- NEW: Ref to measure the component's container ---
+    const cardRef = useRef(null);
+
+    // --- NEW: Effect to calculate how many items can fit ---
+    useEffect(() => {
+        const calculateVisibleItems = () => {
+            // Default to 3 on mobile viewports
+            if (window.innerWidth < 1024) { // lg breakpoint in Tailwind
+                setVisibleItems(3);
+                return;
+            }
+
+            if (cardRef.current) {
+                // Estimate heights: 72px for header, 115px per suggestion item (including margins)
+                const headerHeight = 72;
+                const itemHeight = 115;
+                const availableHeight = cardRef.current.clientHeight - headerHeight;
+                
+                if (availableHeight > 0) {
+                    const count = Math.floor(availableHeight / itemHeight);
+                    setVisibleItems(Math.max(1, count)); // Ensure at least 1 is shown
+                }
+            }
+        };
+
+        // Calculate on mount and on window resize
+        calculateVisibleItems();
+        window.addEventListener('resize', calculateVisibleItems);
+
+        // Cleanup listener
+        return () => window.removeEventListener('resize', calculateVisibleItems);
+    }, []); // Empty dependency array ensures this runs once on mount
 
     const suggestions = useMemo(() => {
         if (!Array.isArray(rules)) return [];
         
         const MINIMUM_RATE_THRESHOLD = 0.02;
 
-        // The flatMap operation is used here to handle multiple categories for a single rule.
         const candidates = rules.flatMap(rule => {
             if (rule.rate < MINIMUM_RATE_THRESHOLD || rule.status !== 'Active') return [];
-
-            // This ensures that even if applicableCategories is empty, it will fall back to the rule's name.
             const applicableCategories = rule.applicableCategories?.length ? rule.applicableCategories : [rule.ruleName];
-            
-            // A separate suggestion is created for each applicable category.
             return applicableCategories.map(category => ({
                 ...rule,
                 suggestionFor: category,
@@ -3251,7 +3310,7 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
             const card = cards.find(c => c.id === candidate.cardId);
             if (!card || card.status !== 'Active') return null;
 
-            const categorySummary = monthlyCategorySummary.find(s => s.cardId === candidate.cardId && s.month === activeMonth && s.summaryId.endsWith(candidate.suggestionFor));
+            const categorySummary = monthlyCategorySummary.find(s => s.cardId === candidate.cardId && s.month === activeMonth && s.summaryId.endsWith(candidate.parentRuleName));
             const currentCashbackForCategory = categorySummary?.cashback || 0;
 
             const cardSummary = monthlySummary.find(s => s.cardId === candidate.cardId && s.month === activeMonth);
@@ -3268,37 +3327,40 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
 
         enrichedCandidates.sort((a, b) => {
             if (b.rate !== a.rate) return b.rate - a.rate;
-            if (b.hasMetMinSpend !== a.hasMetMinSpend) return b.hasMetMinSpend ? 1 : -1;
+            if (a.hasMetMinSpend !== b.hasMetMinSpend) return a.hasMetMinSpend ? 1 : -1;
             return b.remainingCategoryCap - a.remainingCategoryCap;
         });
 
         return enrichedCandidates;
     }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth]);
 
-    const top5Suggestions = suggestions.slice(0, 5);
-    const VISIBLE_ITEMS = 4;
+    const topSuggestions = suggestions.slice(0, 10); // Get a larger pool of suggestions
+    
+    // --- UPDATED: Scrolling logic now uses the dynamic `visibleItems` state ---
     const canScrollUp = startIndex > 0;
-    const canScrollDown = startIndex < top5Suggestions.length - VISIBLE_ITEMS;
+    const canScrollDown = startIndex < topSuggestions.length - visibleItems;
     
     const handleScroll = (direction) => {
         if (direction === 'up' && canScrollUp) {
             setStartIndex(prev => prev - 1);
         } else if (direction === 'down' && canScrollDown) {
-            setStartIndex(prev => prev - 1);
+            setStartIndex(prev => prev + 1);
         }
     };
 
-    const visibleSuggestions = top5Suggestions.slice(startIndex, startIndex + VISIBLE_ITEMS);
+    const visibleSuggestions = topSuggestions.slice(startIndex, startIndex + visibleItems);
 
     return (
-        <Card className="h-full flex flex-col">
+        // --- NEW: Add the ref to the Card component ---
+        <Card ref={cardRef} className="h-full flex flex-col">
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-base font-semibold flex items-center gap-2">
                         <Lightbulb className="h-5 w-5 text-sky-500" />
                         Top Cashback Opportunities
                     </CardTitle>
-                    {top5Suggestions.length > VISIBLE_ITEMS && (
+                    {/* --- UPDATED: Check if scrolling is needed based on dynamic height --- */}
+                    {topSuggestions.length > visibleItems && (
                          <div className="flex items-center gap-1">
                             <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleScroll('up')} disabled={!canScrollUp}>
                                 <ChevronUp className="h-4 w-4" />
@@ -3311,15 +3373,15 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
                 </div>
             </CardHeader>
             <CardContent className="flex-grow overflow-hidden">
-                {top5Suggestions.length > 0 ? (
+                {topSuggestions.length > 0 ? (
                     <div className="space-y-3">
                         {visibleSuggestions.map((s, index) => (
-                            <div key={`${s.id}-${s.suggestionFor}`} className="p-3 rounded-lg border bg-slate-50 shadow-sm">
+                            <div key={`${s.id}-${s.suggestionFor}`} className="p-3 rounded-lg border bg-slate-50/70 shadow-sm">
                                 <div className="flex justify-between items-start gap-3">
                                     <div>
                                         <p className="font-semibold text-slate-800">
                                             <span className="text-sky-600 mr-2">#{startIndex + index + 1}</span>
-                                            {s.category}
+                                            {s.suggestionFor}
                                         </p>
                                         <p className="text-sm text-slate-500 ml-7">{s.cardName}</p>
                                     </div>
