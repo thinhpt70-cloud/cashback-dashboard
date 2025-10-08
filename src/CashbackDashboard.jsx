@@ -3250,8 +3250,8 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
         const MINIMUM_RATE_THRESHOLD = 0.02;
         const candidates = rules.flatMap(rule => {
             if (rule.rate < MINIMUM_RATE_THRESHOLD || rule.status !== 'Active') return [];
-            const applicableCategories = rule.applicableCategories?.length ? rule.applicableCategories : [rule.ruleName];
-            return applicableCategories.map(category => ({ ...rule, suggestionFor: category, parentRuleName: rule.ruleName }));
+            const category = rule.category?.length ? rule.category : [rule.ruleName];
+            return category.map(category => ({ ...rule, suggestionFor: category, parentRuleName: rule.ruleName }));
         });
         const enrichedCandidates = candidates.map(candidate => {
             const card = cards.find(c => c.id === candidate.cardId);

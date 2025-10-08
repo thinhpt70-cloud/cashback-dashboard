@@ -7,6 +7,9 @@ const fs = require('fs'); // ADDED: To read the MCC.json file
 const path = require('path'); // ADDED: To help locate the MCC.json file
 require('dotenv').config();
 
+const mccDataPath = path.join(__dirname, 'MCC.json');
+const mccData = JSON.parse(fs.readFileSync(mccDataPath, 'utf8'));
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -321,19 +324,10 @@ app.get('/api/monthly-summary', async (req, res) => {
 });
 
 
-// ADDED: Fetch MCC Codes from local JSON file
 app.get('/api/mcc-codes', (req, res) => {
-    try {
-        const mccPath = path.join(__dirname, 'MCC.json');
-        const mccData = fs.readFileSync(mccPath, 'utf8');
-        res.setHeader('Content-Type', 'application/json');
-        res.send(mccData);
-    } catch (error) {
-        console.error('Failed to read MCC.json:', error);
-        res.status(500).json({ error: 'Failed to load MCC data' });
-    }
+    // Simply send the cached data
+    res.json(mccData);
 });
-
 
 app.get('/api/monthly-category-summary', async (req, res) => {
     try {
@@ -668,8 +662,8 @@ app.get('/api/internal-mcc-search', async (req, res) => {
       database_id: transactionsDbId,
       filter: {
         property: 'Transaction Name',
-        rich_text: {
-          contains: keyword,
+        title: { // Correctly use the 'title' filter
+            contains: keyword,
         },
       },
       sorts: [
