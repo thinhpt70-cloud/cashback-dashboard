@@ -27,6 +27,7 @@ import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTo
 import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, List } from "lucide-react";
 import { cn } from "./lib/utils";
 import { Toaster, toast } from 'sonner';
+import EnhancedSuggestions from "./components/EnhancedSuggestions";
 
 
 
@@ -548,8 +549,30 @@ export default function CashbackDashboard() {
                     <StatCard title="Effective Rate" value={`${(overviewStats.effectiveRate * 100).toFixed(2)}%`} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                        <Card className="lg:col-span-4 flex flex-col min-h-[300px]">
+                    <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
+                        <div className="lg:col-span-5 flex flex-col">
+                            <EnhancedSuggestions
+                                rules={rules}
+                                cards={cards}
+                                monthlyCategorySummary={monthlyCategorySummary}
+                                monthlySummary={monthlySummary}
+                                activeMonth={activeMonth}
+                                currencyFn={currency}
+                            />
+                        </div>
+                        <div className="lg:col-span-7 flex flex-col">
+                            <CardSpendsCap
+                                cards={cards}
+                                activeMonth={activeMonth}
+                                monthlySummary={monthlySummary}
+                                monthlyCategorySummary={monthlyCategorySummary}
+                                currencyFn={currency}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid gap-4">
+                        <Card className="flex flex-col min-h-[300px]">
                             <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
                             <CardContent className="pl-2 flex-grow">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -568,14 +591,6 @@ export default function CashbackDashboard() {
                                 </ResponsiveContainer>
                             </CardContent>
                         </Card>
-
-                        <CardSpendsCap
-                            cards={cards}
-                            activeMonth={activeMonth}
-                            monthlySummary={monthlySummary}
-                            monthlyCategorySummary={monthlyCategorySummary}
-                            currencyFn={currency}
-                        />
                     </div>
 
                     <RecentTransactionsCarousel 
