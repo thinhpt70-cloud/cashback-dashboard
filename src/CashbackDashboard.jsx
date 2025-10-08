@@ -24,7 +24,7 @@ import {
     SheetTrigger,
 } from "./components/ui/sheet";
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
-import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, List } from "lucide-react";
+import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronUp, List } from "lucide-react";
 import { cn } from "./lib/utils";
 import { Toaster, toast } from 'sonner';
 
@@ -1106,7 +1106,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                                         <div className="flex items-center gap-2">
                                             <Progress value={p.usedPct} indicatorClassName={getProgressColor(p.usedPct)} className="h-1.5 flex-grow" />
                                             <span className="text-xs font-medium text-muted-foreground shrink-0 text-right w-[160px]">
-                                                <span className="font-medium text-emerald-600">{currencyFn(totalCardData.remaining)} left</span> | {currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}
+                                                <span className="font-medium text-emerald-600">{currencyFn(p.monthlyLimit - p.currentCashback)} left</span> | {currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}
                                             </span>
                                         </div>
                                     </div>
@@ -2061,18 +2061,6 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, monthlyS
         return data.sort((a, b) => b.currentCashback - a.currentCashback);
 
     }, [card, activeMonth, monthlyCategorySummary]);
-
-    const totalCardData = useMemo(() => {
-        const summary = monthlySummary.find(
-            s => s.cardId === card.id && s.month === activeMonth
-        );
-        if (!summary || !card.overallMonthlyLimit) return null;
-        const totalCashback = summary.cashback || 0;
-        const totalLimit = card.overallMonthlyLimit || 0;
-        const usedPct = totalLimit > 0 ? Math.min(100, Math.round((totalCashback / totalLimit) * 100)) : 0;
-        const remaining = totalLimit - totalCashback;
-        return { totalCashback, limit: totalLimit, usedPct, remaining };
-    }, [card, activeMonth, monthlySummary]);
 
     return (
         // CHANGED: The entire component has been redesigned for a more compact list view
