@@ -528,7 +528,7 @@ export default function CashbackDashboard() {
             </div>
             </header>
 
-            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+            <main key={activeMonth} className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <Tabs defaultValue="overview">
                 <div className="flex items-center">
                 <TabsList className="bg-slate-100 p-1 rounded-lg">
@@ -1047,6 +1047,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                 
                 const monthlyLimit = card.overallMonthlyLimit;
                 const usedCapPct = monthlyLimit > 0 ? Math.min(100, Math.round((currentCashback / monthlyLimit) * 100)) : 0;
+                const isCapReached = usedCapPct >= 100;
                 
                 const minSpend = card.minimumMonthlySpend || 0;
                 const minSpendMet = minSpend > 0 ? currentSpend >= minSpend : true;
@@ -1059,7 +1060,7 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                 return {
                     card, cardId: card.id, cardName: card.name, currentCashback,
                     currentSpend, monthlyLimit, usedCapPct, minSpend, minSpendMet,
-                    minSpendPct, daysLeft: days, cycleStatus: status,
+                    minSpendPct, daysLeft: days, cycleStatus: status, isCapReached,
                 };
             })
             .sort((a, b) => b.usedCapPct - a.usedCapPct);
@@ -1091,7 +1092,13 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                 {cardSpendsCapProgress.length > 0 ? (
                     <div className="space-y-1">
                         {cardSpendsCapProgress.map(p => (
-                            <div key={p.cardId} className="border-b last:border-b-0 py-1">
+                            <div 
+                                key={p.cardId} 
+                                className={cn(
+                                    "border-b last:border-b-0 py-1 transition-all",
+                                    { "opacity-50 grayscale": p.isCapReached }
+                                )}
+                            >
                                 <div 
                                     className="flex flex-col gap-2 p-2 cursor-pointer hover:bg-muted/50 rounded-md"
                                     onClick={() => handleToggleExpand(p.cardId)}
@@ -1099,7 +1106,11 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                                     {/* --- Top Row: Card Name & Days Left --- */}
                                     <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-2">
-                                            {!p.minSpendMet && <div className="w-2 h-2 bg-yellow-500 rounded-full flex-shrink-0" title="Minimum spend not met" />}
+                                            {!p.minSpendMet ? (
+                                                <div className="w-2 h-2 bg-yellow-500 rounded-full flex-shrink-0" title="Minimum spend not met" />
+                                            ) : p.isCapReached ? (
+                                                <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0" title="Monthly cap reached" />
+                                            ) : null}
                                             <p className="font-semibold truncate" title={p.cardName}>{p.cardName}</p>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -2089,7 +2100,7 @@ function CategoryCapsUsage({ card, activeMonth, monthlyCategorySummary, currency
                     {categoryCapData.map(cap => (
                         <div key={cap.id}>
                             <div className="flex justify-between items-center text-sm mb-1.5">
-                                <p className="font-medium text-slate-700 truncate pr-4" title={cap.category}>{cap.category}</p>
+                                <p className="font-medium text-slate-700 min-w-0 pr-4" title={cap.category}>{cap.category}</p>
                                 <span className="font-mono text-xs font-semibold text-slate-500">{cap.usedPct}%</span>
                             </div>
                             <Progress value={cap.usedPct} className="h-2" />
@@ -2396,6 +2407,8 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [isMccDialogOpen, setIsMccDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isPredicting, setIsPredicting] = useState(false);
+
+    useIOSKeyboardGapFix();
 
     const amountInputRef = useRef(null);
 
@@ -3246,34 +3259,61 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
     const [startIndex, setStartIndex] = useState(0);
 
     const suggestions = useMemo(() => {
-        if (!Array.isArray(rules)) return [];
         const MINIMUM_RATE_THRESHOLD = 0.02;
-        const candidates = rules.flatMap(rule => {
+
+        const allCandidates = rules.flatMap(rule => {
             if (rule.rate < MINIMUM_RATE_THRESHOLD || rule.status !== 'Active') return [];
-            const category = rule.category?.length ? rule.category : [rule.ruleName];
-            return category.map(category => ({ ...rule, suggestionFor: category, parentRuleName: rule.ruleName }));
-        });
-        const enrichedCandidates = candidates.map(candidate => {
-            const card = cards.find(c => c.id === candidate.cardId);
-            if (!card || card.status !== 'Active') return null;
-            const categorySummary = monthlyCategorySummary.find(s => s.cardId === candidate.cardId && s.month === activeMonth && s.summaryId.endsWith(candidate.parentRuleName));
+            const card = cards.find(c => c.id === rule.cardId);
+            if (!card || card.status !== 'Active') return [];
+            const categorySummary = monthlyCategorySummary.find(s => s.cardId === rule.cardId && s.month === activeMonth && s.summaryId.endsWith(rule.ruleName));
+            const cardSummary = monthlySummary.find(s => s.cardId === rule.cardId && s.month === activeMonth);
             const currentCashbackForCategory = categorySummary?.cashback || 0;
-            const cardSummary = monthlySummary.find(s => s.cardId === candidate.cardId && s.month === activeMonth);
             const currentTotalSpendForCard = cardSummary?.spend || 0;
             const remainingCategoryCap = card.limitPerCategory > 0 ? Math.max(0, card.limitPerCategory - currentCashbackForCategory) : Infinity;
+            if (remainingCategoryCap === 0) return [];
             const hasMetMinSpend = card.minimumMonthlySpend > 0 ? currentTotalSpendForCard >= card.minimumMonthlySpend : true;
-            const spendingNeeded = remainingCategoryCap === Infinity ? Infinity : remainingCategoryCap / candidate.rate;
-            return { ...candidate, cardName: card.name, remainingCategoryCap, hasMetMinSpend, spendingNeeded };
-        }).filter(c => c && c.remainingCategoryCap > 0);
-        enrichedCandidates.sort((a, b) => {
+            const spendingNeeded = remainingCategoryCap === Infinity ? Infinity : remainingCategoryCap / rule.rate;
+            const categories = rule.category?.length ? rule.category : [rule.ruleName];
+            return categories.map(cat => ({
+                ...rule, suggestionFor: cat, parentRuleName: rule.ruleName, cardName: card.name,
+                remainingCategoryCap, hasMetMinSpend, spendingNeeded
+            }));
+        }).filter(Boolean);
+
+        const groupedByCategory = allCandidates.reduce((acc, candidate) => {
+            const category = candidate.suggestionFor;
+            if (!acc[category]) acc[category] = [];
+            acc[category].push(candidate);
+            return acc;
+        }, {});
+
+        const bestCardPerCategory = Object.values(groupedByCategory).map(group => {
+            const qualifiedCards = group.filter(c => c.hasMetMinSpend);
+            const unqualifiedCards = group.filter(c => !c.hasMetMinSpend);
+
+            const ranker = (a, b) => (b.rate - a.rate) || (b.remainingCategoryCap - a.remainingCategoryCap);
+            qualifiedCards.sort(ranker);
+            unqualifiedCards.sort(ranker);
+            
+            const bestQualified = qualifiedCards[0];
+            const bestUnqualified = unqualifiedCards[0];
+
+            // --- FINAL LOGIC ---
+            // If a qualified card exists, it always wins.
+            // Otherwise, fall back to the best unqualified card.
+            return bestQualified || bestUnqualified;
+        }).filter(Boolean);
+
+        bestCardPerCategory.sort((a, b) => {
+            // Sort the final list to prioritize qualified cards overall
+            if (a.hasMetMinSpend !== b.hasMetMinSpend) return a.hasMetMinSpend ? -1 : 1;
             if (b.rate !== a.rate) return b.rate - a.rate;
-            if (a.hasMetMinSpend !== b.hasMetMinSpend) return a.hasMetMinSpend ? 1 : -1;
             return b.remainingCategoryCap - a.remainingCategoryCap;
         });
-        return enrichedCandidates;
+
+        return bestCardPerCategory;
     }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth]);
 
-    // We'll show a maximum of 5 suggestions, and scroll if there are more
     const topSuggestions = suggestions;
     const VISIBLE_ITEMS = 5;
     
@@ -3285,11 +3325,9 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
         else if (direction === 'down' && canScrollDown) setStartIndex(prev => prev + 1);
     };
 
-    // Show up to 5 items, or all if less than 5
     const visibleSuggestions = topSuggestions.slice(startIndex, startIndex + VISIBLE_ITEMS);
 
     return (
-        // --- MODIFICATION: Removed the h-full class to allow natural height ---
         <Card className="flex flex-col">
             <CardHeader>
                 <div className="flex justify-between items-center">
@@ -3344,11 +3382,30 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
                 ) : (
                     <div className="flex flex-col items-center justify-center text-center p-4 rounded-lg bg-emerald-50 h-full min-h-[200px]">
                         <Sparkles className="h-8 w-8 text-emerald-500 mb-2" />
-                        <p className="font-semibold text-emerald-800">All Top Tiers Maxed Out!</p>
-                        <p className="text-xs text-emerald-700 mt-1">No high-tier cashback opportunities (2%+) are available right now.</p>
+                        <p className="font-semibold text-emerald-800">All Qualified Tiers Maxed Out!</p>
+                        <p className="text-xs text-emerald-700 mt-1">No high-tier opportunities are available on cards that have met their minimum spend.</p>
                     </div>
                 )}
             </CardContent>
         </Card>
     );
+}
+
+function useIOSKeyboardGapFix() {
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (!isIOS) return;
+
+    const handleBlur = () => {
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+      }, 100);
+    };
+
+    window.addEventListener('blur', handleBlur, true);
+
+    return () => {
+      window.removeEventListener('blur', handleBlur, true);
+    };
+  }, []);
 }
