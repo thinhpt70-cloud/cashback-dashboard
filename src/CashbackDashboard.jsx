@@ -699,6 +699,7 @@ export default function CashbackDashboard() {
                                             fmtYMShortFn={fmtYMShort}
                                             calculateFeeCycleProgressFn={calculateFeeCycleProgress}
                                             view={cardView}
+                                            mccMap={mccMap}
                                         />
                                     ))}
                                 </div>
@@ -722,6 +723,7 @@ export default function CashbackDashboard() {
                                                             fmtYMShortFn={fmtYMShort}
                                                             calculateFeeCycleProgressFn={calculateFeeCycleProgress}
                                                             view={cardView}
+                                                            mccMap={mccMap}
                                                         />
                                                     ))}
                                                 </div>
@@ -811,7 +813,7 @@ const CustomRechartsTooltip = ({ active, payload, label }) => {
     return null;
 };
 
-function CardInfoSheet({ card, rules }) {
+function CardInfoSheet({ card, rules, mccMap }) {
     // --- NEW: Add state for search and expansion ---
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedRuleId, setExpandedRuleId] = useState(null);
@@ -3097,7 +3099,7 @@ function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = fals
     );
 }
 
-function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn, view }) {
+function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn, view, mccMap }) {
     
     // --- Data Calculations (no changes here) ---
     const totalSpendMonth = cardMonthSummary?.spend || 0;
@@ -3221,7 +3223,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
 
                 {/* MODIFIED: Increased top padding from pt-3 to pt-4 for better spacing */}
                 <div className="mt-auto pt-3 flex justify-end">
-                    <CardInfoSheet card={card} rules={rules} />
+                    <CardInfoSheet card={card} rules={rules} mccMap={mccMap} />
                 </div>
             </div>
         </div>
