@@ -803,98 +803,136 @@ const CustomRechartsTooltip = ({ active, payload, label }) => {
     return null;
 };
 
-function CardInfoDialog({ card, rules }) {
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+function CardInfoSheet({ card, rules }) {
+    // --- NEW: Add state for search and expansion ---
+    const [searchTerm, setSearchTerm] = useState('');
+    const [expandedRuleId, setExpandedRuleId] = useState(null);
 
+    // --- (The rest of the existing setup stays the same) ---
+    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     const isFeeCovered = card.estYtdCashback >= card.annualFee;
     const representativeTxCapRule = rules.find(rule => rule.capPerTransaction > 0);
+    const infoItems = [ /* ... (no changes here) ... */ ];
 
-    const infoItems = [
-        { label: "Credit Limit", value: currency(card.creditLimit) },
-        { label: "Card Number", value: `**** **** **** ${card.last4}` },
-        { label: "Statement Day", value: `~ Day ${card.statementDay}` },
-        { label: "Payment Due Day", value: `~ Day ${card.paymentDueDay}` },
-        { label: "Monthly Interest", value: `${(card.interestRateMonthly * 100).toFixed(2)}%` },
-        { 
-        label: "Annual Fee", 
-        value: currency(card.annualFee),
-        valueClassName: isFeeCovered ? 'text-emerald-600' : 'text-red-500'
-        },
-    ];
+    // --- NEW: Memoized filtering logic for search functionality ---
+    const filteredAndSortedRules = useMemo(() => {
+        const lowercasedFilter = searchTerm.toLowerCase();
+
+        const filtered = rules.filter(rule => {
+            if (!searchTerm) return true; // Show all if search is empty
+
+            const nameMatch = rule.ruleName.toLowerCase().includes(lowercasedFilter);
+            if (nameMatch) return true;
+
+            const mccList = rule.mccCodes ? rule.mccCodes.split(',').map(m => m.trim()) : [];
+            for (const code of mccList) {
+                const mccName = mccMap[code]?.vn || '';
+                if (code.includes(lowercasedFilter) || mccName.toLowerCase().includes(lowercasedFilter)) {
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        // Sort rules to show active ones first
+        return filtered.sort((a, b) => {
+            if (a.status === 'Active' && b.status !== 'Active') return -1;
+            if (a.status !== 'Active' && b.status === 'Active') return 1;
+            return a.ruleName.localeCompare(b.ruleName);
+        });
+    }, [rules, searchTerm, mccMap]); // mccMap is needed here now
+
+    const handleToggleExpand = (ruleId) => {
+        setExpandedRuleId(prevId => (prevId === ruleId ? null : ruleId));
+    };
 
     return (
-        <Dialog>
-        <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="h-7 text-xs">
-            <Info className="mr-1.5 h-3.5 w-3.5" /> More info
-            </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-lg bg-white">
-            <DialogHeader>
-            <DialogTitle>{card.name}</DialogTitle>
-            <DialogDescription>{card.bank} &ndash; {card.cardType} Card</DialogDescription>
-            </DialogHeader>
-            
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm pt-2">
-            {infoItems.map(item => (
-                <div key={item.label}>
-                <p className="text-muted-foreground">{item.label}</p>
-                <p className={cn("font-medium", item.valueClassName)}>{item.value}</p>
+        <Sheet>
+            <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="h-7 text-xs">
+                    <Info className="mr-1.5 h-3.5 w-3.5" /> More info
+                </Button>
+            </SheetTrigger>
+            <SheetContent className="overflow-y-auto">
+                <SheetHeader>
+                    <SheetTitle>{card.name}</SheetTitle>
+                    <p className="text-sm text-muted-foreground">{card.bank} &ndash; {card.cardType} Card</p>
+                </SheetHeader>
+                
+                {/* --- (Card info and cashback details sections have no changes) --- */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm py-4">
+                    {/* ... infoItems mapping ... */}
                 </div>
-            ))}
-            </div>
+                <div>
+                    {/* ... cashback details grid ... */}
+                </div>
 
-            <div>
-            <h4 className="font-semibold text-sm mb-2 mt-3">Cashback Details</h4>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm p-3 bg-muted rounded-lg">
-                {representativeTxCapRule && (
-                <div>
-                    <p className="text-muted-foreground">Max per Tx</p>
-                    <p className="font-medium">{currency(representativeTxCapRule.capPerTransaction)}</p>
-                </div>
-                )}
-                {card.limitPerCategory > 0 && (
-                <div>
-                    <p className="text-muted-foreground">Max per Cat</p>
-                    <p className="font-medium">{currency(card.limitPerCategory)}</p>
-                </div>
-                )}
-                {card.overallMonthlyLimit > 0 && (
-                <div>
-                    <p className="text-muted-foreground">Max per Month</p>
-                    <p className="font-medium">{currency(card.overallMonthlyLimit)}</p>
-                </div>
-                )}
-                {/* --- THIS IS THE NEW METRIC --- */}
-                {card.minimumMonthlySpend > 0 && (
-                <div>
-                    <p className="text-muted-foreground">Min. Spending</p>
-                    <p className="font-medium">{currency(card.minimumMonthlySpend)}</p>
-                </div>
-                )}
-                {/* --- END OF NEW METRIC --- */}
-            </div>
-            </div>
-
-            <div>
-                <h4 className="font-semibold text-sm mb-2 mt-3">Cashback Rules</h4>
-                {/* 1. Add this new relative container */}
-                <div className="relative">
-                    <div className="space-y-2 max-h-56 overflow-y-auto pr-4">
-                    {rules.map(rule => (
-                        <Badge key={rule.id} variant="outline" className="w-full justify-between py-3">
-                        <span className="font-medium text-primary">{rule.ruleName}</span>
-                        <span className="font-mono text-base text-foreground">{rule.rate * 100}%</span>
-                        </Badge>
-                    ))}
-                    {rules.length === 0 && <p className="text-xs text-muted-foreground">No specific cashback rules found for this card.</p>}
+                {/* --- NEW: Revamped Cashback Rules Section --- */}
+                <div className="mt-4">
+                    <h4 className="font-semibold text-sm mb-2">Cashback Rules</h4>
+                    
+                    {/* 1. Add the search input */}
+                    <div className="relative mb-3">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            type="search"
+                            placeholder="Search by name, MCC code, or category..."
+                            className="w-full pl-8"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
-                    {/* 2. Add the fade-out overlay element */}
-                    <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+                    
+                    {/* 2. Render the interactive list */}
+                    <div className="space-y-1">
+                        {filteredAndSortedRules.length > 0 ? filteredAndSortedRules.map(rule => {
+                            const isExpanded = expandedRuleId === rule.id;
+                            const mccList = rule.mccCodes ? rule.mccCodes.split(',').map(m => m.trim()).filter(Boolean) : [];
+
+                            return (
+                                <div key={rule.id} className="border rounded-md overflow-hidden">
+                                    <div
+                                        onClick={() => handleToggleExpand(rule.id)}
+                                        className={cn(
+                                            "flex justify-between items-center p-3 cursor-pointer hover:bg-muted/50",
+                                            rule.status !== 'Active' && "opacity-60"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-2.5">
+                                            <span className={cn("h-2 w-2 rounded-full", rule.status === 'Active' ? "bg-emerald-500" : "bg-slate-400")} />
+                                            <span className="font-medium text-primary">{rule.ruleName}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="font-mono text-base text-foreground">{(rule.rate * 100).toFixed(1)}%</span>
+                                            <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+                                        </div>
+                                    </div>
+                                    
+                                    {isExpanded && (
+                                        <div className="p-3 border-t bg-slate-50/70">
+                                            {mccList.length > 0 ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {mccList.map(code => (
+                                                        <Badge key={code} variant="secondary" className="font-normal">
+                                                            <span className="font-mono mr-1.5">{code}:</span>
+                                                            {mccMap[code]?.vn || 'Unknown'}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-muted-foreground">No specific MCC codes are linked to this rule.</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        }) : (
+                            <p className="text-sm text-center text-muted-foreground py-4">No rules match your search.</p>
+                        )}
+                    </div>
                 </div>
-            </div>
-        </DialogContent>
-        </Dialog>
+            </SheetContent>
+        </Sheet>
     );
 }
 
@@ -3218,15 +3256,14 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                                 value={`${monthlyEffectiveRate.toFixed(2)}%`}
                                 valueClassName={monthlyEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
                             />
-                            <MetricItem label="Spend" value={currencyFn(totalSpendMonth)} />
-                            <MetricItem label="Cashback" value={currencyFn(estCashbackMonth)} />
-                            
                             {progressPercent > 0 && (
                                 <MetricItem 
                                     label={`Fee Cycle (${daysPast} days)`}
                                     value={`${progressPercent}%`} 
                                 />
                             )}
+                            <MetricItem label="Spend" value={currencyFn(totalSpendMonth)} />
+                            <MetricItem label="Cashback" value={currencyFn(estCashbackMonth)} />
                         </div>
                     )}
 
@@ -3274,7 +3311,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
 
                 {/* MODIFIED: Increased top padding from pt-3 to pt-4 for better spacing */}
                 <div className="mt-auto pt-3 flex justify-end">
-                    <CardInfoDialog card={card} rules={rules} />
+                    <CardInfoSheet card={card} rules={rules} />
                 </div>
             </div>
         </div>

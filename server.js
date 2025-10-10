@@ -284,7 +284,8 @@ app.get('/api/rules', async (req, res) => {
                 category: parsed['Category'],
                 rate: parsed['Cashback Rate'],
                 capPerTransaction: parsed['Limit per Transaction'],
-                status: parsed['Status']
+                status: parsed['Status'],
+                mccCodes: parsed['MCC Code'],
             };
         });
         res.json(results);
