@@ -96,7 +96,6 @@ const parseNotionPageProperties = (page) => {
     return result;
 };
 
-
 app.get('/api/transactions', async (req, res) => {
     // Get 'month', 'filterBy', and 'cardId' from the query parameters.
     // 'filterBy' defaults to 'date' if not provided.
@@ -393,6 +392,89 @@ app.post('/api/login', (req, res) => {
     return res.status(401).json({ success: false, message: 'Incorrect PIN' });
 });
 
+app.get('/api/lookup-merchant', async (req, res) => {
+    const { keyword } = req.query;
+    if (!keyword || keyword.length < 3) {
+        return res.json({ bestMatch: null, prediction: null, history: [] });
+    }
+
+    try {
+        // Step 1: Perform ONE comprehensive query to get all relevant historical data.
+        const response = await notion.databases.query({
+            database_id: transactionsDbId,
+            page_size: 100, // Get a good sample size for analysis
+            filter: { property: 'Transaction Name', title: { contains: keyword } },
+            sorts: [{ property: 'Transaction Date', direction: 'descending' }],
+        });
+
+        const transactions = response.results.map(page => parseNotionPageProperties(page));
+
+        // Step 2: Process the single dataset in three different ways.
+        
+        // A. Logic for "Best Match" (for card suggestions)
+        let bestMcc = transactions.length > 0 ? transactions[0]['MCC Code'] : null;
+        let mccSource = 'history';
+
+        if (!bestMcc) {
+            // Fallback to external API if no history
+            const fetch = (await import('node-fetch')).default;
+            const mccResponse = await fetch(`https://tc-mcc.tungpun.site/mcc?keyword=${encodeURIComponent(keyword)}`);
+            if (mccResponse.ok) {
+                const data = await mccResponse.json();
+                if (data.results && data.results.length > 0) {
+                    bestMcc = data.results[0][2];
+                    mccSource = 'external';
+                }
+            }
+        }
+        
+        // B. Logic for "Prediction" (for auto-filling)
+        const frequencyMap = new Map();
+        transactions.forEach(tx => {
+            if (tx['Merchant'] && tx['MCC Code'] && tx['Category']) {
+                const key = `${tx['Merchant']}|${tx['MCC Code']}|${tx['Category']}`;
+                frequencyMap.set(key, (frequencyMap.get(key) || 0) + 1);
+            }
+        });
+
+        let mostCommonKey = '';
+        let maxCount = 0;
+        frequencyMap.forEach((count, key) => {
+            if (count > maxCount) {
+                maxCount = count;
+                mostCommonKey = key;
+            }
+        });
+        
+        const [predMerchant, predMcc, predCategory] = mostCommonKey.split('|');
+        const prediction = mostCommonKey ? { merchant: predMerchant, mcc: predMcc, category: predCategory } : null;
+
+        // C. Logic for "Historical List" (for MCC suggestions)
+        const uniqueHistory = new Map();
+        transactions.forEach(tx => {
+            if (tx['Merchant'] && tx['MCC Code']) {
+                const key = `${tx['Merchant']}|${tx['MCC Code']}`;
+                if (!uniqueHistory.has(key)) {
+                    uniqueHistory.set(key, { merchant: tx['Merchant'], mcc: tx['MCC Code'] });
+                }
+            }
+        });
+
+        // Step 3: Return a single, structured object.
+        res.json({
+            bestMatch: bestMcc ? { mcc: bestMcc, source: mccSource } : null,
+            prediction: prediction,
+            history: Array.from(uniqueHistory.values())
+        });
+
+    } catch (error) {
+        console.error('Unified Merchant Lookup Error:', error.body || error);
+        res.status(500).json({ error: 'Failed to perform lookup' });
+    }
+});
+
+
+
 app.get('/api/mcc-search', async (req, res) => {
     const { keyword } = req.query;
     if (!keyword) {
@@ -540,72 +622,6 @@ app.post('/api/summaries', async (req, res) => {
     }
 });
 
-app.get('/api/predict-merchant-profile', async (req, res) => {
-    const { keyword } = req.query;
-    if (!keyword || keyword.length < 3) {
-        // Only start searching after 3 characters to avoid overly broad matches
-        return res.json(null);
-    }
-
-    try {
-        const response = await notion.databases.query({
-            database_id: transactionsDbId,
-            page_size: 100, // Look at the last 100 relevant transactions
-            filter: {
-                // Find transactions where the name contains the keyword
-                property: 'Transaction Name',
-                title: {
-                    contains: keyword,
-                },
-            },
-        });
-        
-        const parsedResults = response.results.map(page => parseNotionPageProperties(page));
-
-        if (parsedResults.length === 0) {
-            return res.json(null); // No history found
-        }
-
-        // --- Frequency Counter Logic ---
-        // This finds the most common combination of Merchant, MCC, and Category
-        const frequencyMap = new Map();
-        parsedResults.forEach(tx => {
-            const merchant = tx['Merchant'];
-            const mcc = tx['MCC Code'];
-            const category = tx['Category'];
-
-            // We only care about transactions that have been fully categorized
-            if (merchant && mcc && category) {
-                const key = `${merchant}|${mcc}|${category}`;
-                frequencyMap.set(key, (frequencyMap.get(key) || 0) + 1);
-            }
-        });
-
-        if (frequencyMap.size === 0) {
-            return res.json(null); // No complete profiles found
-        }
-
-        // Find the key with the highest count
-        let mostCommonKey = '';
-        let maxCount = 0;
-        for (const [key, count] of frequencyMap.entries()) {
-            if (count > maxCount) {
-                maxCount = count;
-                mostCommonKey = key;
-            }
-        }
-
-        // Split the winning key back into its parts
-        const [merchant, mcc, category] = mostCommonKey.split('|');
-
-        res.json({ merchant, mcc, category });
-
-    } catch (error) {
-        console.error('Merchant Profile Prediction Error:', error.body || error);
-        res.status(500).json({ error: 'Failed to predict merchant profile' });
-    }
-});
-
 app.get('/api/common-vendors', async (req, res) => {
     try {
         const response = await notion.databases.query({
@@ -647,56 +663,6 @@ app.get('/api/common-vendors', async (req, res) => {
         console.error('Failed to fetch common vendors:', error.body || error);
         res.status(500).json({ error: 'Failed to fetch data from Notion' });
     }
-});
-
-app.get('/api/internal-mcc-search', async (req, res) => {
-  const { keyword } = req.query;
-  const transactionsDbId = process.env.NOTION_TRANSACTIONS_DB_ID;
-
-  if (!keyword) {
-    return res.status(400).json({ error: 'Keyword is required' });
-  }
-
-  try {
-    // This query searches for transactions where "Transaction Name" contains the keyword.
-    const response = await notion.databases.query({
-      database_id: transactionsDbId,
-      filter: {
-        property: 'Transaction Name',
-        title: { // Correctly use the 'title' filter
-            contains: keyword,
-        },
-      },
-      sorts: [
-        {
-            property: 'Transaction Date',
-            direction: 'descending',
-        },
-      ],
-    });
-
-    // Process the results to find unique merchant/MCC combinations
-    const uniqueResults = new Map();
-    response.results.forEach(page => {
-      // Ensure these property names exactly match your Notion database columns
-      const merchant = page.properties['Merchant']?.rich_text[0]?.plain_text;
-      const mcc = page.properties['MCC Code']?.rich_text[0]?.plain_text;
-
-      if (merchant && mcc) {
-        const key = `${merchant}|${mcc}`; // Create a unique key
-        if (!uniqueResults.has(key)) {
-          uniqueResults.set(key, { merchant, mcc });
-        }
-      }
-    });
-
-    // Convert the map of unique results back to an array and send it
-    res.status(200).json(Array.from(uniqueResults.values()));
-
-  } catch (error) {
-    console.error('Error searching internal transactions:', error);
-    res.status(500).json({ error: 'Failed to search internal transactions' });
-  }
 });
 
 

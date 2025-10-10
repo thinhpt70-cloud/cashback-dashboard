@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe, Check, Lightbulb, Sparkles, ShoppingCart, Snowflake } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe, Check, Lightbulb, Sparkles, ShoppingCart, Snowflake, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
@@ -517,7 +517,15 @@ export default function CashbackDashboard() {
                     </select>
                 )}
                 <Button variant="outline" size="icon" onClick={() => fetchData(false)}><RefreshCw className="h-4 w-4" /></Button>
-                <div className="ml-auto flex items-center gap-4">
+                <div className="ml-auto flex items-center gap-2">
+
+                    {/* --- ADD THIS COMPONENT --- */}
+                    <BestCardFinderDialog 
+                        allCards={cards} 
+                        allRules={rules} 
+                        mccMap={mccMap} 
+                    />
+
                     {/* This Sheet component creates the slide-over panel */}
                     <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
                         <SheetTrigger asChild>
@@ -2498,8 +2506,6 @@ function LoginScreen({ onLoginSuccess }) {
     );
 }
 
-// CashbackDashboard.jsx
-
 function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors }) {
     // --- State Management ---
     const [merchant, setMerchant] = useState('');
@@ -2512,11 +2518,11 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [mccName, setMccName] = useState('');
     const [applicableRuleId, setApplicableRuleId] = useState('');
     const [cardSummaryCategoryId, setCardSummaryCategoryId] = useState('new');
-    const [isMccSearching, setIsMccSearching] = useState(false);
-    const [mccResults, setMccResults] = useState([]);
-    const [isMccDialogOpen, setIsMccDialogOpen] = useState(false);
+    // --- RENAMED STATE: To be clearer about what is being searched ---
+    const [isLookingUp, setIsLookingUp] = useState(false);
+    const [lookupResults, setLookupResults] = useState([]); // Will hold history for the dialog
+    const [isLookupDialogOpen, setIsLookupDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isPredicting, setIsPredicting] = useState(false);
 
     useIOSKeyboardGapFix();
 
@@ -2527,31 +2533,19 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         setMerchantLookup(vendor.merchant || '');
         setMccCode(vendor.mcc || '');
         setCategory(vendor.category || '');
-
-        if (vendor.preferredCardId) {
-            setCardId(vendor.preferredCardId);
-        }
-
-        if (vendor.preferredRuleId) {
-            setApplicableRuleId(vendor.preferredRuleId);
-        } else {
-            setApplicableRuleId('');
-        }
+        if (vendor.preferredCardId) setCardId(vendor.preferredCardId);
+        if (vendor.preferredRuleId) setApplicableRuleId(vendor.preferredRuleId);
+        else setApplicableRuleId('');
         amountInputRef.current?.focus();
     };
 
-    // --- Memoized Calculations ---
+    // --- Memoized Calculations (No changes here) ---
     const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cardId, cards]);
-
     const filteredRules = useMemo(() => {
         if (!cardId) return [];
-        return rules
-            .filter(rule => rule.cardId === cardId && rule.status === 'Active')
-            .sort((a, b) => a.name.localeCompare(b.name));
+        return rules.filter(rule => rule.cardId === cardId && rule.status === 'Active').sort((a, b) => a.name.localeCompare(b.name));
     }, [cardId, rules]);
-
     const selectedRule = useMemo(() => rules.find(r => r.id === applicableRuleId), [applicableRuleId, rules]);
-
     const cashbackMonth = useMemo(() => {
         if (!selectedCard || !date) return null;
         const transactionDate = new Date(date);
@@ -2563,99 +2557,51 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         }
         let year = transactionDate.getFullYear();
         let month = transactionDate.getMonth();
-        if (transactionDate.getDate() >= statementDay) {
-            month += 1;
-        }
-        if (month > 11) {
-            month = 0;
-            year += 1;
-        }
+        if (transactionDate.getDate() >= statementDay) month += 1;
+        if (month > 11) { month = 0; year += 1; }
         const finalMonth = month + 1;
         return `${year}${String(finalMonth).padStart(2, '0')}`;
     }, [selectedCard, date]);
-
     const filteredSummaries = useMemo(() => {
         if (!selectedRule || !cardId || !cashbackMonth) return [];
         const targetSummaryId = `${cashbackMonth} - ${selectedRule.name}`;
-        return monthlyCategories.filter(summary => {
-            return summary.cardId === cardId && summary.summaryId === targetSummaryId;
-        });
+        return monthlyCategories.filter(summary => summary.cardId === cardId && summary.summaryId === targetSummaryId);
     }, [cardId, monthlyCategories, selectedRule, cashbackMonth]);
+    const estimatedCashback = useMemo(() => {
+        if (!selectedRule || !amount) return 0;
+        const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
+        if (isNaN(numericAmount)) return 0;
+        const calculatedCashback = numericAmount * selectedRule.rate;
+        const cap = selectedRule.capPerTransaction;
+        if (cap > 0 && calculatedCashback > cap) return cap;
+        return calculatedCashback;
+    }, [amount, selectedRule]);
 
-    // --- Effects ---
 
-    useEffect(() => {
-        if (merchant.trim().length < 3) {
-            setIsPredicting(false);
-            return;
-        }
-        setIsPredicting(true);
-        const timer = setTimeout(async () => {
-            try {
-                const res = await fetch(`/api/predict-merchant-profile?keyword=${encodeURIComponent(merchant)}`);
-                const profile = await res.json();
-                if (profile) {
-                    setMerchantLookup(profile.merchant || '');
-                    setMccCode(profile.mcc || '');
-                    setCategory(profile.category || '');
-                }
-            } catch (error) {
-                console.error("Failed to fetch merchant profile:", error);
-            } finally {
-                setIsPredicting(false);
-            }
-        }, 500);
-        return () => {
-            clearTimeout(timer);
-        };
-    }, [merchant]);
+    // --- Effects (Simplified) ---
+
+    // --- REMOVED: The incorrect useEffect that called a non-existent prediction API ---
 
     useEffect(() => {
-        if (filteredSummaries.length > 0) {
-            setCardSummaryCategoryId(filteredSummaries[0].id);
-        } else {
-            setCardSummaryCategoryId('new');
-        }
+        if (filteredSummaries.length > 0) setCardSummaryCategoryId(filteredSummaries[0].id);
+        else setCardSummaryCategoryId('new');
     }, [filteredSummaries]);
 
     useEffect(() => {
         if (cards.length > 0 && !cardId) {
             const lastUsedCardId = localStorage.getItem('lastUsedCardId');
-            const lastUsedCardIsValid = lastUsedCardId && cards.some(c => c.id === lastUsedCardId);
-            if (lastUsedCardIsValid) {
-                setCardId(lastUsedCardId);
-            } else {
-                setCardId(cards[0].id);
-            }
+            if (lastUsedCardId && cards.some(c => c.id === lastUsedCardId)) setCardId(lastUsedCardId);
+            else setCardId(cards[0].id);
         }
     }, [cards, cardId]);
-    
 
     useEffect(() => {
-        if (mccMap && mccCode && mccMap[mccCode]) {
-            setMccName(mccMap[mccCode].vn);
-        } else {
-            setMccName('');
-        }
+        if (mccMap && mccCode && mccMap[mccCode]) setMccName(mccMap[mccCode].vn);
+        else setMccName('');
     }, [mccCode, mccMap]);
 
-    const estimatedCashback = useMemo(() => {
-        if (!selectedRule || !amount) {
-            return 0;
-        }
-        const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
-        if (isNaN(numericAmount)) {
-            return 0;
-        }
-        const calculatedCashback = numericAmount * selectedRule.rate;
-        const cap = selectedRule.capPerTransaction;
-        if (cap > 0 && calculatedCashback > cap) {
-            return cap;
-        }
-        return calculatedCashback;
-    }, [amount, selectedRule]);
 
-    // --- Handlers ---
+    // --- Handlers (Updated) ---
     const resetForm = () => {
         setMerchant('');
         setAmount('');
@@ -2665,71 +2611,62 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         setApplicableRuleId('');
         setCardSummaryCategoryId('new');
     };
-    
+
     const handleAmountChange = (e) => {
         const value = e.target.value.replace(/,/g, '');
-        if (!isNaN(value) && value.length <= 15) {
-            setAmount(Number(value).toLocaleString('en-US'));
-        } else if (value === '') {
-            setAmount('');
+        if (!isNaN(value) && value.length <= 15) setAmount(Number(value).toLocaleString('en-US'));
+        else if (value === '') setAmount('');
+    };
+
+    // --- MAJOR CHANGE: This function now handles all lookup logic ---
+    const handleMerchantLookup = async () => {
+        if (!merchant) return;
+        setIsLookingUp(true);
+        setLookupResults([]);
+        try {
+            const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(merchant)}`);
+            if (!res.ok) throw new Error("Server responded with an error.");
+            const data = await res.json();
+
+            // 1. Use the 'prediction' object to auto-fill the form
+            if (data.prediction) {
+                setMerchantLookup(data.prediction.merchant || '');
+                setMccCode(data.prediction.mcc || '');
+                setCategory(data.prediction.category || '');
+                toast.info("Auto-filled based on your history.");
+            } else if (data.bestMatch) {
+                // Fallback to bestMatch if no full prediction is available
+                setMccCode(data.bestMatch.mcc || '');
+            }
+
+            // 2. Use the 'history' array to populate the suggestions dialog
+            if (data.history && data.history.length > 0) {
+                // We map the server data to the format the dialog component expects
+                const formattedHistory = data.history.map(item => ([
+                    "Your History", item.merchant, item.mcc,
+                    mccMap[item.mcc]?.en || "Unknown",
+                    mccMap[item.mcc]?.vn || "Không rõ",
+                    null
+                ]));
+                setLookupResults(formattedHistory);
+                setIsLookupDialogOpen(true);
+            } else {
+                toast.info("No transaction history found. You can still add the transaction manually.");
+            }
+
+        } catch (error) {
+            console.error("Merchant Lookup Error:", error);
+            toast.error("Could not perform merchant lookup.");
+        } finally {
+            setIsLookingUp(false);
         }
     };
 
-    const handleMccSearch = async () => {
-        if (!merchant) return;
-        setIsMccSearching(true);
-        setMccResults([]);
-        try {
-            const keyword = encodeURIComponent(merchant);
-            const [internalRes, externalRes] = await Promise.all([
-                fetch(`/api/internal-mcc-search?keyword=${keyword}`),
-                fetch(`/api/mcc-search?keyword=${keyword}`)
-            ]);
-            let internalData = [];
-            if (internalRes.ok) {
-                const rawInternal = await internalRes.json();
-                internalData = rawInternal.map(item => ([ "Your History", item.merchant, item.mcc, mccMap[item.mcc]?.en || "Unknown", mccMap[item.mcc]?.vn || "Không rõ", null ]));
-            } else {
-                console.error("Internal MCC search failed");
-            }
-            let externalData = [];
-            if (externalRes.ok) {
-                const rawExternal = await externalRes.json();
-                if (rawExternal.results) {
-                    externalData = rawExternal.results;
-                }
-            } else {
-                console.error("External MCC search failed");
-            }
-            const combinedResults = [...internalData, ...externalData];
-            const uniqueResults = new Map();
-            combinedResults.forEach(result => {
-                const merchantName = result[1];
-                const mcc = result[2];
-                const key = `${merchantName}|${mcc}`;
-                if (!uniqueResults.has(key)) {
-                    uniqueResults.set(key, result);
-                }
-            });
-            const finalResults = Array.from(uniqueResults.values());
-            if (finalResults.length > 0) {
-                setMccResults(finalResults);
-                setIsMccDialogOpen(true);
-            } else {
-                toast.info("No MCC suggestions found for this merchant.");
-            }
-        } catch (error) {
-            console.error("MCC Search Error:", error);
-            toast.error("Could not perform MCC search.");
-        } finally {
-            setIsMccSearching(false);
-        }
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-        let finalSummaryId = null; 
+        let finalSummaryId = null;
         try {
             if (applicableRuleId && cardSummaryCategoryId === 'new') {
                 const summaryResponse = await fetch('/api/summaries', {
@@ -2746,8 +2683,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             const transactionData = {
                 merchant,
                 amount: parseFloat(String(amount).replace(/,/g, '')),
-                date,
-                cardId,
+                date, cardId,
                 category: category || null,
                 mccCode: mccCode || null,
                 merchantLookup: merchantLookup || null,
@@ -2770,7 +2706,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             console.error('Error during transaction submission:', error);
             toast.error("Failed to add transaction. Please try again.");
         } finally {
-            setIsSubmitting(false); 
+            setIsSubmitting(false);
         }
     };
 
@@ -2784,15 +2720,14 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                         <div className="relative flex items-center">
                             <Input id="merchant" value={merchant} onChange={(e) => setMerchant(e.target.value)} required className="pr-12" />
                             <div className="absolute right-2 flex items-center gap-2">
-                                {isPredicting && (
-                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                )}
-                                <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={handleMccSearch} disabled={!merchant || isMccSearching}>
-                                    {isMccSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                {/* --- UPDATED: Button now calls the new unified lookup function --- */}
+                                <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={handleMerchantLookup} disabled={!merchant || isLookingUp}>
+                                    {isLookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                 </Button>
                             </div>
                         </div>
                     </div>
+                    {/* The rest of the form remains unchanged */}
                     <div className="grid grid-cols-1 sm:grid-cols-10 gap-4 items-start">
                         <div className="space-y-2 col-span-1 sm:col-span-6">
                             <label htmlFor="merchantLookup">Merchant</label>
@@ -2813,34 +2748,20 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                             <label htmlFor="date">Date</label>
                             <div className="relative flex items-center">
                                 <CalendarDays className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    id="date"
-                                    type="date"
-                                    className="relative focus:z-10 flex items-center w-full py-2 pl-10 text-left"
-                                    value={date}
-                                    onChange={(e) => setDate(e.target.value)}
-                                    required
-                                />
+                                <Input id="date" type="date" className="relative focus:z-10 flex items-center w-full py-2 pl-10 text-left" value={date} onChange={(e) => setDate(e.target.value)} required />
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div className="space-y-4 border-t pt-6">
+                   {/* This section remains unchanged */}
                     <div className="space-y-2">
                         <label htmlFor="card">Card</label>
                         <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="relative focus:z-10 w-full p-2 border rounded cursor-pointer" required>
-                        {[...cards]
-                            .sort((a, b) => a.name.localeCompare(b.name))
-                            .map(card => <option key={card.id} value={card.id}>{card.name}</option>)
-                        }
+                        {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
                         </select>
-                        {cashbackMonth && (
-                        <div className="flex items-center gap-2 pt-2">
-                            <span className="text-xs text-muted-foreground">Statement Month:</span>
-                            <Badge variant="outline">{cashbackMonth}</Badge>
-                        </div>
-                        )}
+                        {cashbackMonth && (<div className="flex items-center gap-2 pt-2"><span className="text-xs text-muted-foreground">Statement Month:</span><Badge variant="outline">{cashbackMonth}</Badge></div>)}
                     </div>
                     <div className="space-y-2">
                         <label htmlFor="rule">Applicable Cashback Rule</label>
@@ -2848,16 +2769,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                         <option value="">{filteredRules.length === 0 ? 'No active rules for this card' : 'None'}</option>
                         {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
                         </select>
-                        {selectedRule && (
-                        <div className="flex items-center gap-2 pt-2">
-                            <Badge variant="secondary">Rate: {(selectedRule.rate * 100).toFixed(1)}%</Badge>
-                            {estimatedCashback > 0 && (
-                                <Badge variant="outline" className="text-emerald-600">
-                                    Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}
-                                </Badge>
-                            )}
-                        </div>
-                        )}
+                        {selectedRule && (<div className="flex items-center gap-2 pt-2"><Badge variant="secondary">Rate: {(selectedRule.rate * 100).toFixed(1)}%</Badge>{estimatedCashback > 0 && (<Badge variant="outline" className="text-emerald-600">Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}</Badge>)}</div>)}
                     </div>
                     {applicableRuleId && (
                     <div className="space-y-2">
@@ -2872,10 +2784,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                         <label htmlFor="category">Internal Category</label>
                         <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="relative focus:z-10 w-full p-2 border rounded cursor-pointer">
                             <option value="">None</option>
-                            {[...categories]
-                                .sort((a, b) => a.localeCompare(b))
-                                .map(cat => <option key={cat} value={cat}>{cat}</option>)
-                            }
+                            {[...categories].sort((a, b) => a.localeCompare(b)).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                         </select>
                     </div>
                 </div>
@@ -2886,19 +2795,20 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     </Button>
                 </div>
             </form>
+            {/* --- UPDATED: This dialog now gets its data from the new lookup function --- */}
             <MccSearchResultsDialog
-                open={isMccDialogOpen}
-                onOpenChange={setIsMccDialogOpen}
-                results={mccResults}                
+                open={isLookupDialogOpen}
+                onOpenChange={setIsLookupDialogOpen}
+                results={lookupResults}
                 onSelect={(selectedResult) => {
                     const merchantNameFromResult = selectedResult[1];
                     const mccCodeFromResult = selectedResult[2];
                     setMccCode(mccCodeFromResult);
                     setMerchantLookup(merchantNameFromResult);
-                    setIsMccDialogOpen(false);
+                    setIsLookupDialogOpen(false);
                 }}
             />
-        </>      
+        </>
     );
 }
 
@@ -3495,4 +3405,154 @@ function useIOSKeyboardGapFix() {
   }, []);
 }
 
+function BestCardFinderDialog({ allCards, allRules, mccMap }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [results, setResults] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    // --- NEW: State to hold the term that was actually searched ---
+    const [searchedTerm, setSearchedTerm] = useState('');
+    
+    const cardMap = useMemo(() => new Map(allCards.map(c => [c.id, c])), [allCards]);
 
+    const handleSearch = async (e) => {
+        e.preventDefault();
+        const term = searchTerm.trim();
+        if (!term) return;
+
+        setIsLoading(true);
+        setResults(null);
+        setSearchedTerm(term); // Store the searched term
+
+        try {
+            const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(term)}`);
+            if (!res.ok) throw new Error('Failed to fetch merchant data');
+            const lookupData = await res.json();
+
+            const foundMcc = lookupData.bestMatch?.mcc;
+            if (!foundMcc) {
+                setResults({ mcc: null, suggestions: [] });
+                return;
+            }
+            
+            const suggestions = allRules
+                .filter(rule =>
+                    rule.status === 'Active' &&
+                    rule.mccCodes &&
+                    rule.mccCodes.split(',').map(c => c.trim()).includes(foundMcc)
+                )
+                .map(rule => ({
+                    rule,
+                    card: cardMap.get(rule.cardId),
+                }))
+                .filter(item => item.card && item.card.status === 'Active')
+                .sort((a, b) => b.rule.rate - a.rule.rate);
+
+            setResults({
+                mcc: foundMcc,
+                mccDescription: mccMap[foundMcc]?.vn || "Unknown",
+                suggestions: suggestions,
+            });
+
+        } catch (err) {
+            console.error(err);
+            toast.error("Could not fetch suggestions.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline">
+                    <Search className="mr-2 h-4 w-4" /> Card Finder
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Find the Best Card</DialogTitle>
+                    <DialogDescription>
+                        Enter a merchant name (e.g., Shopee, Starbucks) to find your optimal card.
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSearch} className="flex items-center gap-2">
+                    <Input
+                        placeholder="e.g., Shopee, 5411, Grab..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <Button type="submit" disabled={isLoading || !searchTerm.trim()}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    </Button>
+                </form>
+
+                <div className="mt-4 min-h-[250px]">
+                    {isLoading ? (
+                        <div className="flex justify-center items-center h-full pt-10">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        </div>
+                    ) : results ? (
+                        <div>
+                            {/* --- This section remains the same --- */}
+                            {results.mcc ? (
+                                <div className="mb-4 p-3 rounded-md bg-slate-50 border">
+                                    <p className="text-sm text-muted-foreground">Found MCC for "{searchedTerm}":</p>
+                                    <Badge variant="secondary" className="text-base mt-1">
+                                        <span className="font-mono mr-2">{results.mcc}:</span>
+                                        {results.mccDescription}
+                                    </Badge>
+                                </div>
+                            ) : (
+                                <p className="text-center text-muted-foreground p-4">
+                                    Could not determine an MCC for "{searchedTerm}".
+                                </p>
+                            )}
+                            
+                            {results.suggestions && results.suggestions.length > 0 ? (
+                                <div className="space-y-2">
+                                    <h4 className="font-semibold">Top Suggestions:</h4>
+                                    {results.suggestions.map(({ card, rule }, index) => (
+                                        <div key={rule.id} className="border rounded-lg p-3 flex items-center justify-between gap-4">
+                                            <div className="flex items-center gap-3">
+                                                <span className="font-bold text-lg text-muted-foreground">#{index + 1}</span>
+                                                <div>
+                                                    <p className="font-bold text-primary">{card.name}</p>
+                                                    <p className="text-xs text-muted-foreground">{rule.ruleName}</p>
+                                                </div>
+                                            </div>
+                                            <Badge className="text-lg bg-emerald-600 hover:bg-emerald-700">
+                                                {(rule.rate * 100).toFixed(1)}%
+                                            </Badge>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                results.mcc && <p className="text-center text-muted-foreground p-4">No active cashback rules found for this MCC.</p>
+                            )}
+                            
+                            {/* --- NEW: External Search Links --- */}
+                            <div className="flex items-center justify-center gap-2 mt-6 border-t pt-4">
+                                <Button asChild variant="ghost" size="sm">
+                                    <a href={`https://www.google.com/search?q=${encodeURIComponent(searchedTerm + ' credit card')}`} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="mr-2 h-4 w-4" /> Google
+                                    </a>
+                                </Button>
+                                <Button asChild variant="ghost" size="sm">
+                                    <a href={`https://quanlythe.com/tim-kiem.html?q=${encodeURIComponent(searchedTerm)}`} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="mr-2 h-4 w-4" /> QuanLyThe.com
+                                    </a>
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 h-full pt-10">
+                            <Sparkles className="h-8 w-8 mb-2" />
+                            <p>Start a search to see card suggestions.</p>
+                        </div>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
