@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe, Check, Lightbulb, Sparkles, ShoppingCart } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe, Check, Lightbulb, Sparkles, ShoppingCart, Snowflake } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
@@ -27,6 +27,12 @@ import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTo
 import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronUp, List } from "lucide-react";
 import { cn } from "./lib/utils";
 import { Toaster, toast } from 'sonner';
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "./components/ui/accordion";
 
 
 
@@ -331,9 +337,19 @@ export default function CashbackDashboard() {
     };
 
     const sortedCards = useMemo(() => {
-        // Create a shallow copy to avoid mutating the original state array, then sort it
-        return [...cards].sort((a, b) => a.name.localeCompare(b.name));
-    }, [cards]); // The dependency array ensures this runs only when 'cards' data changes
+        const statusOrder = {
+            'Active': 1,
+            'Frozen': 2,
+            'Closed': 3,
+        };
+        return [...cards].sort((a, b) => {
+            const statusDiff = (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
+            if (statusDiff !== 0) {
+                return statusDiff;
+            }
+            return a.name.localeCompare(b.name);
+        });
+    }, [cards]);
     
     // --- MEMOIZED DATA PROCESSING ---
 
@@ -528,7 +544,7 @@ export default function CashbackDashboard() {
             </div>
             </header>
 
-            <main key={activeMonth} className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <Tabs defaultValue="overview">
                 <div className="flex items-center">
                 <TabsList className="bg-slate-100 p-1 rounded-lg">
@@ -648,21 +664,58 @@ export default function CashbackDashboard() {
                             <TabsTrigger value="roi">ROI & Dates</TabsTrigger>
                         </TabsList>
                     </Tabs>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {sortedCards.map(card => (
-                            <EnhancedCard 
-                                key={card.id}
-                                card={card}
-                                activeMonth={activeMonth}
-                                cardMonthSummary={activeMonthSummariesMap.get(card.id)} 
-                                rules={rules.filter(r => r.cardId === card.id)}
-                                currencyFn={currency}
-                                fmtYMShortFn={fmtYMShort}
-                                calculateFeeCycleProgressFn={calculateFeeCycleProgress}
-                                view={cardView} // Pass the new state down as a 'view' prop
-                            />
-                        ))}
-                    </div>
+                    
+                    {(() => {
+                        const activeAndFrozenCards = sortedCards.filter(c => c.status !== 'Closed');
+                        const closedCards = sortedCards.filter(c => c.status === 'Closed');
+                
+                        return (
+                            <>
+                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    {activeAndFrozenCards.map(card => (
+                                        <EnhancedCard 
+                                            key={card.id}
+                                            card={card}
+                                            activeMonth={activeMonth}
+                                            cardMonthSummary={activeMonthSummariesMap.get(card.id)} 
+                                            rules={rules.filter(r => r.cardId === card.id)}
+                                            currencyFn={currency}
+                                            fmtYMShortFn={fmtYMShort}
+                                            calculateFeeCycleProgressFn={calculateFeeCycleProgress}
+                                            view={cardView}
+                                        />
+                                    ))}
+                                </div>
+                
+                                {closedCards.length > 0 && (
+                                    <Accordion type="single" collapsible className="w-full pt-4">
+                                        <AccordionItem value="closed-cards">
+                                            <AccordionTrigger className="text-base font-semibold text-muted-foreground">
+                                                Show Closed Cards ({closedCards.length})
+                                            </AccordionTrigger>
+                                            <AccordionContent>
+                                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pt-4">
+                                                    {closedCards.map(card => (
+                                                        <EnhancedCard 
+                                                            key={card.id}
+                                                            card={card}
+                                                            activeMonth={activeMonth}
+                                                            cardMonthSummary={activeMonthSummariesMap.get(card.id)} 
+                                                            rules={rules.filter(r => r.cardId === card.id)}
+                                                            currencyFn={currency}
+                                                            fmtYMShortFn={fmtYMShort}
+                                                            calculateFeeCycleProgressFn={calculateFeeCycleProgress}
+                                                            view={cardView}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    </Accordion>
+                                )}
+                            </>
+                        );
+                    })()}
                 </TabsContent>
                 <TabsContent value="payments" className="space-y-4 pt-4">
                     <PaymentsTabV2 
@@ -3102,8 +3155,8 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
     const getStatusClasses = (status) => {
         switch (status) {
             case 'Active': return 'bg-emerald-100 text-emerald-800';
-            case 'Frozen': return 'bg-blue-100 text-blue-800';
-            case 'Closed': return 'bg-red-100 text-red-800';
+            case 'Frozen': return 'bg-sky-100 text-sky-800';
+            case 'Closed': return 'bg-slate-200 text-slate-600';
             default: return 'bg-slate-100 text-slate-800';
         }
     };
@@ -3112,7 +3165,15 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
     const formattedNextFeeDate = card.nextAnnualFeeDate ? new Date(card.nextAnnualFeeDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
     return (
-        <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col">
+        <div className={cn(
+            "bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col relative",
+            card.status === 'Closed' && 'filter grayscale'
+        )}>
+            {card.status === 'Frozen' && (
+                <div className="absolute inset-0 bg-sky-400/20 backdrop-blur-sm rounded-xl flex items-center justify-center z-10 pointer-events-none">
+                    <Snowflake className="h-16 w-16 text-white/90 drop-shadow-lg" strokeWidth={1.5}/>
+                </div>
+            )}
             {/* Visual Card Header */}
             <div className={`relative rounded-t-xl p-4 ${theme.gradient} ${theme.textColor} flex-shrink-0`}>
                 <div className="flex justify-between items-center">
@@ -3130,7 +3191,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
             <div className="p-4 flex-grow flex flex-col">
                 <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 mb-3">
                     <p>Statement: <span className="font-medium text-slate-600">Day {card.statementDay}</span></p>
-                    <p>Payment Due: <span className="font-medium text-slate-600">Day {card.paymentDay}</span></p>
+                    <p>Payment Due: <span className="font-medium text-slate-600">Day {card.paymentDueDay}</span></p>
                 </div>
                 
                 <div className="flex-grow min-h-[150px] flex flex-col justify-center">
@@ -3375,3 +3436,4 @@ function useIOSKeyboardGapFix() {
     };
   }, []);
 }
+
