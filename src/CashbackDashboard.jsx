@@ -3500,12 +3500,10 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
     const [selectedMcc, setSelectedMcc] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     
-    // --- NEW: State to hold details for the primary "best match" result ---
     const [bestMatchDetails, setBestMatchDetails] = useState(null);
 
     const cardMap = useMemo(() => new Map(allCards.map(c => [c.id, c])), [allCards]);
 
-    // Effect to load recent searches from localStorage
     useEffect(() => {
         if (isOpen) {
             const searches = JSON.parse(localStorage.getItem('cardFinderSearches') || '[]');
@@ -3519,7 +3517,6 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
         const term = searchTerm.trim();
         if (!term) return;
 
-        // Update localStorage with the new search term
         const updatedSearches = [term, ...recentSearches.filter(s => s !== term)].slice(0, 5);
         localStorage.setItem('cardFinderSearches', JSON.stringify(updatedSearches));
         setRecentSearches(updatedSearches);
@@ -3527,13 +3524,12 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
         setIsLoading(true);
         setSearchedTerm(term);
         setView('initial');
-        setBestMatchDetails(null); // Reset details on new search
+        setBestMatchDetails(null);
 
         if (/^\d{4}$/.test(term)) {
             const mcc = term;
             setSelectedMcc(mcc);
-            setSearchResult({ type: 'mcc', mcc: mcc }); // Mock a search result
-            // Set details for the direct MCC input
+            setSearchResult({ type: 'mcc', mcc: mcc });
             setBestMatchDetails({
                 source: 'Direct Input',
                 merchant: `Category for MCC ${mcc}`,
@@ -3555,12 +3551,10 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
             const bestMcc = data.bestMatch?.mcc;
             setSelectedMcc(bestMcc);
 
-            // --- NEW: Logic to find and set the details for the best match ---
             if (bestMcc) {
-                let foundMerchant = `Category for MCC ${bestMcc}`; // Default
+                let foundMerchant = `Category for MCC ${bestMcc}`;
                 const source = data.bestMatch.source === 'history' ? 'Your History' : 'External Suggestion';
                 
-                // Try to find the merchant name from the corresponding list
                 const listToSearch = source === 'Your History' ? data.history : data.external;
                 const matchingItem = listToSearch?.find(item => item.mcc === bestMcc);
                 if (matchingItem) {
@@ -3585,17 +3579,13 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
         }
     };
 
-    // Handler for clicking a recent search tag
     const handleRecentSearchClick = (term) => {
         setSearchTerm(term);
-        // Use a timeout to ensure the state update is processed before submitting the form
         setTimeout(() => {
-            // Directly call the search logic without needing a form element
             handleSearch();
         }, 0);
     };
 
-    // The advanced ranking logic (no changes here)
     const rankedSuggestions = useMemo(() => {
         if (!selectedMcc) return [];
         const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
@@ -3664,7 +3654,6 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
 
     const handleOptionSelect = (mcc, merchant) => {
         setSelectedMcc(mcc);
-        // Update the best match details when an option is selected
         setBestMatchDetails({
             source: 'Manual Selection',
             merchant: merchant,
@@ -3688,7 +3677,6 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
         }, 200);
     };
 
-    // Check if there are other suggestions to show
     const hasOtherSuggestions = searchResult?.type === 'merchant' && 
                                ((searchResult.history && searchResult.history.length > 0) || 
                                 (searchResult.external && searchResult.external.length > 0));
@@ -3709,7 +3697,6 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                     </DialogDescription>
                 </DialogHeader>
                 
-                {/* Search Form */}
                 <form onSubmit={handleSearch}>
                     <div className="flex items-center gap-2">
                         <Input
@@ -3731,7 +3718,6 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                     </div>
                 </form>
 
-                {/* Recent Searches */}
                 {recentSearches.length > 0 && view === 'initial' && (
                     <div className="mt-2 flex items-center gap-2 flex-wrap">
                         <span className="text-xs text-muted-foreground">Recent:</span>
@@ -3741,7 +3727,6 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                     </div>
                 )}
 
-                {/* Content Area */}
                 <div className="mt-4 min-h-[300px]">
                     {isLoading ? (
                         <div className="flex justify-center items-center h-full pt-10">
@@ -3749,7 +3734,6 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                         </div>
                     ) : view === 'results' && searchResult ? (
                         <div>
-                            {/* --- NEW: Enhanced "Showing Results" Component --- */}
                             {bestMatchDetails && (
                                 <div className="mb-4">
                                     <p className="text-sm text-muted-foreground mb-2">Showing card rankings for:</p>
@@ -3766,7 +3750,6 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                                             <p className="text-xs">({bestMatchDetails.enDesc})</p>
                                         </div>
                                     </div>
-                                     {/* --- NEW: "View other suggestions" button position --- */}
                                     {hasOtherSuggestions && (
                                         <div className="mt-2 text-center">
                                             <Button variant="secondary" size="sm" onClick={() => setView('options')}>
@@ -3777,7 +3760,6 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                                 </div>
                             )}
                             
-                            {/* Ranked Suggestions List */}
                             {rankedSuggestions.length > 0 ? (
                                 <div className="space-y-2 max-h-[35vh] overflow-y-auto pr-2">
                                     {rankedSuggestions.map(({ card, rule, calculatedCashback, isMinSpendMet, isCategoryCapReached, isMonthlyCapReached, remainingCategoryCashback, capPerTransaction }, index) => {
@@ -3816,7 +3798,21 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                             ) : (
                                 <p className="text-center text-muted-foreground p-4">No cashback rules found for this MCC.</p>
                             )}
-
+                            
+                            {/* --- BUTTONS RESTORED HERE --- */}
+                            <div className="flex items-center justify-center gap-2 mt-6 border-t pt-4">
+                                <Button asChild variant="ghost" size="sm">
+                                    <a href={`https://www.google.com/search?q=${encodeURIComponent(searchedTerm + ' mcc code')}`} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="mr-2 h-4 w-4" /> Google
+                                    </a>
+                                </Button>
+                                <Button asChild variant="ghost" size="sm">
+                                    <a href={`https://quanlythe.com/tien-ich/tra-cuu-mcc?query=${encodeURIComponent(searchedTerm)}`} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="mr-2 h-4 w-4" /> QuanLyThe.com
+                                    </a>
+                                </Button>
+                            </div>
+                            
                         </div>
                     ) : view === 'options' && searchResult ? (
                         <div>
@@ -3824,7 +3820,6 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                                 <ChevronLeft className="h-4 w-4 mr-1" /> Back to Best Match
                             </Button>
                             <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-                                {/* --- NEW: Redesigned "Other Suggestions" List --- */}
                                 {searchResult.history?.length > 0 && (
                                     <div>
                                         <h4 className="font-semibold text-sm text-muted-foreground mb-1 px-1">From Your History</h4>
