@@ -395,49 +395,58 @@ app.post('/api/login', (req, res) => {
 app.get('/api/lookup-merchant', async (req, res) => {
     const { keyword } = req.query;
     if (!keyword || keyword.length < 3) {
-        // Return a structure consistent with a successful-but-empty response
+        // Return a consistent structure for empty queries
         return res.json({ type: 'merchant', bestMatch: null, prediction: null, history: [], external: [] });
     }
 
     try {
-        // Step 1: Perform ONE comprehensive query to get all relevant historical data from Notion.
-        const response = await notion.databases.query({
-            database_id: transactionsDbId,
-            page_size: 100, // Get a good sample size for analysis
-            filter: { property: 'Transaction Name', title: { contains: keyword } },
-            sorts: [{ property: 'Transaction Date', direction: 'descending' }],
-        });
-
-        const transactions = response.results.map(page => parseNotionPageProperties(page));
-
-        // Step 2: Process the dataset to derive best match, prediction, and history.
+        // Step 1: Perform BOTH lookups concurrently for better performance.
+        const [notionResponse, externalApiResponse] = await Promise.all([
+            // Query 1: Internal Notion History
+            notion.databases.query({
+                database_id: transactionsDbId,
+                page_size: 100,
+                filter: { property: 'Transaction Name', title: { contains: keyword } },
+                sorts: [{ property: 'Transaction Date', direction: 'descending' }],
+            }),
+            // Query 2: External MCC API
+            (async () => {
+                try {
+                    const fetch = (await import('node-fetch')).default;
+                    const response = await fetch(`https://tc-mcc.tungpun.site/mcc?keyword=${encodeURIComponent(keyword)}`);
+                    // Ensure we handle API errors gracefully
+                    if (response.ok) return response.json();
+                    return { results: [] }; // Return an empty structure on API error
+                } catch (error) {
+                    console.error("External MCC API fetch failed:", error);
+                    return { results: [] }; // Return an empty structure on network error
+                }
+            })()
+        ]);
         
-        // A. Logic for "Best Match" (for card suggestions)
+        // Step 2: Process the results from both sources.
+
+        // Process your internal Notion history results
+        const transactions = notionResponse.results.map(page => parseNotionPageProperties(page));
+        
+        // Process the external API results
+        const externalResults = (externalApiResponse.results || []).map(result => ({
+            merchant: result[1], // Merchant name from external API
+            mcc: result[2]       // MCC code from external API
+        }));
+
+        // Step 3: Derive the combined logic for suggestions.
+
+        // A. Logic for "Best Match": Prioritize your history, but fall back to external.
         let bestMcc = transactions.length > 0 ? transactions[0]['MCC Code'] : null;
         let mccSource = 'history';
-        let externalResults = []; // Initialize external results array
 
-        if (!bestMcc) {
-            // Fallback to external API if no historical transactions are found
-            const fetch = (await import('node-fetch')).default;
-            const mccResponse = await fetch(`https://tc-mcc.tungpun.site/mcc?keyword=${encodeURIComponent(keyword)}`);
-            if (mccResponse.ok) {
-                const data = await mccResponse.json();
-                if (data.results && data.results.length > 0) {
-                    // Set the best match from the first result
-                    bestMcc = data.results[0][2];
-                    mccSource = 'external';
-
-                    // **FIX**: Populate the externalResults array for the "View other suggestions" feature
-                    externalResults = data.results.map(result => ({
-                        merchant: result[0], // The merchant name from the external API
-                        mcc: result[2]       // The MCC code from the external API
-                    }));
-                }
-            }
+        if (!bestMcc && externalResults.length > 0) {
+            bestMcc = externalResults[0].mcc; // Use the first external result if no history exists
+            mccSource = 'external';
         }
         
-        // B. Logic for "Prediction" (for auto-filling the transaction form)
+        // B. Logic for "Prediction" (always based on your internal history)
         const frequencyMap = new Map();
         transactions.forEach(tx => {
             if (tx['Merchant'] && tx['MCC Code'] && tx['Category']) {
@@ -458,7 +467,7 @@ app.get('/api/lookup-merchant', async (req, res) => {
         const [predMerchant, predMcc, predCategory] = mostCommonKey.split('|');
         const prediction = mostCommonKey ? { merchant: predMerchant, mcc: predMcc, category: predCategory } : null;
 
-        // C. Logic for "Historical List" (for MCC suggestions)
+        // C. Logic for "Historical List" (from your internal history)
         const uniqueHistory = new Map();
         transactions.forEach(tx => {
             if (tx['Merchant'] && tx['MCC Code']) {
@@ -469,13 +478,13 @@ app.get('/api/lookup-merchant', async (req, res) => {
             }
         });
 
-        // Step 3: Return the single, unified, and structured object.
+        // Step 4: Return the unified object containing BOTH data sets.
         res.json({
-            type: 'merchant', // **FIX**: This is the crucial property for the button
+            type: 'merchant',
             bestMatch: bestMcc ? { mcc: bestMcc, source: mccSource } : null,
             prediction: prediction,
             history: Array.from(uniqueHistory.values()),
-            external: externalResults // **FIX**: Include the populated external results
+            external: externalResults // This will now always contain the results from the external API
         });
 
     } catch (error) {
