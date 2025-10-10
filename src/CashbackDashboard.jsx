@@ -3485,187 +3485,42 @@ function useIOSKeyboardGapFix() {
   }, []);
 }
 
-function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, monthlyCategorySummary, activeMonth }) {
-    // State for Amount and Recent Searches
-    const [amount, setAmount] = useState('');
-    const [recentSearches, setRecentSearches] = useState([]);
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+// -------------------------------------------------------------------
+// --- PASTE THIS ENTIRE BLOCK TO REPLACE YOUR EXISTING FUNCTION ---
+// -------------------------------------------------------------------
 
-    // Existing State
+function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, monthlyCategorySummary, activeMonth }) {
+    // --- STATE MANAGEMENT ---
     const [isOpen, setIsOpen] = useState(false);
-    const [view, setView] = useState('initial');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [searchedTerm, setSearchedTerm] = useState('');
-    const [searchResult, setSearchResult] = useState(null);
-    const [selectedMcc, setSelectedMcc] = useState(null);
+    const [view, setView] = useState('initial'); // 'initial', 'results', 'options'
     const [isLoading, setIsLoading] = useState(false);
     
+    // Search & Amount State
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchedTerm, setSearchedTerm] = useState('');
+    const [amount, setAmount] = useState('');
+    
+    // Results State
+    const [searchResult, setSearchResult] = useState(null);
+    const [selectedMcc, setSelectedMcc] = useState(null);
     const [bestMatchDetails, setBestMatchDetails] = useState(null);
+    const [recentSearches, setRecentSearches] = useState([]);
 
+    // --- HOOKS & HELPERS ---
+    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     const cardMap = useMemo(() => new Map(allCards.map(c => [c.id, c])), [allCards]);
 
     useEffect(() => {
+        // Load recent searches from local storage when the dialog opens
         if (isOpen) {
             const searches = JSON.parse(localStorage.getItem('cardFinderSearches') || '[]');
             setRecentSearches(searches);
         }
     }, [isOpen]);
-
-    const handleSearch = async (e) => {
-        if (e) e.preventDefault();
-        
-        const term = searchTerm.trim();
-        if (!term) return;
-
-        const updatedSearches = [term, ...recentSearches.filter(s => s !== term)].slice(0, 5);
-        localStorage.setItem('cardFinderSearches', JSON.stringify(updatedSearches));
-        setRecentSearches(updatedSearches);
-
-        setIsLoading(true);
-        setSearchedTerm(term);
-        setView('initial');
-        setBestMatchDetails(null);
-
-        if (/^\d{4}$/.test(term)) {
-            const mcc = term;
-            setSelectedMcc(mcc);
-            setSearchResult({ type: 'mcc', mcc: mcc });
-            setBestMatchDetails({
-                source: 'Direct Input',
-                merchant: `Category for MCC ${mcc}`,
-                mcc: mcc,
-                vnDesc: mccMap[mcc]?.vn || "Không rõ",
-                enDesc: mccMap[mcc]?.en || "Unknown",
-            });
-            setView('results');
-            setIsLoading(false);
-            return;
-        }
-
-        try {
-            const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(term)}`);
-            if (!res.ok) throw new Error('Failed to fetch merchant data');
-            const data = await res.json();
-            setSearchResult(data);
-            
-            const bestMcc = data.bestMatch?.mcc;
-            setSelectedMcc(bestMcc);
-
-            if (bestMcc) {
-                let foundMerchant = `Category for MCC ${bestMcc}`;
-                const source = data.bestMatch.source === 'history' ? 'Your History' : 'External Suggestion';
-                
-                const listToSearch = source === 'Your History' ? data.history : data.external;
-                const matchingItem = listToSearch?.find(item => item.mcc === bestMcc);
-                if (matchingItem) {
-                    foundMerchant = matchingItem.merchant;
-                }
-
-                setBestMatchDetails({
-                    source: source,
-                    merchant: foundMerchant,
-                    mcc: bestMcc,
-                    vnDesc: mccMap[bestMcc]?.vn || "Không rõ",
-                    enDesc: mccMap[bestMcc]?.en || "Unknown",
-                });
-            }
-
-            setView('results');
-        } catch (err) {
-            console.error(err);
-            toast.error("Could not fetch suggestions.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleRecentSearchClick = (term) => {
-        setSearchTerm(term);
-        setTimeout(() => {
-            handleSearch();
-        }, 0);
-    };
-
-    const rankedSuggestions = useMemo(() => {
-        if (!selectedMcc) return [];
-        const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
-        const processedRules = allRules
-            .filter(rule => rule.mccCodes && rule.mccCodes.split(',').map(c => c.trim()).includes(selectedMcc))
-            .map(rule => {
-                const card = cardMap.get(rule.cardId);
-                if (!card || card.status !== 'Active') return null;
-                const cardMonthSummary = monthlySummary.find(s => s.cardId === card.id && s.month === activeMonth);
-                const categorySummaryId = `${activeMonth} - ${rule.ruleName}`;
-                const categoryMonthSummary = monthlyCategorySummary.find(s => s.summaryId === categorySummaryId && s.cardId === card.id);
-                const currentCategoryCashback = categoryMonthSummary?.cashback || 0;
-                const categoryLimit = categoryMonthSummary?.categoryLimit || Infinity;
-                const remainingCategoryCashback = categoryLimit - currentCategoryCashback;
-                const capPerTransaction = rule.capPerTransaction || 0;
-                const isMinSpendMet = card.minimumMonthlySpend > 0 ? (cardMonthSummary?.spend || 0) >= card.minimumMonthlySpend : true;
-                const isCategoryCapReached = isFinite(remainingCategoryCashback) && remainingCategoryCashback <= 0;
-                const isMonthlyCapReached = card.overallMonthlyLimit > 0 ? (cardMonthSummary?.cashback || 0) >= card.overallMonthlyLimit : false;
-                let calculatedCashback = null;
-                if (!isNaN(numericAmount) && numericAmount > 0) {
-                    calculatedCashback = numericAmount * rule.rate;
-                    if (rule.capPerTransaction > 0) {
-                        calculatedCashback = Math.min(calculatedCashback, rule.capPerTransaction);
-                    }
-                }
-                return { 
-                    rule, 
-                    card, 
-                    calculatedCashback, 
-                    isMinSpendMet, 
-                    isCategoryCapReached, 
-                    isMonthlyCapReached,
-                    remainingCategoryCashback,
-                    capPerTransaction
-                };
-            })
-            .filter(Boolean);
-        return processedRules.sort((a, b) => {
-            const getScore = (item) => {
-                if (item.isMonthlyCapReached || item.isCategoryCapReached) return 0;
-                return 1;
-            };
-            const scoreDiff = getScore(b) - getScore(a);
-            if (scoreDiff !== 0) return scoreDiff;
-            if (!isNaN(numericAmount)) {
-                return (b.calculatedCashback || 0) - (a.calculatedCashback || 0);
-            }
-            return b.rule.rate - a.rule.rate;
-        });
-    }, [selectedMcc, allRules, cardMap, amount, monthlySummary, monthlyCategorySummary, activeMonth]);
-
-    const handleAmountChange = (e) => {
-        const value = e.target.value.replace(/,/g, '');
-        if (!isNaN(value) && value.length <= 15) {
-            setAmount(value ? Number(value).toLocaleString('en-US') : '');
-        } else if (value === '') {
-            setAmount('');
-        }
-    };
-
-    const getRateBadgeClass = (rate) => {
-        if (rate >= 0.05) return 'bg-emerald-600 hover:bg-emerald-700';
-        if (rate >= 0.02) return 'bg-sky-600 hover:bg-sky-700';
-        return 'bg-slate-500 hover:bg-slate-600';
-    };
-
-    const handleOptionSelect = (mcc, merchant) => {
-        setSelectedMcc(mcc);
-        setBestMatchDetails({
-            source: 'Manual Selection',
-            merchant: merchant,
-            mcc: mcc,
-            vnDesc: mccMap[mcc]?.vn || "Không rõ",
-            enDesc: mccMap[mcc]?.en || "Unknown",
-        });
-        setView('results');
-    };
-
+    
     const resetAndClose = () => {
         setIsOpen(false);
+        // Delay reset to allow for closing animation
         setTimeout(() => {
             setView('initial');
             setSearchTerm('');
@@ -3677,10 +3532,236 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
         }, 200);
     };
 
-    const hasOtherSuggestions = searchResult?.type === 'merchant' && 
-                               ((searchResult.history && searchResult.history.length > 0) || 
-                                (searchResult.external && searchResult.external.length > 0));
+    // --- CORE LOGIC ---
+    const handleSearch = async (e) => {
+        if (e) e.preventDefault();
+        
+        const term = searchTerm.trim();
+        if (!term) return;
 
+        // Update and save recent searches
+        const updatedSearches = [term, ...recentSearches.filter(s => s !== term)].slice(0, 5);
+        localStorage.setItem('cardFinderSearches', JSON.stringify(updatedSearches));
+        setRecentSearches(updatedSearches);
+
+        setIsLoading(true);
+        setSearchedTerm(term);
+        setView('initial'); // Reset view to show loading state
+        setBestMatchDetails(null);
+
+        // Direct MCC code search
+        if (/^\d{4}$/.test(term)) {
+            setSelectedMcc(term);
+            setBestMatchDetails({
+                source: 'Direct Input',
+                merchant: `Category for MCC ${term}`,
+                mcc: term,
+                vnDesc: mccMap[term]?.vn || "Không rõ",
+            });
+            setView('results');
+            setIsLoading(false);
+            return;
+        }
+
+        // Merchant keyword search
+        try {
+            const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(term)}`);
+            if (!res.ok) throw new Error('Failed to fetch merchant data');
+            const data = await res.json();
+            
+            setSearchResult(data);
+            const bestMcc = data.bestMatch?.mcc;
+            setSelectedMcc(bestMcc);
+
+            if (bestMcc) {
+                const source = data.bestMatch.source === 'history' ? 'Your History' : 'External Suggestion';
+                const listToSearch = source === 'Your History' ? data.history : data.external;
+                const matchingItem = listToSearch?.find(item => item.mcc === bestMcc);
+                
+                setBestMatchDetails({
+                    source: source,
+                    merchant: matchingItem?.merchant || `Best match for '${term}'`,
+                    mcc: bestMcc,
+                    vnDesc: mccMap[bestMcc]?.vn || "Không rõ",
+                });
+            }
+            setView('results');
+        } catch (err) {
+            console.error(err);
+            toast.error("Could not fetch suggestions.");
+            setView('initial'); // Go back to initial on error
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleRecentSearchClick = (term) => {
+        setSearchTerm(term);
+        // Use a timeout to ensure the state updates before submitting the form
+        setTimeout(() => {
+            const form = document.getElementById('card-finder-form');
+            form?.requestSubmit();
+        }, 0);
+    };
+    
+    const handleOptionSelect = (mcc, merchant) => {
+        setSelectedMcc(mcc);
+        setBestMatchDetails({
+            source: 'Manual Selection',
+            merchant: merchant,
+            mcc: mcc,
+            vnDesc: mccMap[mcc]?.vn || "Không rõ",
+        });
+        setView('results'); // Go back to results view with the new selection
+    };
+
+    const handleAmountChange = (e) => {
+        const value = e.target.value.replace(/,/g, '');
+        if (!isNaN(value) && value.length <= 15) {
+            setAmount(value ? Number(value).toLocaleString('en-US') : '');
+        } else if (value === '') {
+            setAmount('');
+        }
+    };
+
+    const rankedSuggestions = useMemo(() => {
+        if (!selectedMcc) return [];
+        const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
+        
+        return allRules
+            .filter(rule => rule.mccCodes && rule.mccCodes.split(',').map(c => c.trim()).includes(selectedMcc))
+            .map(rule => {
+                const card = cardMap.get(rule.cardId);
+                if (!card || card.status !== 'Active') return null;
+
+                const cardMonthSummary = monthlySummary.find(s => s.cardId === card.id && s.month === activeMonth);
+                const categorySummaryId = `${activeMonth} - ${rule.ruleName}`;
+                const categoryMonthSummary = monthlyCategorySummary.find(s => s.summaryId === categorySummaryId && s.cardId === card.id);
+                
+                const currentCategoryCashback = categoryMonthSummary?.cashback || 0;
+                const categoryLimit = categoryMonthSummary?.categoryLimit || Infinity;
+                const remainingCategoryCashback = categoryLimit - currentCategoryCashback;
+                
+                let calculatedCashback = null;
+                if (!isNaN(numericAmount) && numericAmount > 0) {
+                    calculatedCashback = numericAmount * rule.rate;
+                    if (rule.capPerTransaction > 0) {
+                        calculatedCashback = Math.min(calculatedCashback, rule.capPerTransaction);
+                    }
+                }
+                
+                return { 
+                    rule, 
+                    card, 
+                    calculatedCashback, 
+                    isMinSpendMet: card.minimumMonthlySpend > 0 ? (cardMonthSummary?.spend || 0) >= card.minimumMonthlySpend : true,
+                    isCategoryCapReached: isFinite(remainingCategoryCashback) && remainingCategoryCashback <= 0,
+                    isMonthlyCapReached: card.overallMonthlyLimit > 0 ? (cardMonthSummary?.cashback || 0) >= card.overallMonthlyLimit : false,
+                    remainingCategoryCashback,
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => {
+                const isACapped = a.isMonthlyCapReached || a.isCategoryCapReached;
+                const isBCapped = b.isMonthlyCapReached || b.isCategoryCapReached;
+                if (isACapped !== isBCapped) return isACapped ? 1 : -1;
+
+                if (!isNaN(numericAmount)) {
+                    return (b.calculatedCashback || 0) - (a.calculatedCashback || 0);
+                }
+                return b.rule.rate - a.rule.rate;
+            });
+    }, [selectedMcc, amount, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth]);
+    
+    // --- RENDER LOGIC ---
+    const renderContent = () => {
+        if (isLoading) {
+            return (
+                <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="mt-4 text-muted-foreground">Finding best options...</p>
+                </div>
+            );
+        }
+
+        if (view === 'options' && searchResult) {
+            return <FinderOptionsView searchResult={searchResult} mccMap={mccMap} onSelect={handleOptionSelect} onBack={() => setView('results')} />;
+        }
+
+        if (view === 'results' && bestMatchDetails) {
+            return (
+                <div>
+                    {/* Suggestion 1: Unified Results Header */}
+                    <div className="p-3 mb-4 bg-slate-50 rounded-lg border">
+                        <p className="text-xs text-muted-foreground">Showing rankings for:</p>
+                        <div className="flex justify-between items-start gap-2 mt-1">
+                            <div>
+                                <h3 className="font-bold text-slate-800 leading-tight">{bestMatchDetails.merchant}</h3>
+                                <p className="text-xs text-muted-foreground">{bestMatchDetails.vnDesc}</p>
+                            </div>
+                            <Badge variant="outline" className="font-mono text-sm">{bestMatchDetails.mcc}</Badge>
+                        </div>
+                        <div className="mt-2 text-center">
+                            <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setView('options')}>
+                                Not right? View other suggestions
+                            </Button>
+                        </div>
+                    </div>
+
+                    {rankedSuggestions.length > 0 ? (
+                        <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2">
+                           {rankedSuggestions.map((item, index) => (
+                                <RankingCard 
+                                    key={item.rule.id}
+                                    rank={index + 1}
+                                    item={item}
+                                    currencyFn={currency}
+                                />
+                           ))}
+                        </div>
+                    ) : (
+                        // Suggestion 3: Enhanced No Results State
+                        <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 min-h-[200px]">
+                            <Search className="h-8 w-8 mb-3 text-slate-400" />
+                            <p className="font-semibold text-primary">No Rules Found for '{searchedTerm}'</p>
+                            <p className="text-xs mt-1">Try a more general term or search externally.</p>
+                            <div className="flex items-center gap-2 mt-4">
+                                <Button asChild variant="outline" size="sm">
+                                    <a href={`https://www.google.com/search?q=${encodeURIComponent(searchedTerm + ' mcc code')}`} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Google
+                                    </a>
+                                </Button>
+                                <Button asChild variant="outline" size="sm">
+                                    <a href={`https://quanlythe.com/tien-ich/tra-cuu-mcc?query=${encodeURIComponent(searchedTerm)}`} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> QuanLyThe
+                                    </a>
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+        
+        // Suggestion 3: Enhanced Initial State
+        return (
+             <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 min-h-[300px]">
+                <Sparkles className="h-10 w-10 mb-3 text-sky-500" />
+                <p className="font-semibold text-primary">Find the best card for any purchase.</p>
+                <p className="text-xs mt-1">
+                    e.g., Shopee, Grab, Supermarket, or a 4-digit MCC like 5411...
+                </p>
+                {recentSearches.length > 0 && (
+                     <div className="mt-6 flex items-center gap-2 flex-wrap justify-center">
+                        <span className="text-xs font-semibold">Recent:</span>
+                        {recentSearches.map(term => (
+                            <button key={term} onClick={() => handleRecentSearchClick(term)} className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-full transition-colors">{term}</button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => { if (!open) resetAndClose(); else setIsOpen(true); }}>
@@ -3693,11 +3774,11 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                 <DialogHeader>
                     <DialogTitle>Find the Best Card</DialogTitle>
                     <DialogDescription>
-                        Enter a merchant and amount to calculate your best rewards.
+                        Enter a merchant and amount to see your best rewards.
                     </DialogDescription>
                 </DialogHeader>
                 
-                <form onSubmit={handleSearch}>
+                <form id="card-finder-form" onSubmit={handleSearch}>
                     <div className="flex items-center gap-2">
                         <Input
                             placeholder="e.g., Shopee, 5411, Grab..."
@@ -3713,157 +3794,121 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                             inputMode="numeric"
                         />
                         <Button type="submit" disabled={isLoading || !searchTerm.trim()} className="shrink-0">
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                            <Search className="h-4 w-4" />
                         </Button>
                     </div>
                 </form>
 
-                {recentSearches.length > 0 && view === 'initial' && (
-                    <div className="mt-2 flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-muted-foreground">Recent:</span>
-                        {recentSearches.map(term => (
-                            <button key={term} onClick={() => handleRecentSearchClick(term)} className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md">{term}</button>
-                        ))}
-                    </div>
-                )}
-
-                <div className="mt-4 min-h-[300px]">
-                    {isLoading ? (
-                        <div className="flex justify-center items-center h-full pt-10">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        </div>
-                    ) : view === 'results' && searchResult ? (
-                        <div>
-                            {bestMatchDetails && (
-                                <div className="mb-4">
-                                    <p className="text-sm text-muted-foreground mb-2">Showing card rankings for:</p>
-                                    <div className="border rounded-lg p-3 space-y-2 bg-slate-50">
-                                        <div className="flex justify-between items-start">
-                                            <p className="font-bold text-slate-800 pr-4">{bestMatchDetails.merchant}</p>
-                                            <Badge variant={bestMatchDetails.source === 'Your History' ? 'default' : 'secondary'}>
-                                                {bestMatchDetails.source}
-                                            </Badge>
-                                        </div>
-                                        <div className="text-sm text-muted-foreground">
-                                            <p className="font-mono font-semibold text-sky-700">{bestMatchDetails.mcc}</p>
-                                            <p>{bestMatchDetails.vnDesc}</p>
-                                            <p className="text-xs">({bestMatchDetails.enDesc})</p>
-                                        </div>
-                                    </div>
-                                    {hasOtherSuggestions && (
-                                        <div className="mt-2 text-center">
-                                            <Button variant="secondary" size="sm" onClick={() => setView('options')}>
-                                                Not right? View other suggestions
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                            
-                            {rankedSuggestions.length > 0 ? (
-                                <div className="space-y-2 max-h-[35vh] overflow-y-auto pr-2">
-                                    {rankedSuggestions.map(({ card, rule, calculatedCashback, isMinSpendMet, isCategoryCapReached, isMonthlyCapReached, remainingCategoryCashback, capPerTransaction }, index) => {
-                                        const isCapped = isCategoryCapReached || isMonthlyCapReached;
-                                        return (
-                                        <div key={rule.id} className={cn("border rounded-lg p-3 flex flex-col gap-2 transition-all", isCapped && "opacity-40 bg-slate-50")}>
-                                            <div className="flex items-center justify-between gap-4">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="font-bold text-lg text-muted-foreground">#{index + 1}</span>
-                                                    <div>
-                                                        <p className="font-bold text-primary">{card.name}</p>
-                                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                            <span className={cn("h-2 w-2 rounded-full", rule.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400')} />
-                                                            <span>{rule.ruleName}</span>
-                                                            <TooltipProvider delayDuration={100}>
-                                                                {!isMinSpendMet && (<Tooltip><TooltipTrigger><AlertTriangle className="h-4 w-4 text-orange-400" /></TooltipTrigger><TooltipContent><p>Min. spend not met</p></TooltipContent></Tooltip>)}
-                                                                {isCapped && (<Tooltip><TooltipTrigger><AlertTriangle className="h-4 w-4 text-red-500" /></TooltipTrigger><TooltipContent><p>Monthly cap reached!</p></TooltipContent></Tooltip>)}
-                                                            </TooltipProvider>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <Badge className={cn("text-lg", getRateBadgeClass(rule.rate))}>{(rule.rate * 100).toFixed(1)}%</Badge>
-                                                    {calculatedCashback !== null && (<p className="text-sm font-semibold text-emerald-600 mt-1">+{currency(calculatedCashback)}</p>)}
-                                                </div>
-                                            </div>
-                                            {(isFinite(remainingCategoryCashback) || capPerTransaction > 0) && (
-                                                <div className="mt-1 pt-2 border-t text-xs text-muted-foreground flex justify-between items-center gap-4">
-                                                    {isFinite(remainingCategoryCashback) && (<div className="flex flex-col text-center"><span className="font-semibold text-emerald-600">{currency(remainingCategoryCashback)}</span><span>Remaining</span></div>)}
-                                                    {capPerTransaction > 0 && (<div className="flex flex-col text-center"><span className="font-semibold text-sky-600">{currency(capPerTransaction)}</span><span>Max / Tx</span></div>)}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )})}
-                                </div>
-                            ) : (
-                                <p className="text-center text-muted-foreground p-4">No cashback rules found for this MCC.</p>
-                            )}
-                            
-                            {/* --- BUTTONS RESTORED HERE --- */}
-                            <div className="flex items-center justify-center gap-2 mt-6 border-t pt-4">
-                                <Button asChild variant="ghost" size="sm">
-                                    <a href={`https://www.google.com/search?q=${encodeURIComponent(searchedTerm + ' mcc code')}`} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink className="mr-2 h-4 w-4" /> Google
-                                    </a>
-                                </Button>
-                                <Button asChild variant="ghost" size="sm">
-                                    <a href={`https://quanlythe.com/tien-ich/tra-cuu-mcc?query=${encodeURIComponent(searchedTerm)}`} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink className="mr-2 h-4 w-4" /> QuanLyThe.com
-                                    </a>
-                                </Button>
-                            </div>
-                            
-                        </div>
-                    ) : view === 'options' && searchResult ? (
-                        <div>
-                            <Button variant="ghost" size="sm" onClick={() => setView('results')} className="mb-3">
-                                <ChevronLeft className="h-4 w-4 mr-1" /> Back to Best Match
-                            </Button>
-                            <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-                                {searchResult.history?.length > 0 && (
-                                    <div>
-                                        <h4 className="font-semibold text-sm text-muted-foreground mb-1 px-1">From Your History</h4>
-                                        {searchResult.history.map((item, index) => (
-                                            <button key={`h-${index}`} onClick={() => handleOptionSelect(item.mcc, item.merchant)} className="w-full text-left p-2 rounded-md hover:bg-muted">
-                                                <div className="flex items-center gap-3">
-                                                    <History className="h-5 w-5 text-slate-500 flex-shrink-0" />
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="truncate font-medium">{item.merchant}</p>
-                                                        <p className="text-xs text-muted-foreground">{mccMap[item.mcc]?.vn || 'N/A'}</p>
-                                                    </div>
-                                                    <Badge variant="outline">{item.mcc}</Badge>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                                {searchResult.external?.length > 0 && (
-                                    <div>
-                                        <h4 className="font-semibold text-sm text-muted-foreground mb-1 px-1">External Suggestions</h4>
-                                        {searchResult.external.map((item, index) => (
-                                            <button key={`e-${index}`} onClick={() => handleOptionSelect(item.mcc, item.merchant)} className="w-full text-left p-2 rounded-md hover:bg-muted">
-                                                <div className="flex items-center gap-3">
-                                                    <Globe className="h-5 w-5 text-slate-500 flex-shrink-0" />
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="truncate font-medium">{item.merchant}</p>
-                                                        <p className="text-xs text-muted-foreground">{mccMap[item.mcc]?.vn || 'N/A'}</p>
-                                                    </div>
-                                                    <Badge variant="outline">{item.mcc}</Badge>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 h-full pt-10">
-                            <Sparkles className="h-8 w-8 mb-2" />
-                            <p>Start a search to see card suggestions.</p>
-                        </div>
-                    )}
+                <div className="mt-4">
+                    {renderContent()}
                 </div>
             </DialogContent>
         </Dialog>
+    );
+}
+
+// Suggestion 2: New "RankingCard" Sub-component
+function RankingCard({ rank, item, currencyFn }) {
+    const { card, rule, calculatedCashback, isMinSpendMet, isCategoryCapReached, isMonthlyCapReached, remainingCategoryCashback } = item;
+    const isCapped = isCategoryCapReached || isMonthlyCapReached;
+    
+    const getRateBadgeClass = (rate) => {
+        if (rate >= 0.05) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        if (rate >= 0.02) return 'bg-sky-100 text-sky-800 border-sky-200';
+        return 'bg-slate-100 text-slate-800 border-slate-200';
+    };
+
+    return (
+        <div className={cn(
+            "border rounded-lg p-3 transition-all",
+            rank === 1 && "bg-sky-50/70 border-sky-200",
+            isCapped && "opacity-50 bg-slate-100"
+        )}>
+            <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                    <span className={cn("text-xl font-bold mt-0.5", rank === 1 ? "text-sky-600" : "text-slate-400")}>#{rank}</span>
+                    <div>
+                        <p className="font-bold text-primary">{card.name}</p>
+                        <p className="text-xs text-muted-foreground">{rule.ruleName}</p>
+                    </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                    <Badge variant="outline" className={cn("text-base font-bold", getRateBadgeClass(rule.rate))}>
+                        {(rule.rate * 100).toFixed(1)}%
+                    </Badge>
+                    {calculatedCashback !== null && (
+                        <p className="text-sm font-semibold text-emerald-600 mt-1">
+                            + {currencyFn(calculatedCashback)}
+                        </p>
+                    )}
+                </div>
+            </div>
+
+            {(rule.capPerTransaction > 0 || isFinite(remainingCategoryCashback) || !isMinSpendMet) && (
+                 <div className="mt-2 pt-2 border-t flex items-center justify-between gap-x-4 gap-y-1 flex-wrap text-xs text-muted-foreground">
+                    {!isMinSpendMet && (
+                        <span className="flex items-center gap-1.5 font-medium text-orange-600">
+                            <AlertTriangle className="h-3.5 w-3.5" /> Min. Spend Not Met
+                        </span>
+                    )}
+                    {isFinite(remainingCategoryCashback) && (
+                         <span className="flex items-center gap-1.5">
+                            <Wallet className="h-3.5 w-3.5" />
+                            Cap Left: <span className="font-semibold text-slate-700">{currencyFn(remainingCategoryCashback)}</span>
+                        </span>
+                    )}
+                     {rule.capPerTransaction > 0 && (
+                         <span className="flex items-center gap-1.5">
+                            <DollarSign className="h-3.5 w-3.5" />
+                            Max/Tx: <span className="font-semibold text-slate-700">{currencyFn(rule.capPerTransaction)}</span>
+                        </span>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// Suggestion 4: New Sub-component for the Options View
+function FinderOptionsView({ searchResult, mccMap, onSelect, onBack }) {
+    return (
+        <div>
+            <Button variant="ghost" size="sm" onClick={onBack} className="mb-2 -ml-2">
+                <ChevronLeft className="h-4 w-4 mr-1" /> Back to Rankings
+            </Button>
+            <div className="space-y-4 max-h-[45vh] overflow-y-auto pr-2">
+                {searchResult.history?.length > 0 && (
+                    <div>
+                        <h4 className="font-semibold text-sm text-muted-foreground mb-1 px-1">From Your History</h4>
+                        {searchResult.history.map((item, index) => (
+                            <FinderOptionItem key={`h-${index}`} item={item} mccMap={mccMap} onSelect={onSelect} icon={<History className="h-5 w-5 text-slate-500 flex-shrink-0" />} />
+                        ))}
+                    </div>
+                )}
+                {searchResult.external?.length > 0 && (
+                    <div>
+                        <h4 className="font-semibold text-sm text-muted-foreground mb-1 px-1">External Suggestions</h4>
+                         {searchResult.external.map((item, index) => (
+                            <FinderOptionItem key={`e-${index}`} item={item} mccMap={mccMap} onSelect={onSelect} icon={<Globe className="h-5 w-5 text-slate-500 flex-shrink-0" />} />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function FinderOptionItem({ item, mccMap, onSelect, icon }) {
+     return (
+        <button onClick={() => onSelect(item.mcc, item.merchant)} className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors">
+            <div className="flex items-center gap-3">
+                {icon}
+                <div className="flex-1 min-w-0">
+                    <p className="truncate font-medium">{item.merchant}</p>
+                    <p className="text-xs text-muted-foreground">{mccMap[item.mcc]?.vn || 'N/A'}</p>
+                </div>
+                <Badge variant="outline">{item.mcc}</Badge>
+            </div>
+        </button>
     );
 }
