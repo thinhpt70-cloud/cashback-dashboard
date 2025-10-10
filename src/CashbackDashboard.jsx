@@ -3489,6 +3489,7 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
     // State for Amount and Recent Searches
     const [amount, setAmount] = useState('');
     const [recentSearches, setRecentSearches] = useState([]);
+    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
     // Existing State
     const [isOpen, setIsOpen] = useState(false);
