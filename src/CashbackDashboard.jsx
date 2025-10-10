@@ -785,6 +785,8 @@ function StatCard({ title, value, icon, valueClassName }) {
 }
 
 const CustomRechartsTooltip = ({ active, payload, label }) => {
+
+    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     
     if (active && payload?.length) {
         // Find the spend and cashback values from the tooltip's data payload
@@ -821,6 +823,7 @@ function CardInfoSheet({ card, rules, mccMap }) {
     // --- State for search and expansion ---
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedRuleId, setExpandedRuleId] = useState(null);
+    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
     // --- Helper function and memoized data ---
     const isFeeCovered = card.estYtdCashback >= card.annualFee;
@@ -994,6 +997,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [visibleCount, setVisibleCount] = useState(15);
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
+    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
     const fmtYMShort = (ymCode) => {
         if (!ymCode || typeof ymCode !== 'string' || ymCode.length !== 6) return "";
@@ -3686,7 +3690,7 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                         </div>
                     ) : view === 'results' && searchResult ? (
                         <div>
-                             <div className="mb-4 p-3 rounded-md bg-slate-50 border">
+                            <div className="mb-4 p-3 rounded-md bg-slate-50 border">
                                 <p className="text-sm text-muted-foreground">Showing results for MCC:</p>
                                 <Badge variant="secondary" className="text-base mt-1">
                                     <span className="font-mono mr-2">{selectedMcc}:</span>
@@ -3737,7 +3741,7 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                                                     {(rule.rate * 100).toFixed(1)}%
                                                 </Badge>
                                                 {calculatedCashback !== null && (
-                                                     <p className="text-sm font-semibold text-emerald-600 mt-1">
+                                                    <p className="text-sm font-semibold text-emerald-600 mt-1">
                                                         +{currency(calculatedCashback)}
                                                     </p>
                                                 )}
@@ -3746,10 +3750,10 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                                     )})}
                                 </div>
                             ) : (
-                                 <p className="text-center text-muted-foreground p-4">No cashback rules found for this MCC.</p>
+                                <p className="text-center text-muted-foreground p-4">No cashback rules found for this MCC.</p>
                             )}
                             
-                           <div className="flex items-center justify-center gap-2 mt-6 border-t pt-4">
+                            <div className="flex items-center justify-center gap-2 mt-6 border-t pt-4">
                                 <Button asChild variant="ghost" size="sm">
                                     <a href={`https://www.google.com/search?q=${encodeURIComponent(searchedTerm + ' mcc code')}`} target="_blank" rel="noopener noreferrer">
                                         <ExternalLink className="mr-2 h-4 w-4" /> Google
@@ -3789,7 +3793,7 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                                     </div>
                                 )}
                                 {searchResult.external?.length > 0 && (
-                                     <div>
+                                    <div>
                                         <h4 className="font-semibold text-sm text-muted-foreground mb-1 px-1">External Suggestions</h4>
                                         {searchResult.external.map((item, index) => (
                                             <button key={`e-${index}`} onClick={() => handleOptionSelect(item.mcc)} className="w-full text-left flex items-center gap-3 p-2 rounded-md hover:bg-muted">
@@ -3803,7 +3807,7 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                             </div>
                         </div>
                     ) : (
-                         <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 h-full pt-10">
+                        <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 h-full pt-10">
                             <Sparkles className="h-8 w-8 mb-2" />
                             <p>Start a search to see card suggestions.</p>
                         </div>
