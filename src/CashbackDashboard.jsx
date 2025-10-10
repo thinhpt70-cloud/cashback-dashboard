@@ -3197,7 +3197,6 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                             {card.status}
                         </Badge>
                     </div>
-                    {/* MODIFIED: Added flex-shrink-0, min-w-0, and gap for robust truncation */}
                     <div className="flex justify-between items-end mt-2 gap-4">
                         <p className="font-mono text-base tracking-wider flex-shrink-0">•••• {card.last4}</p>
                         <p className="font-semibold text-base truncate text-right min-w-0">{card.name}</p>
@@ -3273,7 +3272,8 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                     )}
                 </div>
 
-                <div className="mt-auto pt-3 border-t flex justify-end">
+                {/* MODIFIED: Increased top padding from pt-3 to pt-4 for better spacing */}
+                <div className="mt-auto pt-4 border-t flex justify-end">
                     <CardInfoDialog card={card} rules={rules} />
                 </div>
             </div>
