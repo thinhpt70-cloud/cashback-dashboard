@@ -648,7 +648,7 @@ export default function CashbackDashboard() {
                             <TabsTrigger value="roi">ROI & Dates</TabsTrigger>
                         </TabsList>
                     </Tabs>
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {sortedCards.map(card => (
                             <EnhancedCard 
                                 key={card.id}
@@ -2429,24 +2429,15 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         setMccCode(vendor.mcc || '');
         setCategory(vendor.category || '');
 
-        // --- NEW LOGIC ---
-        // Set the card first, if a preferred one is specified.
         if (vendor.preferredCardId) {
             setCardId(vendor.preferredCardId);
         }
 
-        // Then, set the preferred rule.
-        // This works because setting the card above will trigger React to update
-        // the list of available rules before this line runs.
         if (vendor.preferredRuleId) {
             setApplicableRuleId(vendor.preferredRuleId);
         } else {
-            // If the vendor has no preferred rule, clear any existing selection.
             setApplicableRuleId('');
         }
-        // --- END NEW LOGIC ---
-
-        // Focus the amount field so the user can type the amount immediately.
         amountInputRef.current?.focus();
     };
 
@@ -2455,8 +2446,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
     const filteredRules = useMemo(() => {
         if (!cardId) return [];
-        // --- THIS IS THE UPDATED FILTER LOGIC ---
-        // Only show rules for the selected card that are also "Active"
         return rules
             .filter(rule => rule.cardId === cardId && rule.status === 'Active')
             .sort((a, b) => a.name.localeCompare(b.name));
@@ -2497,21 +2486,15 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     // --- Effects ---
 
     useEffect(() => {
-        // Don't search if the input is too short
         if (merchant.trim().length < 3) {
             setIsPredicting(false);
             return;
         }
-
         setIsPredicting(true);
-
-        // Set a timer to run after 500ms
         const timer = setTimeout(async () => {
             try {
                 const res = await fetch(`/api/predict-merchant-profile?keyword=${encodeURIComponent(merchant)}`);
                 const profile = await res.json();
-
-                // If a profile was found, auto-fill the fields
                 if (profile) {
                     setMerchantLookup(profile.merchant || '');
                     setMccCode(profile.mcc || '');
@@ -2522,14 +2505,11 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             } finally {
                 setIsPredicting(false);
             }
-        }, 500); // 500ms delay
-
-        // This cleanup function runs every time the 'merchant' state changes.
-        // It cancels the previous timer, so the API call only happens once you stop typing.
+        }, 500);
         return () => {
             clearTimeout(timer);
         };
-    }, [merchant]); // This effect runs whenever the 'merchant' input value changes
+    }, [merchant]);
 
     useEffect(() => {
         if (filteredSummaries.length > 0) {
@@ -2542,14 +2522,10 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     useEffect(() => {
         if (cards.length > 0 && !cardId) {
             const lastUsedCardId = localStorage.getItem('lastUsedCardId');
-            
-            // Check if the last-used ID exists and is a valid option in the current cards list
             const lastUsedCardIsValid = lastUsedCardId && cards.some(c => c.id === lastUsedCardId);
-
             if (lastUsedCardIsValid) {
                 setCardId(lastUsedCardId);
             } else {
-                // Fallback to the first card in the list if no valid last-used card is found
                 setCardId(cards[0].id);
             }
         }
@@ -2584,8 +2560,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const resetForm = () => {
         setMerchant('');
         setAmount('');
-        // setDate(new Date().toISOString().split('T')[0]);
-        // setCardId(cards.length > 0 ? cards[0].id : '');
         setCategory('');
         setMccCode('');
         setMerchantLookup('');
@@ -2606,33 +2580,19 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         if (!merchant) return;
         setIsMccSearching(true);
         setMccResults([]);
-
         try {
             const keyword = encodeURIComponent(merchant);
-
-            // 1. Fetch from both internal and external APIs in parallel
             const [internalRes, externalRes] = await Promise.all([
                 fetch(`/api/internal-mcc-search?keyword=${keyword}`),
                 fetch(`/api/mcc-search?keyword=${keyword}`)
             ]);
-
-            // 2. Process results, handling potential errors for each
             let internalData = [];
             if (internalRes.ok) {
                 const rawInternal = await internalRes.json();
-                // Transform internal data to match the external format for the dialog
-                internalData = rawInternal.map(item => ([
-                    "Your History", // Source
-                    item.merchant,  // Merchant Name
-                    item.mcc,       // MCC Code
-                    mccMap[item.mcc]?.en || "Unknown", // English Category Name
-                    mccMap[item.mcc]?.vn || "Không rõ", // Vietnamese Category Name
-                    null // Add a null placeholder for PTTT data
-                ]));
+                internalData = rawInternal.map(item => ([ "Your History", item.merchant, item.mcc, mccMap[item.mcc]?.en || "Unknown", mccMap[item.mcc]?.vn || "Không rõ", null ]));
             } else {
                 console.error("Internal MCC search failed");
             }
-
             let externalData = [];
             if (externalRes.ok) {
                 const rawExternal = await externalRes.json();
@@ -2642,29 +2602,23 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             } else {
                 console.error("External MCC search failed");
             }
-            
-            // 3. Combine and de-duplicate results, prioritizing internal data
             const combinedResults = [...internalData, ...externalData];
             const uniqueResults = new Map();
-
             combinedResults.forEach(result => {
                 const merchantName = result[1];
                 const mcc = result[2];
-                const key = `${merchantName}|${mcc}`; // Unique key
+                const key = `${merchantName}|${mcc}`;
                 if (!uniqueResults.has(key)) {
                     uniqueResults.set(key, result);
                 }
             });
-
             const finalResults = Array.from(uniqueResults.values());
-
             if (finalResults.length > 0) {
                 setMccResults(finalResults);
                 setIsMccDialogOpen(true);
             } else {
                 toast.info("No MCC suggestions found for this merchant.");
             }
-
         } catch (error) {
             console.error("MCC Search Error:", error);
             toast.error("Could not perform MCC search.");
@@ -2682,21 +2636,14 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 const summaryResponse = await fetch('/api/summaries', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        cardId: cardId,
-                        month: cashbackMonth,
-                        ruleId: applicableRuleId,
-                    }),
+                    body: JSON.stringify({ cardId: cardId, month: cashbackMonth, ruleId: applicableRuleId }),
                 });
-                if (!summaryResponse.ok) {
-                    throw new Error('Failed to create new monthly summary.');
-                }
+                if (!summaryResponse.ok) throw new Error('Failed to create new monthly summary.');
                 const newSummary = await summaryResponse.json();
                 finalSummaryId = newSummary.id;
             } else if (applicableRuleId && cardSummaryCategoryId !== 'new') {
                 finalSummaryId = cardSummaryCategoryId;
             }
-
             const transactionData = {
                 merchant,
                 amount: parseFloat(String(amount).replace(/,/g, '')),
@@ -2708,20 +2655,14 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 applicableRuleId: applicableRuleId || null,
                 cardSummaryCategoryId: finalSummaryId,
             };
-
             const response = await fetch('/api/transactions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(transactionData),
             });
-
             if (!response.ok) throw new Error('Failed to add transaction');
-            
             const newTransactionFromServer = await response.json();
-            const optimisticTransaction = {
-                ...newTransactionFromServer,
-                estCashback: estimatedCashback,
-            };
+            const optimisticTransaction = { ...newTransactionFromServer, estCashback: estimatedCashback };
             toast.success("Transaction added successfully!");
             localStorage.setItem('lastUsedCardId', cardId);
             onTransactionAdded(optimisticTransaction);
@@ -2738,37 +2679,36 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         <>
             <form onSubmit={handleSubmit} className="space-y-6 py-4">
                 <QuickAddButtons vendors={commonVendors} onSelect={handleVendorSelect} />
-                {/* --- Section 1: Transaction Details --- */}
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <label htmlFor="merchant">Transaction Name</label>
-                        <div className="flex items-center gap-2">
-                            <Input id="merchant" value={merchant} onChange={(e) => setMerchant(e.target.value)} required />
-                            {isPredicting && (
-                                <div className="absolute right-2">
+                        <div className="relative flex items-center">
+                            <Input id="merchant" value={merchant} onChange={(e) => setMerchant(e.target.value)} required className="pr-12" />
+                            <div className="absolute right-2 flex items-center gap-2">
+                                {isPredicting && (
                                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                </div>
-                            )}
-                            <Button type="button" size="icon" variant="outline" onClick={handleMccSearch} disabled={!merchant || isMccSearching}>
-                                {isMccSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                            </Button>
+                                )}
+                                <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={handleMccSearch} disabled={!merchant || isMccSearching}>
+                                    {isMccSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                </Button>
+                            </div>
                         </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-10 gap-4 items-start">
                         <div className="space-y-2 col-span-1 sm:col-span-6">
                             <label htmlFor="merchantLookup">Merchant</label>
-                            <Input id="merchantLookup" value={merchantLookup} onChange={(e) => setMerchantLookup(e.target.value)} placeholder="Merchant Name" />
+                            <Input id="merchantLookup" value={merchantLookup} onChange={(e) => setMerchantLookup(e.target.value)} placeholder="Merchant Name" className="relative focus:z-10" />
                         </div>
                         <div className="space-y-2 col-span-1 sm:col-span-4">
                             <label htmlFor="mcc">MCC</label>
-                            <Input id="mcc" value={mccCode} onChange={(e) => setMccCode(e.target.value)} placeholder="Enter code or use Lookup" />
+                            <Input id="mcc" value={mccCode} onChange={(e) => setMccCode(e.target.value)} placeholder="Enter code or use Lookup" className="relative focus:z-10" />
                             {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
                         </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label htmlFor="amount">Amount</label>
-                            <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
+                            <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required className="relative focus:z-10" />
                         </div>
                         <div className="space-y-2">
                             <label htmlFor="date">Date</label>
@@ -2777,7 +2717,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                                 <Input
                                     id="date"
                                     type="date"
-                                    className="relative flex items-center w-full py-2 pl-10 text-left"
+                                    className="relative focus:z-10 flex items-center w-full py-2 pl-10 text-left"
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
                                     required
@@ -2787,66 +2727,64 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     </div>
                 </div>
 
-                {/* --- Section 2: Categorization --- */}
                 <div className="space-y-4 border-t pt-6">
-                <div className="space-y-2">
-                    <label htmlFor="card">Card</label>
-                    <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="w-full p-2 border rounded cursor-pointer" required>
-                    {[...cards]
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map(card => <option key={card.id} value={card.id}>{card.name}</option>)
-                    }
-                    </select>
-                    {cashbackMonth && (
-                    <div className="flex items-center gap-2 pt-2">
-                        <span className="text-xs text-muted-foreground">Statement Month:</span>
-                        <Badge variant="outline">{cashbackMonth}</Badge>
-                    </div>
-                    )}
-                </div>
-                <div className="space-y-2">
-                    <label htmlFor="rule">Applicable Cashback Rule</label>
-                    <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border rounded cursor-pointer" disabled={filteredRules.length === 0}>
-                    <option value="">{filteredRules.length === 0 ? 'No active rules for this card' : 'None'}</option>
-                    {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
-                    </select>
-                    {selectedRule && (
-                    <div className="flex items-center gap-2 pt-2">
-                        <Badge variant="secondary">Rate: {(selectedRule.rate * 100).toFixed(1)}%</Badge>
-                        {estimatedCashback > 0 && (
-                            <Badge variant="outline" className="text-emerald-600">
-                                Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}
-                            </Badge>
+                    <div className="space-y-2">
+                        <label htmlFor="card">Card</label>
+                        <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="relative focus:z-10 w-full p-2 border rounded cursor-pointer" required>
+                        {[...cards]
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(card => <option key={card.id} value={card.id}>{card.name}</option>)
+                        }
+                        </select>
+                        {cashbackMonth && (
+                        <div className="flex items-center gap-2 pt-2">
+                            <span className="text-xs text-muted-foreground">Statement Month:</span>
+                            <Badge variant="outline">{cashbackMonth}</Badge>
+                        </div>
                         )}
                     </div>
+                    <div className="space-y-2">
+                        <label htmlFor="rule">Applicable Cashback Rule</label>
+                        <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="relative focus:z-10 w-full p-2 border rounded cursor-pointer" disabled={filteredRules.length === 0}>
+                        <option value="">{filteredRules.length === 0 ? 'No active rules for this card' : 'None'}</option>
+                        {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
+                        </select>
+                        {selectedRule && (
+                        <div className="flex items-center gap-2 pt-2">
+                            <Badge variant="secondary">Rate: {(selectedRule.rate * 100).toFixed(1)}%</Badge>
+                            {estimatedCashback > 0 && (
+                                <Badge variant="outline" className="text-emerald-600">
+                                    Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}
+                                </Badge>
+                            )}
+                        </div>
+                        )}
+                    </div>
+                    {applicableRuleId && (
+                    <div className="space-y-2">
+                        <label htmlFor="summary">Link to Monthly Summary</label>
+                        <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="relative focus:z-10 w-full p-2 border rounded cursor-pointer">
+                        <option value="new">Create New Summary</option>
+                        {filteredSummaries.map(summary => <option key={summary.id} value={summary.id}>{summary.summaryId}</option>)}
+                        </select>
+                    </div>
                     )}
-                </div>
-                {applicableRuleId && (
-                <div className="space-y-2">
-                    <label htmlFor="summary">Link to Monthly Summary</label>
-                    <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="w-full p-2 border rounded cursor-pointer">
-                    <option value="new">Create New Summary</option>
-                    {filteredSummaries.map(summary => <option key={summary.id} value={summary.id}>{summary.summaryId}</option>)}
-                    </select>
-                </div>
-                )}
-                <div className="space-y-2">
-                    <label htmlFor="category">Internal Category</label>
-                    <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded cursor-pointer">
-                        <option value="">None</option>
-                        {[...categories]
-                            .sort((a, b) => a.localeCompare(b))
-                            .map(cat => <option key={cat} value={cat}>{cat}</option>)
-                        }
-                    </select>
-                </div>
+                    <div className="space-y-2">
+                        <label htmlFor="category">Internal Category</label>
+                        <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="relative focus:z-10 w-full p-2 border rounded cursor-pointer">
+                            <option value="">None</option>
+                            {[...categories]
+                                .sort((a, b) => a.localeCompare(b))
+                                .map(cat => <option key={cat} value={cat}>{cat}</option>)
+                            }
+                        </select>
+                    </div>
                 </div>
 
-                {/* --- Submit Button --- */}
                 <div className="pt-2">
-                <Button type="submit" disabled={isSubmitting} size="lg" className="w-full">
-                    {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Add Transaction"}
-                </Button>
+                    <Button type="submit" disabled={isSubmitting} size="lg" className="w-full">
+                        {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Add Transaction"}
+                    </Button>
                 </div>
             </form>
             <MccSearchResultsDialog
@@ -3134,14 +3072,14 @@ function QuickAddButtons({ vendors, onSelect }) {
 
 function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = false }) {
     return (
-        <div className="p-3 bg-slate-50/70 rounded-lg">
-            <div className="flex items-center text-xs text-slate-500 mb-1">
+        <div className="p-2 bg-slate-50/70 rounded-lg">
+            <div className="flex items-center text-xs text-slate-500 mb-0.5">
                 {Icon && <Icon className="h-3.5 w-3.5 mr-1.5" />}
                 <span>{label}</span>
             </div>
             <p className={cn(
                 "font-bold transition-all duration-300",
-                isPrimary ? "text-2xl text-slate-800" : "text-lg text-slate-700",
+                isPrimary ? "text-xl text-slate-800" : "text-base text-slate-700",
                 valueClassName
             )}>
                 {value}
@@ -3176,40 +3114,35 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
     return (
         <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col">
             {/* Visual Card Header */}
-            <div className={`relative rounded-t-xl p-5 ${theme.gradient} ${theme.textColor} flex-shrink-0`}>
-                <div className="flex justify-between items-start mb-4">
-                    <div>
-                        <p className="font-bold text-lg">{card.bank}</p>
-                        <p className="text-sm opacity-80">{card.cardType}</p>
-                    </div>
-                    <Badge variant="outline" className={cn('capitalize rounded-md h-7', getStatusClasses(card.status))}>
+            <div className={`relative rounded-t-xl p-4 ${theme.gradient} ${theme.textColor} flex-shrink-0`}>
+                <div className="flex justify-between items-center">
+                    <p className="font-bold text-base">{card.bank}</p>
+                    <Badge variant="outline" className={cn('capitalize rounded-md h-6 text-xs', getStatusClasses(card.status))}>
                         {card.status}
                     </Badge>
                 </div>
-                {/* --- THIS BLOCK WAS REMOVED --- */}
-                {/* <div className="w-12 h-8 ..."> ... </div> */}
-                <div className="flex justify-between items-end mt-4">
-                    <p className="font-mono text-xl tracking-wider">•••• {card.last4}</p>
-                    <p className="font-semibold text-lg truncate text-right ml-4">{card.name}</p>
+                <div className="flex justify-between items-end mt-2">
+                    <p className="font-mono text-base tracking-wider">•••• {card.last4}</p>
+                    <p className="font-semibold text-base truncate text-right ml-4">{card.name}</p>
                 </div>
             </div>
             
-            <div className="p-5 flex-grow flex flex-col">
-                <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 mb-4">
+            <div className="p-4 flex-grow flex flex-col">
+                <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 mb-3">
                     <p>Statement: <span className="font-medium text-slate-600">Day {card.statementDay}</span></p>
-                    <p>Payment Due: <span className="font-medium text-slate-600">Day {card.paymentDueDay}</span></p>
+                    <p>Payment Due: <span className="font-medium text-slate-600">Day {card.paymentDay}</span></p>
                 </div>
                 
-                <div className="flex-grow h-48 flex flex-col justify-center">
+                <div className="flex-grow min-h-[150px] flex flex-col justify-center">
                     {view === 'month' && (
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3">
                             <MetricItem
                                 label={`Rate (${fmtYMShortFn(activeMonth)})`}
                                 value={`${monthlyEffectiveRate.toFixed(2)}%`}
                                 isPrimary={true}
                                 valueClassName={monthlyEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
                             />
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                 <MetricItem label="Spend" value={currencyFn(totalSpendMonth)} />
                                 <MetricItem label="Cashback" value={currencyFn(estCashbackMonth)} />
                             </div>
@@ -3217,14 +3150,14 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                     )}
 
                     {view === 'ytd' && (
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3">
                             <MetricItem
                                 label="YTD Effective Rate"
                                 value={`${ytdEffectiveRate.toFixed(2)}%`}
                                 isPrimary={true}
                                 valueClassName={ytdEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
                             />
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                 <MetricItem label="Total Spend" value={currencyFn(card.totalSpendingYtd)} />
                                 <MetricItem label="Total Cashback" value={currencyFn(card.estYtdCashback)} />
                             </div>
@@ -3232,8 +3165,8 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                     )}
 
                     {view === 'roi' && (
-                        <div className="space-y-3">
-                            <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2.5">
+                            <div className="grid grid-cols-2 gap-3">
                                 <MetricItem label="Annual Fee" value={currencyFn(card.annualFee)} />
                                 <MetricItem 
                                     label="Net Value (vs. Fee)" 
@@ -3258,7 +3191,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                     )}
                 </div>
 
-                <div className="mt-auto pt-4 border-t flex justify-end">
+                <div className="mt-auto pt-3 border-t flex justify-end">
                     <CardInfoDialog card={card} rules={rules} />
                 </div>
             </div>
