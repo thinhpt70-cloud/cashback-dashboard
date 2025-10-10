@@ -395,11 +395,12 @@ app.post('/api/login', (req, res) => {
 app.get('/api/lookup-merchant', async (req, res) => {
     const { keyword } = req.query;
     if (!keyword || keyword.length < 3) {
-        return res.json({ bestMatch: null, prediction: null, history: [] });
+        // Return a structure consistent with a successful-but-empty response
+        return res.json({ type: 'merchant', bestMatch: null, prediction: null, history: [], external: [] });
     }
 
     try {
-        // Step 1: Perform ONE comprehensive query to get all relevant historical data.
+        // Step 1: Perform ONE comprehensive query to get all relevant historical data from Notion.
         const response = await notion.databases.query({
             database_id: transactionsDbId,
             page_size: 100, // Get a good sample size for analysis
@@ -409,26 +410,34 @@ app.get('/api/lookup-merchant', async (req, res) => {
 
         const transactions = response.results.map(page => parseNotionPageProperties(page));
 
-        // Step 2: Process the single dataset in three different ways.
+        // Step 2: Process the dataset to derive best match, prediction, and history.
         
         // A. Logic for "Best Match" (for card suggestions)
         let bestMcc = transactions.length > 0 ? transactions[0]['MCC Code'] : null;
         let mccSource = 'history';
+        let externalResults = []; // Initialize external results array
 
         if (!bestMcc) {
-            // Fallback to external API if no history
+            // Fallback to external API if no historical transactions are found
             const fetch = (await import('node-fetch')).default;
             const mccResponse = await fetch(`https://tc-mcc.tungpun.site/mcc?keyword=${encodeURIComponent(keyword)}`);
             if (mccResponse.ok) {
                 const data = await mccResponse.json();
                 if (data.results && data.results.length > 0) {
+                    // Set the best match from the first result
                     bestMcc = data.results[0][2];
                     mccSource = 'external';
+
+                    // **FIX**: Populate the externalResults array for the "View other suggestions" feature
+                    externalResults = data.results.map(result => ({
+                        merchant: result[0], // The merchant name from the external API
+                        mcc: result[2]       // The MCC code from the external API
+                    }));
                 }
             }
         }
         
-        // B. Logic for "Prediction" (for auto-filling)
+        // B. Logic for "Prediction" (for auto-filling the transaction form)
         const frequencyMap = new Map();
         transactions.forEach(tx => {
             if (tx['Merchant'] && tx['MCC Code'] && tx['Category']) {
@@ -460,11 +469,13 @@ app.get('/api/lookup-merchant', async (req, res) => {
             }
         });
 
-        // Step 3: Return a single, structured object.
+        // Step 3: Return the single, unified, and structured object.
         res.json({
+            type: 'merchant', // **FIX**: This is the crucial property for the button
             bestMatch: bestMcc ? { mcc: bestMcc, source: mccSource } : null,
             prediction: prediction,
-            history: Array.from(uniqueHistory.values())
+            history: Array.from(uniqueHistory.values()),
+            external: externalResults // **FIX**: Include the populated external results
         });
 
     } catch (error) {
