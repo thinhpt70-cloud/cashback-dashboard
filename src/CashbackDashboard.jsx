@@ -524,6 +524,9 @@ export default function CashbackDashboard() {
                         allCards={cards} 
                         allRules={rules} 
                         mccMap={mccMap} 
+                        monthlySummary={monthlySummary}
+                        monthlyCategorySummary={monthlyCategorySummary}
+                        activeMonth={activeMonth}
                     />
 
                     {/* This Sheet component creates the slide-over panel */}
@@ -782,7 +785,6 @@ function StatCard({ title, value, icon, valueClassName }) {
 }
 
 const CustomRechartsTooltip = ({ active, payload, label }) => {
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     
     if (active && payload?.length) {
         // Find the spend and cashback values from the tooltip's data payload
@@ -821,7 +823,6 @@ function CardInfoSheet({ card, rules, mccMap }) {
     const [expandedRuleId, setExpandedRuleId] = useState(null);
 
     // --- Helper function and memoized data ---
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     const isFeeCovered = card.estYtdCashback >= card.annualFee;
     const representativeTxCapRule = rules.find(rule => rule.capPerTransaction > 0);
     const infoItems = [
@@ -994,7 +995,6 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
     const [visibleCount, setVisibleCount] = useState(15);
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
 
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     const fmtYMShort = (ymCode) => {
         if (!ymCode || typeof ymCode !== 'string' || ymCode.length !== 6) return "";
         const year = Number(ymCode.slice(0, 4));
@@ -3481,21 +3481,40 @@ function useIOSKeyboardGapFix() {
   }, []);
 }
 
-function BestCardFinderDialog({ allCards, allRules, mccMap }) {
+function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, monthlyCategorySummary, activeMonth }) {
+    // State for Amount and Recent Searches
+    const [amount, setAmount] = useState('');
+    const [recentSearches, setRecentSearches] = useState([]);
+
+    // Existing State
     const [isOpen, setIsOpen] = useState(false);
-    const [view, setView] = useState('initial'); // 'initial', 'results', or 'options'
+    const [view, setView] = useState('initial');
     const [searchTerm, setSearchTerm] = useState('');
     const [searchedTerm, setSearchedTerm] = useState('');
     const [searchResult, setSearchResult] = useState(null);
     const [selectedMcc, setSelectedMcc] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
-    
+
     const cardMap = useMemo(() => new Map(allCards.map(c => [c.id, c])), [allCards]);
 
+    // Effect to load recent searches from localStorage
+    useEffect(() => {
+        if (isOpen) {
+            const searches = JSON.parse(localStorage.getItem('cardFinderSearches') || '[]');
+            setRecentSearches(searches);
+        }
+    }, [isOpen]);
+
     const handleSearch = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
+        
         const term = searchTerm.trim();
         if (!term) return;
+
+        // Update localStorage with the new search term
+        const updatedSearches = [term, ...recentSearches.filter(s => s !== term)].slice(0, 5);
+        localStorage.setItem('cardFinderSearches', JSON.stringify(updatedSearches));
+        setRecentSearches(updatedSearches);
 
         setIsLoading(true);
         setSearchedTerm(term);
@@ -3513,7 +3532,6 @@ function BestCardFinderDialog({ allCards, allRules, mccMap }) {
             const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(term)}`);
             if (!res.ok) throw new Error('Failed to fetch merchant data');
             const data = await res.json();
-
             setSearchResult(data);
             setSelectedMcc(data.bestMatch?.mcc);
             setView('results');
@@ -3525,21 +3543,69 @@ function BestCardFinderDialog({ allCards, allRules, mccMap }) {
         }
     };
 
+    // Handler for clicking a recent search tag
+    const handleRecentSearchClick = (term) => {
+        setSearchTerm(term);
+        setTimeout(() => handleSearch(), 0);
+    };
+
+    // The advanced ranking logic
     const rankedSuggestions = useMemo(() => {
         if (!selectedMcc) return [];
-        return allRules
-            .filter(rule =>
-                // --- CHANGE: The rule.status === 'Active' filter has been removed ---
-                rule.mccCodes &&
-                rule.mccCodes.split(',').map(c => c.trim()).includes(selectedMcc)
-            )
-            .map(rule => ({
-                rule,
-                card: cardMap.get(rule.cardId),
-            }))
-            .filter(item => item.card && item.card.status === 'Active')
-            .sort((a, b) => b.rule.rate - a.rule.rate);
-    }, [selectedMcc, allRules, cardMap]);
+
+        const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
+
+        const processedRules = allRules
+            .filter(rule => rule.mccCodes && rule.mccCodes.split(',').map(c => c.trim()).includes(selectedMcc))
+            .map(rule => {
+                const card = cardMap.get(rule.cardId);
+                if (!card || card.status !== 'Active') return null;
+
+                const cardMonthSummary = monthlySummary.find(s => s.cardId === card.id && s.month === activeMonth);
+                const categorySummaryId = `${activeMonth} - ${rule.ruleName}`;
+                const categoryMonthSummary = monthlyCategorySummary.find(s => s.summaryId === categorySummaryId && s.cardId === card.id);
+
+                const isMinSpendMet = card.minimumMonthlySpend > 0 ? (cardMonthSummary?.spend || 0) >= card.minimumMonthlySpend : true;
+                const isCategoryCapReached = categoryMonthSummary ? (categoryMonthSummary.cashback || 0) >= (categoryMonthSummary.categoryLimit || Infinity) : false;
+                const isMonthlyCapReached = card.overallMonthlyLimit > 0 ? (cardMonthSummary?.cashback || 0) >= card.overallMonthlyLimit : false;
+                
+                let calculatedCashback = null;
+                if (!isNaN(numericAmount) && numericAmount > 0) {
+                    calculatedCashback = numericAmount * rule.rate;
+                    if (rule.capPerTransaction > 0) {
+                        calculatedCashback = Math.min(calculatedCashback, rule.capPerTransaction);
+                    }
+                }
+
+                return { rule, card, calculatedCashback, isMinSpendMet, isCategoryCapReached, isMonthlyCapReached };
+            })
+            .filter(Boolean);
+
+        // Sort by a calculated score, then by the best outcome
+        return processedRules.sort((a, b) => {
+            const getScore = (item) => {
+                if (item.isMonthlyCapReached || item.isCategoryCapReached) return 0;
+                return 1;
+            };
+
+            const scoreDiff = getScore(b) - getScore(a);
+            if (scoreDiff !== 0) return scoreDiff;
+
+            if (!isNaN(numericAmount)) {
+                return (b.calculatedCashback || 0) - (a.calculatedCashback || 0);
+            }
+            return b.rule.rate - a.rule.rate;
+        });
+    }, [selectedMcc, allRules, cardMap, amount, monthlySummary, monthlyCategorySummary, activeMonth]);
+
+    const handleAmountChange = (e) => {
+        const value = e.target.value.replace(/,/g, '');
+        if (!isNaN(value) && value.length <= 15) {
+            setAmount(value ? Number(value).toLocaleString('en-US') : '');
+        } else if (value === '') {
+            setAmount('');
+        }
+    };
 
     const getRateBadgeClass = (rate) => {
         if (rate >= 0.05) return 'bg-emerald-600 hover:bg-emerald-700';
@@ -3560,6 +3626,7 @@ function BestCardFinderDialog({ allCards, allRules, mccMap }) {
             setSearchedTerm('');
             setSearchResult(null);
             setSelectedMcc(null);
+            setAmount('');
         }, 200);
     };
 
@@ -3574,19 +3641,38 @@ function BestCardFinderDialog({ allCards, allRules, mccMap }) {
                 <DialogHeader>
                     <DialogTitle>Find the Best Card</DialogTitle>
                     <DialogDescription>
-                        Enter a merchant name or a 4-digit MCC to find your optimal card.
+                        Enter a merchant and amount to calculate your best rewards.
                     </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSearch} className="flex items-center gap-2">
-                    <Input
-                        placeholder="e.g., Shopee, 5411, Grab..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <Button type="submit" disabled={isLoading || !searchTerm.trim()}>
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                    </Button>
+                
+                <form onSubmit={handleSearch}>
+                    <div className="flex items-center gap-2">
+                        <Input
+                            placeholder="e.g., Shopee, 5411, Grab..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="flex-grow"
+                        />
+                        <Input
+                            placeholder="Amount (Optional)"
+                            value={amount}
+                            onChange={handleAmountChange}
+                            className="w-32"
+                            inputMode="numeric"
+                        />
+                        <Button type="submit" disabled={isLoading || !searchTerm.trim()} className="shrink-0">
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        </Button>
+                    </div>
                 </form>
+                {recentSearches.length > 0 && (
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-muted-foreground">Recent:</span>
+                        {recentSearches.map(term => (
+                            <button key={term} onClick={() => handleRecentSearchClick(term)} className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md">{term}</button>
+                        ))}
+                    </div>
+                )}
 
                 <div className="mt-4 min-h-[300px]">
                     {isLoading ? (
@@ -3600,7 +3686,7 @@ function BestCardFinderDialog({ allCards, allRules, mccMap }) {
                         </div>
                     ) : view === 'results' && searchResult ? (
                         <div>
-                            <div className="mb-4 p-3 rounded-md bg-slate-50 border">
+                             <div className="mb-4 p-3 rounded-md bg-slate-50 border">
                                 <p className="text-sm text-muted-foreground">Showing results for MCC:</p>
                                 <Badge variant="secondary" className="text-base mt-1">
                                     <span className="font-mono mr-2">{selectedMcc}:</span>
@@ -3610,39 +3696,60 @@ function BestCardFinderDialog({ allCards, allRules, mccMap }) {
                             
                             {rankedSuggestions.length > 0 ? (
                                 <div className="space-y-2 max-h-[35vh] overflow-y-auto pr-2">
-                                    {/* --- CHANGE: The mapping logic is updated below --- */}
-                                    {rankedSuggestions.map(({ card, rule }, index) => (
+                                    {rankedSuggestions.map(({ card, rule, calculatedCashback, isMinSpendMet, isCategoryCapReached, isMonthlyCapReached }, index) => {
+                                        const isCapped = isCategoryCapReached || isMonthlyCapReached;
+                                        return (
                                         <div 
                                             key={rule.id} 
                                             className={cn(
-                                                "border rounded-lg p-3 flex items-center justify-between gap-4 transition-opacity",
-                                                rule.status !== 'Active' && "opacity-60"
+                                                "border rounded-lg p-3 flex items-center justify-between gap-4 transition-all",
+                                                rule.status !== 'Active' && "opacity-60",
+                                                isCapped && "opacity-40 bg-slate-50"
                                             )}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <span className="font-bold text-lg text-muted-foreground">#{index + 1}</span>
                                                 <div>
                                                     <p className="font-bold text-primary">{card.name}</p>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className={cn(
-                                                            "h-2 w-2 rounded-full",
-                                                            rule.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'
-                                                        )} />
-                                                        <p className="text-xs text-muted-foreground">{rule.ruleName}</p>
+                                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                        <span className={cn("h-2 w-2 rounded-full", rule.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400')} />
+                                                        <span>{rule.ruleName}</span>
+                                                        
+                                                        <TooltipProvider delayDuration={100}>
+                                                            {!isMinSpendMet && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger><AlertTriangle className="h-4 w-4 text-orange-400" /></TooltipTrigger>
+                                                                    <TooltipContent><p>Min. spend not met</p></TooltipContent>
+                                                                </Tooltip>
+                                                            )}
+                                                            {isCapped && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger><AlertTriangle className="h-4 w-4 text-red-500" /></TooltipTrigger>
+                                                                    <TooltipContent><p>Monthly cap reached!</p></TooltipContent>
+                                                                </Tooltip>
+                                                            )}
+                                                        </TooltipProvider>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <Badge className={cn("text-lg", getRateBadgeClass(rule.rate))}>
-                                                {(rule.rate * 100).toFixed(1)}%
-                                            </Badge>
+                                            <div className="text-right">
+                                                <Badge className={cn("text-lg", getRateBadgeClass(rule.rate))}>
+                                                    {(rule.rate * 100).toFixed(1)}%
+                                                </Badge>
+                                                {calculatedCashback !== null && (
+                                                     <p className="text-sm font-semibold text-emerald-600 mt-1">
+                                                        +{currency(calculatedCashback)}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
                             ) : (
-                                <p className="text-center text-muted-foreground p-4">No cashback rules found for this MCC.</p>
+                                 <p className="text-center text-muted-foreground p-4">No cashback rules found for this MCC.</p>
                             )}
                             
-                            <div className="flex items-center justify-center gap-2 mt-6 border-t pt-4">
+                           <div className="flex items-center justify-center gap-2 mt-6 border-t pt-4">
                                 <Button asChild variant="ghost" size="sm">
                                     <a href={`https://www.google.com/search?q=${encodeURIComponent(searchedTerm + ' mcc code')}`} target="_blank" rel="noopener noreferrer">
                                         <ExternalLink className="mr-2 h-4 w-4" /> Google
@@ -3682,7 +3789,7 @@ function BestCardFinderDialog({ allCards, allRules, mccMap }) {
                                     </div>
                                 )}
                                 {searchResult.external?.length > 0 && (
-                                    <div>
+                                     <div>
                                         <h4 className="font-semibold text-sm text-muted-foreground mb-1 px-1">External Suggestions</h4>
                                         {searchResult.external.map((item, index) => (
                                             <button key={`e-${index}`} onClick={() => handleOptionSelect(item.mcc)} className="w-full text-left flex items-center gap-3 p-2 rounded-md hover:bg-muted">
@@ -3695,7 +3802,12 @@ function BestCardFinderDialog({ allCards, allRules, mccMap }) {
                                 )}
                             </div>
                         </div>
-                    ) : null}
+                    ) : (
+                         <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 h-full pt-10">
+                            <Sparkles className="h-8 w-8 mb-2" />
+                            <p>Start a search to see card suggestions.</p>
+                        </div>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>
