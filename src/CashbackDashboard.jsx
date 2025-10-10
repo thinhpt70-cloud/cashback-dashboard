@@ -2560,11 +2560,13 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [mccName, setMccName] = useState('');
     const [applicableRuleId, setApplicableRuleId] = useState('');
     const [cardSummaryCategoryId, setCardSummaryCategoryId] = useState('new');
-    // --- RENAMED STATE: To be clearer about what is being searched ---
     const [isLookingUp, setIsLookingUp] = useState(false);
-    const [lookupResults, setLookupResults] = useState([]); // Will hold history for the dialog
+    const [lookupResults, setLookupResults] = useState([]);
     const [isLookupDialogOpen, setIsLookupDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // --- NEW: State to control visibility of the "View other results" button ---
+    const [showLookupButton, setShowLookupButton] = useState(false);
 
     useIOSKeyboardGapFix();
 
@@ -2578,6 +2580,8 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         if (vendor.preferredCardId) setCardId(vendor.preferredCardId);
         if (vendor.preferredRuleId) setApplicableRuleId(vendor.preferredRuleId);
         else setApplicableRuleId('');
+        // --- NEW: Reset the lookup button when a vendor is selected ---
+        setShowLookupButton(false);
         amountInputRef.current?.focus();
     };
 
@@ -2619,11 +2623,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         return calculatedCashback;
     }, [amount, selectedRule]);
 
-
-    // --- Effects (Simplified) ---
-
-    // --- REMOVED: The incorrect useEffect that called a non-existent prediction API ---
-
+    // --- Effects (No changes here) ---
     useEffect(() => {
         if (filteredSummaries.length > 0) setCardSummaryCategoryId(filteredSummaries[0].id);
         else setCardSummaryCategoryId('new');
@@ -2652,6 +2652,8 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         setMerchantLookup('');
         setApplicableRuleId('');
         setCardSummaryCategoryId('new');
+        // --- NEW: Reset the lookup button on form reset ---
+        setShowLookupButton(false);
     };
 
     const handleAmountChange = (e) => {
@@ -2660,40 +2662,53 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         else if (value === '') setAmount('');
     };
 
-    // --- MAJOR CHANGE: This function now handles all lookup logic ---
+    // --- MAJOR LOGIC CHANGE: This function is completely updated ---
     const handleMerchantLookup = async () => {
         if (!merchant) return;
         setIsLookingUp(true);
         setLookupResults([]);
+        setShowLookupButton(false);
+
         try {
-            const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(merchant)}`);
-            if (!res.ok) throw new Error("Server responded with an error.");
-            const data = await res.json();
+            // 1. Fetch from both endpoints concurrently for speed
+            const [lookupRes, searchRes] = await Promise.all([
+                fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(merchant)}`),
+                fetch(`/api/mcc-search?keyword=${encodeURIComponent(merchant)}`)
+            ]);
 
-            // 1. Use the 'prediction' object to auto-fill the form
-            if (data.prediction) {
-                setMerchantLookup(data.prediction.merchant || '');
-                setMccCode(data.prediction.mcc || '');
-                setCategory(data.prediction.category || '');
+            if (!lookupRes.ok || !searchRes.ok) throw new Error("Server responded with an error.");
+
+            const lookupData = await lookupRes.json();
+            const searchData = await searchRes.json();
+            
+            // 2. Prepare combined results for the dialog
+            const historyResults = (lookupData.history || []).map(item => ([
+                "Your History", item.merchant, item.mcc,
+                mccMap[item.mcc]?.en || "Unknown",
+                mccMap[item.mcc]?.vn || "Không rõ",
+                null
+            ]));
+
+            const externalResults = (searchData.results || []).map(item => ([
+                "General Suggestion", item[1], item[2], item[3], item[4], null
+            ]));
+            
+            const allResults = [...historyResults, ...externalResults];
+            setLookupResults(allResults);
+
+            // 3. Apply the new conditional logic
+            if (lookupData.prediction) {
+                // If we can auto-fill, do it and show the button
+                setMerchantLookup(lookupData.prediction.merchant || '');
+                setMccCode(lookupData.prediction.mcc || '');
+                setCategory(lookupData.prediction.category || '');
                 toast.info("Auto-filled based on your history.");
-            } else if (data.bestMatch) {
-                // Fallback to bestMatch if no full prediction is available
-                setMccCode(data.bestMatch.mcc || '');
-            }
-
-            // 2. Use the 'history' array to populate the suggestions dialog
-            if (data.history && data.history.length > 0) {
-                // We map the server data to the format the dialog component expects
-                const formattedHistory = data.history.map(item => ([
-                    "Your History", item.merchant, item.mcc,
-                    mccMap[item.mcc]?.en || "Unknown",
-                    mccMap[item.mcc]?.vn || "Không rõ",
-                    null
-                ]));
-                setLookupResults(formattedHistory);
+                setShowLookupButton(true); // Show the button, but don't open the dialog
+            } else if (allResults.length > 0) {
+                // If we can't auto-fill but have results, open the dialog immediately
                 setIsLookupDialogOpen(true);
             } else {
-                toast.info("No transaction history found. You can still add the transaction manually.");
+                toast.info("No transaction history or suggestions found.");
             }
 
         } catch (error) {
@@ -2760,16 +2775,38 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     <div className="space-y-2">
                         <label htmlFor="merchant">Transaction Name</label>
                         <div className="relative flex items-center">
-                            <Input id="merchant" value={merchant} onChange={(e) => setMerchant(e.target.value)} required className="pr-12" />
+                            {/* --- NEW: onChange now resets the "View Results" button --- */}
+                            <Input 
+                                id="merchant" 
+                                value={merchant} 
+                                onChange={(e) => {
+                                    setMerchant(e.target.value);
+                                    setShowLookupButton(false);
+                                }} 
+                                required 
+                                className="pr-12" 
+                            />
                             <div className="absolute right-2 flex items-center gap-2">
-                                {/* --- UPDATED: Button now calls the new unified lookup function --- */}
                                 <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={handleMerchantLookup} disabled={!merchant || isLookingUp}>
                                     {isLookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                 </Button>
                             </div>
                         </div>
+                        {/* --- NEW: This button is conditionally rendered after a successful auto-fill --- */}
+                        {showLookupButton && (
+                             <div className="pt-2">
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="w-full"
+                                    onClick={() => setIsLookupDialogOpen(true)}
+                                >
+                                    View Other Suggestions
+                                </Button>
+                            </div>
+                        )}
                     </div>
-                    {/* The rest of the form remains unchanged */}
                     <div className="grid grid-cols-1 sm:grid-cols-10 gap-4 items-start">
                         <div className="space-y-2 col-span-1 sm:col-span-6">
                             <label htmlFor="merchantLookup">Merchant</label>
@@ -2797,7 +2834,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 </div>
 
                 <div className="space-y-4 border-t pt-6">
-                   {/* This section remains unchanged */}
                     <div className="space-y-2">
                         <label htmlFor="card">Card</label>
                         <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="relative focus:z-10 w-full p-2 border rounded cursor-pointer" required>
@@ -2837,7 +2873,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     </Button>
                 </div>
             </form>
-            {/* --- UPDATED: This dialog now gets its data from the new lookup function --- */}
             <MccSearchResultsDialog
                 open={isLookupDialogOpen}
                 onOpenChange={setIsLookupDialogOpen}
@@ -2872,7 +2907,7 @@ function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
                 <DialogHeader>
                     <DialogTitle>MCC Search Results</DialogTitle>
                     <DialogDescription>
-                        Select the most relevant merchant category code. Your past results are shown first.
+                        Select the most relevant merchant category code
                     </DialogDescription>
                 </DialogHeader>
                 {/* 2. The main container is now a flexible div, not a table */}
@@ -2892,7 +2927,7 @@ function MccSearchResultsDialog({ open, onOpenChange, results, onSelect }) {
                     {/* 4. Render the "General" section only if there are general results */}
                     {generalResults.length > 0 && (
                         <div className="space-y-2">
-                            <h4 className="font-semibold text-sm text-muted-foreground px-3">General Suggestions</h4>
+                            <h4 className="font-semibold text-sm text-muted-foreground px-3">External Suggestions</h4>
                             <div className="space-y-1">
                                 {generalResults.map((result, index) => (
                                     <ResultItem key={`gen-${index}`} result={result} onSelect={handleSelect} isHistory={false} />
