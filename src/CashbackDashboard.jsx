@@ -3152,7 +3152,7 @@ function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = fals
 function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn, view }) {
     
     // --- Data Calculations (no changes here) ---
-    const totalSpendMonth = cardMonthsummary?.spend || 0;
+    const totalSpendMonth = cardMonthSummary?.spend || 0;
     const estCashbackMonth = cardMonthSummary?.cashback || 0;
     const monthlyEffectiveRate = totalSpendMonth > 0 ? (estCashbackMonth / totalSpendMonth) * 100 : 0;
     const ytdEffectiveRate = card.totalSpendingYtd > 0 ? (card.estYtdCashback / card.totalSpendingYtd) * 100 : 0;
