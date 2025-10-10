@@ -3184,14 +3184,12 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                 theme.gradient,
                 theme.textColor
             )}>
-                {/* Apply a subtle snowflake watermark for frozen cards */}
                 {card.status === 'Frozen' && (
                     <Snowflake 
                         className="absolute -right-4 -top-4 h-24 w-24 text-white/20" 
                         strokeWidth={1.5}
                     />
                 )}
-                {/* Wrap content in a relative div to ensure it's on top of the watermark */}
                 <div className="relative z-10">
                     <div className="flex justify-between items-center">
                         <p className="font-bold text-base">{card.bank}</p>
@@ -3199,9 +3197,10 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                             {card.status}
                         </Badge>
                     </div>
-                    <div className="flex justify-between items-end mt-2">
-                        <p className="font-mono text-base tracking-wider">•••• {card.last4}</p>
-                        <p className="font-semibold text-base truncate text-right ml-4">{card.name}</p>
+                    {/* MODIFIED: Added flex-shrink-0, min-w-0, and gap for robust truncation */}
+                    <div className="flex justify-between items-end mt-2 gap-4">
+                        <p className="font-mono text-base tracking-wider flex-shrink-0">•••• {card.last4}</p>
+                        <p className="font-semibold text-base truncate text-right min-w-0">{card.name}</p>
                     </div>
                 </div>
             </div>
@@ -3212,29 +3211,22 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                     <p>Payment Due: <span className="font-medium text-slate-600">Day {card.paymentDueDay}</span></p>
                 </div>
                 
-                <div className="flex-grow min-h-[150px] flex flex-col justify-center pt-4">
+                <div className="flex-grow flex flex-col justify-center mt-4">
                     {view === 'month' && (
-                        <div className="space-y-4">
-                             <div className="grid grid-cols-2 gap-3">
-                                <MetricItem
-                                    label={`Rate (${fmtYMShortFn(activeMonth)})`}
-                                    value={`${monthlyEffectiveRate.toFixed(2)}%`}
-                                    isPrimary={true}
-                                    valueClassName={monthlyEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
-                                />
-                                <div className="space-y-1.5">
-                                    <MetricItem label="Spend" value={currencyFn(totalSpendMonth)} />
-                                    <MetricItem label="Cashback" value={currencyFn(estCashbackMonth)} />
-                                </div>
-                            </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <MetricItem
+                                label={`Rate (${fmtYMShortFn(activeMonth)})`}
+                                value={`${monthlyEffectiveRate.toFixed(2)}%`}
+                                valueClassName={monthlyEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
+                            />
+                            <MetricItem label="Spend" value={currencyFn(totalSpendMonth)} />
+                            <MetricItem label="Cashback" value={currencyFn(estCashbackMonth)} />
+                            
                             {progressPercent > 0 && (
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-slate-500">
-                                        <span>Fee Cycle Progress ({daysPast} days)</span>
-                                        <span>{progressPercent}%</span>
-                                    </div>
-                                    <Progress value={progressPercent} />
-                                </div>
+                                <MetricItem 
+                                    label={`Fee Cycle (${daysPast} days)`}
+                                    value={`${progressPercent}%`} 
+                                />
                             )}
                         </div>
                     )}
