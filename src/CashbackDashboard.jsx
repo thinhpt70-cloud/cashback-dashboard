@@ -813,18 +813,30 @@ const CustomRechartsTooltip = ({ active, payload, label }) => {
     return null;
 };
 
+
 function CardInfoSheet({ card, rules, mccMap }) {
-    // --- NEW: Add state for search and expansion ---
+    // --- State for search and expansion ---
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedRuleId, setExpandedRuleId] = useState(null);
 
-    // --- (The rest of the existing setup stays the same) ---
+    // --- Helper function and memoized data ---
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     const isFeeCovered = card.estYtdCashback >= card.annualFee;
     const representativeTxCapRule = rules.find(rule => rule.capPerTransaction > 0);
-    const infoItems = [ /* ... (no changes here) ... */ ];
+    const infoItems = [
+        { label: "Credit Limit", value: currency(card.creditLimit) },
+        { label: "Card Number", value: `**** **** **** ${card.last4}` },
+        { label: "Statement Day", value: `~ Day ${card.statementDay}` },
+        { label: "Payment Due Day", value: `~ Day ${card.paymentDueDay}` },
+        { label: "Monthly Interest", value: `${(card.interestRateMonthly * 100).toFixed(2)}%` },
+        { 
+            label: "Annual Fee", 
+            value: currency(card.annualFee),
+            valueClassName: isFeeCovered ? 'text-emerald-600' : 'text-red-500'
+        },
+    ];
 
-    // --- NEW: Memoized filtering logic for search functionality ---
+    // --- Filtering logic for the search functionality ---
     const filteredAndSortedRules = useMemo(() => {
         const lowercasedFilter = searchTerm.toLowerCase();
 
@@ -850,7 +862,7 @@ function CardInfoSheet({ card, rules, mccMap }) {
             if (a.status !== 'Active' && b.status === 'Active') return 1;
             return a.ruleName.localeCompare(b.ruleName);
         });
-    }, [rules, searchTerm, mccMap]); // mccMap is needed here now
+    }, [rules, searchTerm, mccMap]);
 
     const handleToggleExpand = (ruleId) => {
         setExpandedRuleId(prevId => (prevId === ruleId ? null : ruleId));
@@ -869,19 +881,48 @@ function CardInfoSheet({ card, rules, mccMap }) {
                     <p className="text-sm text-muted-foreground">{card.bank} &ndash; {card.cardType} Card</p>
                 </SheetHeader>
                 
-                {/* --- (Card info and cashback details sections have no changes) --- */}
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm py-4">
-                    {/* ... infoItems mapping ... */}
-                </div>
-                <div>
-                    {/* ... cashback details grid ... */}
+                    {infoItems.map(item => (
+                        <div key={item.label}>
+                            <p className="text-muted-foreground">{item.label}</p>
+                            <p className={cn("font-medium", item.valueClassName)}>{item.value}</p>
+                        </div>
+                    ))}
                 </div>
 
-                {/* --- NEW: Revamped Cashback Rules Section --- */}
+                <div>
+                    <h4 className="font-semibold text-sm mb-2">Cashback Details</h4>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm p-3 bg-muted rounded-lg">
+                        {representativeTxCapRule && (
+                            <div>
+                                <p className="text-muted-foreground">Max per Tx</p>
+                                <p className="font-medium">{currency(representativeTxCapRule.capPerTransaction)}</p>
+                            </div>
+                        )}
+                        {card.limitPerCategory > 0 && (
+                            <div>
+                                <p className="text-muted-foreground">Max per Cat</p>
+                                <p className="font-medium">{currency(card.limitPerCategory)}</p>
+                            </div>
+                        )}
+                        {card.overallMonthlyLimit > 0 && (
+                            <div>
+                                <p className="text-muted-foreground">Max per Month</p>
+                                <p className="font-medium">{currency(card.overallMonthlyLimit)}</p>
+                            </div>
+                        )}
+                        {card.minimumMonthlySpend > 0 && (
+                            <div>
+                                <p className="text-muted-foreground">Min. Spending</p>
+                                <p className="font-medium">{currency(card.minimumMonthlySpend)}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
                 <div className="mt-4">
                     <h4 className="font-semibold text-sm mb-2">Cashback Rules</h4>
                     
-                    {/* 1. Add the search input */}
                     <div className="relative mb-3">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -893,7 +934,6 @@ function CardInfoSheet({ card, rules, mccMap }) {
                         />
                     </div>
                     
-                    {/* 2. Render the interactive list */}
                     <div className="space-y-1">
                         {filteredAndSortedRules.length > 0 ? filteredAndSortedRules.map(rule => {
                             const isExpanded = expandedRuleId === rule.id;
