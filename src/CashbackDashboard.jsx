@@ -3273,7 +3273,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                 </div>
 
                 {/* MODIFIED: Increased top padding from pt-3 to pt-4 for better spacing */}
-                <div className="mt-auto pt-4 border-t flex justify-end">
+                <div className="mt-auto pt-3 flex justify-end">
                     <CardInfoDialog card={card} rules={rules} />
                 </div>
             </div>
