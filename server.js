@@ -473,32 +473,6 @@ app.get('/api/lookup-merchant', async (req, res) => {
     }
 });
 
-
-
-app.get('/api/mcc-search', async (req, res) => {
-    const { keyword } = req.query;
-    if (!keyword) {
-        return res.status(400).json({ error: 'Search keyword is required' });
-    }
-    try {
-        const fetch = (await import('node-fetch')).default;
-        const mccResponse = await fetch(`https://tc-mcc.tungpun.site/mcc?keyword=${encodeURIComponent(keyword)}`);
-        if (!mccResponse.ok) {
-        throw new Error('Failed to fetch from external MCC API');
-        }
-        const data = await mccResponse.json();
-
-        if (data.results) {
-        data.results = data.results.slice(0, 10);
-        }
-
-        res.json(data);
-    } catch (error) {
-        console.error('MCC Search Error:', error);
-        res.status(500).json({ error: 'Failed to search for MCC code' });
-    }
-});
-
 // POST /api/transactions - Add a new transaction
 app.post('/api/transactions', async (req, res) => {
     try {
