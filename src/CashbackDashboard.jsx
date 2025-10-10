@@ -3152,7 +3152,7 @@ function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = fals
 function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn, view }) {
     
     // --- Data Calculations (no changes here) ---
-    const totalSpendMonth = cardMonthSummary?.spend || 0;
+    const totalSpendMonth = cardMonthsummary?.spend || 0;
     const estCashbackMonth = cardMonthSummary?.cashback || 0;
     const monthlyEffectiveRate = totalSpendMonth > 0 ? (estCashbackMonth / totalSpendMonth) * 100 : 0;
     const ytdEffectiveRate = card.totalSpendingYtd > 0 ? (card.estYtdCashback / card.totalSpendingYtd) * 100 : 0;
@@ -3174,47 +3174,68 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
 
     return (
         <div className={cn(
-            "bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col relative",
-            card.status === 'Closed' && 'filter grayscale'
+            "bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 flex flex-col relative",
+            card.status === 'Closed' && 'filter grayscale',
+            card.status === 'Frozen' && 'opacity-75'
         )}>
-            {card.status === 'Frozen' && (
-                <div className="absolute inset-0 bg-sky-400/20 backdrop-blur-sm rounded-xl flex items-center justify-center z-10 pointer-events-none">
-                    <Snowflake className="h-16 w-16 text-white/90 drop-shadow-lg" strokeWidth={1.5}/>
-                </div>
-            )}
             {/* Visual Card Header */}
-            <div className={`relative rounded-t-xl p-4 ${theme.gradient} ${theme.textColor} flex-shrink-0`}>
-                <div className="flex justify-between items-center">
-                    <p className="font-bold text-base">{card.bank}</p>
-                    <Badge variant="outline" className={cn('capitalize rounded-md h-6 text-xs', getStatusClasses(card.status))}>
-                        {card.status}
-                    </Badge>
-                </div>
-                <div className="flex justify-between items-end mt-2">
-                    <p className="font-mono text-base tracking-wider">•••• {card.last4}</p>
-                    <p className="font-semibold text-base truncate text-right ml-4">{card.name}</p>
+            <div className={cn(
+                "relative rounded-t-xl p-4 flex-shrink-0 overflow-hidden",
+                theme.gradient,
+                theme.textColor
+            )}>
+                {/* Apply a subtle snowflake watermark for frozen cards */}
+                {card.status === 'Frozen' && (
+                    <Snowflake 
+                        className="absolute -right-4 -top-4 h-24 w-24 text-white/20" 
+                        strokeWidth={1.5}
+                    />
+                )}
+                {/* Wrap content in a relative div to ensure it's on top of the watermark */}
+                <div className="relative z-10">
+                    <div className="flex justify-between items-center">
+                        <p className="font-bold text-base">{card.bank}</p>
+                        <Badge variant="outline" className={cn('capitalize rounded-md h-6 text-xs', getStatusClasses(card.status))}>
+                            {card.status}
+                        </Badge>
+                    </div>
+                    <div className="flex justify-between items-end mt-2">
+                        <p className="font-mono text-base tracking-wider">•••• {card.last4}</p>
+                        <p className="font-semibold text-base truncate text-right ml-4">{card.name}</p>
+                    </div>
                 </div>
             </div>
             
             <div className="p-4 flex-grow flex flex-col">
-                <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 mb-3">
+                <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4">
                     <p>Statement: <span className="font-medium text-slate-600">Day {card.statementDay}</span></p>
                     <p>Payment Due: <span className="font-medium text-slate-600">Day {card.paymentDueDay}</span></p>
                 </div>
                 
-                <div className="flex-grow min-h-[150px] flex flex-col justify-center">
+                <div className="flex-grow min-h-[150px] flex flex-col justify-center pt-4">
                     {view === 'month' && (
-                        <div className="grid grid-cols-2 gap-3">
-                            <MetricItem
-                                label={`Rate (${fmtYMShortFn(activeMonth)})`}
-                                value={`${monthlyEffectiveRate.toFixed(2)}%`}
-                                isPrimary={true}
-                                valueClassName={monthlyEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
-                            />
-                            <div className="space-y-1.5">
-                                <MetricItem label="Spend" value={currencyFn(totalSpendMonth)} />
-                                <MetricItem label="Cashback" value={currencyFn(estCashbackMonth)} />
+                        <div className="space-y-4">
+                             <div className="grid grid-cols-2 gap-3">
+                                <MetricItem
+                                    label={`Rate (${fmtYMShortFn(activeMonth)})`}
+                                    value={`${monthlyEffectiveRate.toFixed(2)}%`}
+                                    isPrimary={true}
+                                    valueClassName={monthlyEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
+                                />
+                                <div className="space-y-1.5">
+                                    <MetricItem label="Spend" value={currencyFn(totalSpendMonth)} />
+                                    <MetricItem label="Cashback" value={currencyFn(estCashbackMonth)} />
+                                </div>
                             </div>
+                            {progressPercent > 0 && (
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-slate-500">
+                                        <span>Fee Cycle Progress ({daysPast} days)</span>
+                                        <span>{progressPercent}%</span>
+                                    </div>
+                                    <Progress value={progressPercent} />
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -3252,7 +3273,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                                     <Progress value={progressPercent} />
                                 </div>
                             )}
-                            <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4 pt-2 border-t mt-2">
+                            <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4">
                                 <p>Opened: <span className="font-medium text-slate-600">{formattedOpenDate}</span></p>
                                 <p>Next Fee: <span className="font-medium text-slate-600">{formattedNextFeeDate}</span></p>
                             </div>
