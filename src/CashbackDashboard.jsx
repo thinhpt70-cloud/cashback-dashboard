@@ -14,7 +14,6 @@ import {
     DialogHeader,
     DialogTitle,
     DialogDescription,
-    DialogTrigger,
 } from "./components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "./components/ui/sheet";
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
@@ -3558,8 +3557,9 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     const cardMap = useMemo(() => new Map(allCards.map(c => [c.id, c])), [allCards]);
     
-    const resetAndClose = () => {
-        onOpenChange(false);
+    const resetAndClose = useCallback(() => {
+        onOpenChange(false); // Use the prop to signal closing
+        // Delay reset to allow for closing animation
         setTimeout(() => {
             setView('initial');
             setSearchTerm('');
@@ -3567,19 +3567,29 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
             setSearchResult(null);
             setSelectedMcc(null);
             setAmount('');
-            setSelectedMerchantDetails(null);
-        }, 300); // Allow closing animation
-    };
-    
-    // Reset internal state when the sheet is closed
+            setBestMatchDetails(null);
+        }, 200);
+    }, [onOpenChange]);
+
     useEffect(() => {
         if (!isOpen) {
-            resetAndClose();
+            // Give a little time for the closing animation before resetting the internal state
+            const timer = setTimeout(() => {
+                setView('initial');
+                setSearchTerm('');
+                setSearchedTerm('');
+                setSearchResult(null);
+                setSelectedMcc(null);
+                setAmount('');
+                setBestMatchDetails(null);
+            }, 300);
+            return () => clearTimeout(timer);
         } else {
+             // Load recent searches from local storage when the dialog opens
             const searches = JSON.parse(localStorage.getItem('cardFinderSearches') || '[]');
             setRecentSearches(searches);
         }
-    }, [isOpen]);
+    }, [isOpen, resetAndClose]);
 
     // --- CORE LOGIC (handleSearch, handleRecentSearchClick, etc. remain the same) ---
     const handleSearch = async (e) => {
