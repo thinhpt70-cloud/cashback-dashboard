@@ -24,7 +24,7 @@ import {
     SheetTrigger,
 } from "./components/ui/sheet";
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
-import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronUp, List } from "lucide-react";
+import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronUp, List, MoreHorizontal } from "lucide-react";
 import { cn } from "./lib/utils";
 import { Toaster, toast } from 'sonner';
 import {
@@ -33,6 +33,7 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "./components/ui/accordion";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
 
 
 
@@ -127,6 +128,7 @@ const cardThemes = {
 export default function CashbackDashboard() {
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isFinderOpen, setIsFinderOpen] = useState(false);
 
     // --- STATE MANAGEMENT ---
     const [cards, setCards] = useState([]);
@@ -502,37 +504,44 @@ export default function CashbackDashboard() {
         <TooltipProvider>
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
             <Toaster richColors position="top-center" />
-            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-white shadow-sm px-4 md:px-6 z-30">
-            <h1 className="text-xl font-semibold flex items-center gap-2">Cashback Optimizer</h1>
-            <div className="ml-auto flex items-center gap-4">
-                {statementMonths.length > 0 && (
-                    <select
-                    value={activeMonth}
-                    onChange={(e) => setActiveMonth(e.target.value)}
-                    className="h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                    {statementMonths.map(m => (
-                        <option key={m} value={m}>{fmtYMShort(m)}</option>
-                    ))}
-                    </select>
-                )}
-                <Button variant="outline" size="icon" onClick={() => fetchData(false)}><RefreshCw className="h-4 w-4" /></Button>
-                <div className="ml-auto flex items-center gap-2">
+            {/* --- NEW RESPONSIVE HEADER --- */}
+            <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-white px-4 shadow-sm sm:px-6">
+                <h1 className="text-xl font-semibold flex items-center gap-2 shrink-0">
+                    <DollarSign className="h-6 w-6 text-sky-600 md:hidden" />
+                    <span className="hidden md:inline">Cashback Optimizer</span>
+                </h1>
 
-                    {/* --- ADD THIS COMPONENT --- */}
-                    <BestCardFinderDialog 
-                        allCards={cards} 
-                        allRules={rules} 
-                        mccMap={mccMap} 
-                        monthlySummary={monthlySummary}
-                        monthlyCategorySummary={monthlyCategorySummary}
-                        activeMonth={activeMonth}
-                    />
+                {/* Right-aligned container for all controls */}
+                <div className="ml-auto flex items-center gap-2 md:gap-4">
+                    {statementMonths.length > 0 && (
+                        <select
+                            value={activeMonth}
+                            onChange={(e) => setActiveMonth(e.target.value)}
+                            className="h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                            {statementMonths.map(m => (
+                                <option key={m} value={m}>{fmtYMShort(m)}</option>
+                            ))}
+                        </select>
+                    )}
 
-                    {/* This Sheet component creates the slide-over panel */}
+                    {/* --- Desktop Buttons (Visible on medium screens and up) --- */}
+                    <div className="hidden items-center gap-2 md:flex">
+                        <Button variant="outline" onClick={() => setIsFinderOpen(true)}>
+                            <Search className="mr-2 h-4 w-4" />
+                            Card Finder
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={() => fetchData(false)}>
+                            <RefreshCw className="h-4 w-4" />
+                        </Button>
+                    </div>
+
+                    {/* This Sheet component is a primary action, so it's always visible */}
                     <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
                         <SheetTrigger asChild>
-                            <Button variant="outline" size="icon"><Plus className="h-4 w-4" /></Button>
+                            <Button variant="default" size="icon">
+                                <Plus className="h-4 w-4" />
+                            </Button>
                         </SheetTrigger>
                         <SheetContent className="overflow-y-auto">
                             <SheetHeader>
@@ -552,206 +561,235 @@ export default function CashbackDashboard() {
                             </div>
                         </SheetContent>
                     </Sheet>
+
+                    {/* --- Mobile Dropdown (Visible on small screens) --- */}
+                    <div className="md:hidden">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => setIsFinderOpen(true)}>
+                                    <Search className="mr-2 h-4 w-4" />
+                                    <span>Card Finder</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => fetchData(false)}>
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    <span>Refresh Data</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
-            </div>
             </header>
-
             <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-            <Tabs defaultValue="overview">
-                <div className="flex items-center">
-                <TabsList className="bg-slate-100 p-1 rounded-lg">
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="transactions">Transactions</TabsTrigger>
-                    <TabsTrigger value="cards">My Cards</TabsTrigger>
-                    <TabsTrigger value="payments">Payments</TabsTrigger>
-                </TabsList>
-                </div>
-
-                <TabsContent value="overview" className="space-y-4 pt-4">
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <StatCard title="Month" value={fmtYMShort(activeMonth)} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
-                    {/* Update the props for the StatCards */}
-                    <StatCard title="Total Spend" value={currency(overviewStats.totalSpend)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
-                    <StatCard title="Est. Cashback" value={currency(overviewStats.totalCashback)} icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} />
-                    <StatCard title="Effective Rate" value={`${(overviewStats.effectiveRate * 100).toFixed(2)}%`} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
+                <Tabs defaultValue="overview">
+                    <div className="flex items-center">
+                    <TabsList className="bg-slate-100 p-1 rounded-lg">
+                        <TabsTrigger value="overview">Overview</TabsTrigger>
+                        <TabsTrigger value="transactions">Transactions</TabsTrigger>
+                        <TabsTrigger value="cards">My Cards</TabsTrigger>
+                        <TabsTrigger value="payments">Payments</TabsTrigger>
+                    </TabsList>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
-                        <div className="lg:col-span-7 flex flex-col">
-                            <CardSpendsCap
+                    <TabsContent value="overview" className="space-y-4 pt-4">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <StatCard title="Month" value={fmtYMShort(activeMonth)} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
+                        {/* Update the props for the StatCards */}
+                        <StatCard title="Total Spend" value={currency(overviewStats.totalSpend)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
+                        <StatCard title="Est. Cashback" value={currency(overviewStats.totalCashback)} icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} />
+                        <StatCard title="Effective Rate" value={`${(overviewStats.effectiveRate * 100).toFixed(2)}%`} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
+                            <div className="lg:col-span-7 flex flex-col">
+                                <CardSpendsCap
+                                    cards={cards}
+                                    activeMonth={activeMonth}
+                                    monthlySummary={monthlySummary}
+                                    monthlyCategorySummary={monthlyCategorySummary}
+                                    currencyFn={currency}
+                                />
+                            </div>
+                            <div className="lg:col-span-5 flex flex-col">
+                                <EnhancedSuggestions
+                                    rules={rules}
+                                    cards={cards}
+                                    monthlyCategorySummary={monthlyCategorySummary}
+                                    monthlySummary={monthlySummary}
+                                    activeMonth={activeMonth}
+                                    currencyFn={currency}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4">
+                            <Card className="flex flex-col min-h-[300px]">
+                                <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
+                                <CardContent className="pl-2 flex-grow">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={monthlyChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                                        <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} />
+                                        <RechartsTooltip content={<CustomRechartsTooltip />} />
+                                        <Legend formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)} />
+                                        <Bar dataKey="spend" fill="#0BA6DF" radius={[4, 4, 0, 0]}>
+                                        <LabelList dataKey="spend" content={renderCustomBarLabel} />
+                                        </Bar>
+                                        <Bar dataKey="cashback" fill="#67C090" radius={[4, 4, 0, 0]}>
+                                        <LabelList dataKey="cashback" content={renderCustomBarLabel} />
+                                        </Bar>
+                                    </BarChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        <RecentTransactionsCarousel 
+                            transactions={recentTransactions}
+                            cardMap={cardMap}
+                            currencyFn={currency}
+                        />
+
+                        {/* ADD THE NEW LINE CHART COMPONENT HERE */}
+                        <div className="mt-4">
+                            <CardPerformanceLineChart 
+                                data={cardPerformanceData}
                                 cards={cards}
-                                activeMonth={activeMonth}
-                                monthlySummary={monthlySummary}
-                                monthlyCategorySummary={monthlyCategorySummary}
                                 currencyFn={currency}
+                                cardColorMap={cardColorMap} 
                             />
                         </div>
-                        <div className="lg:col-span-5 flex flex-col">
-                            <EnhancedSuggestions
-                                rules={rules}
-                                cards={cards}
-                                monthlyCategorySummary={monthlyCategorySummary}
-                                monthlySummary={monthlySummary}
-                                activeMonth={activeMonth}
+                            
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <SpendByCardChart
+                                spendData={overviewStats.spendByCard}
                                 currencyFn={currency}
+                                cardColorMap={cardColorMap}
+                            />
+                            <CashbackByCardChart
+                                cashbackData={overviewStats.cashbackByCard}
+                                currencyFn={currency}
+                                cardColorMap={cardColorMap}
                             />
                         </div>
-                    </div>
-
-                    <div className="grid gap-4">
-                        <Card className="flex flex-col min-h-[300px]">
-                            <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
-                            <CardContent className="pl-2 flex-grow">
-                                <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={monthlyChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-                                    <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} />
-                                    <RechartsTooltip content={<CustomRechartsTooltip />} />
-                                    <Legend formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)} />
-                                    <Bar dataKey="spend" fill="#0BA6DF" radius={[4, 4, 0, 0]}>
-                                    <LabelList dataKey="spend" content={renderCustomBarLabel} />
-                                    </Bar>
-                                    <Bar dataKey="cashback" fill="#67C090" radius={[4, 4, 0, 0]}>
-                                    <LabelList dataKey="cashback" content={renderCustomBarLabel} />
-                                    </Bar>
-                                </BarChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <RecentTransactionsCarousel 
-                        transactions={recentTransactions}
-                        cardMap={cardMap}
-                        currencyFn={currency}
-                    />
-
-                    {/* ADD THE NEW LINE CHART COMPONENT HERE */}
-                    <div className="mt-4">
-                        <CardPerformanceLineChart 
-                            data={cardPerformanceData}
-                            cards={cards}
-                            currencyFn={currency}
-                            cardColorMap={cardColorMap} 
-                        />
-                    </div>
-                        
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <SpendByCardChart
-                            spendData={overviewStats.spendByCard}
-                            currencyFn={currency}
-                            cardColorMap={cardColorMap}
-                        />
-                        <CashbackByCardChart
-                            cashbackData={overviewStats.cashbackByCard}
-                            currencyFn={currency}
-                            cardColorMap={cardColorMap}
-                        />
-                    </div>
-                
-                </TabsContent>
-
-                <TabsContent value="transactions" className="pt-4">
-                <TransactionsTab
-                        // UPDATE these props
-                        transactions={monthlyTransactions}
-                        isLoading={isMonthlyTxLoading}
-                        // The rest of the props stay the same
-                        activeMonth={activeMonth}
-                        cardMap={cardMap}
-                        mccNameFn={mccName}
-                        allCards={cards}
-                        // 3. PASS THE NEW PROPS DOWN
-                        filterType={transactionFilterType}
-                        onFilterTypeChange={setTransactionFilterType}
-                />
-                </TabsContent>  
-
-                <TabsContent value="cards" className="space-y-4 pt-4">
-                    <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
-                    <Tabs defaultValue="month" value={cardView} onValueChange={(value) => setCardView(value)}>
-                        {/* The container for the tabs, styled as a light grey rounded box */}
-                        <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-slate-100 p-1 text-muted-foreground">
-                            {/* The individual tab buttons */}
-                            <TabsTrigger value="month" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
-                                This Month
-                            </TabsTrigger>
-                            <TabsTrigger value="ytd" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
-                                YTD
-                            </TabsTrigger>
-                            <TabsTrigger value="roi" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
-                                ROI & Dates
-                            </TabsTrigger>
-                        </TabsList>
-                    </Tabs>
                     
-                    {(() => {
-                        const activeAndFrozenCards = sortedCards.filter(c => c.status !== 'Closed');
-                        const closedCards = sortedCards.filter(c => c.status === 'Closed');
-                
-                        return (
-                            <>
-                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                    {activeAndFrozenCards.map(card => (
-                                        <EnhancedCard 
-                                            key={card.id}
-                                            card={card}
-                                            activeMonth={activeMonth}
-                                            cardMonthSummary={activeMonthSummariesMap.get(card.id)} 
-                                            rules={rules.filter(r => r.cardId === card.id)}
-                                            currencyFn={currency}
-                                            fmtYMShortFn={fmtYMShort}
-                                            calculateFeeCycleProgressFn={calculateFeeCycleProgress}
-                                            view={cardView}
-                                            mccMap={mccMap}
-                                        />
-                                    ))}
-                                </div>
-                
-                                {closedCards.length > 0 && (
-                                    <Accordion type="single" collapsible className="w-full pt-4">
-                                        <AccordionItem value="closed-cards">
-                                            <AccordionTrigger className="text-base font-semibold text-muted-foreground">
-                                                Show Closed Cards ({closedCards.length})
-                                            </AccordionTrigger>
-                                            <AccordionContent>
-                                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pt-4">
-                                                    {closedCards.map(card => (
-                                                        <EnhancedCard 
-                                                            key={card.id}
-                                                            card={card}
-                                                            activeMonth={activeMonth}
-                                                            cardMonthSummary={activeMonthSummariesMap.get(card.id)} 
-                                                            rules={rules.filter(r => r.cardId === card.id)}
-                                                            currencyFn={currency}
-                                                            fmtYMShortFn={fmtYMShort}
-                                                            calculateFeeCycleProgressFn={calculateFeeCycleProgress}
-                                                            view={cardView}
-                                                            mccMap={mccMap}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    </Accordion>
-                                )}
-                            </>
-                        );
-                    })()}
-                </TabsContent>
-                <TabsContent value="payments" className="space-y-4 pt-4">
-                    <PaymentsTabV2 
-                        cards={cards}
-                        monthlySummary={monthlySummary}
-                        currencyFn={currency}
-                        fmtYMShortFn={fmtYMShort}
-                        daysLeftFn={calculateDaysLeft}
-                        onViewTransactions={handleViewTransactions}
+                    </TabsContent>
+
+                    <TabsContent value="transactions" className="pt-4">
+                    <TransactionsTab
+                            // UPDATE these props
+                            transactions={monthlyTransactions}
+                            isLoading={isMonthlyTxLoading}
+                            // The rest of the props stay the same
+                            activeMonth={activeMonth}
+                            cardMap={cardMap}
+                            mccNameFn={mccName}
+                            allCards={cards}
+                            // 3. PASS THE NEW PROPS DOWN
+                            filterType={transactionFilterType}
+                            onFilterTypeChange={setTransactionFilterType}
                     />
-                </TabsContent>
-            </Tabs>
+                    </TabsContent>  
+
+                    <TabsContent value="cards" className="space-y-4 pt-4">
+                        <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
+                        <Tabs defaultValue="month" value={cardView} onValueChange={(value) => setCardView(value)}>
+                            {/* The container for the tabs, styled as a light grey rounded box */}
+                            <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-slate-100 p-1 text-muted-foreground">
+                                {/* The individual tab buttons */}
+                                <TabsTrigger value="month" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                                    This Month
+                                </TabsTrigger>
+                                <TabsTrigger value="ytd" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                                    YTD
+                                </TabsTrigger>
+                                <TabsTrigger value="roi" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                                    ROI & Dates
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                        
+                        {(() => {
+                            const activeAndFrozenCards = sortedCards.filter(c => c.status !== 'Closed');
+                            const closedCards = sortedCards.filter(c => c.status === 'Closed');
+                    
+                            return (
+                                <>
+                                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                        {activeAndFrozenCards.map(card => (
+                                            <EnhancedCard 
+                                                key={card.id}
+                                                card={card}
+                                                activeMonth={activeMonth}
+                                                cardMonthSummary={activeMonthSummariesMap.get(card.id)} 
+                                                rules={rules.filter(r => r.cardId === card.id)}
+                                                currencyFn={currency}
+                                                fmtYMShortFn={fmtYMShort}
+                                                calculateFeeCycleProgressFn={calculateFeeCycleProgress}
+                                                view={cardView}
+                                                mccMap={mccMap}
+                                            />
+                                        ))}
+                                    </div>
+                    
+                                    {closedCards.length > 0 && (
+                                        <Accordion type="single" collapsible className="w-full pt-4">
+                                            <AccordionItem value="closed-cards">
+                                                <AccordionTrigger className="text-base font-semibold text-muted-foreground">
+                                                    Show Closed Cards ({closedCards.length})
+                                                </AccordionTrigger>
+                                                <AccordionContent>
+                                                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pt-4">
+                                                        {closedCards.map(card => (
+                                                            <EnhancedCard 
+                                                                key={card.id}
+                                                                card={card}
+                                                                activeMonth={activeMonth}
+                                                                cardMonthSummary={activeMonthSummariesMap.get(card.id)} 
+                                                                rules={rules.filter(r => r.cardId === card.id)}
+                                                                currencyFn={currency}
+                                                                fmtYMShortFn={fmtYMShort}
+                                                                calculateFeeCycleProgressFn={calculateFeeCycleProgress}
+                                                                view={cardView}
+                                                                mccMap={mccMap}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        </Accordion>
+                                    )}
+                                </>
+                            );
+                        })()}
+                    </TabsContent>
+                    <TabsContent value="payments" className="space-y-4 pt-4">
+                        <PaymentsTabV2 
+                            cards={cards}
+                            monthlySummary={monthlySummary}
+                            currencyFn={currency}
+                            fmtYMShortFn={fmtYMShort}
+                            daysLeftFn={calculateDaysLeft}
+                            onViewTransactions={handleViewTransactions}
+                        />
+                    </TabsContent>
+                </Tabs>
             </main>  
             {/* 4. RENDER THE DIALOG COMPONENT */}
+            <BestCardFinderDialog 
+                isOpen={isFinderOpen}
+                onOpenChange={setIsFinderOpen}
+                allCards={cards} 
+                allRules={rules} 
+                mccMap={mccMap} 
+                monthlySummary={monthlySummary}
+                monthlyCategorySummary={monthlyCategorySummary}
+                activeMonth={activeMonth}
+            />
             <TransactionDetailsDialog
                 isOpen={!!dialogDetails}
                 onClose={() => setDialogDetails(null)}
@@ -3491,7 +3529,6 @@ function useIOSKeyboardGapFix() {
 
 function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, monthlyCategorySummary, activeMonth }) {
     // --- STATE MANAGEMENT ---
-    const [isOpen, setIsOpen] = useState(false);
     const [view, setView] = useState('initial'); // 'initial', 'results', 'options'
     const [isLoading, setIsLoading] = useState(false);
     
@@ -3510,16 +3547,8 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     const cardMap = useMemo(() => new Map(allCards.map(c => [c.id, c])), [allCards]);
 
-    useEffect(() => {
-        // Load recent searches from local storage when the dialog opens
-        if (isOpen) {
-            const searches = JSON.parse(localStorage.getItem('cardFinderSearches') || '[]');
-            setRecentSearches(searches);
-        }
-    }, [isOpen]);
-    
     const resetAndClose = () => {
-        setIsOpen(false);
+        onOpenChange(false); // Use the prop to signal closing
         // Delay reset to allow for closing animation
         setTimeout(() => {
             setView('initial');
@@ -3531,6 +3560,26 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
             setBestMatchDetails(null);
         }, 200);
     };
+
+    useEffect(() => {
+        if (!isOpen) {
+            // Give a little time for the closing animation before resetting the internal state
+            const timer = setTimeout(() => {
+                setView('initial');
+                setSearchTerm('');
+                setSearchedTerm('');
+                setSearchResult(null);
+                setSelectedMcc(null);
+                setAmount('');
+                setBestMatchDetails(null);
+            }, 300);
+            return () => clearTimeout(timer);
+        } else {
+             // Load recent searches from local storage when the dialog opens
+            const searches = JSON.parse(localStorage.getItem('cardFinderSearches') || '[]');
+            setRecentSearches(searches);
+        }
+    }, [isOpen]);
 
     // --- CORE LOGIC ---
     const handleSearch = async (e) => {
@@ -3710,14 +3759,14 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
 
                     {rankedSuggestions.length > 0 ? (
                         <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2">
-                           {rankedSuggestions.map((item, index) => (
+                            {rankedSuggestions.map((item, index) => (
                                 <RankingCard 
                                     key={item.rule.id}
                                     rank={index + 1}
                                     item={item}
                                     currencyFn={currency}
                                 />
-                           ))}
+                            ))}
                         </div>
                     ) : (
                         // Suggestion 3: Enhanced No Results State
@@ -3745,14 +3794,14 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
         
         // Suggestion 3: Enhanced Initial State
         return (
-             <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 min-h-[300px]">
+            <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 min-h-[300px]">
                 <Sparkles className="h-10 w-10 mb-3 text-sky-500" />
                 <p className="font-semibold text-primary">Find the best card for any purchase.</p>
                 <p className="text-xs mt-1">
                     e.g., Shopee, Grab, Supermarket, or a 4-digit MCC like 5411...
                 </p>
                 {recentSearches.length > 0 && (
-                     <div className="mt-6 flex items-center gap-2 flex-wrap justify-center">
+                    <div className="mt-6 flex items-center gap-2 flex-wrap justify-center">
                         <span className="text-xs font-semibold">Recent:</span>
                         {recentSearches.map(term => (
                             <button key={term} onClick={() => handleRecentSearchClick(term)} className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-full transition-colors">{term}</button>
@@ -3764,12 +3813,7 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => { if (!open) resetAndClose(); else setIsOpen(true); }}>
-            <DialogTrigger asChild>
-                <Button variant="outline">
-                    <Search className="mr-2 h-4 w-4" /> Card Finder
-                </Button>
-            </DialogTrigger>
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Find the Best Card</DialogTitle>
@@ -3781,7 +3825,7 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                 <form id="card-finder-form" onSubmit={handleSearch}>
                     <div className="flex items-center gap-2">
                         <Input
-                            placeholder="e.g., Shopee, 5411, Grab..."
+                            placeholder="Merchant Name"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="flex-grow"
@@ -3798,7 +3842,6 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                         </Button>
                     </div>
                 </form>
-
                 <div className="mt-4">
                     {renderContent()}
                 </div>
@@ -3899,7 +3942,7 @@ function FinderOptionsView({ searchResult, mccMap, onSelect, onBack }) {
 }
 
 function FinderOptionItem({ item, mccMap, onSelect, icon }) {
-     return (
+    return (
         <button onClick={() => onSelect(item.mcc, item.merchant)} className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors">
             <div className="flex items-center gap-3">
                 {icon}
