@@ -3567,7 +3567,6 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
             setSearchResult(null);
             setSelectedMcc(null);
             setAmount('');
-            setBestMatchDetails(null);
         }, 200);
     }, [onOpenChange]);
 
@@ -3581,15 +3580,14 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
                 setSearchResult(null);
                 setSelectedMcc(null);
                 setAmount('');
-                setBestMatchDetails(null);
             }, 300);
             return () => clearTimeout(timer);
         } else {
-             // Load recent searches from local storage when the dialog opens
+            // Load recent searches from local storage when the dialog opens
             const searches = JSON.parse(localStorage.getItem('cardFinderSearches') || '[]');
             setRecentSearches(searches);
         }
-    }, [isOpen, resetAndClose]);
+    }, [isOpen]); // Removed resetAndClose from dependencies as it's not needed here
 
     // --- CORE LOGIC (handleSearch, handleRecentSearchClick, etc. remain the same) ---
     const handleSearch = async (e) => {
