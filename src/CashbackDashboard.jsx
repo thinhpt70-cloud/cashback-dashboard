@@ -124,6 +124,22 @@ const cardThemes = {
     'default': { gradient: 'bg-gradient-to-r from-slate-600 to-slate-800', textColor: 'text-white' },
 };
 
+const useMediaQuery = (query) => {
+    const [matches, setMatches] = useState(false);
+
+    useEffect(() => {
+        const media = window.matchMedia(query);
+        if (media.matches !== matches) {
+            setMatches(media.matches);
+        }
+        const listener = () => setMatches(media.matches);
+        // Use the modern addEventListener syntax
+        media.addEventListener('change', listener);
+        return () => media.removeEventListener('change', listener);
+    }, [matches, query]);
+
+    return matches;
+};
 
 export default function CashbackDashboard() {
 
@@ -3523,33 +3539,32 @@ function useIOSKeyboardGapFix() {
   }, []);
 }
 
-// -------------------------------------------------------------------
-// --- PASTE THIS ENTIRE BLOCK TO REPLACE YOUR EXISTING FUNCTION ---
-// -------------------------------------------------------------------
+function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap, monthlySummary, monthlyCategorySummary, activeMonth }) {
+    // --- RESPONSIVE LOGIC ---
+    const isDesktop = useMediaQuery("(min-width: 768px)");
+    const side = isDesktop ? 'left' : 'bottom';
 
-function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, monthlyCategorySummary, activeMonth }) {
     // --- STATE MANAGEMENT ---
-    const [view, setView] = useState('initial'); // 'initial', 'results', 'options'
+    const [view, setView] = useState('initial'); // 'initial', 'options', 'results'
     const [isLoading, setIsLoading] = useState(false);
     
     // Search & Amount State
     const [searchTerm, setSearchTerm] = useState('');
-    const [searchedTerm, setSearchedTerm] = useState('');
+    const [searchedTerm, setSearchedTerm] = useState(''); // Keep track of what was searched
     const [amount, setAmount] = useState('');
     
     // Results State
     const [searchResult, setSearchResult] = useState(null);
     const [selectedMcc, setSelectedMcc] = useState(null);
-    const [bestMatchDetails, setBestMatchDetails] = useState(null);
+    const [selectedMerchantDetails, setSelectedMerchantDetails] = useState(null);
     const [recentSearches, setRecentSearches] = useState([]);
 
     // --- HOOKS & HELPERS ---
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     const cardMap = useMemo(() => new Map(allCards.map(c => [c.id, c])), [allCards]);
-
+    
     const resetAndClose = () => {
-        onOpenChange(false); // Use the prop to signal closing
-        // Delay reset to allow for closing animation
+        onOpenChange(false);
         setTimeout(() => {
             setView('initial');
             setSearchTerm('');
@@ -3557,111 +3572,64 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
             setSearchResult(null);
             setSelectedMcc(null);
             setAmount('');
-            setBestMatchDetails(null);
-        }, 200);
+            setSelectedMerchantDetails(null);
+        }, 300); // Allow closing animation
     };
-
+    
+    // Reset internal state when the sheet is closed
     useEffect(() => {
         if (!isOpen) {
-            // Give a little time for the closing animation before resetting the internal state
-            const timer = setTimeout(() => {
-                setView('initial');
-                setSearchTerm('');
-                setSearchedTerm('');
-                setSearchResult(null);
-                setSelectedMcc(null);
-                setAmount('');
-                setBestMatchDetails(null);
-            }, 300);
-            return () => clearTimeout(timer);
+            resetAndClose();
         } else {
-             // Load recent searches from local storage when the dialog opens
             const searches = JSON.parse(localStorage.getItem('cardFinderSearches') || '[]');
             setRecentSearches(searches);
         }
     }, [isOpen]);
 
-    // --- CORE LOGIC ---
+    // --- CORE LOGIC (handleSearch, handleRecentSearchClick, etc. remain the same) ---
     const handleSearch = async (e) => {
         if (e) e.preventDefault();
-        
         const term = searchTerm.trim();
         if (!term) return;
 
-        // Update and save recent searches
         const updatedSearches = [term, ...recentSearches.filter(s => s !== term)].slice(0, 5);
         localStorage.setItem('cardFinderSearches', JSON.stringify(updatedSearches));
         setRecentSearches(updatedSearches);
 
         setIsLoading(true);
         setSearchedTerm(term);
-        setView('initial'); // Reset view to show loading state
-        setBestMatchDetails(null);
+        setSelectedMcc(null);
+        setSelectedMerchantDetails(null);
 
-        // Direct MCC code search
-        if (/^\d{4}$/.test(term)) {
-            setSelectedMcc(term);
-            setBestMatchDetails({
-                source: 'Direct Input',
-                merchant: `Category for MCC ${term}`,
-                mcc: term,
-                vnDesc: mccMap[term]?.vn || "Không rõ",
-            });
-            setView('results');
-            setIsLoading(false);
-            return;
-        }
-
-        // Merchant keyword search
         try {
             const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(term)}`);
             if (!res.ok) throw new Error('Failed to fetch merchant data');
             const data = await res.json();
-            
             setSearchResult(data);
-            const bestMcc = data.bestMatch?.mcc;
-            setSelectedMcc(bestMcc);
-
-            if (bestMcc) {
-                const source = data.bestMatch.source === 'history' ? 'Your History' : 'External Suggestion';
-                const listToSearch = source === 'Your History' ? data.history : data.external;
-                const matchingItem = listToSearch?.find(item => item.mcc === bestMcc);
-                
-                setBestMatchDetails({
-                    source: source,
-                    merchant: matchingItem?.merchant || `Best match for '${term}'`,
-                    mcc: bestMcc,
-                    vnDesc: mccMap[bestMcc]?.vn || "Không rõ",
-                });
-            }
-            setView('results');
+            setView('options');
         } catch (err) {
             console.error(err);
             toast.error("Could not fetch suggestions.");
-            setView('initial'); // Go back to initial on error
+            setView('initial');
         } finally {
             setIsLoading(false);
         }
     };
-
+    
     const handleRecentSearchClick = (term) => {
         setSearchTerm(term);
-        // Use a timeout to ensure the state updates before submitting the form
         setTimeout(() => {
-            const form = document.getElementById('card-finder-form');
-            form?.requestSubmit();
+            document.getElementById('card-finder-form')?.requestSubmit();
         }, 0);
     };
     
     const handleOptionSelect = (mcc, merchant) => {
         setSelectedMcc(mcc);
-        setBestMatchDetails({
-            source: 'Manual Selection',
+        setSelectedMerchantDetails({
             merchant: merchant,
-            mcc: mcc,
             vnDesc: mccMap[mcc]?.vn || "Không rõ",
         });
-        setView('results'); // Go back to results view with the new selection
+        setView('results');
     };
 
     const handleAmountChange = (e) => {
@@ -3714,9 +3682,10 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
                 const isACapped = a.isMonthlyCapReached || a.isCategoryCapReached;
                 const isBCapped = b.isMonthlyCapReached || b.isCategoryCapReached;
                 if (isACapped !== isBCapped) return isACapped ? 1 : -1;
-
-                if (!isNaN(numericAmount)) {
-                    return (b.calculatedCashback || 0) - (a.calculatedCashback || 0);
+                if (a.isMinSpendMet !== b.isMinSpendMet) return a.isMinSpendMet ? -1 : 1;
+                if (!isNaN(numericAmount) && numericAmount > 0) {
+                     const cashbackDiff = (b.calculatedCashback || 0) - (a.calculatedCashback || 0);
+                    if (cashbackDiff !== 0) return cashbackDiff;
                 }
                 return b.rule.rate - a.rule.rate;
             });
@@ -3724,88 +3693,75 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
     
     // --- RENDER LOGIC ---
     const renderContent = () => {
-        if (isLoading) {
+         // ... (The entire renderContent function remains unchanged)
+         if (isLoading) {
             return (
                 <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="mt-4 text-muted-foreground">Finding best options...</p>
+                    <p className="mt-4 text-muted-foreground">Finding suggestions...</p>
                 </div>
             );
         }
-
-        if (view === 'options' && searchResult) {
-            return <FinderOptionsView searchResult={searchResult} mccMap={mccMap} onSelect={handleOptionSelect} onBack={() => setView('results')} />;
-        }
-
-        if (view === 'results' && bestMatchDetails) {
+        if (view === 'results' && selectedMcc && selectedMerchantDetails) {
             return (
-                <div>
-                    {/* Suggestion 1: Unified Results Header */}
+                 <div>
                     <div className="p-3 mb-4 bg-slate-50 rounded-lg border">
-                        <p className="text-xs text-muted-foreground">Showing rankings for:</p>
-                        <div className="flex justify-between items-start gap-2 mt-1">
-                            <div>
-                                <h3 className="font-bold text-slate-800 leading-tight">{bestMatchDetails.merchant}</h3>
-                                <p className="text-xs text-muted-foreground">{bestMatchDetails.vnDesc}</p>
-                            </div>
-                            <Badge variant="outline" className="font-mono text-sm">{bestMatchDetails.mcc}</Badge>
-                        </div>
-                        <div className="mt-2 text-center">
-                            <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setView('options')}>
-                                Not right? View other suggestions
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs text-muted-foreground">Showing rankings for:</p>
+                             <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setView('options')}>
+                                <ChevronLeft className="h-3 w-3 mr-1" /> Choose a different category
                             </Button>
                         </div>
+                        <div className="flex justify-between items-start gap-2 mt-1">
+                            <div>
+                                <h3 className="font-bold text-slate-800 leading-tight">{selectedMerchantDetails.merchant}</h3>
+                                <p className="text-xs text-muted-foreground">{selectedMerchantDetails.vnDesc}</p>
+                            </div>
+                            <Badge variant="outline" className="font-mono text-sm">{selectedMcc}</Badge>
+                        </div>
                     </div>
-
                     {rankedSuggestions.length > 0 ? (
                         <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2">
-                            {rankedSuggestions.map((item, index) => (
+                           {rankedSuggestions.map((item, index) => (
                                 <RankingCard 
                                     key={item.rule.id}
                                     rank={index + 1}
                                     item={item}
                                     currencyFn={currency}
                                 />
-                            ))}
+                           ))}
                         </div>
                     ) : (
-                        // Suggestion 3: Enhanced No Results State
-                        <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 min-h-[200px]">
-                            <Search className="h-8 w-8 mb-3 text-slate-400" />
-                            <p className="font-semibold text-primary">No Rules Found for '{searchedTerm}'</p>
-                            <p className="text-xs mt-1">Try a more general term or search externally.</p>
-                            <div className="flex items-center gap-2 mt-4">
-                                <Button asChild variant="outline" size="sm">
-                                    <a href={`https://www.google.com/search?q=${encodeURIComponent(searchedTerm + ' mcc code')}`} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Google
-                                    </a>
-                                </Button>
-                                <Button asChild variant="outline" size="sm">
-                                    <a href={`https://quanlythe.com/tien-ich/tra-cuu-mcc?query=${encodeURIComponent(searchedTerm)}`} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> QuanLyThe
-                                    </a>
-                                </Button>
-                            </div>
+                        <div className="text-center text-muted-foreground py-8">
+                            <p>No specific cashback rules found for this category.</p>
                         </div>
                     )}
                 </div>
             );
         }
-        
-        // Suggestion 3: Enhanced Initial State
+        if (view === 'options' && searchResult) {
+            return <FinderOptionsView 
+                        searchResult={searchResult} 
+                        searchedTerm={searchedTerm}
+                        mccMap={mccMap} 
+                        onSelect={handleOptionSelect} 
+                    />;
+        }
         return (
-            <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 min-h-[300px]">
+             <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 min-h-[300px]">
                 <Sparkles className="h-10 w-10 mb-3 text-sky-500" />
                 <p className="font-semibold text-primary">Find the best card for any purchase.</p>
                 <p className="text-xs mt-1">
                     e.g., Shopee, Grab, Supermarket, or a 4-digit MCC like 5411...
                 </p>
                 {recentSearches.length > 0 && (
-                    <div className="mt-6 flex items-center gap-2 flex-wrap justify-center">
-                        <span className="text-xs font-semibold">Recent:</span>
-                        {recentSearches.map(term => (
-                            <button key={term} onClick={() => handleRecentSearchClick(term)} className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-full transition-colors">{term}</button>
-                        ))}
+                     <div className="mt-6 w-full max-w-md">
+                         <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Recent Searches</h4>
+                        <div className="flex items-center gap-2 flex-wrap justify-center">
+                            {recentSearches.map(term => (
+                                <button key={term} onClick={() => handleRecentSearchClick(term)} className="text-xs bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-full transition-colors">{term}</button>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
@@ -3813,40 +3769,61 @@ function BestCardFinderDialog({ allCards, allRules, mccMap, monthlySummary, mont
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>Find the Best Card</DialogTitle>
-                    <DialogDescription>
+        <Sheet open={isOpen} onOpenChange={onOpenChange}>
+            <SheetContent 
+                side={side} 
+                className={cn(
+                    "flex flex-col p-4 sm:p-6 gap-0", // Base styles
+                    isDesktop 
+                        ? "w-full max-w-md sm:max-w-lg" // Desktop width
+                        : "h-[90dvh] rounded-t-xl" // Mobile height, using dynamic viewport height
+                )}
+            >
+                <SheetHeader className="pb-4 text-left">
+                    <SheetTitle>Find the Best Card</SheetTitle>
+                    <SheetDescription>
                         Enter a merchant and amount to see your best rewards.
-                    </DialogDescription>
-                </DialogHeader>
+                    </SheetDescription>
+                </SheetHeader>
                 
-                <form id="card-finder-form" onSubmit={handleSearch}>
-                    <div className="flex items-center gap-2">
-                        <Input
-                            placeholder="Merchant Name"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="flex-grow"
-                        />
-                        <Input
-                            placeholder="Amount (Optional)"
-                            value={amount}
-                            onChange={handleAmountChange}
-                            className="w-32"
-                            inputMode="numeric"
-                        />
-                        <Button type="submit" disabled={isLoading || !searchTerm.trim()} className="shrink-0">
-                            <Search className="h-4 w-4" />
-                        </Button>
+                {/* Scrollable area for the main content */}
+                <div className="flex-grow overflow-y-auto -mr-4 pr-4 sm:-mr-6 sm:pr-6">
+                    <div className="flex flex-col gap-4">
+                        <form id="card-finder-form" onSubmit={handleSearch} className="space-y-4 pt-2">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                <div className="md:col-span-2 space-y-1.5">
+                                    <label htmlFor="finder-merchant" className="text-sm font-medium">Merchant or MCC</label>
+                                    <Input
+                                        id="finder-merchant"
+                                        placeholder="e.g., Shopee, 5411, Grab..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label htmlFor="finder-amount" className="text-sm font-medium">Amount (Optional)</label>
+                                    <Input
+                                        id="finder-amount"
+                                        placeholder="e.g., 1,000,000"
+                                        value={amount}
+                                        onChange={handleAmountChange}
+                                        inputMode="numeric"
+                                    />
+                                </div>
+                            </div>
+                            <Button type="submit" disabled={isLoading || !searchTerm.trim()} className="w-full">
+                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                                {isLoading ? 'Searching...' : 'Find Best Card'}
+                            </Button>
+                        </form>
+                        
+                        <div className="mt-2">
+                            {renderContent()}
+                        </div>
                     </div>
-                </form>
-                <div className="mt-4">
-                    {renderContent()}
                 </div>
-            </DialogContent>
-        </Dialog>
+            </SheetContent>
+        </Sheet>
     );
 }
 
@@ -3913,13 +3890,25 @@ function RankingCard({ rank, item, currencyFn }) {
 }
 
 // Suggestion 4: New Sub-component for the Options View
-function FinderOptionsView({ searchResult, mccMap, onSelect, onBack }) {
+// --- UPDATED Sub-component for the Options View ---
+function FinderOptionsView({ searchResult, searchedTerm, mccMap, onSelect }) {
+    const hasInternalResults = searchResult.history?.length > 0 || searchResult.external?.length > 0;
+
     return (
         <div>
-            <Button variant="ghost" size="sm" onClick={onBack} className="mb-2 -ml-2">
-                <ChevronLeft className="h-4 w-4 mr-1" /> Back to Rankings
-            </Button>
+            <div className="text-center mb-4">
+                <h3 className="font-semibold">Select a Category</h3>
+                <p className="text-sm text-muted-foreground">Choose the best match for '{searchedTerm}' to see card rankings.</p>
+            </div>
             <div className="space-y-4 max-h-[45vh] overflow-y-auto pr-2">
+                {!hasInternalResults && (
+                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 min-h-[150px]">
+                        <Search className="h-8 w-8 mb-3 text-slate-400" />
+                        <p className="font-semibold text-primary">No direct matches found in our system.</p>
+                        <p className="text-xs mt-1">Try a more general term or search externally below.</p>
+                    </div>
+                )}
+                
                 {searchResult.history?.length > 0 && (
                     <div>
                         <h4 className="font-semibold text-sm text-muted-foreground mb-1 px-1">From Your History</h4>
@@ -3931,16 +3920,32 @@ function FinderOptionsView({ searchResult, mccMap, onSelect, onBack }) {
                 {searchResult.external?.length > 0 && (
                     <div>
                         <h4 className="font-semibold text-sm text-muted-foreground mb-1 px-1">External Suggestions</h4>
-                         {searchResult.external.map((item, index) => (
+                            {searchResult.external.map((item, index) => (
                             <FinderOptionItem key={`e-${index}`} item={item} mccMap={mccMap} onSelect={onSelect} icon={<Globe className="h-5 w-5 text-slate-500 flex-shrink-0" />} />
                         ))}
                     </div>
                 )}
             </div>
+
+            {/* --- MOVED External Search Buttons --- */}
+            <div className="mt-4 pt-4 border-t">
+                <p className="text-center text-xs text-muted-foreground mb-2">Not finding what you need? Look it up externally:</p>
+                <div className="flex items-center justify-center gap-2">
+                    <Button asChild variant="outline" size="sm">
+                        <a href={`https://www.google.com/search?q=${encodeURIComponent(searchedTerm + ' mcc code')}`} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Google
+                        </a>
+                    </Button>
+                    <Button asChild variant="outline" size="sm">
+                        <a href={`https://quanlythe.com/tien-ich/tra-cuu-mcc?query=${encodeURIComponent(searchedTerm)}`} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> QuanLyThe
+                        </a>
+                    </Button>
+                </div>
+            </div>
         </div>
     );
 }
-
 function FinderOptionItem({ item, mccMap, onSelect, icon }) {
     return (
         <button onClick={() => onSelect(item.mcc, item.merchant)} className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors">
