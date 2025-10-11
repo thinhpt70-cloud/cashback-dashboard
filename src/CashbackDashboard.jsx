@@ -16,13 +16,7 @@ import {
     DialogDescription,
     DialogTrigger,
 } from "./components/ui/dialog";
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from "./components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
 import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronUp, List, MoreHorizontal } from "lucide-react";
 import { cn } from "./lib/utils";
@@ -3543,6 +3537,7 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
     // --- RESPONSIVE LOGIC ---
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const side = isDesktop ? 'left' : 'bottom';
+    useIOSKeyboardGapFix();
 
     // --- STATE MANAGEMENT ---
     const [view, setView] = useState('initial'); // 'initial', 'options', 'results'
@@ -3684,7 +3679,7 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
                 if (isACapped !== isBCapped) return isACapped ? 1 : -1;
                 if (a.isMinSpendMet !== b.isMinSpendMet) return a.isMinSpendMet ? -1 : 1;
                 if (!isNaN(numericAmount) && numericAmount > 0) {
-                     const cashbackDiff = (b.calculatedCashback || 0) - (a.calculatedCashback || 0);
+                    const cashbackDiff = (b.calculatedCashback || 0) - (a.calculatedCashback || 0);
                     if (cashbackDiff !== 0) return cashbackDiff;
                 }
                 return b.rule.rate - a.rule.rate;
@@ -3694,7 +3689,7 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
     // --- RENDER LOGIC ---
     const renderContent = () => {
          // ... (The entire renderContent function remains unchanged)
-         if (isLoading) {
+        if (isLoading) {
             return (
                 <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -3704,11 +3699,11 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
         }
         if (view === 'results' && selectedMcc && selectedMerchantDetails) {
             return (
-                 <div>
+                <div>
                     <div className="p-3 mb-4 bg-slate-50 rounded-lg border">
                         <div className="flex items-center justify-between">
                             <p className="text-xs text-muted-foreground">Showing rankings for:</p>
-                             <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setView('options')}>
+                            <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setView('options')}>
                                 <ChevronLeft className="h-3 w-3 mr-1" /> Choose a different category
                             </Button>
                         </div>
@@ -3722,14 +3717,14 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
                     </div>
                     {rankedSuggestions.length > 0 ? (
                         <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2">
-                           {rankedSuggestions.map((item, index) => (
+                            {rankedSuggestions.map((item, index) => (
                                 <RankingCard 
                                     key={item.rule.id}
                                     rank={index + 1}
                                     item={item}
                                     currencyFn={currency}
                                 />
-                           ))}
+                            ))}
                         </div>
                     ) : (
                         <div className="text-center text-muted-foreground py-8">
@@ -3748,15 +3743,15 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
                     />;
         }
         return (
-             <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 min-h-[300px]">
+            <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 min-h-[300px]">
                 <Sparkles className="h-10 w-10 mb-3 text-sky-500" />
                 <p className="font-semibold text-primary">Find the best card for any purchase.</p>
                 <p className="text-xs mt-1">
                     e.g., Shopee, Grab, Supermarket, or a 4-digit MCC like 5411...
                 </p>
                 {recentSearches.length > 0 && (
-                     <div className="mt-6 w-full max-w-md">
-                         <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Recent Searches</h4>
+                    <div className="mt-6 w-full max-w-md">
+                        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Recent Searches</h4>
                         <div className="flex items-center gap-2 flex-wrap justify-center">
                             {recentSearches.map(term => (
                                 <button key={term} onClick={() => handleRecentSearchClick(term)} className="text-xs bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-full transition-colors">{term}</button>
@@ -3865,20 +3860,20 @@ function RankingCard({ rank, item, currencyFn }) {
             </div>
 
             {(rule.capPerTransaction > 0 || isFinite(remainingCategoryCashback) || !isMinSpendMet) && (
-                 <div className="mt-2 pt-2 border-t flex items-center justify-between gap-x-4 gap-y-1 flex-wrap text-xs text-muted-foreground">
+                <div className="mt-2 pt-2 border-t flex items-center justify-between gap-x-4 gap-y-1 flex-wrap text-xs text-muted-foreground">
                     {!isMinSpendMet && (
                         <span className="flex items-center gap-1.5 font-medium text-orange-600">
                             <AlertTriangle className="h-3.5 w-3.5" /> Min. Spend Not Met
                         </span>
                     )}
                     {isFinite(remainingCategoryCashback) && (
-                         <span className="flex items-center gap-1.5">
+                        <span className="flex items-center gap-1.5">
                             <Wallet className="h-3.5 w-3.5" />
                             Cap Left: <span className="font-semibold text-slate-700">{currencyFn(remainingCategoryCashback)}</span>
                         </span>
                     )}
-                     {rule.capPerTransaction > 0 && (
-                         <span className="flex items-center gap-1.5">
+                    {rule.capPerTransaction > 0 && (
+                        <span className="flex items-center gap-1.5">
                             <DollarSign className="h-3.5 w-3.5" />
                             Max/Tx: <span className="font-semibold text-slate-700">{currencyFn(rule.capPerTransaction)}</span>
                         </span>
