@@ -3556,19 +3556,6 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
     // --- HOOKS & HELPERS ---
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     const cardMap = useMemo(() => new Map(allCards.map(c => [c.id, c])), [allCards]);
-    
-    const resetAndClose = useCallback(() => {
-        onOpenChange(false); // Use the prop to signal closing
-        // Delay reset to allow for closing animation
-        setTimeout(() => {
-            setView('initial');
-            setSearchTerm('');
-            setSearchedTerm('');
-            setSearchResult(null);
-            setSelectedMcc(null);
-            setAmount('');
-        }, 200);
-    }, [onOpenChange]);
 
     useEffect(() => {
         if (!isOpen) {
