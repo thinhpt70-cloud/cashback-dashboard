@@ -138,6 +138,8 @@ export default function CashbackDashboard() {
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
+    const isDesktop = useMediaQuery("(min-width: 768px)");
+    const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
     // --- STATE MANAGEMENT ---
     const [cards, setCards] = useState([]);
@@ -552,12 +554,18 @@ export default function CashbackDashboard() {
                                 <Plus className="h-4 w-4" />
                             </Button>
                         </SheetTrigger>
-                        <SheetContent className="overflow-y-auto">
-                            <SheetHeader>
+                        <SheetContent 
+                            side={addTxSheetSide} 
+                            className={cn(
+                                "flex flex-col p-0", // Use flex layout and remove default padding
+                                !isDesktop && "h-[90dvh]" // Set fixed height on mobile
+                            )}
+                        >
+                            <SheetHeader className="px-4 pt-4"> {/* Add padding back to header */}
                                 <SheetTitle>Add a New Transaction</SheetTitle>
                             </SheetHeader>
-                            {/* The change is adding px-4 to this div */}
-                            <div className="flex-grow overflow-y-auto px-4">
+                            {/* --- MODIFIED: This div is now the primary scroll container --- */}
+                            <div className="flex-grow overflow-y-auto px-4 pb-4">
                                 <AddTransactionForm
                                     cards={cards}
                                     categories={allCategories}
@@ -3777,7 +3785,7 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
                 </SheetHeader>
                 
                 {/* Scrollable area for the main content */}
-                <div className="flex-grow overflow-y-auto -mr-4 pr-4 sm:-mr-6 sm:pr-6">
+                <div className="flex-grow overflow-y-auto -mr-4 px-4 sm:-mr-6 sm:px-6">
                     <div className="flex flex-col gap-4">
                         <form id="card-finder-form" onSubmit={handleSearch} className="space-y-4 pt-2">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -3943,7 +3951,7 @@ function FinderOptionItem({ item, mccMap, onSelect, icon }) {
                 {icon}
                 <div className="flex-1 min-w-0">
                     <p className="truncate font-medium">{item.merchant}</p>
-                    <p className="text-xs text-muted-foreground">{mccMap[item.mcc]?.vn || 'N/A'}</p>
+                    <p className="text-xs text-muted-foreground">{mccMap[item.mcc]?.en || 'N/A'}</p>
                 </div>
                 <Badge variant="outline">{item.mcc}</Badge>
             </div>

@@ -432,7 +432,8 @@ app.get('/api/lookup-merchant', async (req, res) => {
         // Process the external API results
         const externalResults = (externalApiResponse.results || []).map(result => ({
             merchant: result[1], // Merchant name from external API
-            mcc: result[2]       // MCC code from external API
+            mcc: result[2],       // MCC code from external API
+            method: result[4]
         }));
 
         // Step 3: Derive the combined logic for suggestions.
