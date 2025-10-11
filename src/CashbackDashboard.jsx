@@ -515,20 +515,26 @@ export default function CashbackDashboard() {
         <TooltipProvider>
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
             <Toaster richColors position="top-center" />
-            {/* --- NEW RESPONSIVE HEADER --- */}
+            {/* --- RESPONSIVE HEADER --- */}
             <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-white px-4 shadow-sm sm:px-6">
                 <h1 className="text-xl font-semibold flex items-center gap-2 shrink-0">
-                    <DollarSign className="h-6 w-6 text-sky-600 md:hidden" />
-                    <span className="hidden md:inline">Cashback Optimizer</span>
+                    {/* The DollarSign icon is replaced with your custom SVG */}
+                    <img 
+                        src="/favicon.svg" 
+                        alt="Cardifier icon" 
+                        className="h-6 w-6" 
+                    />
+                    <span className="hidden md:inline">Cardifier Dashboard | Cashback Optimizer</span>
                 </h1>
 
                 {/* Right-aligned container for all controls */}
-                <div className="ml-auto flex items-center gap-2 md:gap-4">
+                <div className="ml-auto flex items-center gap-2">
+                    {/* Month Selector - visible on all screen sizes */}
                     {statementMonths.length > 0 && (
                         <select
                             value={activeMonth}
                             onChange={(e) => setActiveMonth(e.target.value)}
-                            className="h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                            className="h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
                         >
                             {statementMonths.map(m => (
                                 <option key={m} value={m}>{fmtYMShort(m)}</option>
@@ -536,54 +542,61 @@ export default function CashbackDashboard() {
                         </select>
                     )}
 
-                    {/* --- Desktop Buttons (Visible on medium screens and up) --- */}
-                    <div className="hidden items-center gap-2 md:flex">
-                        <Button variant="outline" onClick={() => setIsFinderOpen(true)}>
+                    {/* --- Desktop Controls (hidden on mobile) --- */}
+                    <div className="hidden md:flex items-center gap-2">
+                        <Button variant="outline" className="h-10" onClick={() => setIsFinderOpen(true)}>
                             <Search className="mr-2 h-4 w-4" />
                             Card Finder
                         </Button>
-                        <Button variant="outline" size="icon" onClick={() => fetchData(false)}>
-                            <RefreshCw className="h-4 w-4" />
+                        <Button variant="outline" className="h-10" onClick={() => fetchData(false)}>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Refresh
                         </Button>
+                        <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
+                            <SheetTrigger asChild>
+                                <Button variant="default" className="h-10">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    New Transaction
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent 
+                                side={addTxSheetSide} 
+                                className={cn(
+                                    "flex flex-col p-0",
+                                    "w-full sm:max-w-2xl",
+                                    !isDesktop && "h-[90dvh]"
+                                )}
+                            >
+                                <SheetHeader className="px-6 pt-6">
+                                    <SheetTitle>Add a New Transaction</SheetTitle>
+                                </SheetHeader>
+                                <div className="flex-grow overflow-y-auto px-6 pb-6">
+                                    <AddTransactionForm
+                                        cards={cards}
+                                        categories={allCategories}
+                                        rules={cashbackRules}
+                                        monthlyCategories={monthlyCashbackCategories}
+                                        mccMap={mccMap}
+                                        onTransactionAdded={handleTransactionAdded}
+                                        commonVendors={commonVendors}
+                                    />
+                                </div>
+                            </SheetContent>
+                        </Sheet>
                     </div>
 
-                    {/* This Sheet component is a primary action, so it's always visible */}
-                    <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
-                        <SheetTrigger asChild>
-                            <Button variant="default" size="icon">
-                                <Plus className="h-4 w-4" />
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent 
-                            side={addTxSheetSide} 
-                            className={cn(
-                                "flex flex-col p-0", // Use flex layout and remove default padding
-                                !isDesktop && "h-[90dvh]" // Set fixed height on mobile
-                            )}
-                        >
-                            <SheetHeader className="px-4 pt-4"> {/* Add padding back to header */}
-                                <SheetTitle>Add a New Transaction</SheetTitle>
-                            </SheetHeader>
-                            {/* --- MODIFIED: This div is now the primary scroll container --- */}
-                            <div className="flex-grow overflow-y-auto px-4 pb-4">
-                                <AddTransactionForm
-                                    cards={cards}
-                                    categories={allCategories}
-                                    rules={cashbackRules}
-                                    monthlyCategories={monthlyCashbackCategories}
-                                    mccMap={mccMap}
-                                    onTransactionAdded={handleTransactionAdded}
-                                    commonVendors={commonVendors}
-                                />
-                            </div>
-                        </SheetContent>
-                    </Sheet>
-
-                    {/* --- Mobile Dropdown (Visible on small screens) --- */}
-                    <div className="md:hidden">
+                    {/* --- Mobile Controls (hidden on desktop) --- */}
+                    <div className="flex items-center gap-2 md:hidden">
+                        <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
+                            <SheetTrigger asChild>
+                                <Button variant="default" size="icon" className="h-10 w-10">
+                                    <Plus className="h-4 w-4" />
+                                </Button>
+                            </SheetTrigger>
+                        </Sheet>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon">
+                                <Button variant="outline" size="icon" className="h-10 w-10">
                                     <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>
@@ -2754,10 +2767,11 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             const allResults = [...historyResults, ...externalResults];
             setLookupResults(allResults);
 
-            // --- CHANGE: Use `bestMatch` instead of `prediction` for auto-fill ---
-            if (data.bestMatch?.mcc) {
+            // --- CHANGE: Use `bestMatch` which now includes the merchant name ---
+            if (data.bestMatch?.mcc && data.bestMatch?.merchant) {
                 setMccCode(data.bestMatch.mcc);
-                toast.info("Auto-filled MCC based on best match.");
+                setMerchantLookup(data.bestMatch.merchant); // <-- THE FIX: Set the merchant name
+                toast.info("Auto-filled details based on best match.");
                 // Allow user to see other options if they exist
                 if (allResults.length > 0) {
                     setShowLookupButton(true); 
@@ -3771,52 +3785,55 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
             <SheetContent 
                 side={side} 
                 className={cn(
-                    "flex flex-col p-4 sm:p-6 gap-0", // Base styles
+                    "flex flex-col p-0 gap-0", // <-- FIX 1: Removed padding from the main container
                     isDesktop 
-                        ? "w-full max-w-md sm:max-w-lg" // Desktop width
-                        : "h-[90dvh] rounded-t-xl" // Mobile height, using dynamic viewport height
+                        ? "w-full max-w-md sm:max-w-lg"
+                        : "h-[90dvh] rounded-t-xl"
                 )}
             >
-                <SheetHeader className="pb-4 text-left">
+                <SheetHeader className="pb-4 text-left px-4 pt-4 sm:px-6 sm:pt-6"> {/* <-- FIX 2: Added padding directly to the header */}
                     <SheetTitle>Find the Best Card</SheetTitle>
                     <SheetDescription>
                         Enter a merchant and amount to see your best rewards.
                     </SheetDescription>
                 </SheetHeader>
                 
-                {/* Scrollable area for the main content */}
-                <div className="flex-grow overflow-y-auto -mr-4 px-4 sm:-mr-6 sm:px-6">
-                    <div className="flex flex-col gap-4">
-                        <form id="card-finder-form" onSubmit={handleSearch} className="space-y-4 pt-2">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                                <div className="md:col-span-2 space-y-1.5">
-                                    <label htmlFor="finder-merchant" className="text-sm font-medium">Merchant or MCC</label>
-                                    <Input
-                                        id="finder-merchant"
-                                        placeholder="e.g., Shopee, 5411, Grab..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
+                {/* FIX 3: Simplified the outer scroll container */}
+                <div className="flex-grow overflow-y-auto">
+                    {/* FIX 4: Added a new inner wrapper to handle padding, ensuring alignment */}
+                    <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+                        <div className="flex flex-col gap-4">
+                            <form id="card-finder-form" onSubmit={handleSearch} className="space-y-4 pt-2">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                    <div className="md:col-span-2 space-y-1.5">
+                                        <label htmlFor="finder-merchant" className="text-sm font-medium">Merchant or MCC</label>
+                                        <Input
+                                            id="finder-merchant"
+                                            placeholder="e.g., Shopee, 5411, Grab..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label htmlFor="finder-amount" className="text-sm font-medium">Amount (Optional)</label>
+                                        <Input
+                                            id="finder-amount"
+                                            placeholder="e.g., 1,000,000"
+                                            value={amount}
+                                            onChange={handleAmountChange}
+                                            inputMode="numeric"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label htmlFor="finder-amount" className="text-sm font-medium">Amount (Optional)</label>
-                                    <Input
-                                        id="finder-amount"
-                                        placeholder="e.g., 1,000,000"
-                                        value={amount}
-                                        onChange={handleAmountChange}
-                                        inputMode="numeric"
-                                    />
-                                </div>
+                                <Button type="submit" disabled={isLoading || !searchTerm.trim()} className="w-full">
+                                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                                    {isLoading ? 'Searching...' : 'Find Best Card'}
+                                </Button>
+                            </form>
+                            
+                            <div className="mt-2">
+                                {renderContent()}
                             </div>
-                            <Button type="submit" disabled={isLoading || !searchTerm.trim()} className="w-full">
-                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-                                {isLoading ? 'Searching...' : 'Find Best Card'}
-                            </Button>
-                        </form>
-                        
-                        <div className="mt-2">
-                            {renderContent()}
                         </div>
                     </div>
                 </div>
@@ -3887,8 +3904,6 @@ function RankingCard({ rank, item, currencyFn }) {
     );
 }
 
-// Suggestion 4: New Sub-component for the Options View
-// --- UPDATED Sub-component for the Options View ---
 function FinderOptionsView({ searchResult, searchedTerm, mccMap, onSelect }) {
     const hasInternalResults = searchResult.history?.length > 0 || searchResult.external?.length > 0;
 
@@ -3898,7 +3913,8 @@ function FinderOptionsView({ searchResult, searchedTerm, mccMap, onSelect }) {
                 <h3 className="font-semibold">Select a Category</h3>
                 <p className="text-sm text-muted-foreground">Choose the best match for '{searchedTerm}' to see card rankings.</p>
             </div>
-            <div className="space-y-4 max-h-[45vh] overflow-y-auto pr-2">
+            {/* THE FIX: Removed max-h-[45vh] and overflow-y-auto from this div */}
+            <div className="space-y-4 pr-2">
                 {!hasInternalResults && (
                     <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 min-h-[150px]">
                         <Search className="h-8 w-8 mb-3 text-slate-400" />
@@ -3925,7 +3941,6 @@ function FinderOptionsView({ searchResult, searchedTerm, mccMap, onSelect }) {
                 )}
             </div>
 
-            {/* --- MOVED External Search Buttons --- */}
             <div className="mt-4 pt-4 border-t">
                 <p className="text-center text-xs text-muted-foreground mb-2">Not finding what you need? Look it up externally:</p>
                 <div className="flex items-center justify-center gap-2">
@@ -3944,6 +3959,7 @@ function FinderOptionsView({ searchResult, searchedTerm, mccMap, onSelect }) {
         </div>
     );
 }
+
 function FinderOptionItem({ item, mccMap, onSelect, icon }) {
     return (
         <button onClick={() => onSelect(item.mcc, item.merchant)} className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors">

@@ -439,12 +439,23 @@ app.get('/api/lookup-merchant', async (req, res) => {
         // Step 3: Derive the combined logic for suggestions.
 
         // A. Logic for "Best Match": Prioritize your history, but fall back to external.
-        let bestMcc = transactions.length > 0 ? transactions[0]['MCC Code'] : null;
-        let mccSource = 'history';
+        let bestMatch = null;
 
-        if (!bestMcc && externalResults.length > 0) {
-            bestMcc = externalResults[0].mcc; // Use the first external result if no history exists
-            mccSource = 'external';
+        // Prioritize your own transaction history for the best match
+        if (transactions.length > 0 && transactions[0]['MCC Code'] && transactions[0]['Merchant']) {
+            bestMatch = {
+                mcc: transactions[0]['MCC Code'],
+                merchant: transactions[0]['Merchant'], // <-- FIX: Add merchant name from history
+                source: 'history'
+            };
+        } 
+        // Fallback to the external API if no history is found
+        else if (externalResults.length > 0) {
+            bestMatch = {
+                mcc: externalResults[0].mcc,
+                merchant: externalResults[0].merchant, // <-- FIX: Add merchant name from external API
+                source: 'external'
+            };
         }
         
         // B. Logic for "Prediction" (always based on your internal history)
@@ -482,7 +493,7 @@ app.get('/api/lookup-merchant', async (req, res) => {
         // Step 4: Return the unified object containing BOTH data sets.
         res.json({
             type: 'merchant',
-            bestMatch: bestMcc ? { mcc: bestMcc, source: mccSource } : null,
+            bestMatch: bestMatch,
             prediction: prediction,
             history: Array.from(uniqueHistory.values()),
             external: externalResults // This will now always contain the results from the external API
