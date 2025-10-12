@@ -149,7 +149,7 @@ export default function CashbackDashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [monthlyCategorySummary, setMonthlyCategorySummary] = useState([]);
-    const [activeMonth, setActiveMonth] = useState("");
+    const [activeMonth, setActiveMonth] = useState("live");
     const [monthlyTransactions, setMonthlyTransactions] = useState([]);
     const [isMonthlyTxLoading, setIsMonthlyTxLoading] = useState(true);
     const [recentTransactions, setRecentTransactions] = useState([]);
@@ -285,30 +285,35 @@ export default function CashbackDashboard() {
         if (isAuthenticated) {
             fetchData();
         }
-    }, [isAuthenticated]); // The dependency array now includes 'isAuthenticated'.
+    }, [isAuthenticated]);
 
-    // ADD THIS NEW HOOK to fetch transactions when the month changes
     useEffect(() => {
-        if (activeMonth) {
+        // Determine which month to fetch transactions for.
+        const isLiveView = activeMonth === 'live';
+        // In Live View, default to the most recent month. Otherwise, use the selected month.
+        const monthToFetch = isLiveView ? statementMonths[0] : activeMonth;
+
+        if (monthToFetch) {
             const fetchMonthlyTransactions = async () => {
-                setIsMonthlyTxLoading(true); // Set loading to true
+                setIsMonthlyTxLoading(true);
                 try {
-                    const res = await fetch(`${API_BASE_URL}/transactions?month=${activeMonth}&filterBy=${transactionFilterType}`);
+                    // Use the dynamically determined 'monthToFetch' in the API call.
+                    const res = await fetch(`${API_BASE_URL}/transactions?month=${monthToFetch}&filterBy=${transactionFilterType}`);
                     if (!res.ok) {
                         throw new Error('Failed to fetch monthly transactions');
                     }
                     const data = await res.json();
-                    setMonthlyTransactions(data); // Set the new transactions
+                    setMonthlyTransactions(data);
                 } catch (err) {
                     console.error(err);
-                    setMonthlyTransactions([]); // Clear transactions on error
+                    setMonthlyTransactions([]);
                 } finally {
-                    setIsMonthlyTxLoading(false); // Set loading to false
+                    setIsMonthlyTxLoading(false);
                 }
             };
             fetchMonthlyTransactions();
         }
-    }, [activeMonth, transactionFilterType]); // This hook runs whenever 'activeMonth' changes
+    }, [activeMonth, transactionFilterType, statementMonths]);
 
     // --------------------------
     // 2) HELPERS & CALCULATIONS
@@ -482,6 +487,30 @@ export default function CashbackDashboard() {
         return { daysPast, progressPercent };
     };
 
+    const getCurrentCashbackMonthForCard = useCallback((card) => {
+        if (!card) return null;
+        const today = new Date();
+        let year = today.getFullYear();
+        let month = today.getMonth(); // 0-indexed
+
+        if (card.useStatementMonthForPayments) {
+            const currentMonth = month + 1;
+            return `${year}${String(currentMonth).padStart(2, '0')}`;
+        }
+
+        if (today.getDate() >= card.statementDay) {
+            month += 1;
+        }
+
+        if (month > 11) {
+            month = 0;
+            year += 1;
+        }
+
+        const finalMonth = month + 1;
+        return `${year}${String(finalMonth).padStart(2, '0')}`;
+    }, []);
+
     // --- RENDER LOGIC ---
 
     // If the user is not authenticated, show the login screen.
@@ -536,6 +565,7 @@ export default function CashbackDashboard() {
                             onChange={(e) => setActiveMonth(e.target.value)}
                             className="h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
                         >
+                            <option value="live">Live View</option>
                             {statementMonths.map(m => (
                                 <option key={m} value={m}>{fmtYMShort(m)}</option>
                             ))}
@@ -626,87 +656,160 @@ export default function CashbackDashboard() {
                     </div>
 
                     <TabsContent value="overview" className="space-y-4 pt-4">
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <StatCard title="Month" value={fmtYMShort(activeMonth)} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
-                        {/* Update the props for the StatCards */}
-                        <StatCard title="Total Spend" value={currency(overviewStats.totalSpend)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
-                        <StatCard title="Est. Cashback" value={currency(overviewStats.totalCashback)} icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} />
-                        <StatCard title="Effective Rate" value={`${(overviewStats.effectiveRate * 100).toFixed(2)}%`} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
-                        </div>
+                        {/* --- HYBRID LIVE VIEW --- */}
+                        {activeMonth === 'live' && (
+                            <>
+                                {/* 1. LIVE COMPONENTS: These show real-time data */}
+                                <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
+                                    <div className="lg:col-span-7 flex flex-col">
+                                        <CardSpendsCap
+                                            cards={cards}
+                                            activeMonth={activeMonth}
+                                            monthlySummary={monthlySummary}
+                                            monthlyCategorySummary={monthlyCategorySummary}
+                                            currencyFn={currency}
+                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                        />
+                                    </div>
+                                    <div className="lg:col-span-5 flex flex-col">
+                                        <EnhancedSuggestions
+                                            rules={rules}
+                                            cards={cards}
+                                            monthlyCategorySummary={monthlyCategorySummary}
+                                            monthlySummary={monthlySummary}
+                                            activeMonth={activeMonth}
+                                            currencyFn={currency}
+                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                        />
+                                    </div>
+                                </div>
 
-                        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
-                            <div className="lg:col-span-7 flex flex-col">
-                                <CardSpendsCap
-                                    cards={cards}
-                                    activeMonth={activeMonth}
-                                    monthlySummary={monthlySummary}
-                                    monthlyCategorySummary={monthlyCategorySummary}
+                                {/* 2. HISTORICAL/CONTEXTUAL COMPONENTS: These are always visible */}
+                                <div className="grid gap-4">
+                                    <Card className="flex flex-col min-h-[300px]">
+                                        <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
+                                        <CardContent className="pl-2 flex-grow">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={monthlyChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                                                    <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} />
+                                                    <RechartsTooltip content={<CustomRechartsTooltip />} />
+                                                    <Legend formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)} />
+                                                    <Bar dataKey="spend" fill="#0BA6DF" radius={[4, 4, 0, 0]}>
+                                                    <LabelList dataKey="spend" content={renderCustomBarLabel} />
+                                                    </Bar>
+                                                    <Bar dataKey="cashback" fill="#67C090" radius={[4, 4, 0, 0]}>
+                                                    <LabelList dataKey="cashback" content={renderCustomBarLabel} />
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+                                <RecentTransactionsCarousel 
+                                    transactions={recentTransactions}
+                                    cardMap={cardMap}
                                     currencyFn={currency}
                                 />
-                            </div>
-                            <div className="lg:col-span-5 flex flex-col">
-                                <EnhancedSuggestions
-                                    rules={rules}
-                                    cards={cards}
-                                    monthlyCategorySummary={monthlyCategorySummary}
-                                    monthlySummary={monthlySummary}
-                                    activeMonth={activeMonth}
+
+                                <div className="mt-4">
+                                    <CardPerformanceLineChart 
+                                        data={cardPerformanceData}
+                                        cards={cards}
+                                        currencyFn={currency}
+                                        cardColorMap={cardColorMap} 
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {/* --- FULL HISTORICAL VIEW --- */}
+                        {activeMonth !== 'live' && (
+                            <>
+                                {/* All original components are here, including Stat Cards and Pie Charts */}
+                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                                    <StatCard title="Month" value={fmtYMShort(activeMonth)} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
+                                    <StatCard title="Total Spend" value={currency(overviewStats.totalSpend)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
+                                    <StatCard title="Est. Cashback" value={currency(overviewStats.totalCashback)} icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} />
+                                    <StatCard title="Effective Rate" value={`${(overviewStats.effectiveRate * 100).toFixed(2)}%`} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
+                                </div>
+
+                                <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
+                                    <div className="lg:col-span-7 flex flex-col">
+                                        <CardSpendsCap
+                                            cards={cards}
+                                            activeMonth={activeMonth}
+                                            monthlySummary={monthlySummary}
+                                            monthlyCategorySummary={monthlyCategorySummary}
+                                            currencyFn={currency}
+                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                        />
+                                    </div>
+                                    <div className="lg:col-span-5 flex flex-col">
+                                        <EnhancedSuggestions
+                                            rules={rules}
+                                            cards={cards}
+                                            monthlyCategorySummary={monthlyCategorySummary}
+                                            monthlySummary={monthlySummary}
+                                            activeMonth={activeMonth}
+                                            currencyFn={currency}
+                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-4">
+                                    <Card className="flex flex-col min-h-[300px]">
+                                        <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
+                                        <CardContent className="pl-2 flex-grow">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={monthlyChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                                                <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} />
+                                                <RechartsTooltip content={<CustomRechartsTooltip />} />
+                                                <Legend formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)} />
+                                                <Bar dataKey="spend" fill="#0BA6DF" radius={[4, 4, 0, 0]}>
+                                                <LabelList dataKey="spend" content={renderCustomBarLabel} />
+                                                </Bar>
+                                                <Bar dataKey="cashback" fill="#67C090" radius={[4, 4, 0, 0]}>
+                                                <LabelList dataKey="cashback" content={renderCustomBarLabel} />
+                                                </Bar>
+                                            </BarChart>
+                                            </ResponsiveContainer>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+                                <RecentTransactionsCarousel 
+                                    transactions={recentTransactions}
+                                    cardMap={cardMap}
                                     currencyFn={currency}
                                 />
-                            </div>
-                        </div>
 
-                        <div className="grid gap-4">
-                            <Card className="flex flex-col min-h-[300px]">
-                                <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
-                                <CardContent className="pl-2 flex-grow">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={monthlyChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-                                        <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} />
-                                        <RechartsTooltip content={<CustomRechartsTooltip />} />
-                                        <Legend formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)} />
-                                        <Bar dataKey="spend" fill="#0BA6DF" radius={[4, 4, 0, 0]}>
-                                        <LabelList dataKey="spend" content={renderCustomBarLabel} />
-                                        </Bar>
-                                        <Bar dataKey="cashback" fill="#67C090" radius={[4, 4, 0, 0]}>
-                                        <LabelList dataKey="cashback" content={renderCustomBarLabel} />
-                                        </Bar>
-                                    </BarChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        <RecentTransactionsCarousel 
-                            transactions={recentTransactions}
-                            cardMap={cardMap}
-                            currencyFn={currency}
-                        />
-
-                        {/* ADD THE NEW LINE CHART COMPONENT HERE */}
-                        <div className="mt-4">
-                            <CardPerformanceLineChart 
-                                data={cardPerformanceData}
-                                cards={cards}
-                                currencyFn={currency}
-                                cardColorMap={cardColorMap} 
-                            />
-                        </div>
-                            
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <SpendByCardChart
-                                spendData={overviewStats.spendByCard}
-                                currencyFn={currency}
-                                cardColorMap={cardColorMap}
-                            />
-                            <CashbackByCardChart
-                                cashbackData={overviewStats.cashbackByCard}
-                                currencyFn={currency}
-                                cardColorMap={cardColorMap}
-                            />
-                        </div>
-                    
+                                <div className="mt-4">
+                                    <CardPerformanceLineChart 
+                                        data={cardPerformanceData}
+                                        cards={cards}
+                                        currencyFn={currency}
+                                        cardColorMap={cardColorMap} 
+                                    />
+                                </div>
+                                    
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <SpendByCardChart
+                                        spendData={overviewStats.spendByCard}
+                                        currencyFn={currency}
+                                        cardColorMap={cardColorMap}
+                                    />
+                                    <CashbackByCardChart
+                                        cashbackData={overviewStats.cashbackByCard}
+                                        currencyFn={currency}
+                                        cardColorMap={cardColorMap}
+                                    />
+                                </div>
+                            </>
+                        )}
                     </TabsContent>
 
                     <TabsContent value="transactions" className="pt-4">
@@ -744,28 +847,36 @@ export default function CashbackDashboard() {
                         </Tabs>
                         
                         {(() => {
+                            const isLiveView = activeMonth === 'live';
                             const activeAndFrozenCards = sortedCards.filter(c => c.status !== 'Closed');
                             const closedCards = sortedCards.filter(c => c.status === 'Closed');
-                    
+
+                            const renderCard = (card) => {
+                                const monthForCard = isLiveView ? getCurrentCashbackMonthForCard(card) : activeMonth;
+                                const summaryForCard = monthlySummary.find(s => s.cardId === card.id && s.month === monthForCard);
+
+                                return (
+                                    <EnhancedCard
+                                        key={card.id}
+                                        card={card}
+                                        activeMonth={monthForCard}
+                                        cardMonthSummary={summaryForCard}
+                                        rules={rules.filter(r => r.cardId === card.id)}
+                                        currencyFn={currency}
+                                        fmtYMShortFn={fmtYMShort}
+                                        calculateFeeCycleProgressFn={calculateFeeCycleProgress}
+                                        view={cardView}
+                                        mccMap={mccMap}
+                                    />
+                                );
+                            };
+
                             return (
                                 <>
                                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                        {activeAndFrozenCards.map(card => (
-                                            <EnhancedCard 
-                                                key={card.id}
-                                                card={card}
-                                                activeMonth={activeMonth}
-                                                cardMonthSummary={activeMonthSummariesMap.get(card.id)} 
-                                                rules={rules.filter(r => r.cardId === card.id)}
-                                                currencyFn={currency}
-                                                fmtYMShortFn={fmtYMShort}
-                                                calculateFeeCycleProgressFn={calculateFeeCycleProgress}
-                                                view={cardView}
-                                                mccMap={mccMap}
-                                            />
-                                        ))}
+                                        {activeAndFrozenCards.map(renderCard)}
                                     </div>
-                    
+
                                     {closedCards.length > 0 && (
                                         <Accordion type="single" collapsible className="w-full pt-4">
                                             <AccordionItem value="closed-cards">
@@ -774,20 +885,7 @@ export default function CashbackDashboard() {
                                                 </AccordionTrigger>
                                                 <AccordionContent>
                                                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pt-4">
-                                                        {closedCards.map(card => (
-                                                            <EnhancedCard 
-                                                                key={card.id}
-                                                                card={card}
-                                                                activeMonth={activeMonth}
-                                                                cardMonthSummary={activeMonthSummariesMap.get(card.id)} 
-                                                                rules={rules.filter(r => r.cardId === card.id)}
-                                                                currencyFn={currency}
-                                                                fmtYMShortFn={fmtYMShort}
-                                                                calculateFeeCycleProgressFn={calculateFeeCycleProgress}
-                                                                view={cardView}
-                                                                mccMap={mccMap}
-                                                            />
-                                                        ))}
+                                                        {closedCards.map(renderCard)}
                                                     </div>
                                                 </AccordionContent>
                                             </AccordionItem>
@@ -819,6 +917,7 @@ export default function CashbackDashboard() {
                 monthlySummary={monthlySummary}
                 monthlyCategorySummary={monthlyCategorySummary}
                 activeMonth={activeMonth}
+                getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
             />
             <TransactionDetailsDialog
                 isOpen={!!dialogDetails}
@@ -1151,7 +1250,13 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
         <CardHeader>
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <CardTitle>Transactions for {fmtYMShort(activeMonth)}</CardTitle>
+                    <CardTitle>
+                        Transactions for {
+                            activeMonth === 'live' && statementMonths.length > 0
+                                ? fmtYMShort(statementMonths[0])
+                                : fmtYMShort(activeMonth)
+                        }
+                    </CardTitle>
                     
                     {/* This is the new filter switch */}
                     <Tabs defaultValue="date" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
@@ -1249,8 +1354,10 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
     );
 }
 
-function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySummary, currencyFn }) {
+function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySummary, currencyFn, getCurrentCashbackMonthForCard }) {
     const [expandedCardId, setExpandedCardId] = useState(null);
+
+    const isLiveView = activeMonth === 'live';
 
     const handleToggleExpand = (cardId) => {
         setExpandedCardId(prevId => (prevId === cardId ? null : cardId));
@@ -1260,8 +1367,11 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
         return cards
             .filter(card => card.overallMonthlyLimit > 0 || card.minimumMonthlySpend > 0)
             .map(card => {
+                // THE FIX: Dynamically determine the correct month for each card
+                const monthForCard = isLiveView ? getCurrentCashbackMonthForCard(card) : activeMonth;
+
                 const cardMonthSummary = monthlySummary.find(
-                    summary => summary.cardId === card.id && summary.month === activeMonth
+                    summary => summary.cardId === card.id && summary.month === monthForCard
                 );
                 
                 const currentCashback = cardMonthSummary?.cashback || 0;
@@ -1276,17 +1386,19 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                 const minSpendPct = minSpend > 0 ? Math.min(100, Math.round((currentSpend / minSpend) * 100)) : 100;
 
                 const { days, status } = card.useStatementMonthForPayments
-                    ? calculateDaysLeftInCashbackMonth(activeMonth)
-                    : calculateDaysUntilStatement(card.statementDay, activeMonth);
+                    ? calculateDaysLeftInCashbackMonth(monthForCard)
+                    : calculateDaysUntilStatement(card.statementDay, monthForCard);
 
                 return {
                     card, cardId: card.id, cardName: card.name, currentCashback,
                     currentSpend, monthlyLimit, usedCapPct, minSpend, minSpendMet,
                     minSpendPct, daysLeft: days, cycleStatus: status, isCapReached,
+                    // Pass the dynamic month for child components
+                    activeMonth: monthForCard 
                 };
             })
             .sort((a, b) => b.usedCapPct - a.usedCapPct);
-    }, [cards, activeMonth, monthlySummary]);
+    }, [cards, activeMonth, monthlySummary, isLiveView, getCurrentCashbackMonthForCard]);
 
     const getProgressColor = (percentage) => {
         if (percentage >= 100) return "bg-emerald-500";
@@ -1316,7 +1428,6 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                         {cardSpendsCapProgress.map(p => (
                             <div 
                                 key={p.cardId} 
-                                // STYLE CHANGE 1: Apply background color instead of grayscale/opacity
                                 className={cn(
                                     "border-b last:border-b-0 py-1 transition-colors duration-300",
                                     { "bg-slate-50 rounded-md": p.isCapReached }
@@ -1333,7 +1444,6 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                                             ) : p.isCapReached ? (
                                                 <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0" title="Monthly cap reached" />
                                             ) : null}
-                                            {/* STYLE CHANGE 2: Conditionally grey out the card name text */}
                                             <p className={cn(
                                                 "font-semibold truncate",
                                                 { "text-slate-400 font-normal": p.isCapReached }
@@ -1349,7 +1459,6 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                                     
                                     {p.monthlyLimit > 0 && (
                                         <div className="flex items-center gap-3 w-full text-sm">
-                                            {/* STYLE CHANGE 3: Conditionally grey out the "left" amount text */}
                                             <span className={cn(
                                                 "font-medium w-32 shrink-0",
                                                 p.isCapReached ? "text-slate-400" : "text-emerald-600"
@@ -1357,7 +1466,6 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                                                 {currencyFn(p.monthlyLimit - p.currentCashback)} left
                                             </span>
                                             <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-1.5 flex-grow" />
-                                            {/* STYLE CHANGE 4: Conditionally grey out the progress text */}
                                             <span className={cn(
                                                 "text-xs w-40 shrink-0 text-right",
                                                 p.isCapReached ? "text-slate-400" : "text-muted-foreground"
@@ -1389,7 +1497,8 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                                             )}
                                             <CategoryCapsUsage 
                                                 card={p.card}
-                                                activeMonth={activeMonth}
+                                                // Pass the dynamic month down to the child
+                                                activeMonth={p.activeMonth} 
                                                 monthlyCategorySummary={monthlyCategorySummary}
                                                 currencyFn={currencyFn}
                                             />
@@ -3377,25 +3486,38 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
     );
 }
 
-function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn }) {
+// CashbackDashboard.jsx
+
+function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard }) {
     const [startIndex, setStartIndex] = useState(0);
+
+    const isLiveView = activeMonth === 'live';
 
     const suggestions = useMemo(() => {
         const MINIMUM_RATE_THRESHOLD = 0.02;
 
         const allCandidates = rules.flatMap(rule => {
             if (rule.rate < MINIMUM_RATE_THRESHOLD || rule.status !== 'Active') return [];
+            
             const card = cards.find(c => c.id === rule.cardId);
             if (!card || card.status !== 'Active') return [];
-            const categorySummary = monthlyCategorySummary.find(s => s.cardId === rule.cardId && s.month === activeMonth && s.summaryId.endsWith(rule.ruleName));
-            const cardSummary = monthlySummary.find(s => s.cardId === rule.cardId && s.month === activeMonth);
+
+            // THE FIX: Dynamically determine the correct month for this card
+            const monthForCard = isLiveView ? getCurrentCashbackMonthForCard(card) : activeMonth;
+
+            const categorySummary = monthlyCategorySummary.find(s => s.cardId === rule.cardId && s.month === monthForCard && s.summaryId.endsWith(rule.ruleName));
+            const cardSummary = monthlySummary.find(s => s.cardId === rule.cardId && s.month === monthForCard);
+            
             const currentCashbackForCategory = categorySummary?.cashback || 0;
             const currentTotalSpendForCard = cardSummary?.spend || 0;
             const remainingCategoryCap = card.limitPerCategory > 0 ? Math.max(0, card.limitPerCategory - currentCashbackForCategory) : Infinity;
+            
             if (remainingCategoryCap === 0) return [];
+            
             const hasMetMinSpend = card.minimumMonthlySpend > 0 ? currentTotalSpendForCard >= card.minimumMonthlySpend : true;
             const spendingNeeded = remainingCategoryCap === Infinity ? Infinity : remainingCategoryCap / rule.rate;
             const categories = rule.category?.length ? rule.category : [rule.ruleName];
+            
             return categories.map(cat => ({
                 ...rule, suggestionFor: cat, parentRuleName: rule.ruleName, cardName: card.name,
                 remainingCategoryCap, hasMetMinSpend, spendingNeeded
@@ -3420,17 +3542,13 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
 
             let finalChoice = bestQualified || bestUnqualified;
 
-            // --- NEW LOGIC TO ADD THE ALERT ---
             if (finalChoice) {
                 let hasBetterChallenger = false;
-                // Check is only necessary if the chosen card is a qualified one
                 if (finalChoice.hasMetMinSpend && bestUnqualified) {
-                    // See if the best unqualified card is better than our choice
                     if (bestUnqualified.rate > finalChoice.rate || bestUnqualified.remainingCategoryCap > finalChoice.remainingCategoryCap) {
                         hasBetterChallenger = true;
                     }
                 }
-                // Attach the new flag to the suggestion object
                 finalChoice = { ...finalChoice, hasBetterChallenger };
             }
             return finalChoice;
@@ -3443,7 +3561,7 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
         });
 
         return bestCardPerCategory;
-    }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth]);
+    }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, isLiveView, getCurrentCashbackMonthForCard]);
 
     const topSuggestions = suggestions;
     const VISIBLE_ITEMS = 5;
@@ -3499,7 +3617,6 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
                                                     </Tooltip>
                                                 </TooltipProvider>
                                             )}
-                                            {/* --- NEW ICON AND TOOLTIP --- */}
                                             {s.hasBetterChallenger && (
                                                 <TooltipProvider delayDuration={100}>
                                                     <Tooltip>
@@ -3554,22 +3671,18 @@ function useIOSKeyboardGapFix() {
   }, []);
 }
 
-function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap, monthlySummary, monthlyCategorySummary, activeMonth }) {
+function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard }) {
     // --- RESPONSIVE LOGIC ---
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const side = isDesktop ? 'left' : 'bottom';
     useIOSKeyboardGapFix();
 
     // --- STATE MANAGEMENT ---
-    const [view, setView] = useState('initial'); // 'initial', 'options', 'results'
+    const [view, setView] = useState('initial');
     const [isLoading, setIsLoading] = useState(false);
-    
-    // Search & Amount State
     const [searchTerm, setSearchTerm] = useState('');
-    const [searchedTerm, setSearchedTerm] = useState(''); // Keep track of what was searched
+    const [searchedTerm, setSearchedTerm] = useState('');
     const [amount, setAmount] = useState('');
-    
-    // Results State
     const [searchResult, setSearchResult] = useState(null);
     const [selectedMcc, setSelectedMcc] = useState(null);
     const [selectedMerchantDetails, setSelectedMerchantDetails] = useState(null);
@@ -3581,7 +3694,6 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
 
     useEffect(() => {
         if (!isOpen) {
-            // Give a little time for the closing animation before resetting the internal state
             const timer = setTimeout(() => {
                 setView('initial');
                 setSearchTerm('');
@@ -3592,13 +3704,12 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
             }, 300);
             return () => clearTimeout(timer);
         } else {
-            // Load recent searches from local storage when the dialog opens
             const searches = JSON.parse(localStorage.getItem('cardFinderSearches') || '[]');
             setRecentSearches(searches);
         }
-    }, [isOpen]); // Removed resetAndClose from dependencies as it's not needed here
+    }, [isOpen]);
 
-    // --- CORE LOGIC (handleSearch, handleRecentSearchClick, etc. remain the same) ---
+    // --- CORE LOGIC ---
     const handleSearch = async (e) => {
         if (e) e.preventDefault();
         const term = searchTerm.trim();
@@ -3627,14 +3738,14 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
             setIsLoading(false);
         }
     };
-    
+
     const handleRecentSearchClick = (term) => {
         setSearchTerm(term);
         setTimeout(() => {
             document.getElementById('card-finder-form')?.requestSubmit();
         }, 0);
     };
-    
+
     const handleOptionSelect = (mcc, merchant) => {
         setSelectedMcc(mcc);
         setSelectedMerchantDetails({
@@ -3656,21 +3767,25 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
     const rankedSuggestions = useMemo(() => {
         if (!selectedMcc) return [];
         const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
-        
+        const isLiveView = activeMonth === 'live';
+
         return allRules
             .filter(rule => rule.mccCodes && rule.mccCodes.split(',').map(c => c.trim()).includes(selectedMcc))
             .map(rule => {
                 const card = cardMap.get(rule.cardId);
                 if (!card || card.status !== 'Active') return null;
 
-                const cardMonthSummary = monthlySummary.find(s => s.cardId === card.id && s.month === activeMonth);
-                const categorySummaryId = `${activeMonth} - ${rule.ruleName}`;
+                // THE FIX: Use the helper function to get the correct month
+                const monthForCard = isLiveView ? getCurrentCashbackMonthForCard(card) : activeMonth;
+
+                const cardMonthSummary = monthlySummary.find(s => s.cardId === card.id && s.month === monthForCard);
+                const categorySummaryId = `${monthForCard} - ${rule.ruleName}`;
                 const categoryMonthSummary = monthlyCategorySummary.find(s => s.summaryId === categorySummaryId && s.cardId === card.id);
-                
+
                 const currentCategoryCashback = categoryMonthSummary?.cashback || 0;
                 const categoryLimit = categoryMonthSummary?.categoryLimit || Infinity;
                 const remainingCategoryCashback = categoryLimit - currentCategoryCashback;
-                
+
                 let calculatedCashback = null;
                 if (!isNaN(numericAmount) && numericAmount > 0) {
                     calculatedCashback = numericAmount * rule.rate;
@@ -3678,7 +3793,7 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
                         calculatedCashback = Math.min(calculatedCashback, rule.capPerTransaction);
                     }
                 }
-                
+
                 return { 
                     rule, 
                     card, 
@@ -3701,7 +3816,7 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
                 }
                 return b.rule.rate - a.rule.rate;
             });
-    }, [selectedMcc, amount, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth]);
+    }, [selectedMcc, amount, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard]); // <-- Add helper to dependency array
     
     // --- RENDER LOGIC ---
     const renderContent = () => {
