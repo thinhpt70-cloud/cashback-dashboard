@@ -261,14 +261,6 @@ export default function CashbackDashboard() {
             setCashbackRules(mappedRules);
             setMonthlyCashbackCategories(mappedMonthlyCats);
 
-            // Set the active month based on the summary data for a faster initial load
-            if (monthlyData.length > 0) {
-                const allMonths = [...new Set(monthlyData.map(t => t.month))].filter(Boolean).sort().reverse();
-                if (allMonths.length > 0) {
-                    setActiveMonth(allMonths[0]);
-                }
-            }
-
         } catch (err) {
             setError("Failed to fetch data. Please check the backend, .env configuration, and Notion permissions.");
             console.error(err);
@@ -676,6 +668,12 @@ export default function CashbackDashboard() {
                                 </div>
 
                                 {/* 2. HISTORICAL/CONTEXTUAL COMPONENTS: These are always visible */}
+                                <RecentTransactionsCarousel 
+                                    transactions={recentTransactions}
+                                    cardMap={cardMap}
+                                    currencyFn={currency}
+                                />
+
                                 <div className="grid gap-4">
                                     <Card className="flex flex-col min-h-[300px]">
                                         <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
@@ -697,12 +695,6 @@ export default function CashbackDashboard() {
                                         </CardContent>
                                     </Card>
                                 </div>
-
-                                <RecentTransactionsCarousel 
-                                    transactions={recentTransactions}
-                                    cardMap={cardMap}
-                                    currencyFn={currency}
-                                />
 
                                 <div className="mt-4">
                                     <CardPerformanceLineChart 
