@@ -742,6 +742,12 @@ export default function CashbackDashboard() {
                                     </div>
                                 </div>
 
+                                <RecentTransactionsCarousel 
+                                    transactions={recentTransactions}
+                                    cardMap={cardMap}
+                                    currencyFn={currency}
+                                />
+
                                 <div className="grid gap-4">
                                     <Card className="flex flex-col min-h-[300px]">
                                         <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
@@ -763,12 +769,6 @@ export default function CashbackDashboard() {
                                         </CardContent>
                                     </Card>
                                 </div>
-
-                                <RecentTransactionsCarousel 
-                                    transactions={recentTransactions}
-                                    cardMap={cardMap}
-                                    currencyFn={currency}
-                                />
 
                                 <div className="mt-4">
                                     <CardPerformanceLineChart 
@@ -848,6 +848,7 @@ export default function CashbackDashboard() {
                                         calculateFeeCycleProgressFn={calculateFeeCycleProgress}
                                         view={cardView}
                                         mccMap={mccMap}
+                                        isDesktop={isDesktop}
                                     />
                                 );
                             };
@@ -967,11 +968,15 @@ const CustomRechartsTooltip = ({ active, payload, label }) => {
 };
 
 
-function CardInfoSheet({ card, rules, mccMap }) {
+function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
     // --- State for search and expansion ---
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedRuleId, setExpandedRuleId] = useState(null);
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+
+    // --- HOOKS & HELPERS ---
+    useIOSKeyboardGapFix();
+    const side = isDesktop ? 'right' : 'bottom';
 
     // --- Helper function and memoized data ---
     const isFeeCovered = card.estYtdCashback >= card.annualFee;
@@ -982,8 +987,8 @@ function CardInfoSheet({ card, rules, mccMap }) {
         { label: "Statement Day", value: `~ Day ${card.statementDay}` },
         { label: "Payment Due Day", value: `~ Day ${card.paymentDueDay}` },
         { label: "Monthly Interest", value: `${(card.interestRateMonthly * 100).toFixed(2)}%` },
-        { 
-            label: "Annual Fee", 
+        {
+            label: "Annual Fee",
             value: currency(card.annualFee),
             valueClassName: isFeeCovered ? 'text-emerald-600' : 'text-red-500'
         },
@@ -992,30 +997,47 @@ function CardInfoSheet({ card, rules, mccMap }) {
     // --- Filtering logic for the search functionality ---
     const filteredAndSortedRules = useMemo(() => {
         const lowercasedFilter = searchTerm.toLowerCase();
+        // NEW: Check if the search term is purely numeric to treat it as an MCC search
+        const isMccSearch = /^\d+$/.test(searchTerm.trim());
+
+        if (!searchTerm.trim()) {
+            // Sort all rules if search is empty, active first
+            return [...rules].sort((a, b) => {
+                if (a.status === 'Active' && b.status !== 'Active') return -1;
+                if (a.status !== 'Active' && b.status === 'Active') return 1;
+                return a.ruleName.localeCompare(b.ruleName);
+            });
+        }
 
         const filtered = rules.filter(rule => {
-            if (!searchTerm) return true; // Show all if search is empty
+            const mccList = rule.mccCodes ? rule.mccCodes.split(',').map(m => m.trim()) : [];
 
+            // UPDATED LOGIC: If it's a numeric search, ONLY check the MCC codes
+            if (isMccSearch) {
+                return mccList.some(code => code.includes(searchTerm.trim()));
+            }
+
+            // Otherwise, perform the original, broader search on name and description
             const nameMatch = rule.ruleName.toLowerCase().includes(lowercasedFilter);
             if (nameMatch) return true;
 
-            const mccList = rule.mccCodes ? rule.mccCodes.split(',').map(m => m.trim()) : [];
             for (const code of mccList) {
                 const mccName = mccMap[code]?.vn || '';
-                if (code.includes(lowercasedFilter) || mccName.toLowerCase().includes(lowercasedFilter)) {
+                if (mccName.toLowerCase().includes(lowercasedFilter)) {
                     return true;
                 }
             }
             return false;
         });
 
-        // Sort rules to show active ones first
+        // Sort the filtered results, active first
         return filtered.sort((a, b) => {
             if (a.status === 'Active' && b.status !== 'Active') return -1;
             if (a.status !== 'Active' && b.status === 'Active') return 1;
             return a.ruleName.localeCompare(b.ruleName);
         });
     }, [rules, searchTerm, mccMap]);
+
 
     const handleToggleExpand = (ruleId) => {
         setExpandedRuleId(prevId => (prevId === ruleId ? null : ruleId));
@@ -1028,110 +1050,119 @@ function CardInfoSheet({ card, rules, mccMap }) {
                     <Info className="mr-1.5 h-3.5 w-3.5" /> More info
                 </Button>
             </SheetTrigger>
-            <SheetContent className="overflow-y-auto">
-                <SheetHeader>
+            <SheetContent
+                side={side}
+                className={cn(
+                    "flex flex-col p-0",
+                    isDesktop ? "w-full sm:max-w-2xl" : "h-[90dvh]"
+                )}
+            >
+                <SheetHeader className="px-6 pt-6 shrink-0">
                     <SheetTitle>{card.name}</SheetTitle>
                     <p className="text-sm text-muted-foreground">{card.bank} &ndash; {card.cardType} Card</p>
                 </SheetHeader>
-                
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm py-4">
-                    {infoItems.map(item => (
-                        <div key={item.label}>
-                            <p className="text-muted-foreground">{item.label}</p>
-                            <p className={cn("font-medium", item.valueClassName)}>{item.value}</p>
-                        </div>
-                    ))}
-                </div>
-
-                <div>
-                    <h4 className="font-semibold text-sm mb-2">Cashback Details</h4>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm p-3 bg-muted rounded-lg">
-                        {representativeTxCapRule && (
-                            <div>
-                                <p className="text-muted-foreground">Max per Tx</p>
-                                <p className="font-medium">{currency(representativeTxCapRule.capPerTransaction)}</p>
+                <div className="flex-grow overflow-y-auto px-6 pb-6">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm py-4">
+                        {infoItems.map(item => (
+                            <div key={item.label}>
+                                <p className="text-muted-foreground">{item.label}</p>
+                                <p className={cn("font-medium", item.valueClassName)}>{item.value}</p>
                             </div>
-                        )}
-                        {card.limitPerCategory > 0 && (
-                            <div>
-                                <p className="text-muted-foreground">Max per Cat</p>
-                                <p className="font-medium">{currency(card.limitPerCategory)}</p>
-                            </div>
-                        )}
-                        {card.overallMonthlyLimit > 0 && (
-                            <div>
-                                <p className="text-muted-foreground">Max per Month</p>
-                                <p className="font-medium">{currency(card.overallMonthlyLimit)}</p>
-                            </div>
-                        )}
-                        {card.minimumMonthlySpend > 0 && (
-                            <div>
-                                <p className="text-muted-foreground">Min. Spending</p>
-                                <p className="font-medium">{currency(card.minimumMonthlySpend)}</p>
-                            </div>
-                        )}
+                        ))}
                     </div>
-                </div>
 
-                <div className="mt-4">
-                    <h4 className="font-semibold text-sm mb-2">Cashback Rules</h4>
-                    
-                    <div className="relative mb-3">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            type="search"
-                            placeholder="Search by name, MCC code, or category..."
-                            className="w-full pl-8"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                    
-                    <div className="space-y-1">
-                        {filteredAndSortedRules.length > 0 ? filteredAndSortedRules.map(rule => {
-                            const isExpanded = expandedRuleId === rule.id;
-                            const mccList = rule.mccCodes ? rule.mccCodes.split(',').map(m => m.trim()).filter(Boolean) : [];
-
-                            return (
-                                <div key={rule.id} className="border rounded-md overflow-hidden">
-                                    <div
-                                        onClick={() => handleToggleExpand(rule.id)}
-                                        className={cn(
-                                            "flex justify-between items-center p-3 cursor-pointer hover:bg-muted/50",
-                                            rule.status !== 'Active' && "opacity-60"
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-2.5">
-                                            <span className={cn("h-2 w-2 rounded-full", rule.status === 'Active' ? "bg-emerald-500" : "bg-slate-400")} />
-                                            <span className="font-medium text-primary">{rule.ruleName}</span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className="font-mono text-base text-foreground">{(rule.rate * 100).toFixed(1)}%</span>
-                                            <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
-                                        </div>
-                                    </div>
-                                    
-                                    {isExpanded && (
-                                        <div className="p-3 border-t bg-slate-50/70">
-                                            {mccList.length > 0 ? (
-                                                <div className="flex flex-wrap gap-2">
-                                                    {mccList.map(code => (
-                                                        <Badge key={code} variant="secondary" className="font-normal">
-                                                            <span className="font-mono mr-1.5">{code}:</span>
-                                                            {mccMap[code]?.vn || 'Unknown'}
-                                                        </Badge>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <p className="text-xs text-muted-foreground">No specific MCC codes are linked to this rule.</p>
-                                            )}
-                                        </div>
-                                    )}
+                    <div>
+                        <h4 className="font-semibold text-sm mb-2">Cashback Details</h4>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm p-3 bg-muted rounded-lg">
+                            {representativeTxCapRule && (
+                                <div>
+                                    <p className="text-muted-foreground">Max per Tx</p>
+                                    <p className="font-medium">{currency(representativeTxCapRule.capPerTransaction)}</p>
                                 </div>
-                            );
-                        }) : (
-                            <p className="text-sm text-center text-muted-foreground py-4">No rules match your search.</p>
-                        )}
+                            )}
+                            {card.limitPerCategory > 0 && (
+                                <div>
+                                    <p className="text-muted-foreground">Max per Cat</p>
+                                    <p className="font-medium">{currency(card.limitPerCategory)}</p>
+                                </div>
+                            )}
+                            {card.overallMonthlyLimit > 0 && (
+                                <div>
+                                    <p className="text-muted-foreground">Max per Month</p>
+                                    <p className="font-medium">{currency(card.overallMonthlyLimit)}</p>
+                                </div>
+                            )}
+                            {card.minimumMonthlySpend > 0 && (
+                                <div>
+                                    <p className="text-muted-foreground">Min. Spending</p>
+                                    <p className="font-medium">{currency(card.minimumMonthlySpend)}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="mt-4">
+                        <h4 className="font-semibold text-sm mb-2">Cashback Rules</h4>
+                        <div className="relative mb-3">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Search by name, MCC code, or category..."
+                                className="w-full pl-8"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            {filteredAndSortedRules.length > 0 ? filteredAndSortedRules.map(rule => {
+                                const isExpanded = expandedRuleId === rule.id;
+                                const mccList = rule.mccCodes ? rule.mccCodes.split(',').map(m => m.trim()).filter(Boolean) : [];
+
+                                return (
+                                    <div key={rule.id} className="border rounded-md overflow-hidden">
+                                        <div
+                                            onClick={() => handleToggleExpand(rule.id)}
+                                            className={cn(
+                                                "flex justify-between items-center p-3 cursor-pointer hover:bg-muted/50",
+                                                rule.status !== 'Active' && "opacity-60"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-2.5">
+                                                <span className={cn("h-2 w-2 rounded-full", rule.status === 'Active' ? "bg-emerald-500" : "bg-slate-400")} />
+                                                <span className="font-medium text-primary">{rule.ruleName}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="font-mono text-base text-foreground">{(rule.rate * 100).toFixed(1)}%</span>
+                                                <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+                                            </div>
+                                        </div>
+
+                                        {isExpanded && (
+                                            <div className="p-3 border-t bg-slate-50/70">
+                                                {mccList.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {mccList.map(code => (
+                                                            // UPDATED BADGE LOGIC:
+                                                            <Badge key={code} variant="secondary" className="font-normal">
+                                                                <span className="font-mono">{code}</span>
+                                                                {/* Only show the name if it exists, along with the colon */}
+                                                                {mccMap[code]?.vn && (
+                                                                    <span className="ml-1.5">{`: ${mccMap[code].vn}`}</span>
+                                                                )}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-muted-foreground">No specific MCC codes are linked to this rule.</p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }) : (
+                                <p className="text-sm text-center text-muted-foreground py-4">No rules match your search.</p>
+                            )}
+                        </div>
                     </div>
                 </div>
             </SheetContent>
@@ -3460,7 +3491,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
 
                 {/* MODIFIED: Increased top padding from pt-3 to pt-4 for better spacing */}
                 <div className="mt-auto pt-3 flex justify-end">
-                    <CardInfoSheet card={card} rules={rules} mccMap={mccMap} />
+                    <CardInfoSheet card={card} rules={rules} mccMap={mccMap} isDesktop={isDesktop} />
                 </div>
             </div>
         </div>
@@ -3705,18 +3736,31 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
         setSelectedMcc(null);
         setSelectedMerchantDetails(null);
 
-        try {
-            const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(term)}`);
-            if (!res.ok) throw new Error('Failed to fetch merchant data');
-            const data = await res.json();
-            setSearchResult(data);
-            setView('options');
-        } catch (err) {
-            console.error(err);
-            toast.error("Could not fetch suggestions.");
-            setView('initial');
-        } finally {
+        // NEW LOGIC: Check if the search term is a 4-digit MCC code
+        if (/^\d{4}$/.test(term)) {
+            // If it is an MCC, bypass the API call and go straight to results
+            setSelectedMcc(term);
+            setSelectedMerchantDetails({
+                merchant: `Category: ${mccMap[term]?.vn || 'Unknown'}`,
+                vnDesc: `All merchants with MCC ${term}`,
+            });
+            setView('results');
             setIsLoading(false);
+        } else {
+            // If it's not a 4-digit code, proceed with the existing merchant lookup
+            try {
+                const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(term)}`);
+                if (!res.ok) throw new Error('Failed to fetch merchant data');
+                const data = await res.json();
+                setSearchResult(data);
+                setView('options');
+            } catch (err) {
+                console.error(err);
+                toast.error("Could not fetch suggestions.");
+                setView('initial');
+            } finally {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -3787,16 +3831,24 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
             })
             .filter(Boolean)
             .sort((a, b) => {
+                // Priority #1: Active rules first
+                const isAActive = a.rule.status === 'Active';
+                const isBActive = b.rule.status === 'Active';
+                if (isAActive !== isBActive) return isAActive ? -1 : 1;
+
+                // Existing priorities follow
                 const isACapped = a.isMonthlyCapReached || a.isCategoryCapReached;
                 const isBCapped = b.isMonthlyCapReached || b.isCategoryCapReached;
                 if (isACapped !== isBCapped) return isACapped ? 1 : -1;
+
                 if (a.isMinSpendMet !== b.isMinSpendMet) return a.isMinSpendMet ? -1 : 1;
+                
                 if (!isNaN(numericAmount) && numericAmount > 0) {
                     const cashbackDiff = (b.calculatedCashback || 0) - (a.calculatedCashback || 0);
                     if (cashbackDiff !== 0) return cashbackDiff;
                 }
                 return b.rule.rate - a.rule.rate;
-            });
+            })
     }, [selectedMcc, amount, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard]); // <-- Add helper to dependency array
     
     // --- RENDER LOGIC ---
@@ -3941,26 +3993,40 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
 // Suggestion 2: New "RankingCard" Sub-component
 function RankingCard({ rank, item, currencyFn }) {
     const { card, rule, calculatedCashback, isMinSpendMet, isCategoryCapReached, isMonthlyCapReached, remainingCategoryCashback } = item;
-    const isCapped = isCategoryCapReached || isMonthlyCapReached;
     
+    // Check for inactive or capped states
+    const isCapped = isCategoryCapReached || isMonthlyCapReached;
+    const isRuleInactive = rule.status !== 'Active';
+
+    // NEW: Updated color logic for the rate badge
     const getRateBadgeClass = (rate) => {
-        if (rate >= 0.05) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-        if (rate >= 0.02) return 'bg-sky-100 text-sky-800 border-sky-200';
-        return 'bg-slate-100 text-slate-800 border-slate-200';
+        if (rate >= 0.15) return 'bg-emerald-100 text-emerald-800 border-emerald-200'; // Green for 15%+
+        if (rate >= 0.10) return 'bg-sky-100 text-sky-800 border-sky-200'; // Blue for 10%-15%
+        if (rate >= 0.05) return 'bg-yellow-100 text-yellow-800 border-yellow-200'; // Yellow for 5%-10%
+        return 'bg-slate-100 text-slate-800 border-slate-200'; // Gray for <5%
     };
 
     return (
         <div className={cn(
             "border rounded-lg p-3 transition-all",
-            rank === 1 && "bg-sky-50/70 border-sky-200",
-            isCapped && "opacity-50 bg-slate-100"
+            // Highlight #1 card only if its rule is active
+            rank === 1 && !isRuleInactive && "bg-sky-50/70 border-sky-200",
+            // Fade out the card if the rule is inactive OR the card is capped
+            (isCapped || isRuleInactive) && "opacity-60 bg-slate-50"
         )}>
             <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                    <span className={cn("text-xl font-bold mt-0.5", rank === 1 ? "text-sky-600" : "text-slate-400")}>#{rank}</span>
+                    <span className={cn("text-xl font-bold mt-0.5", rank === 1 && !isRuleInactive ? "text-sky-600" : "text-slate-400")}>#{rank}</span>
                     <div>
                         <p className="font-bold text-primary">{card.name}</p>
-                        <p className="text-xs text-muted-foreground">{rule.ruleName}</p>
+                        {/* NEW: Added a status dot next to the rule name */}
+                        <div className="flex items-center gap-1.5">
+                            <span className={cn(
+                                "h-2 w-2 rounded-full",
+                                isRuleInactive ? "bg-slate-400" : "bg-emerald-500"
+                            )} />
+                            <p className="text-xs text-muted-foreground">{rule.ruleName}</p>
+                        </div>
                     </div>
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -4063,7 +4129,7 @@ function FinderOptionItem({ item, mccMap, onSelect, icon }) {
                 {icon}
                 <div className="flex-1 min-w-0">
                     <p className="truncate font-medium">{item.merchant}</p>
-                    <p className="text-xs text-muted-foreground">{mccMap[item.mcc]?.en || 'N/A'}</p>
+                    <p className="text-xs text-muted-foreground">{mccMap[item.mcc]?.vn || 'N/A'}</p>
                 </div>
                 <Badge variant="outline">{item.mcc}</Badge>
             </div>

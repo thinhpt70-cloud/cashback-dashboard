@@ -445,7 +445,7 @@ app.get('/api/lookup-merchant', async (req, res) => {
         if (transactions.length > 0 && transactions[0]['MCC Code'] && transactions[0]['Merchant']) {
             bestMatch = {
                 mcc: transactions[0]['MCC Code'],
-                merchant: transactions[0]['Merchant'], // <-- FIX: Add merchant name from history
+                merchant: transactions[0]['Merchant'],
                 source: 'history'
             };
         } 
