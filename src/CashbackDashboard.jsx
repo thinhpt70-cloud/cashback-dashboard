@@ -279,6 +279,13 @@ export default function CashbackDashboard() {
         }
     };
 
+    // Dynamic list of available months from transactions
+    const statementMonths = useMemo(() => {
+        if (!monthlySummary || monthlySummary.length === 0) return [];
+        const uniqueMonths = [...new Set(monthlySummary.map(summary => summary.month))];
+        return uniqueMonths.sort().reverse();
+    }, [monthlySummary]);
+
     // It now depends on 'isAuthenticated' and will run when it changes to true.
     useEffect(() => {
         // Only fetch data if the user has been authenticated.
@@ -321,15 +328,7 @@ export default function CashbackDashboard() {
 
     // --- UTILITIES ---
     const currency = useCallback((n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }), []);
-    const mccName = (code) => mccMap[code]?.vn || "Unknown";
-
-    // Dynamic list of available months from transactions
-    const statementMonths = useMemo(() => {
-        if (!monthlySummary || monthlySummary.length === 0) return [];
-        const uniqueMonths = [...new Set(monthlySummary.map(summary => summary.month))];
-        return uniqueMonths.sort().reverse();
-    }, [monthlySummary]);
-    
+    const mccName = (code) => mccMap[code]?.vn || "Unknown";    
 
     const fmtYMShort = useCallback((ymCode) => {
         if (!ymCode || typeof ymCode !== 'string' || ymCode.length !== 6) return "";
@@ -460,14 +459,6 @@ export default function CashbackDashboard() {
         });
         return Object.values(aggregated);
     }, [monthlySummary, fmtYMShort]);
-
-    const activeMonthSummariesMap = useMemo(() => {
-        const map = new Map();
-        monthlySummary
-            .filter(s => s.month === activeMonth)
-            .forEach(summary => map.set(summary.cardId, summary));
-        return map;
-    }, [activeMonth, monthlySummary]);
 
     const calculateFeeCycleProgress = (openDateStr, nextFeeDateStr) => {
         if (!openDateStr || !nextFeeDateStr) return { daysPast: 0, progressPercent: 0 };
