@@ -3367,7 +3367,7 @@ function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = fals
     );
 }
 
-function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn, view, mccMap }) {
+function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn, view, mccMap, isDesktop }) {
     
     // --- Data Calculations (no changes here) ---
     const totalSpendMonth = cardMonthSummary?.spend || 0;
