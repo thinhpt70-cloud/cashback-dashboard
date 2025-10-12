@@ -813,19 +813,17 @@ export default function CashbackDashboard() {
                     </TabsContent>
 
                     <TabsContent value="transactions" className="pt-4">
-                    <TransactionsTab
-                            // UPDATE these props
+                        <TransactionsTab
                             transactions={monthlyTransactions}
                             isLoading={isMonthlyTxLoading}
-                            // The rest of the props stay the same
                             activeMonth={activeMonth}
                             cardMap={cardMap}
                             mccNameFn={mccName}
                             allCards={cards}
-                            // 3. PASS THE NEW PROPS DOWN
                             filterType={transactionFilterType}
                             onFilterTypeChange={setTransactionFilterType}
-                    />
+                            statementMonths={statementMonths}
+                        />
                     </TabsContent>  
 
                     <TabsContent value="cards" className="space-y-4 pt-4">
@@ -1158,7 +1156,7 @@ function CardInfoSheet({ card, rules, mccMap }) {
     );
 }
 
-function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange }) {
+function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange, statementMonths }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [cardFilter, setCardFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
