@@ -2060,7 +2060,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
     );
 }
 
-function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement, onLogPayment, onViewTransactions, currencyFn, fmtYMShortFn, onLoadMore, isLoadingMore }) {
+function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement, onLogPayment, onLogStatement, onViewTransactions, currencyFn, fmtYMShortFn, onLoadMore, isLoadingMore }) {
     const [historyOpen, setHistoryOpen] = useState(false);
     
     // --- UPDATED: Balance Calculation Logic ---
