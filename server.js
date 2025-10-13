@@ -96,6 +96,7 @@ const parseNotionPageProperties = (page) => {
                 result[key] = prop.multi_select.map(option => option.name);
                 break;
             default:
+                console.warn(`Unhandled Notion property type: '${prop.type}' for key '${key}'`);
                 result[key] = prop; // Keep the original object for unhandled types
         }
     }
@@ -575,6 +576,11 @@ app.post('/api/transactions', async (req, res) => {
             cardSummaryCategoryId, // This ID is now correctly used
         } = req.body;
 
+        const numericAmount = Number(String(amount).replace(/,/g, ''));
+        if (isNaN(numericAmount)) {
+            return res.status(400).json({ error: 'Invalid amount provided.' });
+        }
+
         // 1. Start building the properties object for the Notion API
         const properties = {
             'Transaction Name': { title: [{ text: { content: merchant } }] },
@@ -618,7 +624,7 @@ app.post('/api/transactions', async (req, res) => {
 
         // 4. Retrieve and return the newly created transaction
         const populatedPage = await notion.pages.retrieve({ page_id: newPage.id });
-        const formattedTransaction = mapTransaction(populatedPage);
+        const formattedTransaction = mapTransaction(newPage);
         
         res.status(201).json(formattedTransaction);
 

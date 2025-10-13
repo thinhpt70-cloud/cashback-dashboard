@@ -164,35 +164,6 @@ export default function CashbackDashboard() {
     const [commonVendors, setCommonVendors] = useState([]);
     const [cardView, setCardView] = useState('month'); // 'month', 'ytd', or 'roi'
 
-    // --- NEW: AUTHENTICATION CHECK EFFECT ---
-    useEffect(() => {
-        const checkAuthStatus = async () => {
-            try {
-                // Use fetch with 'credentials: "include"' to send cookies
-                const response = await fetch('/api/verify-auth', {
-                    credentials: 'include'
-                });
-                if (response.ok) {
-                    setIsAuthenticated(true);
-                } else {
-                    setIsAuthenticated(false);
-                }
-            } catch (error) {
-                console.error("Auth check failed:", error);
-                setIsAuthenticated(false);
-            }
-        };
-
-        checkAuthStatus();
-    }, []); // Empty dependency array means this runs only once on component mount.
-
-    // This useEffect will now fetch data only after authentication is confirmed.
-    useEffect(() => {
-        if (isAuthenticated === true) { // Explicitly check for true
-            fetchData();
-        }
-    }, [isAuthenticated]);
-
     const handleLogout = async () => {
         try {
             await fetch('/api/logout', {
@@ -205,20 +176,6 @@ export default function CashbackDashboard() {
             // Optionally show a toast error
         }
     };
-
-    // --- NEW LOADING STATE FOR AUTH CHECK ---
-    if (isAuthenticated === null) {
-        return (
-            <div className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="mt-4 text-muted-foreground">Verifying session...</p>
-            </div>
-        );
-    }
-
-    if (!isAuthenticated) {
-        return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
-    }
 
     const handleTransactionAdded = (newTransaction) => {
         // 1. Instantly update the list for the current month
@@ -336,6 +293,35 @@ export default function CashbackDashboard() {
         const uniqueMonths = [...new Set(monthlySummary.map(summary => summary.month))];
         return uniqueMonths.sort().reverse();
     }, [monthlySummary]);
+
+    // --- NEW: AUTHENTICATION CHECK EFFECT ---
+    useEffect(() => {
+        const checkAuthStatus = async () => {
+            try {
+                // Use fetch with 'credentials: "include"' to send cookies
+                const response = await fetch('/api/verify-auth', {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    setIsAuthenticated(true);
+                } else {
+                    setIsAuthenticated(false);
+                }
+            } catch (error) {
+                console.error("Auth check failed:", error);
+                setIsAuthenticated(false);
+            }
+        };
+
+        checkAuthStatus();
+    }, []); // Empty dependency array means this runs only once on component mount.
+
+    // This useEffect will now fetch data only after authentication is confirmed.
+    useEffect(() => {
+        if (isAuthenticated === true) { // Explicitly check for true
+            fetchData();
+        }
+    }, [isAuthenticated]);
 
     // It now depends on 'isAuthenticated' and will run when it changes to true.
     useEffect(() => {
@@ -555,6 +541,16 @@ export default function CashbackDashboard() {
 
     // --- RENDER LOGIC ---
 
+    // --- NEW LOADING STATE FOR AUTH CHECK ---
+    if (isAuthenticated === null) {
+        return (
+            <div className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="mt-4 text-muted-foreground">Verifying session...</p>
+            </div>
+        );
+    }
+
     // If the user is not authenticated, show the login screen.
     if (!isAuthenticated) {
         return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
@@ -581,7 +577,6 @@ export default function CashbackDashboard() {
         );
     }
     
-
     return (
         <TooltipProvider>
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
