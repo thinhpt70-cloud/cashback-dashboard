@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe, Check, Lightbulb, Sparkles, ShoppingCart, Snowflake, ExternalLink } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe, Check, Lightbulb, Sparkles, ShoppingCart, Snowflake, ExternalLink, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
@@ -136,7 +136,7 @@ const useMediaQuery = (query) => {
 
 export default function CashbackDashboard() {
 
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const addTxSheetSide = isDesktop ? 'right' : 'bottom';
@@ -163,6 +163,62 @@ export default function CashbackDashboard() {
     const [isDialogLoading, setIsDialogLoading] = useState(false);
     const [commonVendors, setCommonVendors] = useState([]);
     const [cardView, setCardView] = useState('month'); // 'month', 'ytd', or 'roi'
+
+    // --- NEW: AUTHENTICATION CHECK EFFECT ---
+    useEffect(() => {
+        const checkAuthStatus = async () => {
+            try {
+                // Use fetch with 'credentials: "include"' to send cookies
+                const response = await fetch('/api/verify-auth', {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    setIsAuthenticated(true);
+                } else {
+                    setIsAuthenticated(false);
+                }
+            } catch (error) {
+                console.error("Auth check failed:", error);
+                setIsAuthenticated(false);
+            }
+        };
+
+        checkAuthStatus();
+    }, []); // Empty dependency array means this runs only once on component mount.
+
+    // This useEffect will now fetch data only after authentication is confirmed.
+    useEffect(() => {
+        if (isAuthenticated === true) { // Explicitly check for true
+            fetchData();
+        }
+    }, [isAuthenticated]);
+
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/logout', {
+                method: 'POST',
+                credentials: 'include'
+            });
+            setIsAuthenticated(false);
+        } catch (error) {
+            console.error("Logout failed:", error);
+            // Optionally show a toast error
+        }
+    };
+
+    // --- NEW LOADING STATE FOR AUTH CHECK ---
+    if (isAuthenticated === null) {
+        return (
+            <div className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="mt-4 text-muted-foreground">Verifying session...</p>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
+    }
 
     const handleTransactionAdded = (newTransaction) => {
         // 1. Instantly update the list for the current month
@@ -264,6 +320,9 @@ export default function CashbackDashboard() {
         } catch (err) {
             setError("Failed to fetch data. Please check the backend, .env configuration, and Notion permissions.");
             console.error(err);
+            if (isSilent) { // Only show toast on background refresh fails
+                toast.error("Failed to refresh data in the background.");
+            }
         } finally {
             if (!isSilent) {
                 setLoading(false);
@@ -596,6 +655,10 @@ export default function CashbackDashboard() {
                                 </div>
                             </SheetContent>
                         </Sheet>
+                        <Button variant="outline" className="h-10" onClick={handleLogout}>
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Logout
+                        </Button>
                     </div>
 
                     {/* --- Mobile Controls (hidden on desktop) --- */}
@@ -621,6 +684,10 @@ export default function CashbackDashboard() {
                                 <DropdownMenuItem onSelect={() => fetchData(false)}>
                                     <RefreshCw className="mr-2 h-4 w-4" />
                                     <span>Refresh Data</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={handleLogout}>
+                                    <LogOut className="mr-2 h-4 w-4" />
+                                    <span>Logout</span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -2844,19 +2911,15 @@ function LoginScreen({ onLoginSuccess }) {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ pin }),
+                credentials: 'include',
             });
 
             if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    onLoginSuccess();
-                } else {
-                    // This case handles if the API itself says the pin is wrong
-                    setError('Incorrect PIN. Please try again.');
-                }
+                onLoginSuccess();
             } else {
-                // This handles server errors (e.g., 401 Unauthorized)
                 setError('Incorrect PIN. Please try again.');
+                // Clear the PIN inputs after a failed attempt (optional but good UX)
+                // You would need to add a reset function to your PinInput component.
             }
         } catch (err) {
             console.error('Login request failed:', err);

@@ -5,14 +5,20 @@ const { Client } = require('@notionhq/client');
 const cors = require('cors');
 const fs = require('fs'); // ADDED: To read the MCC.json file
 const path = require('path'); // ADDED: To help locate the MCC.json file
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const mccDataPath = path.join(__dirname, 'MCC.json');
 const mccData = JSON.parse(fs.readFileSync(mccDataPath, 'utf8'));
 
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:3000', // Or your frontend URL
+    credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 const port = process.env.PORT || 3001;
 
 
@@ -95,6 +101,61 @@ const parseNotionPageProperties = (page) => {
     }
     return result;
 };
+
+app.post('/api/login', (req, res) => {
+    const pin = String((req.body && req.body.pin) ?? '').trim();
+    const correctPin = String(process.env.ACCESS_PASSWORD ?? '').trim();
+
+    if (pin && pin === correctPin) {
+        // Create a token that expires in 8 hours
+        const token = jwt.sign({ user: 'admin' }, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+        // Send token back in a secure, httpOnly cookie
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+            sameSite: 'strict',
+            maxAge: 8 * 60 * 60 * 1000 // 8 hours in milliseconds
+        });
+
+        return res.status(200).json({ success: true });
+    }
+    return res.status(401).json({ success: false, message: 'Incorrect PIN' });
+});
+
+app.post('/api/logout', (req, res) => {
+    // Clear the cookie to log the user out
+    res.clearCookie('token');
+    res.status(200).json({ success: true, message: 'Logged out successfully.' });
+});
+
+// --- NEW: AUTH VERIFICATION MIDDLEWARE ---
+const verifyToken = (req, res, next) => {
+    const token = req.cookies.token;
+
+    if (!token) {
+        return res.status(401).json({ error: 'Unauthorized: No token provided' });
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+        }
+        req.user = decoded; // Attach user info to the request
+        next(); // Proceed to the protected route
+    });
+};
+
+// This simple endpoint is for the frontend to check if a session is valid on page load
+app.get('/api/verify-auth', verifyToken, (req, res) => {
+    res.status(200).json({ success: true });
+});
+
+
+// --- APPLY MIDDLEWARE TO PROTECTED ROUTES ---
+// All API routes below this point will require a valid token.
+
+app.use(verifyToken);
 
 app.get('/api/transactions', async (req, res) => {
     // Get 'month', 'filterBy', and 'cardId' from the query parameters.
@@ -384,13 +445,6 @@ app.get('/api/recent-transactions', async (req, res) => {
         console.error('Failed to fetch recent transactions:', error);
         res.status(500).json({ error: 'Failed to fetch recent transactions' });
     }
-});
-
-app.post('/api/login', (req, res) => {
-    const pin = String((req.body && req.body.pin) ?? '').trim();
-    const correct = String(process.env.ACCESS_PASSWORD ?? '').trim();
-    if (pin && pin === correct) return res.status(200).json({ success: true });
-    return res.status(401).json({ success: false, message: 'Incorrect PIN' });
 });
 
 app.get('/api/lookup-merchant', async (req, res) => {
