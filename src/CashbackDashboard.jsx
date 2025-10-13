@@ -316,20 +316,13 @@ export default function CashbackDashboard() {
         checkAuthStatus();
     }, []); // Empty dependency array means this runs only once on component mount.
 
-    // This useEffect will now fetch data only after authentication is confirmed.
     useEffect(() => {
-        if (isAuthenticated === true) { // Explicitly check for true
-            fetchData();
-        }
-    }, [isAuthenticated]);
-
-    // It now depends on 'isAuthenticated' and will run when it changes to true.
-    useEffect(() => {
-        // Only fetch data if the user has been authenticated.
+        // This effect runs whenever 'isAuthenticated' changes.
+        // It will only fetch data if the user is authenticated.
         if (isAuthenticated) {
             fetchData();
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated]); // Dependency array is correct
 
     useEffect(() => {
         // Determine which month to fetch transactions for.
@@ -652,7 +645,6 @@ export default function CashbackDashboard() {
                         </Sheet>
                         <Button variant="outline" className="h-10" onClick={handleLogout}>
                             <LogOut className="mr-2 h-4 w-4" />
-                            Logout
                         </Button>
                     </div>
 
@@ -3925,51 +3917,66 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
         }
     }, [isOpen]);
 
-    // --- CORE LOGIC ---
+    // --- CORE LOGIC (REFACTORED) ---
+
+    // New helper function for direct MCC search
+    const showResultsForMcc = (mcc) => {
+        setIsLoading(true);
+        setSelectedMcc(mcc);
+        setSelectedMerchantDetails({
+            merchant: `Category: ${mccMap[mcc]?.vn || 'Unknown'}`,
+            vnDesc: `All merchants with MCC ${mcc}`,
+        });
+        setView('results');
+        setIsLoading(false);
+    };
+
+    // New helper function for merchant name lookup via API
+    const lookupMerchant = async (term) => {
+        setIsLoading(true);
+        try {
+            const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(term)}`);
+            if (!res.ok) throw new Error('Failed to fetch merchant data');
+            const data = await res.json();
+            setSearchResult(data);
+            setView('options');
+        } catch (err) {
+            console.error(err);
+            toast.error("Could not fetch suggestions.");
+            setView('initial'); // Reset on error
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // The main search handler now delegates to the helper functions
     const handleSearch = async (e) => {
         if (e) e.preventDefault();
         const term = searchTerm.trim();
         if (!term) return;
 
+        // Update recent searches
         const updatedSearches = [term, ...recentSearches.filter(s => s !== term)].slice(0, 5);
         localStorage.setItem('cardFinderSearches', JSON.stringify(updatedSearches));
         setRecentSearches(updatedSearches);
 
-        setIsLoading(true);
+        // Reset state for new search
         setSearchedTerm(term);
         setSelectedMcc(null);
         setSelectedMerchantDetails(null);
-
-        // NEW LOGIC: Check if the search term is a 4-digit MCC code
+        
+        // Delegate based on search term format
         if (/^\d{4}$/.test(term)) {
-            // If it is an MCC, bypass the API call and go straight to results
-            setSelectedMcc(term);
-            setSelectedMerchantDetails({
-                merchant: `Category: ${mccMap[term]?.vn || 'Unknown'}`,
-                vnDesc: `All merchants with MCC ${term}`,
-            });
-            setView('results');
-            setIsLoading(false);
+            showResultsForMcc(term);
         } else {
-            // If it's not a 4-digit code, proceed with the existing merchant lookup
-            try {
-                const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(term)}`);
-                if (!res.ok) throw new Error('Failed to fetch merchant data');
-                const data = await res.json();
-                setSearchResult(data);
-                setView('options');
-            } catch (err) {
-                console.error(err);
-                toast.error("Could not fetch suggestions.");
-                setView('initial');
-            } finally {
-                setIsLoading(false);
-            }
+            await lookupMerchant(term);
         }
     };
 
+
     const handleRecentSearchClick = (term) => {
         setSearchTerm(term);
+        // Use a microtask to ensure the state updates before submitting the form
         setTimeout(() => {
             document.getElementById('card-finder-form')?.requestSubmit();
         }, 0);
@@ -4004,7 +4011,6 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
                 const card = cardMap.get(rule.cardId);
                 if (!card || card.status !== 'Active') return null;
 
-                // THE FIX: Use the helper function to get the correct month
                 const monthForCard = isLiveView ? getCurrentCashbackMonthForCard(card) : activeMonth;
 
                 const cardMonthSummary = monthlySummary.find(s => s.cardId === card.id && s.month === monthForCard);
@@ -4038,12 +4044,10 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
             })
             .filter(Boolean)
             .sort((a, b) => {
-                // Priority #1: Active rules first
                 const isAActive = a.rule.status === 'Active';
                 const isBActive = b.rule.status === 'Active';
                 if (isAActive !== isBActive) return isAActive ? -1 : 1;
-
-                // Existing priorities follow
+                
                 const isACapped = a.isMonthlyCapReached || a.isCategoryCapReached;
                 const isBCapped = b.isMonthlyCapReached || b.isCategoryCapReached;
                 if (isACapped !== isBCapped) return isACapped ? 1 : -1;
@@ -4056,11 +4060,10 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
                 }
                 return b.rule.rate - a.rule.rate;
             })
-    }, [selectedMcc, amount, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard]); // <-- Add helper to dependency array
+    }, [selectedMcc, amount, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard]);
     
     // --- RENDER LOGIC ---
     const renderContent = () => {
-         // ... (The entire renderContent function remains unchanged)
         if (isLoading) {
             return (
                 <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
@@ -4140,22 +4143,20 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
             <SheetContent 
                 side={side} 
                 className={cn(
-                    "flex flex-col p-0 gap-0", // <-- FIX 1: Removed padding from the main container
+                    "flex flex-col p-0 gap-0",
                     isDesktop 
                         ? "w-full max-w-md sm:max-w-lg"
                         : "h-[90dvh] rounded-t-xl"
                 )}
             >
-                <SheetHeader className="pb-4 text-left px-4 pt-4 sm:px-6 sm:pt-6"> {/* <-- FIX 2: Added padding directly to the header */}
+                <SheetHeader className="pb-4 text-left px-4 pt-4 sm:px-6 sm:pt-6">
                     <SheetTitle>Find the Best Card</SheetTitle>
                     <SheetDescription>
                         Enter a merchant and amount to see your best rewards.
                     </SheetDescription>
                 </SheetHeader>
                 
-                {/* FIX 3: Simplified the outer scroll container */}
                 <div className="flex-grow overflow-y-auto">
-                    {/* FIX 4: Added a new inner wrapper to handle padding, ensuring alignment */}
                     <div className="px-4 pb-4 sm:px-6 sm:pb-6">
                         <div className="flex flex-col gap-4">
                             <form id="card-finder-form" onSubmit={handleSearch} className="space-y-4 pt-2">
