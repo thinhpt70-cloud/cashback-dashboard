@@ -17,7 +17,7 @@ import {
 } from "./components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "./components/ui/sheet";
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
-import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronUp, List, MoreHorizontal } from "lucide-react";
+import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronUp, List, MoreHorizontal, FilePenLine } from "lucide-react";
 import { cn } from "./lib/utils";
 import { Toaster, toast } from 'sonner';
 import {
@@ -1640,6 +1640,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
     const [paymentData, setPaymentData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [isStatementDialogOpen, setStatementDialogOpen] = useState(false); // State for the new dialog
     const [activeStatement, setActiveStatement] = useState(null);
     const [isLoadingMore, setIsLoadingMore] = useState({});
 
@@ -1840,6 +1841,11 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
         setDialogOpen(true);
     };
 
+    const handleLogStatementClick = (statement) => {
+        setActiveStatement(statement);
+        setStatementDialogOpen(true);
+    };
+
     const paymentGroups = useMemo(() => {
         if (!paymentData) {
             return { pastDue: [], upcoming: [], completed: [] };
@@ -1854,7 +1860,6 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                 return; 
             }
 
-            // --- THIS IS THE CORRECTED LOGIC ---
             const { 
                 daysLeft, 
                 statementAmount: rawStatementAmount = 0, 
@@ -1863,10 +1868,8 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                 cashback = 0
             } = p.mainStatement;
 
-            // Use the actual amount if it exists, otherwise use the live estimated balance.
             const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : (spend - cashback);
             const remaining = finalStatementAmount - paidAmount;
-            // --- END OF CORRECTION ---
 
             if (daysLeft === null && remaining > 0) {
                 pastDue.push(p);
@@ -1882,17 +1885,64 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
         return { pastDue, upcoming, completed };
     }, [paymentData]);
 
-    const handleSavePayment = (statementId, newPaidAmount) => {
-        setPaymentData(currentData => 
-            currentData.map(group => {
-                if (group.mainStatement.id === statementId) {
-                    const updatedStatement = { ...group.mainStatement, paidAmount: newPaidAmount };
-                    return { ...group, mainStatement: updatedStatement };
-                }
-                return group;
-            })
-        );
-        toast.success("Payment logged successfully!");
+    const handleSavePayment = async (statementId, newPaidAmount) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/monthly-summary/${statementId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ paidAmount: newPaidAmount }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save payment to Notion.');
+            }
+
+            setPaymentData(currentData => 
+                currentData.map(group => {
+                    if (group.mainStatement.id === statementId) {
+                        const updatedStatement = { ...group.mainStatement, paidAmount: newPaidAmount };
+                        return { ...group, mainStatement: updatedStatement };
+                    }
+                    return group;
+                })
+            );
+            toast.success("Payment logged successfully!");
+
+        } catch (error) {
+            console.error("Error saving payment:", error);
+            toast.error("Could not save payment. Please try again.");
+        }
+    };
+
+    const handleSaveStatement = async (statementId, newAmount) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/monthly-summary/${statementId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ statementAmount: newAmount }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save statement amount to Notion.');
+            }
+
+            setPaymentData(currentData =>
+                currentData.map(group => {
+                    if (group.mainStatement.id === statementId) {
+                        const updatedStatement = { ...group.mainStatement, statementAmount: newAmount };
+                        return { ...group, mainStatement: updatedStatement };
+                    }
+                    return group;
+                })
+            );
+            toast.success("Statement amount updated successfully!");
+
+        } catch (error) {
+            console.error("Error saving statement amount:", error);
+            toast.error("Could not update statement amount. Please try again.");
+        }
     };
     
     const summaryStats = useMemo(() => {
@@ -1929,15 +1979,13 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                 {paymentGroups.pastDue.length > 0 && (
                     <div className="space-y-4">
                         <h2 className="text-xl font-bold text-red-600">Past Due</h2>
-                        {paymentGroups.pastDue.map(({ mainStatement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement }) => (
+                        {paymentGroups.pastDue.map(({ mainStatement, ...rest }) => (
                             <PaymentCard 
                                 key={mainStatement.id}
                                 statement={mainStatement}
-                                upcomingStatements={upcomingStatements}
-                                pastStatements={pastStatements}
-                                pastDueStatements={pastDueStatements}
-                                nextUpcomingStatement={nextUpcomingStatement}
+                                {...rest}
                                 onLogPayment={handleLogPaymentClick}
+                                onLogStatement={handleLogStatementClick}
                                 onViewTransactions={onViewTransactions}
                                 currencyFn={currencyFn}
                                 fmtYMShortFn={fmtYMShortFn}
@@ -1951,15 +1999,13 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                 {paymentGroups.upcoming.length > 0 && (
                     <div className="space-y-4">
                         <h2 className="text-xl font-bold text-slate-700">Upcoming</h2>
-                        {paymentGroups.upcoming.map(({ mainStatement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement }) => (
+                        {paymentGroups.upcoming.map(({ mainStatement, ...rest }) => (
                             <PaymentCard 
                                 key={mainStatement.id}
                                 statement={mainStatement}
-                                upcomingStatements={upcomingStatements}
-                                pastStatements={pastStatements}
-                                pastDueStatements={pastDueStatements}
-                                nextUpcomingStatement={nextUpcomingStatement}
+                                {...rest}
                                 onLogPayment={handleLogPaymentClick}
+                                onLogStatement={handleLogStatementClick}
                                 onViewTransactions={onViewTransactions}
                                 currencyFn={currencyFn}
                                 fmtYMShortFn={fmtYMShortFn}
@@ -1973,15 +2019,13 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                 {paymentGroups.completed.length > 0 && (
                     <div className="space-y-4">
                         <h2 className="text-xl font-bold text-slate-700">Completed</h2>
-                        {paymentGroups.completed.map(({ mainStatement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement }) => (
+                        {paymentGroups.completed.map(({ mainStatement, ...rest }) => (
                             <PaymentCard 
                                 key={mainStatement.id}
                                 statement={mainStatement}
-                                upcomingStatements={upcomingStatements}
-                                pastStatements={pastStatements}
-                                pastDueStatements={pastDueStatements}
-                                nextUpcomingStatement={nextUpcomingStatement}
+                                {...rest}
                                 onLogPayment={handleLogPaymentClick}
+                                onLogStatement={handleLogStatementClick}
                                 onViewTransactions={onViewTransactions}
                                 currencyFn={currencyFn}
                                 fmtYMShortFn={fmtYMShortFn}
@@ -2002,13 +2046,20 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                     fmtYMShortFn={fmtYMShortFn}
                 />
             )}
+            {activeStatement && (
+                 <StatementLogDialog
+                    isOpen={isStatementDialogOpen}
+                    onClose={() => setStatementDialogOpen(false)}
+                    statement={activeStatement}
+                    onSave={handleSaveStatement}
+                    currencyFn={currencyFn}
+                    fmtYMShortFn={fmtYMShortFn}
+                />
+            )}
         </div>
     );
 }
 
-// -------------------------------------------------
-// 2. ADD THE NEW PAYMENT CARD COMPONENT
-// -------------------------------------------------
 function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement, onLogPayment, onViewTransactions, currencyFn, fmtYMShortFn, onLoadMore, isLoadingMore }) {
     const [historyOpen, setHistoryOpen] = useState(false);
     
@@ -2190,6 +2241,16 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
                         <Tooltip>
                             <TooltipTrigger asChild>
+                                <Button onClick={() => onLogStatement(statement)} variant="outline" size="icon" className="sm:w-auto sm:px-3">
+                                    <FilePenLine className="h-4 w-4" />
+                                    <span className="hidden sm:inline ml-1.5">Log Statement</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="sm:hidden"><p>Log Statement Amount</p></TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
                                 <Button onClick={() => setHistoryOpen(!historyOpen)} variant="outline" size="icon" className="sm:w-auto sm:px-3">
                                     <List className="h-4 w-4" />
                                     <span className="hidden sm:inline ml-1.5">Statements</span>
@@ -2265,11 +2326,9 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
     );
 }
 
-// -------------------------------------------------
-// 3. ADD THE NEW PAYMENT LOG DIALOG COMPONENT
-// -------------------------------------------------
 function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtYMShortFn }) {
     const [amount, setAmount] = useState('');
+    const inputRef = useRef(null);
 
     useIOSKeyboardGapFix();
     
@@ -2278,10 +2337,17 @@ function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtY
             // Pre-fill with remaining amount and format it with commas
             const remaining = (statement.statementAmount || 0) - (statement.paidAmount || 0);
             setAmount(remaining > 0 ? remaining.toLocaleString('en-US') : '');
+
+            // Add a short delay before focusing to allow the dialog to animate in
+            const timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 150);
+
+            return () => clearTimeout(timer);
         }
     }, [isOpen, statement]);
 
-    // --- NEW: Handler to format the input with commas ---
+    // Handler to format the input with commas
     const handleAmountChange = (e) => {
         const value = e.target.value.replace(/,/g, ''); // Remove existing commas
         if (!isNaN(value) && value.length <= 15) {
@@ -2293,9 +2359,9 @@ function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtY
     };
 
     const handleSave = () => {
-        // --- UPDATED: Parse the comma-separated string back to a number ---
+        // Parse the comma-separated string back to a number
         const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
-        if (isNaN(numericAmount) || numericAmount <= 0) return; 
+        if (isNaN(numericAmount) || numericAmount <= 0) return;
 
         const newPaidAmount = (statement.paidAmount || 0) + numericAmount;
         onSave(statement.id, newPaidAmount);
@@ -2322,11 +2388,12 @@ function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtY
                     <div className="space-y-2">
                         <label htmlFor="payment-amount" className="text-sm font-medium">Amount to Log</label>
                         <Input 
+                            ref={inputRef}
                             id="payment-amount" 
-                            type="text" // Changed from "number" to allow formatting
-                            inputMode="numeric" // Keeps numeric keyboard on mobile
+                            type="text"
+                            inputMode="numeric"
                             value={amount}
-                            onChange={handleAmountChange} // Use the new formatting handler
+                            onChange={handleAmountChange}
                             placeholder="Enter amount paid"
                         />
                     </div>
@@ -2334,6 +2401,84 @@ function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtY
                 <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={onClose}>Cancel</Button>
                     <Button onClick={handleSave}>Save Payment</Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function StatementLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtYMShortFn }) {
+    const [amount, setAmount] = useState('');
+    const inputRef = useRef(null);
+
+    useIOSKeyboardGapFix();
+
+    useEffect(() => {
+        if (isOpen && statement) {
+            // Pre-fill with the existing statement amount if it's greater than 0,
+            // otherwise, use the estimated balance as a suggestion.
+            const estimatedBalance = (statement.spend || 0) - (statement.cashback || 0);
+            const currentAmount = statement.statementAmount > 0 ? statement.statementAmount : estimatedBalance;
+            
+            setAmount(currentAmount > 0 ? currentAmount.toLocaleString('en-US') : '');
+
+            const timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 150);
+
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen, statement]);
+
+    const handleAmountChange = (e) => {
+        const value = e.target.value.replace(/,/g, '');
+        if (!isNaN(value) && value.length <= 15) {
+            setAmount(value ? Number(value).toLocaleString('en-US') : '');
+        } else if (value === '') {
+            setAmount('');
+        }
+    };
+
+    const handleSave = () => {
+        const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
+        if (isNaN(numericAmount)) return;
+
+        onSave(statement.id, numericAmount);
+        onClose();
+    };
+
+    if (!statement) return null;
+
+    const estimatedBalance = (statement.spend || 0) - (statement.cashback || 0);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Log Official Statement Amount</DialogTitle>
+                    <DialogDescription>For {statement.card.name} - {fmtYMShortFn(statement.month)}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="text-sm">
+                        <p>Estimated Balance: <span className="font-medium">{currencyFn(estimatedBalance)}</span></p>
+                        <p>Current Statement Amount: <span className="font-medium text-blue-600">{currencyFn(statement.statementAmount)}</span></p>
+                    </div>
+                    <div className="space-y-2">
+                        <label htmlFor="statement-amount" className="text-sm font-medium">Official Statement Amount</label>
+                        <Input
+                            ref={inputRef}
+                            id="statement-amount"
+                            type="text"
+                            inputMode="numeric"
+                            value={amount}
+                            onChange={handleAmountChange}
+                            placeholder="Enter official amount from bank"
+                        />
+                    </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={onClose}>Cancel</Button>
+                    <Button onClick={handleSave}>Save Amount</Button>
                 </div>
             </DialogContent>
         </Dialog>

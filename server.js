@@ -628,6 +628,32 @@ app.post('/api/summaries', async (req, res) => {
     }
 });
 
+app.patch('/api/monthly-summary/:id', async (req, res) => {
+    const { id } = req.params;
+    const { paidAmount } = req.body;
+
+    // Basic validation
+    if (typeof paidAmount !== 'number') {
+        return res.status(400).json({ error: 'paidAmount must be a number.' });
+    }
+
+    try {
+        await notion.pages.update({
+            page_id: id,
+            properties: {
+                // IMPORTANT: Ensure 'Paid Amount' exactly matches the property name in your Notion database.
+                'Paid Amount': {
+                    number: paidAmount,
+                },
+            },
+        });
+        res.status(200).json({ success: true, message: 'Payment updated successfully.' });
+    } catch (error) {
+        console.error('Error updating payment in Notion:', error.body || error);
+        res.status(500).json({ error: 'Failed to update payment in Notion.' });
+    }
+});
+
 app.get('/api/common-vendors', async (req, res) => {
     try {
         const response = await notion.databases.query({
