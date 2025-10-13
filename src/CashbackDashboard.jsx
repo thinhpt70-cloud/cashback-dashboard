@@ -1389,7 +1389,8 @@ function CardSpendsCap({ cards, activeMonth, monthlySummary, monthlyCategorySumm
                 const currentCashback = cardMonthSummary?.cashback || 0;
                 const currentSpend = cardMonthSummary?.spend || 0;
                 
-                const monthlyLimit = card.overallMonthlyLimit;
+                const dynamicLimit = cardMonthSummary?.monthlyCashbackLimit;
+                const monthlyLimit = dynamicLimit > 0 ? dynamicLimit : card.overallMonthlyLimit;
                 const usedCapPct = monthlyLimit > 0 ? Math.min(100, Math.round((currentCashback / monthlyLimit) * 100)) : 0;
                 const isCapReached = usedCapPct >= 100;
                 
@@ -3964,13 +3965,16 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
                     }
                 }
 
+                const dynamicLimit = cardMonthSummary?.monthlyCashbackLimit;
+                const effectiveMonthlyLimit = dynamicLimit > 0 ? dynamicLimit : card.overallMonthlyLimit;
+
                 return { 
                     rule, 
                     card, 
                     calculatedCashback, 
                     isMinSpendMet: card.minimumMonthlySpend > 0 ? (cardMonthSummary?.spend || 0) >= card.minimumMonthlySpend : true,
                     isCategoryCapReached: isFinite(remainingCategoryCashback) && remainingCategoryCashback <= 0,
-                    isMonthlyCapReached: card.overallMonthlyLimit > 0 ? (cardMonthSummary?.cashback || 0) >= card.overallMonthlyLimit : false,
+                    isMonthlyCapReached: effectiveMonthlyLimit > 0 ? (cardMonthSummary?.cashback || 0) >= effectiveMonthlyLimit : false,
                     remainingCategoryCashback,
                 };
             })

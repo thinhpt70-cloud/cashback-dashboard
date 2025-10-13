@@ -314,6 +314,7 @@ app.get('/api/monthly-summary', async (req, res) => {
                 actualCashback: parsed['Actual Cashback'],
                 statementAmount: parsed['Statement Amount'],
                 paidAmount: parsed['Paid Amount'],
+                monthlyCashbackLimit: parsed['Cashback Limit'],
             };
         });
         res.json(results);
