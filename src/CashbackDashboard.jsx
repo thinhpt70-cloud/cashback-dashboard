@@ -2285,7 +2285,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button onClick={onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month))} variant="outline" size="icon" className="sm:w-auto sm:px-3">
+                                <Button onClick={() => onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month))} variant="outline" size="icon" className="sm:w-auto sm:px-3">
                                     <History className="h-4 w-4" />
                                     <span className="hidden sm:inline ml-1.5">Transaction Details</span>
                                 </Button>
@@ -2295,7 +2295,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button onClick={onLogStatement(statement)} variant="outline" size="icon" className="sm:w-auto sm:px-3">
+                                <Button onClick={() => onLogStatement(statement)} variant="outline" size="icon" className="sm:w-auto sm:px-3">
                                     <FilePenLine className="h-4 w-4" />
                                     <span className="hidden sm:inline ml-1.5">Log Statement</span>
                                 </Button>
@@ -2316,7 +2316,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                         {!noPaymentNeeded && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button onClick={onLogPayment(statement)} disabled={isPaid} size="icon" className="sm:w-auto sm:px-3">
+                                    <Button onClick={() => onLogPayment(statement)} disabled={isPaid} size="icon" className="sm:w-auto sm:px-3">
                                         {isPaid ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                                         <span className="hidden sm:inline ml-1.5">{isPaid ? 'Paid' : 'Log Payment'}</span>
                                     </Button>
