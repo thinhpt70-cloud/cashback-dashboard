@@ -1023,7 +1023,6 @@ const CustomRechartsTooltip = ({ active, payload, label }) => {
     return null;
 };
 
-
 function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
     // --- State for search and expansion ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -1033,6 +1032,9 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
     // --- HOOKS & HELPERS ---
     useIOSKeyboardGapFix();
     const side = isDesktop ? 'right' : 'bottom';
+    
+    // This prop is for preventing auto-focus on the search bar on mobile
+    const sheetProps = isDesktop ? {} : { onOpenAutoFocus: (e) => e.preventDefault() };
 
     // --- Helper function and memoized data ---
     const isFeeCovered = card.estYtdCashback >= card.annualFee;
@@ -1050,14 +1052,12 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
         },
     ];
 
-    // --- Filtering logic for the search functionality ---
+    // --- Filtering logic for the search functionality (NO CHANGE HERE) ---
     const filteredAndSortedRules = useMemo(() => {
         const lowercasedFilter = searchTerm.toLowerCase();
-        // NEW: Check if the search term is purely numeric to treat it as an MCC search
         const isMccSearch = /^\d+$/.test(searchTerm.trim());
 
         if (!searchTerm.trim()) {
-            // Sort all rules if search is empty, active first
             return [...rules].sort((a, b) => {
                 if (a.status === 'Active' && b.status !== 'Active') return -1;
                 if (a.status !== 'Active' && b.status === 'Active') return 1;
@@ -1067,16 +1067,11 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
 
         const filtered = rules.filter(rule => {
             const mccList = rule.mccCodes ? rule.mccCodes.split(',').map(m => m.trim()) : [];
-
-            // UPDATED LOGIC: If it's a numeric search, ONLY check the MCC codes
             if (isMccSearch) {
                 return mccList.some(code => code.includes(searchTerm.trim()));
             }
-
-            // Otherwise, perform the original, broader search on name and description
             const nameMatch = rule.ruleName.toLowerCase().includes(lowercasedFilter);
             if (nameMatch) return true;
-
             for (const code of mccList) {
                 const mccName = mccMap[code]?.vn || '';
                 if (mccName.toLowerCase().includes(lowercasedFilter)) {
@@ -1086,7 +1081,6 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
             return false;
         });
 
-        // Sort the filtered results, active first
         return filtered.sort((a, b) => {
             if (a.status === 'Active' && b.status !== 'Active') return -1;
             if (a.status !== 'Active' && b.status === 'Active') return 1;
@@ -1112,6 +1106,7 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
                     "flex flex-col p-0",
                     isDesktop ? "w-full sm:max-w-2xl" : "h-[90dvh]"
                 )}
+                onOpenAutoFocus={(e) => e.preventDefault()}
             >
                 <SheetHeader className="px-6 pt-6 shrink-0">
                     <SheetTitle>{card.name}</SheetTitle>
@@ -1172,7 +1167,20 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
                         <div className="space-y-1">
                             {filteredAndSortedRules.length > 0 ? filteredAndSortedRules.map(rule => {
                                 const isExpanded = expandedRuleId === rule.id;
-                                const mccList = rule.mccCodes ? rule.mccCodes.split(',').map(m => m.trim()).filter(Boolean) : [];
+
+                                // --- START: NEW LOGIC ---
+                                // First, get the full list of MCCs for the rule
+                                const fullMccList = rule.mccCodes ? rule.mccCodes.split(',').map(m => m.trim()).filter(Boolean) : [];
+                                
+                                // Check if the search term is a number (an MCC search)
+                                const isMccSearch = /^\d+$/.test(searchTerm.trim());
+
+                                // If it's an MCC search, filter the list to show only matching codes.
+                                // Otherwise, show the full list for that rule.
+                                const mccsToDisplay = isMccSearch
+                                    ? fullMccList.filter(code => code.includes(searchTerm.trim()))
+                                    : fullMccList;
+                                // --- END: NEW LOGIC ---
 
                                 return (
                                     <div key={rule.id} className="border rounded-md overflow-hidden">
@@ -1195,13 +1203,12 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
 
                                         {isExpanded && (
                                             <div className="p-3 border-t bg-slate-50/70">
-                                                {mccList.length > 0 ? (
+                                                {/* MODIFIED: Use the new 'mccsToDisplay' list here */}
+                                                {mccsToDisplay.length > 0 ? (
                                                     <div className="flex flex-wrap gap-2">
-                                                        {mccList.map(code => (
-                                                            // UPDATED BADGE LOGIC:
+                                                        {mccsToDisplay.map(code => (
                                                             <Badge key={code} variant="secondary" className="font-normal">
                                                                 <span className="font-mono">{code}</span>
-                                                                {/* Only show the name if it exists, along with the colon */}
                                                                 {mccMap[code]?.vn && (
                                                                     <span className="ml-1.5">{`: ${mccMap[code].vn}`}</span>
                                                                 )}
@@ -2288,7 +2295,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button onClick={(e) => {e.preventDefault(); onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month));}} variant="outline" size="icon" className="sm:w-auto sm:px-3">
+                                <Button onClick={onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month))} variant="outline" size="icon" className="sm:w-auto sm:px-3">
                                     <History className="h-4 w-4" />
                                     <span className="hidden sm:inline ml-1.5">Transaction Details</span>
                                 </Button>
@@ -2298,7 +2305,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button onClick={(e) => {e.preventDefault(); onLogStatement(statement);}} variant="outline" size="icon" className="sm:w-auto sm:px-3">
+                                <Button onClick={onLogStatement(statement)} variant="outline" size="icon" className="sm:w-auto sm:px-3">
                                     <FilePenLine className="h-4 w-4" />
                                     <span className="hidden sm:inline ml-1.5">Log Statement</span>
                                 </Button>
@@ -2319,7 +2326,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                         {!noPaymentNeeded && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button onClick={(e) => {e.preventDefault(); onLogPayment(statement);}} disabled={isPaid} size="icon" className="sm:w-auto sm:px-3">
+                                    <Button onClick={onLogPayment(statement)} disabled={isPaid} size="icon" className="sm:w-auto sm:px-3">
                                         {isPaid ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                                         <span className="hidden sm:inline ml-1.5">{isPaid ? 'Paid' : 'Log Payment'}</span>
                                     </Button>
@@ -2973,7 +2980,6 @@ function CardRecommendations({ recommendations, onSelectCard, currencyFn, select
         return (
             <button
                 type="button"
-                // MODIFIED: Pass both the card ID and the specific rule ID on click
                 onClick={() => !isCappedOrIneligible && onSelectCard(card.id, rule.id)}
                 disabled={isCappedOrIneligible}
                 className={cn(
@@ -3019,7 +3025,7 @@ function CardRecommendations({ recommendations, onSelectCard, currencyFn, select
                     ) : (
                         <span className="flex items-center gap-1.5 text-muted-foreground">
                             <Wallet className="h-3.5 w-3.5" />
-                            Cap left: 
+                            Cap left:
                             <span className="font-semibold text-slate-700">
                                 {isFinite(remainingCategoryCashback) ? currencyFn(remainingCategoryCashback) : 'Unlimited'}
                             </span>
@@ -3033,18 +3039,32 @@ function CardRecommendations({ recommendations, onSelectCard, currencyFn, select
     return (
         <div className="space-y-3 pt-4">
             <h4 className="text-sm font-medium text-slate-700">Recommended Cards</h4>
+            
+            {/* Render eligible cards first */}
             <div className="space-y-2">
                 {eligible.map((item, index) => (
                     <RecommendationItem key={item.rule.id} item={item} rank={index + 1} />
                 ))}
-                {ineligible.length > 0 && (
-                    <div className="pt-2">
-                        {ineligible.map((item) => (
-                            <RecommendationItem key={item.rule.id} item={item} />
-                        ))}
-                    </div>
-                )}
             </div>
+
+            {/* NEW: Render ineligible cards inside an Accordion */}
+            {ineligible.length > 0 && (
+                <Accordion type="single" collapsible className="w-full pt-1">
+                    <AccordionItem value="ineligible-cards" className="border-none">
+                        <AccordionTrigger className="text-xs text-muted-foreground hover:no-underline justify-center py-2">
+                            Show {ineligible.length} ineligible options
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            {/* FIX: Added space-y-2 here */}
+                            <div className="pt-2 space-y-2">
+                                {ineligible.map((item) => (
+                                    <RecommendationItem key={item.rule.id} item={item} />
+                                ))}
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+            )}
         </div>
     );
 }
@@ -3911,13 +3931,13 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                     {view === 'month' && (
                         <div className="grid grid-cols-2 gap-3">
                             <MetricItem
-                                label={`Rate (${fmtYMShortFn(activeMonth)})`}
+                                label={`${fmtYMShortFn(activeMonth)}'s Rate`}
                                 value={`${monthlyEffectiveRate.toFixed(2)}%`}
                                 valueClassName={monthlyEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
                             />
                             {progressPercent > 0 && (
                                 <MetricItem 
-                                    label={`Fee Cycle (${daysPast} days)`}
+                                    label={`Card Progress`}
                                     value={`${progressPercent}%`} 
                                 />
                             )}
