@@ -3191,7 +3191,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 }
                 return b.rule.rate - a.rule.rate;
             });
-    }, [mccCode, amount, rules, cards, cardMap, monthlySummary, monthlyCategorySummary]);
+    }, [mccCode, amount, rules, cardMap, monthlySummary, monthlyCategorySummary]);
 
     // --- Handlers ---
     const resetForm = () => {
