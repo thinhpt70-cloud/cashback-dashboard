@@ -95,6 +95,9 @@ const parseNotionPageProperties = (page) => {
             case 'multi_select':
                 result[key] = prop.multi_select.map(option => option.name);
                 break;
+            case 'created_time':
+                result[key] = prop.created_time;
+                break;
             default:
                 console.warn(`Unhandled Notion property type: '${prop.type}' for key '${key}'`);
                 result[key] = prop; // Keep the original object for unhandled types
@@ -690,27 +693,32 @@ app.post('/api/summaries', async (req, res) => {
 
 app.patch('/api/monthly-summary/:id', async (req, res) => {
     const { id } = req.params;
-    const { paidAmount } = req.body;
-
-    // Basic validation
-    if (typeof paidAmount !== 'number') {
-        return res.status(400).json({ error: 'paidAmount must be a number.' });
-    }
+    const { paidAmount, statementAmount } = req.body; // <-- Destructure both possible values
 
     try {
+        const propertiesToUpdate = {}; // <-- Create an empty object
+
+        // Conditionally add properties if they exist in the request
+        if (typeof paidAmount === 'number') {
+            propertiesToUpdate['Paid Amount'] = { number: paidAmount };
+        }
+        if (typeof statementAmount === 'number') {
+            propertiesToUpdate['Statement Amount'] = { number: statementAmount };
+        }
+
+        // Check if there's anything to update
+        if (Object.keys(propertiesToUpdate).length === 0) {
+            return res.status(400).json({ error: 'No valid amount provided to update.' });
+        }
+
         await notion.pages.update({
             page_id: id,
-            properties: {
-                // IMPORTANT: Ensure 'Paid Amount' exactly matches the property name in your Notion database.
-                'Paid Amount': {
-                    number: paidAmount,
-                },
-            },
+            properties: propertiesToUpdate, // <-- Use the dynamic object here
         });
-        res.status(200).json({ success: true, message: 'Payment updated successfully.' });
+        res.status(200).json({ success: true, message: 'Summary updated successfully.' });
     } catch (error) {
-        console.error('Error updating payment in Notion:', error.body || error);
-        res.status(500).json({ error: 'Failed to update payment in Notion.' });
+        console.error('Error updating summary in Notion:', error.body || error);
+        res.status(500).json({ error: 'Failed to update summary in Notion.' });
     }
 });
 

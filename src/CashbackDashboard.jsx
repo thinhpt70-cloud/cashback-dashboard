@@ -639,6 +639,8 @@ export default function CashbackDashboard() {
                                         mccMap={mccMap}
                                         onTransactionAdded={handleTransactionAdded}
                                         commonVendors={commonVendors}
+                                        monthlySummary={monthlySummary}
+                                        monthlyCategorySummary={monthlyCategorySummary}
                                     />
                                 </div>
                             </SheetContent>
@@ -2938,7 +2940,65 @@ function LoginScreen({ onLoginSuccess }) {
     );
 }
 
-// CashbackDashboard.jsx
+function CardRecommendations({ recommendations, onSelectCard, currencyFn, selectedCardId }) {
+    if (!recommendations || recommendations.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="space-y-3 p-3 my-4 bg-slate-50 border rounded-lg">
+            <h4 className="text-sm font-semibold text-slate-700">Recommended Cards for this MCC</h4>
+            <div className="space-y-2">
+                {recommendations.slice(0, 3).map((item, index) => {
+                    const { card, rule, calculatedCashback, isMinSpendMet, isCategoryCapReached, isMonthlyCapReached } = item;
+                    const isCapped = isCategoryCapReached || isMonthlyCapReached;
+                    const isSelected = card.id === selectedCardId;
+
+                    return (
+                        <button
+                            type="button"
+                            key={rule.id}
+                            onClick={() => onSelectCard(card.id)}
+                            className={cn(
+                                "w-full text-left border rounded-lg p-3 transition-all",
+                                isCapped && "opacity-50 bg-slate-100",
+                                isSelected ? "bg-sky-100 border-sky-400 shadow-md" : "bg-white hover:bg-sky-50"
+                            )}
+                        >
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-start gap-3">
+                                    <span className={cn("text-lg font-bold mt-0.5", isSelected ? "text-sky-600" : "text-slate-400")}>#{index + 1}</span>
+                                    <div>
+                                        <p className="font-bold text-primary">{card.name}</p>
+                                        <p className="text-xs text-muted-foreground">{rule.ruleName}</p>
+                                    </div>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                    <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200">
+                                        {(rule.rate * 100).toFixed(1)}%
+                                    </Badge>
+                                    {calculatedCashback !== null && (
+                                        <p className="text-sm font-semibold text-emerald-600 mt-1">
+                                            + {currencyFn(calculatedCashback)}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                             {(isCapped || !isMinSpendMet) && (
+                                <div className="mt-2 pt-2 border-t flex items-center gap-x-4 gap-y-1 flex-wrap text-xs font-medium text-orange-600">
+                                    <span className="flex items-center gap-1.5">
+                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                        {!isMinSpendMet ? "Min. Spend Not Met" : "A Limit Has Been Reached"}
+                                    </span>
+                                </div>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
 
 function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary }) {
     // --- State Management ---
@@ -2956,6 +3016,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [isLookupDialogOpen, setIsLookupDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showLookupButton, setShowLookupButton] = useState(false);
+    const [mccName, setMccName] = useState(''); 
 
     // --- NEW STATE FOR THE NEW FIELDS ---
     const [notes, setNotes] = useState('');
@@ -2968,7 +3029,16 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [billingDate, setBillingDate] = useState('');
 
     useIOSKeyboardGapFix();
+
     const amountInputRef = useRef(null);
+
+    useEffect(() => {
+        if (mccMap && mccCode && mccMap[mccCode]) {
+            setMccName(mccMap[mccCode].vn);
+        } else {
+            setMccName('');
+        }
+    }, [mccCode, mccMap]);
 
     const handleVendorSelect = (vendor) => {
         setMerchant(vendor.transactionName || '');
@@ -3064,6 +3134,64 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             else setCardId(cards[0].id);
         }
     }, [cards, cardId]);
+
+    const currencyFn = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+        const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
+
+        const rankedCards = useMemo(() => {
+        if (!mccCode || !/^\d{4}$/.test(mccCode)) return [];
+
+        const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
+        
+        // This logic is adapted from the BestCardFinderDialog
+        return rules
+            .filter(rule => rule.mccCodes && rule.mccCodes.split(',').map(c => c.trim()).includes(mccCode))
+            .map(rule => {
+                const card = cardMap.get(rule.cardId);
+                if (!card || card.status !== 'Active') return null;
+
+                // Note: This assumes a 'live' context for simplicity here.
+                // You might pass down activeMonth and getCurrentCashbackMonthForCard for more precision.
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const monthForCard = `${year}${month}`;
+
+                const cardMonthSummary = monthlySummary.find(s => s.cardId === card.id && s.month === monthForCard);
+                const categorySummaryId = `${monthForCard} - ${rule.ruleName}`;
+                const categoryMonthSummary = monthlyCategorySummary.find(s => s.summaryId === categorySummaryId && s.cardId === card.id);
+
+                let calculatedCashback = null;
+                if (!isNaN(numericAmount) && numericAmount > 0) {
+                    calculatedCashback = numericAmount * rule.rate;
+                    if (rule.capPerTransaction > 0) {
+                        calculatedCashback = Math.min(calculatedCashback, rule.capPerTransaction);
+                    }
+                }
+
+                return { 
+                    rule, 
+                    card, 
+                    calculatedCashback, 
+                    isMinSpendMet: card.minimumMonthlySpend > 0 ? (cardMonthSummary?.spend || 0) >= card.minimumMonthlySpend : true,
+                    isCategoryCapReached: (categoryMonthSummary?.categoryLimit || 0) > 0 ? (categoryMonthSummary?.cashback || 0) >= categoryMonthSummary.categoryLimit : false,
+                    isMonthlyCapReached: (card.overallMonthlyLimit || 0) > 0 ? (cardMonthSummary?.cashback || 0) >= card.overallMonthlyLimit : false,
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => {
+                // Sorting logic: prioritize active, non-capped, min-spend-met cards, then by rate/cashback
+                const isACapped = a.isMonthlyCapReached || a.isCategoryCapReached;
+                const isBCapped = b.isMonthlyCapReached || b.isCategoryCapReached;
+                if (isACapped !== isBCapped) return isACapped ? 1 : -1;
+                if (a.isMinSpendMet !== b.isMinSpendMet) return a.isMinSpendMet ? -1 : 1;
+                if (!isNaN(numericAmount)) {
+                    const cashbackDiff = (b.calculatedCashback || 0) - (a.calculatedCashback || 0);
+                    if (cashbackDiff !== 0) return cashbackDiff;
+                }
+                return b.rule.rate - a.rule.rate;
+            });
+    }, [mccCode, amount, rules, cards, cardMap, monthlySummary, monthlyCategorySummary]);
 
     // --- Handlers ---
     const resetForm = () => {
@@ -3186,6 +3314,12 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         }
     };
 
+    const handleCardSelect = (selectedCardId) => {
+        setCardId(selectedCardId);
+        // Auto-clear the rule so the user is forced to pick one for the new card
+        setApplicableRuleId(''); 
+    };
+
     return (
         <>
             <form onSubmit={handleSubmit} className="space-y-6 py-4">
@@ -3209,6 +3343,27 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                             </div>
                         )}
                     </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-10 gap-4 items-start">
+                        <div className="space-y-2 col-span-1 sm:col-span-6">
+                            <label htmlFor="merchantLookup">Official Merchant Name</label>
+                            <Input 
+                                id="merchantLookup" 
+                                value={merchantLookup} 
+                                onChange={(e) => setMerchantLookup(e.target.value)} 
+                                placeholder="e.g., GRAB, SHOPEE" 
+                            />
+                        </div>
+                        <div className="space-y-2 col-span-1 sm:col-span-4">
+                            <label htmlFor="mcc">MCC Code</label>
+                            <Input 
+                                id="mcc" 
+                                value={mccCode} 
+                                onChange={(e) => setMccCode(e.target.value)} 
+                                placeholder="e.g., 5411" 
+                            />
+                            {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
+                        </div>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label htmlFor="amount">Amount</label>
@@ -3219,6 +3374,12 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                             <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
                         </div>
                     </div>
+                    <CardRecommendations 
+                        recommendations={rankedCards} 
+                        onSelectCard={handleCardSelect}
+                        currencyFn={currencyFn}
+                        selectedCardId={cardId}
+                    />
                 </div>
 
                 <div className="space-y-4 border-t pt-6">
