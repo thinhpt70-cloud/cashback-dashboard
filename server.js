@@ -109,14 +109,14 @@ app.post('/api/login', (req, res) => {
 
     if (pin && pin === correctPin) {
         // Create a token that expires in 8 hours
-        const token = jwt.sign({ user: 'admin' }, process.env.JWT_SECRET, { expiresIn: '8h' });
+        const token = jwt.sign({ user: 'admin' }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
         // Send token back in a secure, httpOnly cookie
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
             sameSite: 'strict',
-            maxAge: 8 * 60 * 60 * 1000 // 8 hours in milliseconds
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 8 hours in milliseconds
         });
 
         return res.status(200).json({ success: true });
