@@ -3065,11 +3065,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         }
     }, [cards, cardId]);
 
-    useEffect(() => {
-        if (mccMap && mccCode && mccMap[mccCode]) setMccName(mccMap[mccCode].vn);
-        else setMccName('');
-    }, [mccCode, mccMap]);
-
     // --- Handlers ---
     const resetForm = () => {
         setMerchant('');
