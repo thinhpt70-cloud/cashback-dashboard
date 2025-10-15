@@ -3391,8 +3391,11 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                             </div>
                         )}
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-10 gap-4 items-start">
-                        <div className="space-y-2 col-span-1 sm:col-span-6">
+
+                    {/* --- MODIFICATION START --- */}
+                    {/* Replaced two separate grid containers with one unified grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
                             <label htmlFor="merchantLookup">Official Merchant Name</label>
                             <Input 
                                 id="merchantLookup" 
@@ -3401,7 +3404,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                                 placeholder="e.g., GRAB, SHOPEE" 
                             />
                         </div>
-                        <div className="space-y-2 col-span-1 sm:col-span-4">
+                        <div className="space-y-2">
                             <label htmlFor="mcc">MCC Code</label>
                             <Input 
                                 id="mcc" 
@@ -3411,17 +3414,17 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                             />
                             {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
                         </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label htmlFor="amount">Amount</label>
                             <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
                         </div>
-                        <div className="space-y-2 min-w-0">
+                        <div className="space-y-2 min-w-0"> {/* Kept min-w-0 for safety */}
                             <label htmlFor="date">Date</label>
                             <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
                         </div>
                     </div>
+                    {/* --- MODIFICATION END --- */}
+
                     <CardRecommendations 
                         recommendations={rankedCards} 
                         onSelectCard={handleCardSelect}
