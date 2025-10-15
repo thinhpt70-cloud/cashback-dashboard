@@ -2938,7 +2938,9 @@ function LoginScreen({ onLoginSuccess }) {
     );
 }
 
-function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors }) {
+// CashbackDashboard.jsx
+
+function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary }) {
     // --- State Management ---
     const [merchant, setMerchant] = useState('');
     const [amount, setAmount] = useState('');
@@ -2954,12 +2956,19 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [lookupResults, setLookupResults] = useState([]);
     const [isLookupDialogOpen, setIsLookupDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    // --- NEW: State to control visibility of the "View other results" button ---
     const [showLookupButton, setShowLookupButton] = useState(false);
 
-    useIOSKeyboardGapFix();
+    // --- NEW STATE FOR THE NEW FIELDS ---
+    const [notes, setNotes] = useState('');
+    const [otherDiscounts, setOtherDiscounts] = useState('');
+    const [otherFees, setOtherFees] = useState('');
+    const [foreignCurrencyAmount, setForeignCurrencyAmount] = useState('');
+    const [conversionFee, setConversionFee] = useState('');
+    const [paidFor, setPaidFor] = useState('');
+    const [subCategory, setSubCategory] = useState('');
+    const [billingDate, setBillingDate] = useState('');
 
+    useIOSKeyboardGapFix();
     const amountInputRef = useRef(null);
 
     const handleVendorSelect = (vendor) => {
@@ -2970,12 +2979,11 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         if (vendor.preferredCardId) setCardId(vendor.preferredCardId);
         if (vendor.preferredRuleId) setApplicableRuleId(vendor.preferredRuleId);
         else setApplicableRuleId('');
-        // --- NEW: Reset the lookup button when a vendor is selected ---
         setShowLookupButton(false);
         amountInputRef.current?.focus();
     };
 
-    // --- Memoized Calculations (No changes here) ---
+    // --- Memoized Calculations ---
     const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cardId, cards]);
     const filteredRules = useMemo(() => {
         if (!cardId) return [];
@@ -2998,22 +3006,53 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         const finalMonth = month + 1;
         return `${year}${String(finalMonth).padStart(2, '0')}`;
     }, [selectedCard, date]);
+    
     const filteredSummaries = useMemo(() => {
         if (!selectedRule || !cardId || !cashbackMonth) return [];
         const targetSummaryId = `${cashbackMonth} - ${selectedRule.name}`;
         return monthlyCategories.filter(summary => summary.cardId === cardId && summary.summaryId === targetSummaryId);
     }, [cardId, monthlyCategories, selectedRule, cashbackMonth]);
-    const estimatedCashback = useMemo(() => {
-        if (!selectedRule || !amount) return 0;
+
+    // --- NEW "SMART" ESTIMATION LOGIC ---
+    const estimatedCashbackAndWarnings = useMemo(() => {
+        const result = { cashback: 0, warnings: [] };
+        if (!selectedRule || !amount) return result;
+
         const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
-        if (isNaN(numericAmount)) return 0;
+        if (isNaN(numericAmount)) return result;
+        
+        const cardMonthSummary = monthlySummary.find(s => s.cardId === cardId && s.month === cashbackMonth);
+        const categoryMonthSummary = monthlyCategorySummary.find(s => 
+            s.cardId === cardId && 
+            s.month === cashbackMonth && 
+            s.summaryId.endsWith(selectedRule.name)
+        );
+
+        const dynamicLimit = cardMonthSummary?.monthlyCashbackLimit;
+        const effectiveMonthlyLimit = dynamicLimit > 0 ? dynamicLimit : selectedCard?.overallMonthlyLimit;
+        const isMonthlyCapReached = effectiveMonthlyLimit > 0 ? (cardMonthSummary?.cashback || 0) >= effectiveMonthlyLimit : false;
+        
+        const categoryLimit = categoryMonthSummary?.categoryLimit || Infinity;
+        const isCategoryCapReached = isFinite(categoryLimit) && (categoryMonthSummary?.cashback || 0) >= categoryLimit;
+
+        const isMinSpendMet = selectedCard?.minimumMonthlySpend > 0 ? (cardMonthSummary?.spend || 0) >= selectedCard.minimumMonthlySpend : true;
+
+        if (!isMinSpendMet) result.warnings.push("Minimum monthly spend not met for this card.");
+        if (isMonthlyCapReached) result.warnings.push("Card's overall monthly cashback limit has been reached.");
+        if (isCategoryCapReached) result.warnings.push("This specific category's cashback limit has been reached.");
+
+        if (isMonthlyCapReached || isCategoryCapReached || !isMinSpendMet) {
+            return result;
+        }
+        
         const calculatedCashback = numericAmount * selectedRule.rate;
         const cap = selectedRule.capPerTransaction;
-        if (cap > 0 && calculatedCashback > cap) return cap;
-        return calculatedCashback;
-    }, [amount, selectedRule]);
+        result.cashback = (cap > 0 && calculatedCashback > cap) ? cap : calculatedCashback;
+        
+        return result;
+    }, [amount, selectedRule, cardId, cashbackMonth, monthlySummary, monthlyCategorySummary, selectedCard]);
 
-    // --- Effects (No changes here) ---
+    // --- Effects ---
     useEffect(() => {
         if (filteredSummaries.length > 0) setCardSummaryCategoryId(filteredSummaries[0].id);
         else setCardSummaryCategoryId('new');
@@ -3032,8 +3071,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         else setMccName('');
     }, [mccCode, mccMap]);
 
-
-    // --- Handlers (Updated) ---
+    // --- Handlers ---
     const resetForm = () => {
         setMerchant('');
         setAmount('');
@@ -3042,8 +3080,16 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         setMerchantLookup('');
         setApplicableRuleId('');
         setCardSummaryCategoryId('new');
-        // --- NEW: Reset the lookup button on form reset ---
         setShowLookupButton(false);
+        // Reset new fields
+        setNotes('');
+        setOtherDiscounts('');
+        setOtherFees('');
+        setForeignCurrencyAmount('');
+        setConversionFee('');
+        setPaidFor('');
+        setSubCategory('');
+        setBillingDate('');
     };
 
     const handleAmountChange = (e) => {
@@ -3051,7 +3097,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         if (!isNaN(value) && value.length <= 15) setAmount(Number(value).toLocaleString('en-US'));
         else if (value === '') setAmount('');
     };
-
+    
     const handleMerchantLookup = async () => {
         if (!merchant) return;
         setIsLookingUp(true);
@@ -3059,47 +3105,23 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         setShowLookupButton(false);
 
         try {
-            // --- CHANGE: Only one API call is needed now ---
             const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(merchant)}`);
             if (!res.ok) throw new Error("Server responded with an error.");
             
             const data = await res.json();
-
-            // --- CHANGE: Process the new, unified response structure ---
-            const historyResults = (data.history || []).map(item => ([
-                "Your History", item.merchant, item.mcc,
-                mccMap[item.mcc]?.en || "Unknown",
-                mccMap[item.mcc]?.vn || "Không rõ",
-            ]));
-
-            const externalResults = (data.external || []).map(item => {
-                const mcc = item.mcc;
-                return [
-                    "External Suggestion", item.merchant, mcc,
-                    mccMap[mcc]?.en || "Unknown",
-                    mccMap[mcc]?.vn || "Không rõ",
-                ];
-            });
-            
-            const allResults = [...historyResults, ...externalResults];
+            const allResults = [...(data.history || []).map(item => (["Your History", item.merchant, item.mcc, mccMap[item.mcc]?.en || "Unknown", mccMap[item.mcc]?.vn || "Không rõ"])), ...(data.external || []).map(item => (["External Suggestion", item.merchant, item.mcc, mccMap[item.mcc]?.en || "Unknown", mccMap[item.mcc]?.vn || "Không rõ"]))];
             setLookupResults(allResults);
 
-            // --- CHANGE: Use `bestMatch` which now includes the merchant name ---
             if (data.bestMatch?.mcc && data.bestMatch?.merchant) {
                 setMccCode(data.bestMatch.mcc);
-                setMerchantLookup(data.bestMatch.merchant); // <-- THE FIX: Set the merchant name
+                setMerchantLookup(data.bestMatch.merchant);
                 toast.info("Auto-filled details based on best match.");
-                // Allow user to see other options if they exist
-                if (allResults.length > 0) {
-                    setShowLookupButton(true); 
-                }
+                if (allResults.length > 0) setShowLookupButton(true);
             } else if (allResults.length > 0) {
-                // If no best match but other results exist, open the dialog
                 setIsLookupDialogOpen(true);
             } else {
                 toast.info("No transaction history or suggestions found.");
             }
-
         } catch (error) {
             console.error("Merchant Lookup Error:", error);
             toast.error("Could not perform merchant lookup.");
@@ -3107,7 +3129,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             setIsLookingUp(false);
         }
     };
-
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -3126,24 +3147,39 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             } else if (applicableRuleId && cardSummaryCategoryId !== 'new') {
                 finalSummaryId = cardSummaryCategoryId;
             }
+
             const transactionData = {
                 merchant,
                 amount: parseFloat(String(amount).replace(/,/g, '')),
-                date, cardId,
+                date,
+                cardId,
                 category: category || null,
                 mccCode: mccCode || null,
                 merchantLookup: merchantLookup || null,
                 applicableRuleId: applicableRuleId || null,
                 cardSummaryCategoryId: finalSummaryId,
+                // New fields
+                notes: notes || null,
+                otherDiscounts: otherDiscounts || null,
+                otherFees: otherFees || null,
+                foreignCurrencyAmount: foreignCurrencyAmount || null,
+                conversionFee: conversionFee || null,
+                paidFor: paidFor || null,
+                subCategory: subCategory || null,
+                billingDate: billingDate || null,
             };
+
             const response = await fetch('/api/transactions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(transactionData),
             });
             if (!response.ok) throw new Error('Failed to add transaction');
+            
             const newTransactionFromServer = await response.json();
-            const optimisticTransaction = { ...newTransactionFromServer, estCashback: estimatedCashback };
+            // Use the smart estimate for the optimistic update
+            const optimisticTransaction = { ...newTransactionFromServer, estCashback: estimatedCashbackAndWarnings.cashback };
+
             toast.success("Transaction added successfully!");
             localStorage.setItem('lastUsedCardId', cardId);
             onTransactionAdded(optimisticTransaction);
@@ -3164,60 +3200,29 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     <div className="space-y-2">
                         <label htmlFor="merchant">Transaction Name</label>
                         <div className="relative flex items-center">
-                            {/* --- NEW: onChange now resets the "View Results" button --- */}
-                            <Input 
-                                id="merchant" 
-                                value={merchant} 
-                                onChange={(e) => {
-                                    setMerchant(e.target.value);
-                                    setShowLookupButton(false);
-                                }} 
-                                required 
-                                className="pr-12" 
-                            />
+                            <Input id="merchant" value={merchant} onChange={(e) => { setMerchant(e.target.value); setShowLookupButton(false); }} required className="pr-12" />
                             <div className="absolute right-2 flex items-center gap-2">
                                 <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={handleMerchantLookup} disabled={!merchant || isLookingUp}>
                                     {isLookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                 </Button>
                             </div>
                         </div>
-                        {/* --- NEW: This button is conditionally rendered after a successful auto-fill --- */}
                         {showLookupButton && (
                             <div className="pt-2">
-                                <Button 
-                                    type="button" 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="w-full"
-                                    onClick={() => setIsLookupDialogOpen(true)}
-                                >
+                                <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setIsLookupDialogOpen(true)}>
                                     View Other Suggestions
                                 </Button>
                             </div>
                         )}
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-10 gap-4 items-start">
-                        <div className="space-y-2 col-span-1 sm:col-span-6">
-                            <label htmlFor="merchantLookup">Merchant</label>
-                            <Input id="merchantLookup" value={merchantLookup} onChange={(e) => setMerchantLookup(e.target.value)} placeholder="Merchant Name" className="relative focus:z-10" />
-                        </div>
-                        <div className="space-y-2 col-span-1 sm:col-span-4">
-                            <label htmlFor="mcc">MCC</label>
-                            <Input id="mcc" value={mccCode} onChange={(e) => setMccCode(e.target.value)} placeholder="Enter code or use Lookup" className="relative focus:z-10" />
-                            {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
-                        </div>
-                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label htmlFor="amount">Amount</label>
-                            <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required className="relative focus:z-10" />
+                            <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
                         </div>
                         <div className="space-y-2">
                             <label htmlFor="date">Date</label>
-                            <div className="relative flex items-center">
-                                <CalendarDays className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
-                                <Input id="date" type="date" className="relative focus:z-10 flex items-center w-full py-2 pl-10 text-left" value={date} onChange={(e) => setDate(e.target.value)} required />
-                            </div>
+                            <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
                         </div>
                     </div>
                 </div>
@@ -3225,37 +3230,69 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 <div className="space-y-4 border-t pt-6">
                     <div className="space-y-2">
                         <label htmlFor="card">Card</label>
-                        <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="relative focus:z-10 w-full p-2 border rounded cursor-pointer" required>
-                        {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
+                        <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="w-full p-2 border rounded cursor-pointer" required>
+                            {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
                         </select>
-                        {cashbackMonth && (<div className="flex items-center gap-2 pt-2"><span className="text-xs text-muted-foreground">Statement Month:</span><Badge variant="outline">{cashbackMonth}</Badge></div>)}
                     </div>
                     <div className="space-y-2">
                         <label htmlFor="rule">Applicable Cashback Rule</label>
-                        <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="relative focus:z-10 w-full p-2 border rounded cursor-pointer" disabled={filteredRules.length === 0}>
-                        <option value="">{filteredRules.length === 0 ? 'No active rules for this card' : 'None'}</option>
-                        {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
+                        <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border rounded cursor-pointer" disabled={filteredRules.length === 0}>
+                            <option value="">{filteredRules.length === 0 ? 'No active rules for this card' : 'None'}</option>
+                            {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
                         </select>
-                        {selectedRule && (<div className="flex items-center gap-2 pt-2"><Badge variant="secondary">Rate: {(selectedRule.rate * 100).toFixed(1)}%</Badge>{estimatedCashback > 0 && (<Badge variant="outline" className="text-emerald-600">Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashback)}</Badge>)}</div>)}
-                    </div>
-                    {applicableRuleId && (
-                    <div className="space-y-2">
-                        <label htmlFor="summary">Link to Monthly Summary</label>
-                        <select id="summary" value={cardSummaryCategoryId} onChange={(e) => setCardSummaryCategoryId(e.target.value)} className="relative focus:z-10 w-full p-2 border rounded cursor-pointer">
-                        <option value="new">Create New Summary</option>
-                        {filteredSummaries.map(summary => <option key={summary.id} value={summary.id}>{summary.summaryId}</option>)}
-                        </select>
-                    </div>
-                    )}
-                    <div className="space-y-2">
-                        <label htmlFor="category">Internal Category</label>
-                        <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="relative focus:z-10 w-full p-2 border rounded cursor-pointer">
-                            <option value="">None</option>
-                            {[...categories].sort((a, b) => a.localeCompare(b)).map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                        </select>
+                        {selectedRule && (
+                            <div className="flex items-center gap-2 pt-2">
+                                <Badge variant="secondary">Rate: {(selectedRule.rate * 100).toFixed(1)}%</Badge>
+                                {estimatedCashbackAndWarnings.cashback > 0 && (
+                                    <Badge variant="outline" className="text-emerald-600">
+                                        Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashbackAndWarnings.cashback)}
+                                    </Badge>
+                                )}
+                                {estimatedCashbackAndWarnings.warnings.length > 0 && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild><button type="button"><AlertTriangle className="h-4 w-4 text-orange-500" /></button></TooltipTrigger>
+                                            <TooltipContent>
+                                                <ul className="list-disc pl-4 space-y-1">
+                                                    {estimatedCashbackAndWarnings.warnings.map((warning, i) => (<li key={i}>{warning}</li>))}
+                                                </ul>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
+                <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="more-details">
+                        <AccordionTrigger className="text-sm font-semibold">More Details</AccordionTrigger>
+                        <AccordionContent className="pt-4 space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2"><label htmlFor="category">Internal Category</label><select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded cursor-pointer"><option value="">None</option>{[...categories].sort().map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div>
+                                <div className="space-y-2"><label htmlFor="subCategory">Sub Category</label><Input id="subCategory" value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="e.g., Groceries, Utilities" /></div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2"><label htmlFor="paidFor">Paid For</label><Input id="paidFor" value={paidFor} onChange={(e) => setPaidFor(e.target.value)} placeholder="e.g., Personal, Family, Work" /></div>
+                                <div className="space-y-2"><label htmlFor="billingDate">Billing Date</label><Input id="billingDate" type="date" value={billingDate} onChange={(e) => setBillingDate(e.target.value)} /></div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2"><label htmlFor="foreignCurrency">Foreign Currency Amount</label><Input id="foreignCurrency" type="number" value={foreignCurrencyAmount} onChange={(e) => setForeignCurrencyAmount(e.target.value)} placeholder="e.g., 100.00" /></div>
+                                <div className="space-y-2"><label htmlFor="conversionFee">Conversion Fee (VND)</label><Input id="conversionFee" type="number" value={conversionFee} onChange={(e) => setConversionFee(e.target.value)} /></div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2"><label htmlFor="otherDiscounts">Other Discounts (VND)</label><Input id="otherDiscounts" type="number" value={otherDiscounts} onChange={(e) => setOtherDiscounts(e.target.value)} /></div>
+                                <div className="space-y-2"><label htmlFor="otherFees">Other Fees (VND)</label><Input id="otherFees" type="number" value={otherFees} onChange={(e) => setOtherFees(e.target.value)} /></div>
+                            </div>
+                            <div className="space-y-2">
+                                <label htmlFor="notes">Notes</label>
+                                <textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full p-2 border rounded min-h-[80px]" placeholder="Add any relevant notes here..."/>
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+                
                 <div className="pt-2">
                     <Button type="submit" disabled={isSubmitting} size="lg" className="w-full">
                         {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Add Transaction"}
@@ -3267,10 +3304,8 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 onOpenChange={setIsLookupDialogOpen}
                 results={lookupResults}
                 onSelect={(selectedResult) => {
-                    const merchantNameFromResult = selectedResult[1];
-                    const mccCodeFromResult = selectedResult[2];
-                    setMccCode(mccCodeFromResult);
-                    setMerchantLookup(merchantNameFromResult);
+                    setMccCode(selectedResult[2]);
+                    setMerchantLookup(selectedResult[1]);
                     setIsLookupDialogOpen(false);
                 }}
             />

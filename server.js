@@ -562,6 +562,7 @@ app.get('/api/lookup-merchant', async (req, res) => {
 });
 
 // POST /api/transactions - Add a new transaction
+
 app.post('/api/transactions', async (req, res) => {
     try {
         const {
@@ -573,7 +574,16 @@ app.post('/api/transactions', async (req, res) => {
             mccCode,
             merchantLookup,
             applicableRuleId,
-            cardSummaryCategoryId, // This ID is now correctly used
+            cardSummaryCategoryId,
+            // --- NEW FIELDS ---
+            notes,
+            otherDiscounts,
+            otherFees,
+            foreignCurrencyAmount,
+            conversionFee,
+            paidFor,
+            subCategory,
+            billingDate,
         } = req.body;
 
         const numericAmount = Number(String(amount).replace(/,/g, ''));
@@ -581,40 +591,29 @@ app.post('/api/transactions', async (req, res) => {
             return res.status(400).json({ error: 'Invalid amount provided.' });
         }
 
-        // 1. Start building the properties object for the Notion API
         const properties = {
             'Transaction Name': { title: [{ text: { content: merchant } }] },
-            'Amount': { number: Number(String(amount).replace(/,/g, '')) },
+            'Amount': { number: numericAmount },
             'Transaction Date': { date: { start: date } },
             'Card': { relation: [{ id: cardId }] },
         };
 
-        // 2. Conditionally add optional properties to avoid errors
+        // --- CONDITIONALLY ADD ALL NEW & EXISTING OPTIONAL PROPERTIES ---
+        if (category) properties['Category'] = { select: { name: category } };
+        if (mccCode) properties['MCC Code'] = { rich_text: [{ text: { content: String(mccCode) } }] };
+        if (merchantLookup) properties['Merchant'] = { rich_text: [{ text: { content: String(merchantLookup) } }] };
+        if (applicableRuleId) properties['Applicable Rule'] = { relation: [{ id: applicableRuleId }] };
+        if (cardSummaryCategoryId) properties['Card Summary Category'] = { relation: [{ id: cardSummaryCategoryId }] };
         
-        // Only add Category if one was actually selected
-        if (category) {
-            properties['Category'] = { select: { name: category } };
-        }
-        
-        if (mccCode) {
-            properties['MCC Code'] = { rich_text: [{ text: { content: String(mccCode) } }] };
-        }
-
-        // 2. Add the merchant lookup data to the Notion properties
-        // IMPORTANT: Ensure 'Merchant' exactly matches the column name in your Notion database.
-        if (merchantLookup) {
-            properties['Merchant'] = { rich_text: [{ text: { content: String(merchantLookup) } }] };
-        }
-        
-        if (applicableRuleId) {
-            properties['Applicable Rule'] = { relation: [{ id: applicableRuleId }] };
-        }
-
-        // FIX: Add the relation to the Monthly Summary table if an ID is provided
-        if (cardSummaryCategoryId) {
-            // Ensure this property name matches your Notion database exactly
-            properties['Card Summary Category'] = { relation: [{ id: cardSummaryCategoryId }] };
-        }
+        // New Properties
+        if (notes) properties['Notes'] = { rich_text: [{ text: { content: notes } }] };
+        if (otherDiscounts) properties['Other Discounts'] = { number: Number(otherDiscounts) };
+        if (otherFees) properties['Other Fees'] = { number: Number(otherFees) };
+        if (foreignCurrencyAmount) properties['Foreign Currency'] = { number: Number(foreignCurrencyAmount) };
+        if (conversionFee) properties['Conversion Fee'] = { number: Number(conversionFee) };
+        if (paidFor) properties['Paid for'] = { select: { name: paidFor } };
+        if (subCategory) properties['Sub Category'] = { select: { name: subCategory } };
+        if (billingDate) properties['Billing Date'] = { date: { start: billingDate } };
 
         // 3. Create the new page (transaction) in Notion
         const newPage = await notion.pages.create({
