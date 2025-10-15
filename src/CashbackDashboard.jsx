@@ -1033,7 +1033,7 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
     useIOSKeyboardGapFix();
     const side = isDesktop ? 'right' : 'bottom';
     
-    // This prop is for preventing auto-focus on the search bar on mobile
+    // This variable prevents auto-focus on mobile and will be spread onto the component
     const sheetProps = isDesktop ? {} : { onOpenAutoFocus: (e) => e.preventDefault() };
 
     // --- Helper function and memoized data ---
@@ -1052,7 +1052,7 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
         },
     ];
 
-    // --- Filtering logic for the search functionality (NO CHANGE HERE) ---
+    // --- Filtering logic for the search functionality ---
     const filteredAndSortedRules = useMemo(() => {
         const lowercasedFilter = searchTerm.toLowerCase();
         const isMccSearch = /^\d+$/.test(searchTerm.trim());
@@ -1106,7 +1106,7 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
                     "flex flex-col p-0",
                     isDesktop ? "w-full sm:max-w-2xl" : "h-[90dvh]"
                 )}
-                onOpenAutoFocus={(e) => e.preventDefault()}
+                {...sheetProps}
             >
                 <SheetHeader className="px-6 pt-6 shrink-0">
                     <SheetTitle>{card.name}</SheetTitle>
@@ -1167,20 +1167,11 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
                         <div className="space-y-1">
                             {filteredAndSortedRules.length > 0 ? filteredAndSortedRules.map(rule => {
                                 const isExpanded = expandedRuleId === rule.id;
-
-                                // --- START: NEW LOGIC ---
-                                // First, get the full list of MCCs for the rule
                                 const fullMccList = rule.mccCodes ? rule.mccCodes.split(',').map(m => m.trim()).filter(Boolean) : [];
-                                
-                                // Check if the search term is a number (an MCC search)
                                 const isMccSearch = /^\d+$/.test(searchTerm.trim());
-
-                                // If it's an MCC search, filter the list to show only matching codes.
-                                // Otherwise, show the full list for that rule.
                                 const mccsToDisplay = isMccSearch
                                     ? fullMccList.filter(code => code.includes(searchTerm.trim()))
                                     : fullMccList;
-                                // --- END: NEW LOGIC ---
 
                                 return (
                                     <div key={rule.id} className="border rounded-md overflow-hidden">
@@ -1203,7 +1194,6 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
 
                                         {isExpanded && (
                                             <div className="p-3 border-t bg-slate-50/70">
-                                                {/* MODIFIED: Use the new 'mccsToDisplay' list here */}
                                                 {mccsToDisplay.length > 0 ? (
                                                     <div className="flex flex-wrap gap-2">
                                                         {mccsToDisplay.map(code => (
