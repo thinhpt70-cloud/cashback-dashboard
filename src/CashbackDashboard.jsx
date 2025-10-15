@@ -4255,9 +4255,8 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
                 const categorySummaryId = `${monthForCard} - ${rule.ruleName}`;
                 const categoryMonthSummary = monthlyCategorySummary.find(s => s.summaryId === categorySummaryId && s.cardId === card.id);
 
-                const currentCategoryCashback = categoryMonthSummary?.cashback || 0;
                 const categoryLimit = categoryMonthSummary?.categoryLimit || Infinity;
-                const remainingCategoryCashback = categoryLimit - (categoryMonthSummary?.cashback || 0);
+                const remainingCategoryCashback = categoryLimit - (categoryMonthSummary?.cashback || 0); // Use the direct value here
 
                 let calculatedCashback = null;
                 if (!isNaN(numericAmount) && numericAmount > 0) {
