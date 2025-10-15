@@ -3417,7 +3417,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                             <label htmlFor="amount">Amount</label>
                             <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-2 min-w-0">
                             <label htmlFor="date">Date</label>
                             <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
                         </div>
