@@ -2973,7 +2973,8 @@ function CardRecommendations({ recommendations, onSelectCard, currencyFn, select
         return (
             <button
                 type="button"
-                onClick={() => !isCappedOrIneligible && onSelectCard(card.id)}
+                // MODIFIED: Pass both the card ID and the specific rule ID on click
+                onClick={() => !isCappedOrIneligible && onSelectCard(card.id, rule.id)}
                 disabled={isCappedOrIneligible}
                 className={cn(
                     "w-full text-left border rounded-lg p-2.5 transition-all space-y-2",
@@ -3268,6 +3269,28 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         else if (value === '') setAmount('');
     };
     
+    // MODIFIED: New handler for all formatted numeric inputs
+    const handleFormattedNumericInput = (value, setter, allowDecimal = false) => {
+        const cleanValue = String(value).replace(/,/g, '');
+
+        if (cleanValue === '' || cleanValue === '-') {
+            setter(cleanValue);
+            return;
+        }
+
+        const regex = allowDecimal ? /^-?\d*\.?\d*$/ : /^-?\d+$/;
+        if (regex.test(cleanValue) && cleanValue.length <= 15) {
+            if (allowDecimal && cleanValue.endsWith('.')) {
+                setter(cleanValue);
+                return;
+            }
+            const num = parseFloat(cleanValue);
+            if (!isNaN(num)) {
+                setter(num.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+            }
+        }
+    };
+    
     const handleMerchantLookup = async () => {
         if (!merchant) return;
         setIsLookingUp(true);
@@ -3328,12 +3351,12 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 merchantLookup: merchantLookup || null,
                 applicableRuleId: applicableRuleId || null,
                 cardSummaryCategoryId: finalSummaryId,
-                // New fields
+                // MODIFIED: Parse formatted numeric strings back to numbers
                 notes: notes || null,
-                otherDiscounts: otherDiscounts || null,
-                otherFees: otherFees || null,
-                foreignCurrencyAmount: foreignCurrencyAmount || null,
-                conversionFee: conversionFee || null,
+                otherDiscounts: otherDiscounts ? parseFloat(String(otherDiscounts).replace(/,/g, '')) : null,
+                otherFees: otherFees ? parseFloat(String(otherFees).replace(/,/g, '')) : null,
+                foreignCurrencyAmount: foreignCurrencyAmount ? parseFloat(String(foreignCurrencyAmount).replace(/,/g, '')) : null,
+                conversionFee: conversionFee ? parseFloat(String(conversionFee).replace(/,/g, '')) : null,
                 paidFor: paidFor || null,
                 subCategory: subCategory || null,
                 billingDate: billingDate || null,
@@ -3362,10 +3385,10 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         }
     };
 
-    const handleCardSelect = (selectedCardId) => {
+    // MODIFIED: handleCardSelect now accepts a ruleId to auto-populate the rule dropdown
+    const handleCardSelect = (selectedCardId, selectedRuleId) => {
         setCardId(selectedCardId);
-        // Auto-clear the rule so the user is forced to pick one for the new card
-        setApplicableRuleId(''); 
+        setApplicableRuleId(selectedRuleId || ''); 
     };
 
     return (
@@ -3392,11 +3415,10 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                         )}
                     </div>
 
-                    {/* --- MODIFICATION START --- */}
-                    {/* Replaced two separate grid containers with one unified grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label htmlFor="merchantLookup">Official Merchant Name</label>
+                            {/* MODIFIED: Label text changed */}
+                            <label htmlFor="merchantLookup">Merchant Name</label>
                             <Input 
                                 id="merchantLookup" 
                                 value={merchantLookup} 
@@ -3418,12 +3440,11 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                             <label htmlFor="amount">Amount</label>
                             <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
                         </div>
-                        <div className="space-y-2 min-w-0"> {/* Kept min-w-0 for safety */}
+                        <div className="space-y-2 min-w-0">
                             <label htmlFor="date">Date</label>
                             <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
                         </div>
                     </div>
-                    {/* --- MODIFICATION END --- */}
 
                     <CardRecommendations 
                         recommendations={rankedCards} 
@@ -3474,22 +3495,35 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="more-details">
                         <AccordionTrigger className="text-sm font-semibold">More Details</AccordionTrigger>
-                        <AccordionContent className="pt-4 space-y-4">
+                        {/* MODIFIED: Added px-1 to fix focus ring cutoff */}
+                        <AccordionContent className="pt-4 space-y-4 px-1">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2"><label htmlFor="category">Internal Category</label><select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded cursor-pointer"><option value="">None</option>{[...categories].sort().map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div>
                                 <div className="space-y-2"><label htmlFor="subCategory">Sub Category</label><Input id="subCategory" value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="e.g., Groceries, Utilities" /></div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-2"><label htmlFor="paidFor">Paid For</label><Input id="paidFor" value={paidFor} onChange={(e) => setPaidFor(e.target.value)} placeholder="e.g., Personal, Family, Work" /></div>
-                                <div className="space-y-2"><label htmlFor="billingDate">Billing Date</label><Input id="billingDate" type="date" value={billingDate} onChange={(e) => setBillingDate(e.target.value)} /></div>
+                                {/* MODIFIED: Added datalist for suggestions */}
+                                <div className="space-y-2">
+                                    <label htmlFor="paidFor">Paid For</label>
+                                    <Input id="paidFor" value={paidFor} onChange={(e) => setPaidFor(e.target.value)} placeholder="e.g., Personal, Family, Work" list="paidFor-options" />
+                                    <datalist id="paidFor-options">
+                                        <option value="Personal" />
+                                        <option value="Family" />
+                                        <option value="Work" />
+                                    </datalist>
+                                </div>
+                                {/* MODIFIED: Added min-w-0 to fix date overflow */}
+                                <div className="space-y-2 min-w-0"><label htmlFor="billingDate">Billing Date</label><Input id="billingDate" type="date" value={billingDate} onChange={(e) => setBillingDate(e.target.value)} /></div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-2"><label htmlFor="foreignCurrency">Foreign Currency Amount</label><Input id="foreignCurrency" type="number" value={foreignCurrencyAmount} onChange={(e) => setForeignCurrencyAmount(e.target.value)} placeholder="e.g., 100.00" /></div>
-                                <div className="space-y-2"><label htmlFor="conversionFee">Conversion Fee (VND)</label><Input id="conversionFee" type="number" value={conversionFee} onChange={(e) => setConversionFee(e.target.value)} /></div>
+                                {/* MODIFIED: Switched to text input with formatting handler */}
+                                <div className="space-y-2"><label htmlFor="foreignCurrency">Foreign Currency Amount</label><Input id="foreignCurrency" type="text" inputMode="decimal" value={foreignCurrencyAmount} onChange={(e) => handleFormattedNumericInput(e.target.value, setForeignCurrencyAmount, true)} placeholder="e.g., 100.00" /></div>
+                                <div className="space-y-2"><label htmlFor="conversionFee">Conversion Fee (VND)</label><Input id="conversionFee" type="text" inputMode="numeric" value={conversionFee} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionFee)} /></div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-2"><label htmlFor="otherDiscounts">Other Discounts (VND)</label><Input id="otherDiscounts" type="number" value={otherDiscounts} onChange={(e) => setOtherDiscounts(e.target.value)} /></div>
-                                <div className="space-y-2"><label htmlFor="otherFees">Other Fees (VND)</label><Input id="otherFees" type="number" value={otherFees} onChange={(e) => setOtherFees(e.target.value)} /></div>
+                                {/* MODIFIED: Switched to text input with formatting handler */}
+                                <div className="space-y-2"><label htmlFor="otherDiscounts">Other Discounts (VND)</label><Input id="otherDiscounts" type="text" inputMode="numeric" value={otherDiscounts} onChange={(e) => handleFormattedNumericInput(e.target.value, setOtherDiscounts)} /></div>
+                                <div className="space-y-2"><label htmlFor="otherFees">Other Fees (VND)</label><Input id="otherFees" type="text" inputMode="numeric" value={otherFees} onChange={(e) => handleFormattedNumericInput(e.target.value, setOtherFees)} /></div>
                             </div>
                             <div className="space-y-2">
                                 <label htmlFor="notes">Notes</label>
