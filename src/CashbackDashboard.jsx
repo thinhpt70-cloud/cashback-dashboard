@@ -3131,7 +3131,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         return monthlyCategories.filter(summary => summary.cardId === cardId && summary.summaryId === targetSummaryId);
     }, [cardId, monthlyCategories, selectedRule, cashbackMonth]);
 
-    // --- NEW "SMART" ESTIMATION LOGIC ---
     const estimatedCashbackAndWarnings = useMemo(() => {
         const result = { cashback: 0, warnings: [] };
         if (!selectedRule || !amount) return result;
@@ -3192,15 +3191,12 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
         const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
         
-        // This logic is adapted from the BestCardFinderDialog
         return rules
             .filter(rule => rule.mccCodes && rule.mccCodes.split(',').map(c => c.trim()).includes(mccCode))
             .map(rule => {
                 const card = cardMap.get(rule.cardId);
                 if (!card || card.status !== 'Active') return null;
 
-                // Note: This assumes a 'live' context for simplicity here.
-                // You might pass down activeMonth and getCurrentCashbackMonthForCard for more precision.
                 const today = new Date();
                 const year = today.getFullYear();
                 const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -3229,7 +3225,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             })
             .filter(Boolean)
             .sort((a, b) => {
-                // Sorting logic: prioritize active, non-capped, min-spend-met cards, then by rate/cashback
                 const isACapped = a.isMonthlyCapReached || a.isCategoryCapReached;
                 const isBCapped = b.isMonthlyCapReached || b.isCategoryCapReached;
                 if (isACapped !== isBCapped) return isACapped ? 1 : -1;
@@ -3252,7 +3247,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         setApplicableRuleId('');
         setCardSummaryCategoryId('new');
         setShowLookupButton(false);
-        // Reset new fields
         setNotes('');
         setOtherDiscounts('');
         setOtherFees('');
@@ -3269,7 +3263,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         else if (value === '') setAmount('');
     };
     
-    // MODIFIED: New handler for all formatted numeric inputs
     const handleFormattedNumericInput = (value, setter, allowDecimal = false) => {
         const cleanValue = String(value).replace(/,/g, '');
 
@@ -3351,7 +3344,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 merchantLookup: merchantLookup || null,
                 applicableRuleId: applicableRuleId || null,
                 cardSummaryCategoryId: finalSummaryId,
-                // MODIFIED: Parse formatted numeric strings back to numbers
                 notes: notes || null,
                 otherDiscounts: otherDiscounts ? parseFloat(String(otherDiscounts).replace(/,/g, '')) : null,
                 otherFees: otherFees ? parseFloat(String(otherFees).replace(/,/g, '')) : null,
@@ -3370,7 +3362,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             if (!response.ok) throw new Error('Failed to add transaction');
             
             const newTransactionFromServer = await response.json();
-            // Use the smart estimate for the optimistic update
             const optimisticTransaction = { ...newTransactionFromServer, estCashback: estimatedCashbackAndWarnings.cashback };
 
             toast.success("Transaction added successfully!");
@@ -3385,7 +3376,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
         }
     };
 
-    // MODIFIED: handleCardSelect now accepts a ruleId to auto-populate the rule dropdown
     const handleCardSelect = (selectedCardId, selectedRuleId) => {
         setCardId(selectedCardId);
         setApplicableRuleId(selectedRuleId || ''); 
@@ -3417,7 +3407,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            {/* MODIFIED: Label text changed */}
                             <label htmlFor="merchantLookup">Merchant Name</label>
                             <Input 
                                 id="merchantLookup" 
@@ -3440,9 +3429,20 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                             <label htmlFor="amount">Amount</label>
                             <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
                         </div>
-                        <div className="space-y-2 min-w-0">
+                        {/* MODIFIED: Adopted the working code structure for the date field */}
+                        <div className="space-y-2">
                             <label htmlFor="date">Date</label>
-                            <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+                            <div className="relative flex items-center">
+                                <CalendarClock className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    id="date" 
+                                    type="date" 
+                                    className="w-full pl-10" 
+                                    value={date} 
+                                    onChange={(e) => setDate(e.target.value)} 
+                                    required 
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -3495,14 +3495,12 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="more-details">
                         <AccordionTrigger className="text-sm font-semibold">More Details</AccordionTrigger>
-                        {/* MODIFIED: Added px-1 to fix focus ring cutoff */}
                         <AccordionContent className="pt-4 space-y-4 px-1">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2"><label htmlFor="category">Internal Category</label><select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded cursor-pointer"><option value="">None</option>{[...categories].sort().map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div>
                                 <div className="space-y-2"><label htmlFor="subCategory">Sub Category</label><Input id="subCategory" value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="e.g., Groceries, Utilities" /></div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {/* MODIFIED: Added datalist for suggestions */}
                                 <div className="space-y-2">
                                     <label htmlFor="paidFor">Paid For</label>
                                     <Input id="paidFor" value={paidFor} onChange={(e) => setPaidFor(e.target.value)} placeholder="e.g., Personal, Family, Work" list="paidFor-options" />
@@ -3512,16 +3510,26 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                                         <option value="Work" />
                                     </datalist>
                                 </div>
-                                {/* MODIFIED: Added min-w-0 to fix date overflow */}
-                                <div className="space-y-2 min-w-0"><label htmlFor="billingDate">Billing Date</label><Input id="billingDate" type="date" value={billingDate} onChange={(e) => setBillingDate(e.target.value)} /></div>
+                                {/* MODIFIED: Adopted the working code structure for the billing date field */}
+                                <div className="space-y-2">
+                                    <label htmlFor="billingDate">Billing Date</label>
+                                    <div className="relative flex items-center">
+                                        <CalendarClock className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
+                                        <Input 
+                                            id="billingDate" 
+                                            type="date" 
+                                            className="w-full pl-10" 
+                                            value={billingDate} 
+                                            onChange={(e) => setBillingDate(e.target.value)} 
+                                        />
+                                    </div>
+                                </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {/* MODIFIED: Switched to text input with formatting handler */}
                                 <div className="space-y-2"><label htmlFor="foreignCurrency">Foreign Currency Amount</label><Input id="foreignCurrency" type="text" inputMode="decimal" value={foreignCurrencyAmount} onChange={(e) => handleFormattedNumericInput(e.target.value, setForeignCurrencyAmount, true)} placeholder="e.g., 100.00" /></div>
                                 <div className="space-y-2"><label htmlFor="conversionFee">Conversion Fee (VND)</label><Input id="conversionFee" type="text" inputMode="numeric" value={conversionFee} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionFee)} /></div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {/* MODIFIED: Switched to text input with formatting handler */}
                                 <div className="space-y-2"><label htmlFor="otherDiscounts">Other Discounts (VND)</label><Input id="otherDiscounts" type="text" inputMode="numeric" value={otherDiscounts} onChange={(e) => handleFormattedNumericInput(e.target.value, setOtherDiscounts)} /></div>
                                 <div className="space-y-2"><label htmlFor="otherFees">Other Fees (VND)</label><Input id="otherFees" type="text" inputMode="numeric" value={otherFees} onChange={(e) => handleFormattedNumericInput(e.target.value, setOtherFees)} /></div>
                             </div>
