@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, CalendarDays, History, Globe, Check, Lightbulb, Sparkles, ShoppingCart, Snowflake, ExternalLink, LogOut } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Info, Loader2, Plus, History, Globe, Check, Lightbulb, Sparkles, ShoppingCart, Snowflake, ExternalLink, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
@@ -2949,7 +2949,6 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const [category, setCategory] = useState('');
     const [mccCode, setMccCode] = useState('');
     const [merchantLookup, setMerchantLookup] = useState('');
-    const [mccName, setMccName] = useState('');
     const [applicableRuleId, setApplicableRuleId] = useState('');
     const [cardSummaryCategoryId, setCardSummaryCategoryId] = useState('new');
     const [isLookingUp, setIsLookingUp] = useState(false);
