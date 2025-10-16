@@ -1220,35 +1220,7 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
     );
 }
 
-// Add these imports to the top of CashbackDashboard.jsx
-import { MoreHorizontal, FilePenLine, Trash2, ChevronDown } from "lucide-react";
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuItem, 
-    DropdownMenuTrigger 
-} from "./components/ui/dropdown-menu";
-import { 
-    Accordion, 
-    AccordionContent, 
-    AccordionItem, 
-    AccordionTrigger 
-} from "./components/ui/accordion";
-
-
-// Replace your existing TransactionsTab component with this one
-function TransactionsTab({ 
-    transactions, 
-    isLoading, 
-    activeMonth, 
-    cardMap, 
-    mccNameFn, 
-    allCards, 
-    filterType, 
-    onFilterTypeChange, 
-    statementMonths,
-    isDesktop // Prop to determine layout
-}) {
+function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange, statementMonths, isDesktop }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [cardFilter, setCardFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
