@@ -17,15 +17,10 @@ import {
 } from "./components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "./components/ui/sheet";
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList, LineChart, Line } from "recharts";
-import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronUp, List, MoreHorizontal, FilePenLine } from "lucide-react";
+import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronUp, List, MoreHorizontal, FilePenLine, Trash2 } from "lucide-react";
 import { cn } from "./lib/utils";
 import { Toaster, toast } from 'sonner';
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "./components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
 
 
@@ -157,7 +152,7 @@ export default function CashbackDashboard() {
     const [monthlyCashbackCategories, setMonthlyCashbackCategories] = useState([]);
     const [allCategories, setAllCategories] = useState([]); // 1. Add new state
     const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
-    const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
+    const [transactionFilterType, setTransactionFilterType] = useState('cashbackMonth'); // 'date' or 'cashbackMonth'
     const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
     const [dialogTransactions, setDialogTransactions] = useState([]);
     const [isDialogLoading, setIsDialogLoading] = useState(false);
@@ -854,6 +849,7 @@ export default function CashbackDashboard() {
 
                     <TabsContent value="transactions" className="pt-4">
                         <TransactionsTab
+                            isDesktop={isDesktop}
                             transactions={monthlyTransactions}
                             isLoading={isMonthlyTxLoading}
                             activeMonth={activeMonth}
@@ -1224,7 +1220,35 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
     );
 }
 
-function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange, statementMonths }) {
+// Add these imports to the top of CashbackDashboard.jsx
+import { MoreHorizontal, FilePenLine, Trash2, ChevronDown } from "lucide-react";
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger 
+} from "./components/ui/dropdown-menu";
+import { 
+    Accordion, 
+    AccordionContent, 
+    AccordionItem, 
+    AccordionTrigger 
+} from "./components/ui/accordion";
+
+
+// Replace your existing TransactionsTab component with this one
+function TransactionsTab({ 
+    transactions, 
+    isLoading, 
+    activeMonth, 
+    cardMap, 
+    mccNameFn, 
+    allCards, 
+    filterType, 
+    onFilterTypeChange, 
+    statementMonths,
+    isDesktop // Prop to determine layout
+}) {
     const [searchTerm, setSearchTerm] = useState("");
     const [cardFilter, setCardFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
@@ -1241,19 +1265,28 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
     };
 
     const categories = useMemo(() => {
-        const allCategories = transactions.map(tx => tx['Category']).filter(Boolean);
-        return ["all", ...Array.from(new Set(allCategories))];
+        // Get unique categories and convert to an array
+        const uniqueCategories = Array.from(new Set(transactions.map(tx => tx['Category']).filter(Boolean)));
+        
+        // Sort the array alphabetically
+        uniqueCategories.sort((a, b) => a.localeCompare(b));
+
+        // Prepend the "all" option to the sorted list
+        return ["all", ...uniqueCategories];
     }, [transactions]);
 
     const filteredAndSortedTransactions = useMemo(() => {
-        let sortableItems = [...transactions]; // Start with the fetched transactions for the month
+        let sortableItems = [...transactions].map(tx => ({
+            ...tx,
+            rate: (tx['Amount'] && tx['Amount'] > 0) ? (tx.estCashback / tx['Amount']) : 0
+        }));
 
-        // Apply filters
         sortableItems = sortableItems.filter(tx => {
             if (!searchTerm) return true;
             const lowerCaseSearch = searchTerm.toLowerCase();
             return (
             tx['Transaction Name']?.toLowerCase().includes(lowerCaseSearch) ||
+            tx['merchantLookup']?.toLowerCase().includes(lowerCaseSearch) ||
             String(tx['Amount']).includes(lowerCaseSearch) ||
             tx['Transaction Date']?.includes(lowerCaseSearch) ||
             String(tx['MCC Code']).includes(lowerCaseSearch)
@@ -1262,26 +1295,24 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
         .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
         .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter);
 
-        // Apply sorting
         if (sortConfig.key !== null) {
-        sortableItems.sort((a, b) => {
-            const aValue = a[sortConfig.key];
-            const bValue = b[sortConfig.key];
-            if (aValue === null) return 1;
-            if (bValue === null) return -1;
-
-            if (typeof aValue === 'number' && typeof bValue === 'number') {
-            return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-            }
-            if (sortConfig.key === 'Transaction Date') {
-            return sortConfig.direction === 'ascending' 
-                    ? new Date(aValue) - new Date(bValue) 
-                    : new Date(bValue) - new Date(aValue);
-            }
-            return sortConfig.direction === 'ascending' 
-                ? String(aValue).localeCompare(String(bValue)) 
-                : String(bValue).localeCompare(String(aValue));
-        });
+            sortableItems.sort((a, b) => {
+                const aValue = a[sortConfig.key];
+                const bValue = b[sortConfig.key];
+                if (aValue === null || aValue === undefined) return 1;
+                if (bValue === null || bValue === undefined) return -1;
+                if (typeof aValue === 'number' && typeof bValue === 'number') {
+                    return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
+                }
+                if (sortConfig.key === 'Transaction Date') {
+                    return sortConfig.direction === 'ascending' 
+                        ? new Date(aValue) - new Date(bValue) 
+                        : new Date(bValue) - new Date(aValue);
+                }
+                return sortConfig.direction === 'ascending' 
+                    ? String(aValue).localeCompare(String(bValue)) 
+                    : String(bValue).localeCompare(String(aValue));
+            });
         }
         return sortableItems;
     }, [transactions, searchTerm, cardFilter, categoryFilter, sortConfig]);
@@ -1293,7 +1324,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
     const requestSort = (key) => {
         let direction = 'ascending';
         if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-        direction = 'descending';
+            direction = 'descending';
         }
         setSortConfig({ key, direction });
     };
@@ -1305,117 +1336,190 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
     const handleLoadMore = () => {
         setVisibleCount(prevCount => prevCount + 15);
     };
+    
+    // --- Handlers for Edit/Delete Actions ---
+    const handleEdit = (tx) => {
+        toast.info(`Editing transaction: ${tx['Transaction Name']}`);
+        // Here you would open an edit dialog/sheet
+    };
+
+    const handleDelete = (txId) => {
+        toast.error(`Deleting transaction ID: ${txId}`);
+        // Here you would open a confirmation and then call the API
+    };
 
     const SortIcon = ({ columnKey }) => {
         if (sortConfig.key !== columnKey) return <ChevronsUpDown className="ml-2 h-4 w-4" />;
         return sortConfig.direction === 'ascending' ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />;
     };
 
-    return (
-        <Card>
-        <CardHeader>
-            <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <CardTitle>
-                        Transactions for {
-                            activeMonth === 'live' && statementMonths.length > 0
-                                ? fmtYMShort(statementMonths[0])
-                                : fmtYMShort(activeMonth)
-                        }
-                    </CardTitle>
-                    
-                    {/* This is the new filter switch */}
-                    <Tabs defaultValue="date" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
-                        <TabsList className="bg-slate-100 p-1 rounded-lg">
-                            <TabsTrigger value="date">Transaction Date</TabsTrigger>
-                            <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
-                </div>
+    const getRateColor = (r) => {
+        const ratePercent = r * 100;
+        if (ratePercent >= 5) return "bg-emerald-100 text-emerald-800 border-emerald-200";
+        if (ratePercent >= 2) return "bg-sky-100 text-sky-800 border-sky-200";
+        if (ratePercent > 0) return "bg-slate-100 text-slate-700 border-slate-200";
+        return "bg-gray-100 text-gray-500 border-gray-200";
+    };
+    
+    const renderContent = () => {
+        if (isLoading) {
+            return <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+        }
+        if (transactionsToShow.length === 0) {
+            return <div className="text-center h-24 flex items-center justify-center text-muted-foreground"><p>No transactions found.</p></div>;
+        }
 
-                {/* The existing search and filter dropdowns */}
-                <div className="flex flex-col sm:flex-row gap-2">
-                    {/* Search bar takes full width on mobile, auto on larger screens */}
-                    <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input type="search" placeholder="Search..." className="w-full pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                    </div>
-                    {/* Dropdowns grow on mobile, auto on larger screens */}
-                    <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
-                        <option value="all">All Cards</option>
-                        {allCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                    <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
-                        {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
-                    </select>
+        // --- MOBILE CARD VIEW ---
+        if (!isDesktop) {
+            return (
+                <div className="space-y-3">
+                    {transactionsToShow.map(tx => {
+                        const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
+                        const hasOptionalFields = tx.notes || tx.otherDiscounts || tx.otherFees || tx.subCategory;
+                        return (
+                            <div key={tx.id} className="border bg-white rounded-lg shadow-sm overflow-hidden">
+                                <div className="p-3">
+                                    <div className="flex justify-between items-start gap-2">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-semibold truncate">{tx['Transaction Name']}</p>
+                                            {tx.merchantLookup && <p className="text-xs text-muted-foreground">{tx.merchantLookup}</p>}
+                                            <p className="text-sm text-muted-foreground">{tx['Transaction Date']}</p>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                            <p className="font-bold text-lg">{currency(tx['Amount'])}</p>
+                                            <p className="text-sm text-emerald-600 font-medium">+ {currency(tx.estCashback)}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-center mt-2 pt-2 border-t">
+                                        <div className="flex items-center gap-2">
+                                            {card && <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge>}
+                                            <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
+                                                {(tx.rate * 100).toFixed(1)}%
+                                            </Badge>
+                                        </div>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onSelect={() => handleEdit(tx)}><FilePenLine className="mr-2 h-4 w-4" /><span>Edit</span></DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => handleDelete(tx.id)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /><span>Delete</span></DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                </div>
+                                {hasOptionalFields && (
+                                    <Accordion type="single" collapsible className="bg-slate-50">
+                                        <AccordionItem value="details" className="border-t">
+                                            <AccordionTrigger className="px-3 py-2 text-xs font-semibold text-muted-foreground">
+                                                Show More Details
+                                            </AccordionTrigger>
+                                            <AccordionContent className="px-3 pb-3 text-xs space-y-2">
+                                                {tx.subCategory && <p><span className="font-medium">Sub-Category:</span> {tx.subCategory}</p>}
+                                                {tx.otherDiscounts && <p><span className="font-medium">Discounts:</span> -{currency(tx.otherDiscounts)}</p>}
+                                                {tx.otherFees && <p><span className="font-medium">Fees:</span> +{currency(tx.otherFees)}</p>}
+                                                {tx.notes && <p className="pt-1 border-t mt-1 whitespace-pre-wrap"><span className="font-medium">Notes:</span> {tx.notes}</p>}
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    </Accordion>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
-            </div>
-        </CardHeader>
-        <CardContent>
+            );
+        }
+
+        // --- DESKTOP TABLE VIEW ---
+        return (
             <div className="border rounded-md">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                        <TableHead className="w-[120px]"><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction Name <SortIcon columnKey="Transaction Name" /></Button></TableHead>
-                        <TableHead className="w-[150px]"><Button variant="ghost" onClick={() => requestSort('Cashback Month')} className="px-2 whitespace-normal h-auto text-left justify-start">S. Month <SortIcon columnKey="Statement Month" /></Button></TableHead>
-                        <TableHead className="w-[200px]"><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2 whitespace-normal h-auto text-left justify-start">Card <SortIcon columnKey="Card" /></Button></TableHead>
-                        <TableHead><Button variant="ghost" onClick={() => requestSort('Category')} className="px-2 whitespace-normal h-auto text-left justify-start">Category <SortIcon columnKey="Category" /></Button></TableHead>
-                        <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Est. Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
-                        <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
+                            <TableHead className="w-[120px]"><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
+                            <TableHead className="text-center"><Button variant="ghost" onClick={() => requestSort('rate')} className="px-2">Rate <SortIcon columnKey="rate" /></Button></TableHead>
+                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
+                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
+                            <TableHead className="w-[100px] text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {isLoading ? (
-                            <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /></TableCell></TableRow>
-                        ) : transactionsToShow.length > 0 ? (
-                            transactionsToShow.map(tx => {
-                                const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
-                                return (
-                                    <TableRow key={tx.id}>
+                        {transactionsToShow.map(tx => {
+                            const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
+                            return (
+                                <TableRow key={tx.id}>
                                     <TableCell>{tx['Transaction Date']}</TableCell>
                                     <TableCell>
-                                    <div className="font-medium">{tx['Transaction Name']}</div>
-                                    {/* THIS IS THE LINE TO CHANGE: Add a conditional check */}
-                                    {tx['MCC Code'] && (
-                                        <div className="text-xs text-gray-500">
-                                            {mccNameFn(tx['MCC Code'])} ({tx['MCC Code']})
-                                        </div>
-                                    )}
-                                    </TableCell>
-                                    <TableCell>
-                                        {tx['Cashback Month'] ? (
-                                            <Badge variant="outline">{fmtYMShort(tx['Cashback Month'])}</Badge>
-                                        ) : null}
+                                        <div className="font-medium">{tx['Transaction Name']}</div>
+                                        {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
                                     </TableCell>
                                     <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>
-                                    <TableCell>
-                                        {tx['Category'] ? (
-                                            <Badge variant="outline">
-                                                {tx['Category']}
-                                            </Badge>
-                                        ) : null}
+                                    <TableCell className="text-center">
+                                        <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
+                                            {(tx.rate * 100).toFixed(1)}%
+                                        </Badge>
                                     </TableCell>
                                     <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>
                                     <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>
-                                    </TableRow>
-                                );
-                            })
-                        ) : (
-                            <TableRow><TableCell colSpan={7} className="text-center h-24 text-muted-foreground">No transactions found for the selected period or filters.</TableCell></TableRow>
-                        )}
+                                    <TableCell className="text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id)}><Trash2 className="h-4 w-4" /></Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
                     </TableBody>
                 </Table>
             </div>
-            <div className="mt-6 flex flex-col items-center gap-4">
-            <p className="text-sm text-muted-foreground">
-                Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{filteredAndSortedTransactions.length}</span> transactions
-            </p>
-            {visibleCount < filteredAndSortedTransactions.length && (
-                <Button onClick={handleLoadMore} variant="outline">Load More</Button>
-            )}
-            </div>
-        </CardContent>
+        );
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <CardTitle>Transactions for {activeMonth === 'live' && statementMonths.length > 0 ? fmtYMShort(statementMonths[0]) : fmtYMShort(activeMonth)}</CardTitle>
+                        <Tabs defaultValue="cashbackMonth" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
+                            <TabsList className="bg-slate-100 p-1 rounded-lg">
+                                <TabsTrigger value="date">Transaction Date</TabsTrigger>
+                                <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input type="search" placeholder="Search..." className="w-full pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                        </div>
+                        <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
+                            <option value="all">All Cards</option>
+                            {[...allCards] // Create a shallow copy to avoid mutating the prop
+                                .sort((a, b) => a.name.localeCompare(b.name)) // Sort cards by name
+                                .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
+                            {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
+                        </select>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                {renderContent()}
+                <div className="mt-6 flex flex-col items-center gap-4">
+                    <p className="text-sm text-muted-foreground">
+                        Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{filteredAndSortedTransactions.length}</span> transactions
+                    </p>
+                    {visibleCount < filteredAndSortedTransactions.length && (
+                        <Button onClick={handleLoadMore} variant="outline">Load More</Button>
+                    )}
+                </div>
+            </CardContent>
         </Card>
     );
 }

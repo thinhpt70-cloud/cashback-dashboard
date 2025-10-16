@@ -30,18 +30,33 @@ const rulesDbId = process.env.NOTION_RULES_DB_ID;
 const monthlySummaryDbId = process.env.NOTION_MONTHLY_SUMMARY_DB_ID; // ADDED: For the new database
 const monthlyCategoryDbId = process.env.NOTION_MONTHLY_CATEGORY_DB_ID;
 const vendorsDbId = process.env.NOTION_VENDORS_DB_ID;
-// Helper function to map Notion transaction page to a simpler object
 
-const mapTransaction = (tx) => ({
-    id: tx.id,
-    'Transaction Name': tx.properties['Transaction Name']?.title[0]?.plain_text || 'N/A',
-    'Amount': tx.properties['Amount']?.number,
-    'Transaction Date': tx.properties['Transaction Date']?.date?.start,
-    'Card': tx.properties['Card']?.relation?.map(r => r.id),
-    'Category': tx.properties['Category']?.select?.name,
-    'MCC Code': tx.properties['MCC Code']?.rich_text[0]?.plain_text || null,
-    'estCashback': tx.properties['estCashback']?.formula?.number,
-});
+// Helper function to map Notion transaction page to a simpler object
+const mapTransaction = (tx) => {
+    const props = parseNotionPageProperties(tx);
+    
+    // Map Notion property names to the camelCase keys used in the frontend
+    return {
+        id: tx.id,
+        'Transaction Name': props['Transaction Name'],
+        'Amount': props['Amount'],
+        'Transaction Date': props['Transaction Date'],
+        'Card': props['Card'],
+        'Category': props['Category'],
+        'MCC Code': props['MCC Code'],
+        'estCashback': props['Estimated Cashback'] || 0, // Formula field
+        'Cashback Month': props['Cashback Month'], // Formula field
+        'merchantLookup': props['Merchant'], // This is the Merchant Name field
+        'notes': props['Notes'],
+        'otherDiscounts': props['Other Discounts'],
+        'otherFees': props['Other Fees'],
+        'foreignCurrencyAmount': props['Foreign Currency'],
+        'conversionFee': props['Conversion Fee'],
+        'paidFor': props['Paid for'],
+        'subCategory': props['Sub Category'],
+        'billingDate': props['Billing Date'],
+    };
+};
 
 
 // Helper function to safely extract properties from a Notion page
@@ -279,14 +294,7 @@ app.get('/api/transactions', async (req, res) => {
             nextCursor = response.next_cursor;
         } while (nextCursor);
 
-        // Map the raw Notion data to a cleaner format for the frontend.
-        const results = allResults.map(page => {
-            const props = parseNotionPageProperties(page);
-            return {
-                ...props,
-                estCashback: props['Estimated Cashback'] || 0,
-            };
-        });
+        const results = allResults.map(mapTransaction);
         
         res.json(results);
 
@@ -296,6 +304,80 @@ app.get('/api/transactions', async (req, res) => {
     }
 });
 
+// DELETE /api/transactions/:id - Delete (archive) a transaction
+app.delete('/api/transactions/:id', async (req, res) => {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({ error: 'Transaction ID is required.' });
+    }
+
+    try {
+        // Notion's API "deletes" pages by archiving them.
+        await notion.pages.update({
+            page_id: id,
+            archived: true,
+        });
+
+        res.status(200).json({ success: true, message: 'Transaction deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting transaction in Notion:', error.body || error);
+        res.status(500).json({ error: 'Failed to delete transaction.' });
+    }
+});
+
+// PATCH /api/transactions/:id - Update an existing transaction
+app.patch('/api/transactions/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const {
+            // Destructure all possible fields from the request body
+            'Transaction Name': merchant,
+            'Amount': amount,
+            'Transaction Date': date,
+            'Card': cardId,
+            'Category': category,
+            'MCC Code': mccCode,
+            'merchantLookup': merchantLookup,
+            'notes': notes,
+            'otherDiscounts': otherDiscounts,
+            'otherFees': otherFees,
+            'subCategory': subCategory,
+            // ... add any other fields you want to be editable
+        } = req.body;
+
+        const propertiesToUpdate = {};
+
+        // Dynamically build the properties object based on what was provided
+        if (merchant) propertiesToUpdate['Transaction Name'] = { title: [{ text: { content: merchant } }] };
+        if (typeof amount === 'number') propertiesToUpdate['Amount'] = { number: amount };
+        if (date) propertiesToUpdate['Transaction Date'] = { date: { start: date } };
+        if (cardId) propertiesToUpdate['Card'] = { relation: [{ id: cardId }] };
+        if (category !== undefined) propertiesToUpdate['Category'] = category ? { select: { name: category } } : { select: null };
+        if (mccCode !== undefined) propertiesToUpdate['MCC Code'] = { rich_text: [{ text: { content: String(mccCode) } }] };
+        if (merchantLookup !== undefined) propertiesToUpdate['Merchant'] = { rich_text: [{ text: { content: String(merchantLookup) } }] };
+        if (notes !== undefined) propertiesToUpdate['Notes'] = { rich_text: [{ text: { content: notes } }] };
+        if (subCategory !== undefined) propertiesToUpdate['Sub Category'] = subCategory ? { select: { name: subCategory } } : { select: null };
+        if (typeof otherDiscounts === 'number') propertiesToUpdate['Other Discounts'] = { number: otherDiscounts };
+        if (typeof otherFees === 'number') propertiesToUpdate['Other Fees'] = { number: otherFees };
+        
+        if (Object.keys(propertiesToUpdate).length === 0) {
+            return res.status(400).json({ error: 'No fields to update were provided.' });
+        }
+
+        const updatedPage = await notion.pages.update({
+            page_id: id,
+            properties: propertiesToUpdate,
+        });
+
+        res.status(200).json(mapTransaction(updatedPage));
+
+    } catch (error) {
+        console.error('Error updating transaction in Notion:', error.body || error);
+        res.status(500).json({ error: 'Failed to update transaction.' });
+    }
+});
 
 // Fetch All Cards
 app.get('/api/cards', async (req, res) => {
