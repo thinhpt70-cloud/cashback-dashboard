@@ -641,6 +641,7 @@ export default function CashbackDashboard() {
                                         commonVendors={commonVendors}
                                         monthlySummary={monthlySummary}
                                         monthlyCategorySummary={monthlyCategorySummary}
+                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
                                     />
                                 </div>
                             </SheetContent>
@@ -3059,7 +3060,7 @@ function CardRecommendations({ recommendations, onSelectCard, currencyFn, select
     );
 }
 
-function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary }) {
+function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard }) {
     // --- State Management ---
     const [merchant, setMerchant] = useState('');
     const [amount, setAmount] = useState('');
@@ -3207,10 +3208,10 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 const card = cardMap.get(rule.cardId);
                 if (!card || card.status !== 'Active') return null;
 
-                const today = new Date();
-                const year = today.getFullYear();
-                const month = String(today.getMonth() + 1).padStart(2, '0');
-                const monthForCard = `${year}${month}`;
+                //const today = new Date();
+                //const year = today.getFullYear();
+                //const month = String(today.getMonth() + 1).padStart(2, '0');
+                const monthForCard = getCurrentCashbackMonthForCard(card);
 
                 const cardMonthSummary = monthlySummary.find(s => s.cardId === card.id && s.month === monthForCard);
                 const categorySummaryId = `${monthForCard} - ${rule.ruleName}`;
@@ -3245,7 +3246,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 }
                 return b.rule.rate - a.rule.rate;
             });
-    }, [mccCode, amount, rules, cardMap, monthlySummary, monthlyCategorySummary]);
+    }, [mccCode, amount, rules, cardMap, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard]);
 
     // --- Handlers ---
     const resetForm = () => {
