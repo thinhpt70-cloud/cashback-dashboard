@@ -2628,7 +2628,7 @@ function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtY
     
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent>
+            <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
                 <DialogHeader>
                     <DialogTitle>Log Payment</DialogTitle>
                     <DialogDescription>For {statement.card.name} - {fmtYMShortFn(statement.month)}</DialogDescription>
@@ -2707,7 +2707,7 @@ function StatementLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fm
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent>
+            <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
                 <DialogHeader>
                     <DialogTitle>Log Official Statement Amount</DialogTitle>
                     <DialogDescription>For {statement.card.name} - {fmtYMShortFn(statement.month)}</DialogDescription>
