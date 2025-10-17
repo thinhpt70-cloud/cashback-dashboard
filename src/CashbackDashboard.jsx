@@ -3392,12 +3392,15 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     }, [filteredSummaries]);
 
     useEffect(() => {
-        if (cards.length > 0 && !cardId) {
+        if (!initialData && cards.length > 0 && !cardId) {
             const lastUsedCardId = localStorage.getItem('lastUsedCardId');
-            if (lastUsedCardId && cards.some(c => c.id === lastUsedCardId)) setCardId(lastUsedCardId);
-            else setCardId(cards[0].id);
+            if (lastUsedCardId && cards.some(c => c.id === lastUsedCardId)) {
+                setCardId(lastUsedCardId);
+            } else {
+                setCardId(cards[0].id);
+            }
         }
-    }, [cards, cardId]);
+    }, [cards, cardId, initialData]);
 
     const currencyFn = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
         const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
@@ -3421,6 +3424,9 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 const cardMonthSummary = monthlySummary.find(s => s.cardId === card.id && s.month === monthForCard);
                 const categorySummaryId = `${monthForCard} - ${rule.ruleName}`;
                 const categoryMonthSummary = monthlyCategorySummary.find(s => s.summaryId === categorySummaryId && s.cardId === card.id);
+                
+                const categoryLimit = categoryMonthSummary?.categoryLimit || Infinity;
+                const remainingCategoryCashback = categoryLimit - (categoryMonthSummary?.cashback || 0);
 
                 let calculatedCashback = null;
                 if (!isNaN(numericAmount) && numericAmount > 0) {
@@ -3437,6 +3443,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                     isMinSpendMet: card.minimumMonthlySpend > 0 ? (cardMonthSummary?.spend || 0) >= card.minimumMonthlySpend : true,
                     isCategoryCapReached: (categoryMonthSummary?.categoryLimit || 0) > 0 ? (categoryMonthSummary?.cashback || 0) >= categoryMonthSummary.categoryLimit : false,
                     isMonthlyCapReached: (card.overallMonthlyLimit || 0) > 0 ? (cardMonthSummary?.cashback || 0) >= card.overallMonthlyLimit : false,
+                    remainingCategoryCashback,
                 };
             })
             .filter(Boolean)

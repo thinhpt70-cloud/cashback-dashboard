@@ -55,6 +55,7 @@ const mapTransaction = (tx) => {
         'paidFor': props['Paid for'],
         'subCategory': props['Sub Category'],
         'billingDate': props['Billing Date'],
+        'Applicable Rule': props['Applicable Rule'],
     };
 };
 
