@@ -1226,7 +1226,12 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [visibleCount, setVisibleCount] = useState(15);
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
+    const [expandedTxId, setExpandedTxId] = useState(null); // State for expandable rows
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+
+    const handleToggleExpand = (txId) => {
+        setExpandedTxId(prevId => (prevId === txId ? null : txId));
+    };
 
     const fmtYMShort = (ymCode) => {
         if (!ymCode || typeof ymCode !== 'string' || ymCode.length !== 6) return "";
@@ -1237,13 +1242,8 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
     };
 
     const categories = useMemo(() => {
-        // Get unique categories and convert to an array
         const uniqueCategories = Array.from(new Set(transactions.map(tx => tx['Category']).filter(Boolean)));
-        
-        // Sort the array alphabetically
         uniqueCategories.sort((a, b) => a.localeCompare(b));
-
-        // Prepend the "all" option to the sorted list
         return ["all", ...uniqueCategories];
     }, [transactions]);
 
@@ -1309,15 +1309,12 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
         setVisibleCount(prevCount => prevCount + 15);
     };
     
-    // --- Handlers for Edit/Delete Actions ---
     const handleEdit = (tx) => {
         toast.info(`Editing transaction: ${tx['Transaction Name']}`);
-        // Here you would open an edit dialog/sheet
     };
 
     const handleDelete = (txId) => {
         toast.error(`Deleting transaction ID: ${txId}`);
-        // Here you would open a confirmation and then call the API
     };
 
     const SortIcon = ({ columnKey }) => {
@@ -1341,13 +1338,12 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
             return <div className="text-center h-24 flex items-center justify-center text-muted-foreground"><p>No transactions found.</p></div>;
         }
 
-        // --- MOBILE CARD VIEW ---
         if (!isDesktop) {
             return (
                 <div className="space-y-3">
                     {transactionsToShow.map(tx => {
                         const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
-                        const hasOptionalFields = tx.notes || tx.otherDiscounts || tx.otherFees || tx.subCategory;
+                        const hasOptionalFields = tx.notes || tx.otherDiscounts || tx.otherFees || tx.subCategory || tx.paidFor || tx.foreignCurrencyAmount || tx.billingDate;
                         return (
                             <div key={tx.id} className="border bg-white rounded-lg shadow-sm overflow-hidden">
                                 <div className="p-3">
@@ -1362,18 +1358,13 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                             <p className="text-sm text-emerald-600 font-medium">+ {currency(tx.estCashback)}</p>
                                         </div>
                                     </div>
-                                    
                                     <div className="flex justify-between items-center mt-2 pt-2 border-t">
                                         <div className="flex items-center gap-2">
                                             {card && <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge>}
-                                            <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
-                                                {(tx.rate * 100).toFixed(1)}%
-                                            </Badge>
+                                            <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>{(tx.rate * 100).toFixed(1)}%</Badge>
                                         </div>
                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
-                                            </DropdownMenuTrigger>
+                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onSelect={() => handleEdit(tx)}><FilePenLine className="mr-2 h-4 w-4" /><span>Edit</span></DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => handleDelete(tx.id)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /><span>Delete</span></DropdownMenuItem>
@@ -1384,13 +1375,14 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                 {hasOptionalFields && (
                                     <Accordion type="single" collapsible className="bg-slate-50">
                                         <AccordionItem value="details" className="border-t">
-                                            <AccordionTrigger className="px-3 py-2 text-xs font-semibold text-muted-foreground">
-                                                Show More Details
-                                            </AccordionTrigger>
+                                            <AccordionTrigger className="px-3 py-2 text-xs font-semibold text-muted-foreground">Show More Details</AccordionTrigger>
                                             <AccordionContent className="px-3 pb-3 text-xs space-y-2">
                                                 {tx.subCategory && <p><span className="font-medium">Sub-Category:</span> {tx.subCategory}</p>}
+                                                {tx.paidFor && <p><span className="font-medium">Paid For:</span> {tx.paidFor}</p>}
+                                                {tx.billingDate && <p><span className="font-medium">Billing Date:</span> {tx.billingDate}</p>}
                                                 {tx.otherDiscounts && <p><span className="font-medium">Discounts:</span> -{currency(tx.otherDiscounts)}</p>}
                                                 {tx.otherFees && <p><span className="font-medium">Fees:</span> +{currency(tx.otherFees)}</p>}
+                                                {tx.foreignCurrencyAmount && <p><span className="font-medium">Foreign Spend:</span> {tx.foreignCurrencyAmount} (+{currency(tx.conversionFee)})</p>}
                                                 {tx.notes && <p className="pt-1 border-t mt-1 whitespace-pre-wrap"><span className="font-medium">Notes:</span> {tx.notes}</p>}
                                             </AccordionContent>
                                         </AccordionItem>
@@ -1409,40 +1401,68 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-[40px]"></TableHead>
                             <TableHead className="w-[120px]"><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
+                            {/* --- FIX: Columns reordered --- */}
                             <TableHead className="text-center"><Button variant="ghost" onClick={() => requestSort('rate')} className="px-2">Rate <SortIcon columnKey="rate" /></Button></TableHead>
-                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
                             <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
+                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
                             <TableHead className="w-[100px] text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {transactionsToShow.map(tx => {
                             const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
+                            const isExpanded = expandedTxId === tx.id;
+                            const hasOptionalFields = tx.notes || tx.otherDiscounts || tx.otherFees || tx.subCategory || tx.paidFor || tx.foreignCurrencyAmount || tx.billingDate;
+                            
                             return (
-                                <TableRow key={tx.id}>
-                                    <TableCell>{tx['Transaction Date']}</TableCell>
-                                    <TableCell>
-                                        <div className="font-medium">{tx['Transaction Name']}</div>
-                                        {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
-                                    </TableCell>
-                                    <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
-                                            {(tx.rate * 100).toFixed(1)}%
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>
-                                    <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>
-                                    <TableCell className="text-center">
-                                        <div className="flex items-center justify-center gap-1">
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id)}><Trash2 className="h-4 w-4" /></Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
+                                <React.Fragment key={tx.id}>
+                                    <TableRow onClick={() => hasOptionalFields && handleToggleExpand(tx.id)} className={cn(hasOptionalFields && "cursor-pointer")}>
+                                        <TableCell className="px-2">
+                                            {hasOptionalFields && (
+                                                <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+                                            )}
+                                        </TableCell>
+                                        <TableCell>{tx['Transaction Date']}</TableCell>
+                                        <TableCell>
+                                            <div className="font-medium">{tx['Transaction Name']}</div>
+                                            {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
+                                        </TableCell>
+                                        <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>
+                                        {/* --- FIX: Cells reordered --- */}
+                                        <TableCell className="text-center">
+                                            <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
+                                                {(tx.rate * 100).toFixed(1)}%
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>
+                                        <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id)}><Trash2 className="h-4 w-4" /></Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                    {isExpanded && hasOptionalFields && (
+                                        <TableRow className="bg-slate-50 hover:bg-slate-50">
+                                            <TableCell colSpan={8} className="p-0">
+                                                <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4 text-xs">
+                                                    {tx.subCategory && <div><p className="font-semibold text-slate-500">Sub-Category</p><p>{tx.subCategory}</p></div>}
+                                                    {tx.paidFor && <div><p className="font-semibold text-slate-500">Paid For</p><p>{tx.paidFor}</p></div>}
+                                                    {tx.billingDate && <div><p className="font-semibold text-slate-500">Billing Date</p><p>{tx.billingDate}</p></div>}
+                                                    {tx.foreignCurrencyAmount && <div><p className="font-semibold text-slate-500">Foreign Spend</p><p>{tx.foreignCurrencyAmount} (+{currency(tx.conversionFee)})</p></div>}
+                                                    {tx.otherDiscounts && <div><p className="font-semibold text-slate-500">Discounts</p><p className="text-emerald-600">-{currency(tx.otherDiscounts)}</p></div>}
+                                                    {tx.otherFees && <div><p className="font-semibold text-slate-500">Fees</p><p className="text-red-600">+{currency(tx.otherFees)}</p></div>}
+                                                    {tx.notes && <div className="col-span-full"><p className="font-semibold text-slate-500">Notes</p><p className="whitespace-pre-wrap">{tx.notes}</p></div>}
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </React.Fragment>
                             );
                         })}
                     </TableBody>
@@ -1471,9 +1491,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                         </div>
                         <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
                             <option value="all">All Cards</option>
-                            {[...allCards] // Create a shallow copy to avoid mutating the prop
-                                .sort((a, b) => a.name.localeCompare(b.name)) // Sort cards by name
-                                .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {[...allCards].sort((a, b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                         <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 sm:flex-initial h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
                             {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
