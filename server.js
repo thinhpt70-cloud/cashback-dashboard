@@ -531,15 +531,7 @@ app.get('/api/recent-transactions', async (req, res) => {
             }],
         });
 
-        // 3. Map over the results to clean up the data for the frontend
-        const results = response.results.map(page => {
-            const props = parseNotionPageProperties(page);
-            return {
-                ...props, // Keep all original properties from the parser
-                // 4. Rename "Estimated Cashback" to "estCashback" for consistency
-                estCashback: props['Estimated Cashback'] || 0, 
-            };
-        });
+        const results = response.results.map(mapTransaction);
         
         res.json(results);
 
