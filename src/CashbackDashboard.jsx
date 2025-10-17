@@ -153,7 +153,7 @@ export default function CashbackDashboard() {
     const [allCategories, setAllCategories] = useState([]); // 1. Add new state
     const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState(null);
-    const [transactionFilterType, setTransactionFilterType] = useState('cashbackMonth'); // 'date' or 'cashbackMonth'
+    const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
     const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
     const [dialogTransactions, setDialogTransactions] = useState([]);
     const [isDialogLoading, setIsDialogLoading] = useState(false);
@@ -909,8 +909,9 @@ export default function CashbackDashboard() {
                     <TabsContent value="transactions" className="pt-4">
                         <TransactionsTab
                             isDesktop={isDesktop}
-                            transactions={monthlyTransactions}
-                            isLoading={isMonthlyTxLoading}
+                            // Use recentTransactions in live view, otherwise use monthlyTransactions
+                            transactions={activeMonth === 'live' ? recentTransactions : monthlyTransactions}
+                            isLoading={activeMonth === 'live' ? loading : isMonthlyTxLoading}
                             activeMonth={activeMonth}
                             cardMap={cardMap}
                             mccNameFn={mccName}
@@ -1574,13 +1575,20 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
             <CardHeader>
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <CardTitle>Transactions for {activeMonth === 'live' && statementMonths.length > 0 ? fmtYMShort(statementMonths[0]) : fmtYMShort(activeMonth)}</CardTitle>
-                        <Tabs defaultValue="cashbackMonth" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
-                            <TabsList className="bg-slate-100 p-1 rounded-lg">
-                                <TabsTrigger value="date">Transaction Date</TabsTrigger>
-                                <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
-                            </TabsList>
-                        </Tabs>
+                        <CardTitle>
+                            {activeMonth === 'live' 
+                                ? 'Recent Transactions' 
+                                : `Transactions for ${fmtYMShort(activeMonth)}`
+                            }
+                        </CardTitle>
+                        {activeMonth !== 'live' && (
+                            <Tabs defaultValue="date" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
+                                <TabsList className="bg-slate-100 p-1 rounded-lg">
+                                    <TabsTrigger value="date">Transaction Date</TabsTrigger>
+                                    <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
+                                </TabsList>
+                            </Tabs>
+                        )}
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
                         <div className="relative w-full sm:w-64">
