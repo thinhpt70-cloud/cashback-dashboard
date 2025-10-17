@@ -2751,7 +2751,7 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                 <table className="w-full text-sm whitespace-nowrap">
                     <thead className="text-left text-slate-500 bg-slate-100">
                         <tr>
-                            <th className="p-2 font-medium">Month</th>
+                            <th className="sticky left-0 bg-slate-100 p-2 font-medium">Month</th>
                             <th className="p-2 font-medium">Status</th>
                             <th className="p-2 font-medium">Statement Date</th>
                             <th className="p-2 font-medium">Payment Date</th>
@@ -2773,7 +2773,7 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                             
                             return (
                                 <tr key={stmt.id} className="hover:bg-slate-50">
-                                    <td className="p-2"><span className="bg-slate-200 text-slate-700 font-medium px-2 py-1 rounded-md text-xs">{fmtYMShortFn(stmt.month)}</span></td>
+                                    <td className="sticky left-0 bg-white hover:bg-slate-50 p-2"><span className="bg-slate-200 text-slate-700 font-medium px-2 py-1 rounded-md text-xs">{fmtYMShortFn(stmt.month)}</span></td>
                                     <td className="p-2">{statusBadge}</td>
                                     <td className="p-2">{stmt.statementDate}</td>
                                     <td className="p-2">{stmt.paymentDate}</td>
