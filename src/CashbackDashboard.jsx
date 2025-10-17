@@ -534,18 +534,20 @@ export default function CashbackDashboard() {
         return { daysPast, progressPercent };
     };
 
-    const getCurrentCashbackMonthForCard = useCallback((card) => {
+    const getCurrentCashbackMonthForCard = useCallback((card, transactionDateStr = null) => {
         if (!card) return null;
-        const today = new Date();
-        let year = today.getFullYear();
-        let month = today.getMonth(); // 0-indexed
+        // Use the provided date string, or default to the current date
+        const effectiveDate = transactionDateStr ? new Date(transactionDateStr) : new Date();
+
+        let year = effectiveDate.getFullYear();
+        let month = effectiveDate.getMonth(); // 0-indexed
 
         if (card.useStatementMonthForPayments) {
             const currentMonth = month + 1;
             return `${year}${String(currentMonth).padStart(2, '0')}`;
         }
 
-        if (today.getDate() >= card.statementDay) {
+        if (effectiveDate.getDate() >= card.statementDay) {
             month += 1;
         }
 
@@ -1447,7 +1449,10 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                         </div>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
+                                            <DropdownMenuContent 
+                                                align="end"
+                                                onOpenAutoFocus={(e) => e.preventDefault()}
+                                            >
                                                 <DropdownMenuItem onSelect={() => handleEdit(tx)}><FilePenLine className="mr-2 h-4 w-4" /><span>Edit</span></DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => handleDelete(tx.id, tx['Transaction Name'])} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /><span>Delete</span></DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -1457,7 +1462,12 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                 {hasOptionalFields && (
                                     <Accordion type="single" collapsible className="bg-slate-50">
                                         <AccordionItem value="details" className="border-t">
-                                            <AccordionTrigger className="px-3 py-2 text-xs font-semibold text-muted-foreground">More Details</AccordionTrigger>
+                                            <AccordionTrigger 
+                                                onMouseDown={(e) => e.preventDefault()}
+                                                className="px-3 py-2 text-xs font-semibold text-muted-foreground"
+                                            >
+                                                More Details
+                                            </AccordionTrigger>
                                             <AccordionContent className="px-3 pb-3 text-xs space-y-2">
                                                 {/* This block is now more robust and formats all numbers correctly */}
                                                 {tx.subCategory && <p><span className="font-medium">Sub-Category:</span> {tx.subCategory}</p>}
@@ -2488,7 +2498,13 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button onClick={() => setHistoryOpen(!historyOpen)} variant="outline" size="icon" className="sm:w-auto sm:px-3">
+                                <Button 
+                                    onClick={() => setHistoryOpen(!historyOpen)} 
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    variant="outline" 
+                                    size="icon" 
+                                    className="sm:w-auto sm:px-3"
+                                >
                                     <List className="h-4 w-4" />
                                     <span className="hidden sm:inline ml-1.5">Statements</span>
                                 </Button>
@@ -2611,7 +2627,7 @@ function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtY
     
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent>
+            <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
                 <DialogHeader>
                     <DialogTitle>Log Payment</DialogTitle>
                     <DialogDescription>For {statement.card.name} - {fmtYMShortFn(statement.month)}</DialogDescription>
@@ -2690,7 +2706,7 @@ function StatementLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fm
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent>
+            <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
                 <DialogHeader>
                     <DialogTitle>Log Official Statement Amount</DialogTitle>
                     <DialogDescription>For {statement.card.name} - {fmtYMShortFn(statement.month)}</DialogDescription>
@@ -2784,6 +2800,7 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                                         variant="ghost"
                                         size="sm"
                                         onClick={onLoadMore}
+                                        onMouseDown={(e) => e.preventDefault()}
                                         disabled={isLoadingMore}
                                     >
                                         {isLoadingMore ? (
@@ -3416,10 +3433,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 const card = cardMap.get(rule.cardId);
                 if (!card || card.status !== 'Active') return null;
 
-                //const today = new Date();
-                //const year = today.getFullYear();
-                //const month = String(today.getMonth() + 1).padStart(2, '0');
-                const monthForCard = getCurrentCashbackMonthForCard(card);
+                const monthForCard = getCurrentCashbackMonthForCard(card, date);
 
                 const cardMonthSummary = monthlySummary.find(s => s.cardId === card.id && s.month === monthForCard);
                 const categorySummaryId = `${monthForCard} - ${rule.ruleName}`;
@@ -3458,7 +3472,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 }
                 return b.rule.rate - a.rule.rate;
             });
-    }, [mccCode, amount, rules, cardMap, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard]);
+    }, [mccCode, amount, rules, cardMap, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, date]);
 
     // --- Handlers ---
     const resetForm = () => {
@@ -3961,8 +3975,10 @@ function TransactionDetailsDialog({ isOpen, onClose, details, transactions, isLo
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-        {/* Adjusted width for better responsiveness */}
-        <DialogContent className="sm:max-w-2xl w-full max-w-md bg-white">
+        <DialogContent 
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            className="sm:max-w-2xl w-full max-w-md bg-white"
+        >
             <DialogHeader>
             <DialogTitle>
                 Transactions for {details.cardName}
