@@ -1375,7 +1375,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                 {hasOptionalFields && (
                                     <Accordion type="single" collapsible className="bg-slate-50">
                                         <AccordionItem value="details" className="border-t">
-                                            <AccordionTrigger className="px-3 py-2 text-xs font-semibold text-muted-foreground">Show More Details</AccordionTrigger>
+                                            <AccordionTrigger className="px-3 py-2 text-xs font-semibold text-muted-foreground">More Details</AccordionTrigger>
                                             <AccordionContent className="px-3 pb-3 text-xs space-y-2">
                                                 {/* This block is now more robust and formats all numbers correctly */}
                                                 {tx.subCategory && <p><span className="font-medium">Sub-Category:</span> {tx.subCategory}</p>}
@@ -1383,16 +1383,12 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                                 {tx.billingDate && <p><span className="font-medium">Billing Date:</span> {tx.billingDate}</p>}
                                                 {tx.otherDiscounts > 0 && <p><span className="font-medium">Discounts:</span> -{currency(tx.otherDiscounts)}</p>}
                                                 {tx.otherFees > 0 && <p><span className="font-medium">Fees:</span> +{currency(tx.otherFees)}</p>}
-                                                
-                                                {/* --- FIX --- */}
-                                                {/* This logic now correctly displays the line if either foreign amount or conversion fee exists. */}
                                                 {(tx.foreignCurrencyAmount > 0 || tx.conversionFee > 0) && (
                                                     <p>
                                                         <span className="font-medium">Foreign Spend: </span> 
                                                         {currency(tx.foreignCurrencyAmount)} (+{currency(tx.conversionFee)})
                                                     </p>
                                                 )}
-                                                
                                                 {tx.notes && <p className="pt-1 border-t mt-1 whitespace-pre-wrap"><span className="font-medium">Notes:</span> {tx.notes}</p>}
                                             </AccordionContent>
                                         </AccordionItem>
@@ -1464,9 +1460,9 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                                     {tx.subCategory && <div><p className="font-semibold text-slate-500">Sub-Category</p><p>{tx.subCategory}</p></div>}
                                                     {tx.paidFor && <div><p className="font-semibold text-slate-500">Paid For</p><p>{tx.paidFor}</p></div>}
                                                     {tx.billingDate && <div><p className="font-semibold text-slate-500">Billing Date</p><p>{tx.billingDate}</p></div>}
-                                                    {tx.foreignCurrencyAmount && <div><p className="font-semibold text-slate-500">Foreign Spend</p><p>{tx.foreignCurrencyAmount} (+{currency(tx.conversionFee)})</p></div>}
-                                                    {tx.otherDiscounts && <div><p className="font-semibold text-slate-500">Discounts</p><p className="text-emerald-600">-{currency(tx.otherDiscounts)}</p></div>}
-                                                    {tx.otherFees && <div><p className="font-semibold text-slate-500">Fees</p><p className="text-red-600">+{currency(tx.otherFees)}</p></div>}
+                                                    {(tx.foreignCurrencyAmount > 0 || tx.conversionFee > 0) && <div><p className="font-semibold text-slate-500">Foreign Spend</p><p>{currency(tx.foreignCurrencyAmount)} (+{currency(tx.conversionFee)})</p></div>}
+                                                    {tx.otherDiscounts > 0 && <div><p className="font-semibold text-slate-500">Discounts</p><p className="text-emerald-600">-{currency(tx.otherDiscounts)}</p></div>}
+                                                    {tx.otherFees > 0 && <div><p className="font-semibold text-slate-500">Fees</p><p className="text-red-600">+{currency(tx.otherFees)}</p></div>}
                                                     {tx.notes && <div className="col-span-full"><p className="font-semibold text-slate-500">Notes</p><p className="whitespace-pre-wrap">{tx.notes}</p></div>}
                                                 </div>
                                             </TableCell>
