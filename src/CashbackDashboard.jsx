@@ -210,6 +210,17 @@ export default function CashbackDashboard() {
         }
     }, []);
 
+    const handleTransactionDeleted = (deletedTxId) => {
+        // Remove the transaction from the main list to update the UI instantly
+        setMonthlyTransactions(prevTxs => prevTxs.filter(tx => tx.id !== deletedTxId));
+        
+        // Also remove it from the recent transactions carousel for consistency
+        setRecentTransactions(prevRecent => prevRecent.filter(tx => tx.id !== deletedTxId));
+
+        // Optionally, trigger a silent refresh to ensure all aggregate data is up-to-date
+        fetchData(true); 
+    };
+
     // --- DATA FETCHING ---
     const fetchData = async (isSilent = false) => {
         if (!isSilent) {
@@ -859,6 +870,7 @@ export default function CashbackDashboard() {
                             filterType={transactionFilterType}
                             onFilterTypeChange={setTransactionFilterType}
                             statementMonths={statementMonths}
+                            onTransactionDeleted={handleTransactionDeleted}
                         />
                     </TabsContent>  
 
@@ -1220,7 +1232,7 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
     );
 }
 
-function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange, statementMonths, isDesktop }) {
+function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange, statementMonths, isDesktop, onTransactionDeleted }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [cardFilter, setCardFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
@@ -1313,8 +1325,31 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
         toast.info(`Editing transaction: ${tx['Transaction Name']}`);
     };
 
-    const handleDelete = (txId) => {
-        toast.error(`Deleting transaction ID: ${txId}`);
+    const handleDelete = async (txId, txName) => {
+        // 1. Ask for confirmation to prevent accidental deletion
+        if (!window.confirm(`Are you sure you want to delete the transaction for "${txName}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            // 2. Call the backend API to archive the page in Notion
+            const response = await fetch(`${API_BASE_URL}/transactions/${txId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                // Handle server-side errors
+                throw new Error('Failed to delete the transaction on the server.');
+            }
+
+            // 3. If successful, call the parent handler to update the UI
+            onTransactionDeleted(txId);
+            toast.success('Transaction deleted successfully!');
+
+        } catch (error) {
+            console.error("Delete failed:", error);
+            toast.error("Could not delete the transaction. Please try again.");
+        }
     };
 
     const SortIcon = ({ columnKey }) => {
@@ -1367,7 +1402,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onSelect={() => handleEdit(tx)}><FilePenLine className="mr-2 h-4 w-4" /><span>Edit</span></DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => handleDelete(tx.id)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /><span>Delete</span></DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => handleDelete(tx.id, tx['Transaction Name'])} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /><span>Delete</span></DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
@@ -1386,7 +1421,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                                 {(tx.foreignCurrencyAmount > 0 || tx.conversionFee > 0) && (
                                                     <p>
                                                         <span className="font-medium">Foreign Spend: </span> 
-                                                        {currency(tx.foreignCurrencyAmount)} (+{currency(tx.conversionFee)})
+                                                        {tx.foreignCurrencyAmount} (+{currency(tx.conversionFee)})
                                                     </p>
                                                 )}
                                                 {tx.notes && <p className="pt-1 border-t mt-1 whitespace-pre-wrap"><span className="font-medium">Notes:</span> {tx.notes}</p>}
@@ -1449,7 +1484,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                         <TableCell className="text-center">
                                             <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id)}><Trash2 className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -1460,7 +1495,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                                     {tx.subCategory && <div><p className="font-semibold text-slate-500">Sub-Category</p><p>{tx.subCategory}</p></div>}
                                                     {tx.paidFor && <div><p className="font-semibold text-slate-500">Paid For</p><p>{tx.paidFor}</p></div>}
                                                     {tx.billingDate && <div><p className="font-semibold text-slate-500">Billing Date</p><p>{tx.billingDate}</p></div>}
-                                                    {(tx.foreignCurrencyAmount > 0 || tx.conversionFee > 0) && <div><p className="font-semibold text-slate-500">Foreign Spend</p><p>{currency(tx.foreignCurrencyAmount)} (+{currency(tx.conversionFee)})</p></div>}
+                                                    {(tx.foreignCurrencyAmount > 0 || tx.conversionFee > 0) && <div><p className="font-semibold text-slate-500">Foreign Spend</p><p>{tx.foreignCurrencyAmount} (+{currency(tx.conversionFee)})</p></div>}
                                                     {tx.otherDiscounts > 0 && <div><p className="font-semibold text-slate-500">Discounts</p><p className="text-emerald-600">-{currency(tx.otherDiscounts)}</p></div>}
                                                     {tx.otherFees > 0 && <div><p className="font-semibold text-slate-500">Fees</p><p className="text-red-600">+{currency(tx.otherFees)}</p></div>}
                                                     {tx.notes && <div className="col-span-full"><p className="font-semibold text-slate-500">Notes</p><p className="whitespace-pre-wrap">{tx.notes}</p></div>}
