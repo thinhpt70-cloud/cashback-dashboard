@@ -3288,6 +3288,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             setAmount((initialData['Amount'] || '').toLocaleString('en-US'));
             setDate(initialData['Transaction Date'] || new Date().toISOString().slice(0, 10));
             setCardId(initialData['Card'] ? initialData['Card'][0] : '');
+            setApplicableRuleId(initialData['Applicable Rule'] ? initialData['Applicable Rule'][0] : '');
             setCategory(initialData['Category'] || '');
             setMccCode(initialData['MCC Code'] || '');
             setMerchantLookup(initialData['merchantLookup'] || '');

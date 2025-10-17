@@ -362,7 +362,7 @@ app.patch('/api/transactions/:id', async (req, res) => {
         if (mccCode !== undefined) propertiesToUpdate['MCC Code'] = { rich_text: [{ text: { content: String(mccCode) } }] };
         if (merchantLookup !== undefined) propertiesToUpdate['Merchant'] = { rich_text: [{ text: { content: merchantLookup } }] };
         if (notes !== undefined) propertiesToUpdate['Notes'] = { rich_text: [{ text: { content: notes || "" } }] };
-        if (subCategory !== undefined) propertiesToUpdate['Sub Category'] = { rich_text: [{ text: { content: subCategory || "" } }] };
+        if (subCategory !== undefined) propertiesToUpdate['Sub Category'] = subCategory ? { select: { name: subCategory } } : { select: null };
         if (paidFor !== undefined) propertiesToUpdate['Paid for'] = paidFor ? { select: { name: paidFor } } : { select: null };
         if (billingDate !== undefined) propertiesToUpdate['Billing Date'] = billingDate ? { date: { start: billingDate } } : { date: null };
         if (typeof otherDiscounts === 'number') propertiesToUpdate['Other Discounts'] = { number: otherDiscounts };
