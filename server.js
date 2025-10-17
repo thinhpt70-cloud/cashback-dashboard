@@ -332,19 +332,23 @@ app.patch('/api/transactions/:id', async (req, res) => {
 
     try {
         const {
-            // Destructure all possible fields from the request body
-            'Transaction Name': merchant,
-            'Amount': amount,
-            'Transaction Date': date,
-            'Card': cardId,
-            'Category': category,
-            'MCC Code': mccCode,
-            'merchantLookup': merchantLookup,
-            'notes': notes,
-            'otherDiscounts': otherDiscounts,
-            'otherFees': otherFees,
-            'subCategory': subCategory,
-            // ... add any other fields you want to be editable
+            merchant,
+            amount,
+            date,
+            cardId,
+            category,
+            mccCode,
+            merchantLookup,
+            applicableRuleId,
+            cardSummaryCategoryId,
+            notes,
+            otherDiscounts,
+            otherFees,
+            foreignCurrencyAmount,
+            conversionFee,
+            paidFor,
+            subCategory,
+            billingDate,
         } = req.body;
 
         const propertiesToUpdate = {};
@@ -356,12 +360,19 @@ app.patch('/api/transactions/:id', async (req, res) => {
         if (cardId) propertiesToUpdate['Card'] = { relation: [{ id: cardId }] };
         if (category !== undefined) propertiesToUpdate['Category'] = category ? { select: { name: category } } : { select: null };
         if (mccCode !== undefined) propertiesToUpdate['MCC Code'] = { rich_text: [{ text: { content: String(mccCode) } }] };
-        if (merchantLookup !== undefined) propertiesToUpdate['Merchant'] = { rich_text: [{ text: { content: String(merchantLookup) } }] };
-        if (notes !== undefined) propertiesToUpdate['Notes'] = { rich_text: [{ text: { content: notes } }] };
-        if (subCategory !== undefined) propertiesToUpdate['Sub Category'] = subCategory ? { select: { name: subCategory } } : { select: null };
+        if (merchantLookup !== undefined) propertiesToUpdate['Merchant'] = { rich_text: [{ text: { content: merchantLookup } }] };
+        if (notes !== undefined) propertiesToUpdate['Notes'] = { rich_text: [{ text: { content: notes || "" } }] };
+        if (subCategory !== undefined) propertiesToUpdate['Sub Category'] = { rich_text: [{ text: { content: subCategory || "" } }] };
+        if (paidFor !== undefined) propertiesToUpdate['Paid for'] = paidFor ? { select: { name: paidFor } } : { select: null };
+        if (billingDate !== undefined) propertiesToUpdate['Billing Date'] = billingDate ? { date: { start: billingDate } } : { date: null };
         if (typeof otherDiscounts === 'number') propertiesToUpdate['Other Discounts'] = { number: otherDiscounts };
         if (typeof otherFees === 'number') propertiesToUpdate['Other Fees'] = { number: otherFees };
-        
+        if (typeof foreignCurrencyAmount === 'number') propertiesToUpdate['Foreign Currency'] = { number: foreignCurrencyAmount };
+        if (typeof conversionFee === 'number') propertiesToUpdate['Conversion Fee'] = { number: conversionFee };
+        if (applicableRuleId !== undefined) propertiesToUpdate['Applicable Rule'] = applicableRuleId ? { relation: [{ id: applicableRuleId }] } : { relation: [] };
+        if (cardSummaryCategoryId !== undefined) propertiesToUpdate['Card Summary Category'] = cardSummaryCategoryId ? { relation: [{ id: cardSummaryCategoryId }] } : { relation: [] };
+
+
         if (Object.keys(propertiesToUpdate).length === 0) {
             return res.status(400).json({ error: 'No fields to update were provided.' });
         }
@@ -371,7 +382,11 @@ app.patch('/api/transactions/:id', async (req, res) => {
             properties: propertiesToUpdate,
         });
 
-        res.status(200).json(mapTransaction(updatedPage));
+        // Retrieve the page again to get the updated formula fields
+        const populatedPage = await notion.pages.retrieve({ page_id: updatedPage.id });
+        const formattedTransaction = mapTransaction(populatedPage);
+
+        res.status(200).json(formattedTransaction);
 
     } catch (error) {
         console.error('Error updating transaction in Notion:', error.body || error);

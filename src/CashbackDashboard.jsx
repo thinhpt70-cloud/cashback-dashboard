@@ -152,6 +152,7 @@ export default function CashbackDashboard() {
     const [monthlyCashbackCategories, setMonthlyCashbackCategories] = useState([]);
     const [allCategories, setAllCategories] = useState([]); // 1. Add new state
     const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
+    const [editingTransaction, setEditingTransaction] = useState(null);
     const [transactionFilterType, setTransactionFilterType] = useState('cashbackMonth'); // 'date' or 'cashbackMonth'
     const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
     const [dialogTransactions, setDialogTransactions] = useState([]);
@@ -219,6 +220,25 @@ export default function CashbackDashboard() {
 
         // Optionally, trigger a silent refresh to ensure all aggregate data is up-to-date
         fetchData(true); 
+    };
+
+    const handleEditClick = (transaction) => {
+        setEditingTransaction(transaction);
+    };
+
+    const handleTransactionUpdated = (updatedTransaction) => {
+        // Find and replace the transaction in the list for an instant UI update
+        setMonthlyTransactions(prevTxs => 
+            prevTxs.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
+        );
+        
+        // Also update the recent transactions carousel
+        setRecentTransactions(prevRecent =>
+            prevRecent.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
+        );
+
+        setEditingTransaction(null); // Close the edit form
+        fetchData(true); // Silently refresh all aggregate data in the background
     };
 
     // --- DATA FETCHING ---
@@ -587,9 +607,9 @@ export default function CashbackDashboard() {
                     <img 
                         src="/favicon.svg" 
                         alt="Cardifier icon" 
-                        className="h-6 w-6" 
+                        className="h-8 w-8" 
                     />
-                    <span className="hidden md:inline">Cardifier Dashboard | Cashback Optimizer</span>
+                    <span className="hidden md:inline">Cardifier | Cashback Optimizer</span>
                 </h1>
 
                 {/* Right-aligned container for all controls */}
@@ -648,6 +668,32 @@ export default function CashbackDashboard() {
                                         monthlySummary={monthlySummary}
                                         monthlyCategorySummary={monthlyCategorySummary}
                                         getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                    />
+                                </div>
+                            </SheetContent>
+                        </Sheet>
+                        <Sheet open={!!editingTransaction} onOpenChange={(isOpen) => !isOpen && setEditingTransaction(null)}>
+                            <SheetContent 
+                                side={addTxSheetSide} 
+                                className={cn("flex flex-col p-0", "w-full sm:max-w-2xl", !isDesktop && "h-[90dvh]")}
+                            >
+                                <SheetHeader className="px-6 pt-6">
+                                    <SheetTitle>Edit Transaction</SheetTitle>
+                                </SheetHeader>
+                                <div className="flex-grow overflow-y-auto px-6 pb-6">
+                                    <AddTransactionForm
+                                        cards={cards}
+                                        categories={allCategories}
+                                        rules={cashbackRules}
+                                        monthlyCategories={monthlyCashbackCategories}
+                                        mccMap={mccMap}
+                                        commonVendors={commonVendors}
+                                        monthlySummary={monthlySummary}
+                                        monthlyCategorySummary={monthlyCategorySummary}
+                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                        initialData={editingTransaction}
+                                        onTransactionUpdated={handleTransactionUpdated}
+                                        onClose={() => setEditingTransaction(null)}
                                     />
                                 </div>
                             </SheetContent>
@@ -871,6 +917,7 @@ export default function CashbackDashboard() {
                             onFilterTypeChange={setTransactionFilterType}
                             statementMonths={statementMonths}
                             onTransactionDeleted={handleTransactionDeleted}
+                            onEditTransaction={handleEditClick}
                         />
                     </TabsContent>  
 
@@ -1232,7 +1279,7 @@ function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
     );
 }
 
-function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange, statementMonths, isDesktop, onTransactionDeleted }) {
+function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange, statementMonths, isDesktop, onTransactionDeleted, onEditTransaction }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [cardFilter, setCardFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
@@ -1320,9 +1367,9 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
     const handleLoadMore = () => {
         setVisibleCount(prevCount => prevCount + 15);
     };
-    
+
     const handleEdit = (tx) => {
-        toast.info(`Editing transaction: ${tx['Transaction Name']}`);
+        onEditTransaction(tx); // <-- Call the handler from the parent
     };
 
     const handleDelete = async (txId, txName) => {
@@ -3195,7 +3242,7 @@ function CardRecommendations({ recommendations, onSelectCard, currencyFn, select
     );
 }
 
-function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard }) {
+function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, onClose }) {
     // --- State Management ---
     const [merchant, setMerchant] = useState('');
     const [amount, setAmount] = useState('');
@@ -3234,6 +3281,28 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
             setMccName('');
         }
     }, [mccCode, mccMap]);
+
+    useEffect(() => {
+        if (initialData) {
+            setMerchant(initialData['Transaction Name'] || '');
+            setAmount((initialData['Amount'] || '').toLocaleString('en-US'));
+            setDate(initialData['Transaction Date'] || new Date().toISOString().slice(0, 10));
+            setCardId(initialData['Card'] ? initialData['Card'][0] : '');
+            setCategory(initialData['Category'] || '');
+            setMccCode(initialData['MCC Code'] || '');
+            setMerchantLookup(initialData['merchantLookup'] || '');
+            setNotes(initialData['notes'] || '');
+            setOtherDiscounts((initialData['otherDiscounts'] || '').toLocaleString('en-US'));
+            setOtherFees((initialData['otherFees'] || '').toLocaleString('en-US'));
+            setForeignCurrencyAmount((initialData['foreignCurrencyAmount'] || '').toLocaleString('en-US'));
+            setConversionFee((initialData['conversionFee'] || '').toLocaleString('en-US'));
+            setPaidFor(initialData['paidFor'] || '');
+            setSubCategory(initialData['subCategory'] || '');
+            setBillingDate(initialData['billingDate'] || '');
+            // Note: Rule and Summary Category IDs are not pre-filled as they are complex relations
+            // and often need to be re-evaluated upon edit.
+        }
+    }, [initialData]);
 
     const handleVendorSelect = (vendor) => {
         setMerchant(vendor.transactionName || '');
@@ -3465,58 +3534,84 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-        let finalSummaryId = null;
+
+        // This data object is built once and used for both adding and editing.
+        const transactionData = {
+            merchant,
+            amount: parseFloat(String(amount).replace(/,/g, '')),
+            date,
+            cardId,
+            category: category || null,
+            mccCode: mccCode || null,
+            merchantLookup: merchantLookup || null,
+            applicableRuleId: applicableRuleId || null,
+            notes: notes || null,
+            otherDiscounts: otherDiscounts ? parseFloat(String(otherDiscounts).replace(/,/g, '')) : null,
+            otherFees: otherFees ? parseFloat(String(otherFees).replace(/,/g, '')) : null,
+            foreignCurrencyAmount: foreignCurrencyAmount ? parseFloat(String(foreignCurrencyAmount).replace(/,/g, '')) : null,
+            conversionFee: conversionFee ? parseFloat(String(conversionFee).replace(/,/g, '')) : null,
+            paidFor: paidFor || null,
+            subCategory: subCategory || null,
+            billingDate: billingDate || null,
+        };
+
         try {
-            if (applicableRuleId && cardSummaryCategoryId === 'new') {
-                const summaryResponse = await fetch('/api/summaries', {
+            let response;
+            let resultTransaction;
+
+            if (initialData) {
+                // --- EDIT MODE ---
+                // If `initialData` exists, we send a PATCH request to update.
+                response = await fetch(`/api/transactions/${initialData.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(transactionData),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update transaction');
+                }
+
+                resultTransaction = await response.json();
+                toast.success("Transaction updated successfully!");
+                onTransactionUpdated(resultTransaction); // Call the update handler
+
+            } else {
+                // --- ADD MODE ---
+                // If `initialData` is null, we proceed with the logic to add a new transaction.
+                let finalSummaryId = null;
+                if (applicableRuleId && cardSummaryCategoryId === 'new') {
+                    const summaryResponse = await fetch('/api/summaries', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cardId: cardId, month: cashbackMonth, ruleId: applicableRuleId }),
+                    });
+                    if (!summaryResponse.ok) throw new Error('Failed to create new monthly summary.');
+                    const newSummary = await summaryResponse.json();
+                    finalSummaryId = newSummary.id;
+                } else if (applicableRuleId && cardSummaryCategoryId !== 'new') {
+                    finalSummaryId = cardSummaryCategoryId;
+                }
+                
+                response = await fetch('/api/transactions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cardId: cardId, month: cashbackMonth, ruleId: applicableRuleId }),
+                    body: JSON.stringify({ ...transactionData, cardSummaryCategoryId: finalSummaryId }),
                 });
-                if (!summaryResponse.ok) throw new Error('Failed to create new monthly summary.');
-                const newSummary = await summaryResponse.json();
-                finalSummaryId = newSummary.id;
-            } else if (applicableRuleId && cardSummaryCategoryId !== 'new') {
-                finalSummaryId = cardSummaryCategoryId;
+
+                if (!response.ok) {
+                    throw new Error('Failed to add transaction');
+                }
+
+                resultTransaction = await response.json();
+                toast.success("Transaction added successfully!");
+                onTransactionAdded(resultTransaction); // Call the add handler
+                resetForm(); // Only reset the form on a new submission
             }
 
-            const transactionData = {
-                merchant,
-                amount: parseFloat(String(amount).replace(/,/g, '')),
-                date,
-                cardId,
-                category: category || null,
-                mccCode: mccCode || null,
-                merchantLookup: merchantLookup || null,
-                applicableRuleId: applicableRuleId || null,
-                cardSummaryCategoryId: finalSummaryId,
-                notes: notes || null,
-                otherDiscounts: otherDiscounts ? parseFloat(String(otherDiscounts).replace(/,/g, '')) : null,
-                otherFees: otherFees ? parseFloat(String(otherFees).replace(/,/g, '')) : null,
-                foreignCurrencyAmount: foreignCurrencyAmount ? parseFloat(String(foreignCurrencyAmount).replace(/,/g, '')) : null,
-                conversionFee: conversionFee ? parseFloat(String(conversionFee).replace(/,/g, '')) : null,
-                paidFor: paidFor || null,
-                subCategory: subCategory || null,
-                billingDate: billingDate || null,
-            };
-
-            const response = await fetch('/api/transactions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(transactionData),
-            });
-            if (!response.ok) throw new Error('Failed to add transaction');
-            
-            const newTransactionFromServer = await response.json();
-            const optimisticTransaction = { ...newTransactionFromServer, estCashback: estimatedCashbackAndWarnings.cashback };
-
-            toast.success("Transaction added successfully!");
-            localStorage.setItem('lastUsedCardId', cardId);
-            onTransactionAdded(optimisticTransaction);
-            resetForm();
         } catch (error) {
             console.error('Error during transaction submission:', error);
-            toast.error("Failed to add transaction. Please try again.");
+            toast.error(`Failed to ${initialData ? 'update' : 'add'} transaction. Please try again.`);
         } finally {
             setIsSubmitting(false);
         }
