@@ -934,10 +934,10 @@ export default function CashbackDashboard() {
                                     This Month
                                 </TabsTrigger>
                                 <TabsTrigger value="ytd" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
-                                    YTD
+                                    Year to Date
                                 </TabsTrigger>
                                 <TabsTrigger value="roi" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
-                                    ROI & Dates
+                                    ROI & Fees
                                 </TabsTrigger>
                             </TabsList>
                         </Tabs>
@@ -1450,10 +1450,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                         </div>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent 
-                                                align="end"
-                                                onOpenAutoFocus={(e) => e.preventDefault()}
-                                            >
+                                            <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onSelect={() => handleEdit(tx)}><FilePenLine className="mr-2 h-4 w-4" /><span>Edit</span></DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => handleDelete(tx.id, tx['Transaction Name'])} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /><span>Delete</span></DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -1463,10 +1460,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                 {hasOptionalFields && (
                                     <Accordion type="single" collapsible className="bg-slate-50">
                                         <AccordionItem value="details" className="border-t">
-                                            <AccordionTrigger 
-                                                onMouseDown={(e) => e.preventDefault()}
-                                                className="px-3 py-2 text-xs font-semibold text-muted-foreground"
-                                            >
+                                            <AccordionTrigger className="px-3 py-2 text-xs font-semibold text-muted-foreground">
                                                 More Details
                                             </AccordionTrigger>
                                             <AccordionContent className="px-3 pb-3 text-xs space-y-2">
@@ -2508,7 +2502,6 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                             <TooltipTrigger asChild>
                                 <Button 
                                     onClick={() => setHistoryOpen(!historyOpen)} 
-                                    onMouseDown={(e) => e.preventDefault()}
                                     variant="outline" 
                                     size="icon" 
                                     className="sm:w-auto sm:px-3"
@@ -2635,7 +2628,7 @@ function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtY
     
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+            <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Log Payment</DialogTitle>
                     <DialogDescription>For {statement.card.name} - {fmtYMShortFn(statement.month)}</DialogDescription>
@@ -2714,7 +2707,7 @@ function StatementLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fm
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+            <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Log Official Statement Amount</DialogTitle>
                     <DialogDescription>For {statement.card.name} - {fmtYMShortFn(statement.month)}</DialogDescription>
@@ -2808,7 +2801,6 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                                         variant="ghost"
                                         size="sm"
                                         onClick={onLoadMore}
-                                        onMouseDown={(e) => e.preventDefault()}
                                         disabled={isLoadingMore}
                                     >
                                         {isLoadingMore ? (
@@ -3983,10 +3975,7 @@ function TransactionDetailsDialog({ isOpen, onClose, details, transactions, isLo
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent 
-            onOpenAutoFocus={(e) => e.preventDefault()}
-            className="sm:max-w-2xl w-full max-w-md bg-white"
-        >
+        <DialogContent className="sm:max-w-2xl w-full max-w-md bg-white">
             <DialogHeader>
             <DialogTitle>
                 Transactions for {details.cardName}
@@ -4219,7 +4208,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                             <div className="grid grid-cols-2 gap-3">
                                 <MetricItem label="Annual Fee" value={currencyFn(card.annualFee)} />
                                 <MetricItem 
-                                    label="Net Value (vs. Fee)" 
+                                    label="Net Value" 
                                     value={currencyFn(totalValue)} 
                                     valueClassName={totalValue >= 0 ? 'text-emerald-600' : 'text-red-500'}
                                 />
@@ -4227,7 +4216,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                             {progressPercent > 0 && (
                                 <div>
                                     <div className="flex justify-between text-xs mb-1 text-slate-500">
-                                        <span>Fee Cycle Progress ({daysPast} days)</span>
+                                        <span>Fee Cycle Progress ({daysPast} days past)</span>
                                         <span>{progressPercent}%</span>
                                     </div>
                                     <Progress value={progressPercent} />
@@ -4421,24 +4410,29 @@ function useIOSKeyboardGapFix() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (!isIOS) return;
 
-    // The handler now accepts the blur event
     const handleBlur = (event) => {
-      // Check where the focus is going next
-      const relatedTarget = event.relatedTarget;
+      const elementLosingFocus = event.target;
+      const elementGainingFocus = event.relatedTarget;
 
-      // If focus is moving to another input, select, or textarea,
-      // it means the user is just navigating the form. Do nothing.
-      if (relatedTarget && ['INPUT', 'SELECT', 'TEXTAREA'].includes(relatedTarget.tagName)) {
+      // 1. First, check if the element losing focus is an input-type element.
+      //    If not, the keyboard wasn't open, so we do nothing.
+      if (!elementLosingFocus || !['INPUT', 'SELECT', 'TEXTAREA'].includes(elementLosingFocus.tagName)) {
+        return;
+      }
+
+      // 2. Second, check if focus is simply moving to another input.
+      //    If so, the keyboard is staying open, so we do nothing.
+      if (elementGainingFocus && ['INPUT', 'SELECT', 'TEXTAREA'].includes(elementGainingFocus.tagName)) {
         return;
       }
       
-      // Otherwise, the user is likely dismissing the keyboard, so run the fix.
+      // 3. If we get here, an input has lost focus to a non-input element,
+      //    meaning the keyboard is closing. Now we can safely scroll to the top.
       setTimeout(() => {
         window.scrollTo(0, 0);
       }, 100);
     };
 
-    // The 'true' is important to capture the event before it bubbles up
     window.addEventListener('blur', handleBlur, true);
 
     return () => {
