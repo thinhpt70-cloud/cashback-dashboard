@@ -1377,12 +1377,22 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                         <AccordionItem value="details" className="border-t">
                                             <AccordionTrigger className="px-3 py-2 text-xs font-semibold text-muted-foreground">Show More Details</AccordionTrigger>
                                             <AccordionContent className="px-3 pb-3 text-xs space-y-2">
+                                                {/* This block is now more robust and formats all numbers correctly */}
                                                 {tx.subCategory && <p><span className="font-medium">Sub-Category:</span> {tx.subCategory}</p>}
                                                 {tx.paidFor && <p><span className="font-medium">Paid For:</span> {tx.paidFor}</p>}
                                                 {tx.billingDate && <p><span className="font-medium">Billing Date:</span> {tx.billingDate}</p>}
-                                                {tx.otherDiscounts && <p><span className="font-medium">Discounts:</span> -{currency(tx.otherDiscounts)}</p>}
-                                                {tx.otherFees && <p><span className="font-medium">Fees:</span> +{currency(tx.otherFees)}</p>}
-                                                {tx.foreignCurrencyAmount && <p><span className="font-medium">Foreign Spend:</span> {tx.foreignCurrencyAmount} (+{currency(tx.conversionFee)})</p>}
+                                                {tx.otherDiscounts > 0 && <p><span className="font-medium">Discounts:</span> -{currency(tx.otherDiscounts)}</p>}
+                                                {tx.otherFees > 0 && <p><span className="font-medium">Fees:</span> +{currency(tx.otherFees)}</p>}
+                                                
+                                                {/* --- FIX --- */}
+                                                {/* This logic now correctly displays the line if either foreign amount or conversion fee exists. */}
+                                                {(tx.foreignCurrencyAmount > 0 || tx.conversionFee > 0) && (
+                                                    <p>
+                                                        <span className="font-medium">Foreign Spend: </span> 
+                                                        {currency(tx.foreignCurrencyAmount)} (+{currency(tx.conversionFee)})
+                                                    </p>
+                                                )}
+                                                
                                                 {tx.notes && <p className="pt-1 border-t mt-1 whitespace-pre-wrap"><span className="font-medium">Notes:</span> {tx.notes}</p>}
                                             </AccordionContent>
                                         </AccordionItem>
