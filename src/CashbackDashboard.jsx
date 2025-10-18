@@ -1459,8 +1459,69 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
     
     const renderContent = () => {
         if (isLoading) {
-            return <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+            // If it's not desktop (i.e., mobile view)
+            if (!isDesktop) {
+                return (
+                    <div className="space-y-3">
+                        {/* Create 5 skeleton cards for the mobile list view */}
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <div key={i} className="p-3 border bg-white rounded-lg space-y-3">
+                                <div className="flex justify-between items-start gap-2">
+                                    <div className="flex-1 space-y-2">
+                                        <Skeleton className="h-5 w-3/4" />
+                                        <Skeleton className="h-3 w-1/2" />
+                                    </div>
+                                    <div className="text-right flex-shrink-0 space-y-2">
+                                        <Skeleton className="h-6 w-24 ml-auto" />
+                                        <Skeleton className="h-4 w-16 ml-auto" />
+                                    </div>
+                                </div>
+                                <div className="flex justify-between items-center mt-2 pt-2 border-t">
+                                    <Skeleton className="h-6 w-32" />
+                                    <Skeleton className="h-8 w-8 rounded-md" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                );
+            }
+
+            // Otherwise, render the skeleton for the desktop table view
+            return (
+                <div className="border rounded-md">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[40px]"><Skeleton className="h-5 w-5" /></TableHead>
+                                <TableHead className="w-[120px]"><Skeleton className="h-5 w-20" /></TableHead>
+                                <TableHead><Skeleton className="h-5 w-32" /></TableHead>
+                                <TableHead><Skeleton className="h-5 w-24" /></TableHead>
+                                <TableHead className="text-center"><Skeleton className="h-5 w-16 mx-auto" /></TableHead>
+                                <TableHead className="text-right"><Skeleton className="h-5 w-28 ml-auto" /></TableHead>
+                                <TableHead className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableHead>
+                                <TableHead className="w-[100px] text-center"><Skeleton className="h-5 w-20 mx-auto" /></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {/* Create 7 skeleton rows for the desktop table view */}
+                            {Array.from({ length: 7 }).map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                    <TableCell><Skeleton className="h-7 w-16 mx-auto" /></TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            );
         }
+        
         if (transactionsToShow.length === 0) {
             return <div className="text-center h-24 flex items-center justify-center text-muted-foreground"><p>No transactions found.</p></div>;
         }
