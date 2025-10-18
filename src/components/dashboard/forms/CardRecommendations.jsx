@@ -20,7 +20,7 @@ const getWarningText = (item) => {
 };
 
 // Sub-component for rendering each recommendation item
-const RecommendationItem = ({ item, rank }) => {
+const RecommendationItem = ({ item, rank, onSelectCard, selectedCardId, currencyFn }) => {
     const { card, rule, calculatedCashback, remainingCategoryCashback } = item;
     const isSelected = card.id === selectedCardId;
     const isCappedOrIneligible = !item.isMinSpendMet || item.isCategoryCapReached || item.isMonthlyCapReached;
@@ -100,11 +100,18 @@ export default function CardRecommendations({ recommendations, onSelectCard, cur
             {/* Render eligible cards first */}
             <div className="space-y-2">
                 {eligible.map((item, index) => (
-                    <RecommendationItem key={item.rule.id} item={item} rank={index + 1} />
+                    <RecommendationItem 
+                        key={item.rule.id} 
+                        item={item} 
+                        rank={index + 1} 
+                        onSelectCard={onSelectCard}
+                        selectedCardId={selectedCardId}
+                        currencyFn={currencyFn}
+                    />
                 ))}
             </div>
 
-            {/* NEW: Render ineligible cards inside an Accordion */}
+            {/* Render ineligible cards inside an Accordion */}
             {ineligible.length > 0 && (
                 <Accordion type="single" collapsible className="w-full pt-1">
                     <AccordionItem value="ineligible-cards" className="border-none">
@@ -112,10 +119,15 @@ export default function CardRecommendations({ recommendations, onSelectCard, cur
                             Show {ineligible.length} ineligible options
                         </AccordionTrigger>
                         <AccordionContent>
-                            {/* FIX: Added space-y-2 here */}
                             <div className="pt-2 space-y-2">
                                 {ineligible.map((item) => (
-                                    <RecommendationItem key={item.rule.id} item={item} />
+                                    <RecommendationItem 
+                                        key={item.rule.id} 
+                                        item={item} 
+                                        onSelectCard={onSelectCard}
+                                        selectedCardId={selectedCardId}
+                                        currencyFn={currencyFn}
+                                    />
                                 ))}
                             </div>
                         </AccordionContent>
