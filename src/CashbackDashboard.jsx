@@ -1,20 +1,21 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Loader2, Plus, History, Check, Lightbulb, Sparkles, ShoppingCart, Snowflake, LogOut } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Loader2, Plus, History, Check, Lightbulb, Sparkles, ShoppingCart, Snowflake, LogOut, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronUp, List, MoreHorizontal, FilePenLine, Trash2 } from "lucide-react";
+import { ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList } from "recharts";
+import { Toaster, toast } from 'sonner';
+
+import { cn } from "./lib/utils";
+
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
 import { Progress } from "./components/ui/progress";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
 import { Input } from "./components/ui/input";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./components/ui/sheet";
-import { ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList } from "recharts";
-import { ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronUp, List, MoreHorizontal, FilePenLine, Trash2 } from "lucide-react";
-import { cn } from "./lib/utils";
-import { Toaster, toast } from 'sonner';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
 
 import TransactionReviewCenter from './components/TransactionReviewCenter';
 import SpendByCardChart from './components/dashboard/charts/SpendByCardChart';
@@ -26,52 +27,41 @@ import StatementLogDialog from './components/dashboard/dialogs/StatementLogDialo
 import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
 import LoginScreen from './components/auth/LoginScreen';
 import AddTransactionForm from './components/dashboard/forms/AddTransactionForm';
-
 import StatCard from "./components/dashboard/StatCard";
+
 import useMediaQuery from "./hooks/useMediaQuery";
 import useIOSKeyboardGapFix from "./hooks/useIOSKeyboardGapFix";
+import useCashbackData from "./hooks/useCashbackData";
 
 import { COLORS, cardThemes } from './lib/constants'; 
 import { calculateDaysLeft, calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from './lib/date';
 import { currency, fmtYMShort } from './lib/formatters'; 
 
-// --------------------------
-// 1) API & DATA FETCHING
-// --------------------------
-const API_BASE_URL = '/api';
-
-
 export default function CashbackDashboard() {
 
-    const [isAuthenticated, setIsAuthenticated] = useState(null);
-    const [isFinderOpen, setIsFinderOpen] = useState(false);
-    const isDesktop = useMediaQuery("(min-width: 768px)");
-    const addTxSheetSide = isDesktop ? 'right' : 'bottom';
-
-    // --- STATE MANAGEMENT ---
-    const [cards, setCards] = useState([]);
-    const [rules, setRules] = useState([]);
-    const [monthlySummary, setMonthlySummary] = useState([]);
-    const [mccMap, setMccMap] = useState({});
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [monthlyCategorySummary, setMonthlyCategorySummary] = useState([]);
     const [activeMonth, setActiveMonth] = useState("live");
     const [monthlyTransactions, setMonthlyTransactions] = useState([]);
     const [isMonthlyTxLoading, setIsMonthlyTxLoading] = useState(true);
-    const [recentTransactions, setRecentTransactions] = useState([]);
-    const [cashbackRules, setCashbackRules] = useState([]);
-    const [monthlyCashbackCategories, setMonthlyCashbackCategories] = useState([]);
-    const [allCategories, setAllCategories] = useState([]); // 1. Add new state
     const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState(null);
     const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
     const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
     const [dialogTransactions, setDialogTransactions] = useState([]);
     const [isDialogLoading, setIsDialogLoading] = useState(false);
-    const [commonVendors, setCommonVendors] = useState([]);
     const [cardView, setCardView] = useState('month'); // 'month', 'ytd', or 'roi'
-    const [reviewTransactions, setReviewTransactions] = useState([]);
+
+    const [isAuthenticated, setIsAuthenticated] = useState(null);
+    const [isFinderOpen, setIsFinderOpen] = useState(false);
+    const isDesktop = useMediaQuery("(min-width: 768px)");
+    const addTxSheetSide = isDesktop ? 'right' : 'bottom';
+
+    const {
+        cards, rules, monthlySummary, mccMap, monthlyCategorySummary,
+        recentTransactions, allCategories, commonVendors, reviewTransactions,
+        loading, error, refreshData, 
+        setRecentTransactions, setReviewTransactions,
+        cashbackRules, monthlyCashbackCategories // <-- ADD THESE
+    } = useCashbackData(isAuthenticated);
 
     const handleLogout = async () => {
         try {
@@ -82,13 +72,12 @@ export default function CashbackDashboard() {
             setIsAuthenticated(false);
         } catch (error) {
             console.error("Logout failed:", error);
-            // Optionally show a toast error
+            toast.error("Logout failed. Please try again.");
         }
     };
 
     const handleTransactionAdded = (newTransaction) => {
         // 1. Instantly update the list for the current month
-        // This makes the UI feel immediate
         if (newTransaction['Transaction Date'].startsWith(activeMonth.replace('-', ''))) {
                 setMonthlyTransactions(prevTxs => [newTransaction, ...prevTxs]);
         }
@@ -96,9 +85,8 @@ export default function CashbackDashboard() {
         // 2. Update the recent transactions carousel
         setRecentTransactions(prevRecent => [newTransaction, ...prevRecent].slice(0, 20));
 
-        // 3. Trigger a full refresh in the background to update all
-        //    aggregate data (charts, stats, etc.) without a loading screen.
-        fetchData(true); 
+        // 3. Trigger a full refresh in the background to update all aggregate data (charts, stats, etc.) without a loading screen.
+        refreshData(true); 
     };
 
     // Create the handler for a successful approval
@@ -108,8 +96,6 @@ export default function CashbackDashboard() {
             prevReview.filter(tx => tx.id !== approvedTransaction.id)
         );
         
-        // Optional: You can also update the main transaction lists for immediate consistency,
-        // though the background fetchData will handle this as well.
         setMonthlyTransactions(prevTxs => 
             prevTxs.map(tx => tx.id === approvedTransaction.id ? approvedTransaction : tx)
         );
@@ -149,7 +135,7 @@ export default function CashbackDashboard() {
         setRecentTransactions(prevRecent => prevRecent.filter(tx => tx.id !== deletedTxId));
 
         // Optionally, trigger a silent refresh to ensure all aggregate data is up-to-date
-        fetchData(true); 
+        refreshData(true); 
     };
 
     const handleEditClick = (transaction) => {
@@ -172,84 +158,10 @@ export default function CashbackDashboard() {
         );
 
         setEditingTransaction(null); // Close the edit form
-        fetchData(true); // Silently refresh all aggregate data in the background
+        refreshData(true); 
     };
 
-    // --- DATA FETCHING ---
-    const fetchData = async (isSilent = false) => {
-        if (!isSilent) {
-            setLoading(true);
-        }
-        setError(null);
-        try {
-            // This array now includes the new '/api/monthly-category-summary' endpoint
-            const [
-                cardsRes, 
-                rulesRes, 
-                monthlyRes, 
-                mccRes, 
-                monthlyCatRes,
-                recentTxRes,
-                categoriesRes,
-                commonVendorsRes,
-                reviewTxRes
-            ] = await Promise.all([
-                fetch(`${API_BASE_URL}/cards`),
-                fetch(`${API_BASE_URL}/rules`),
-                fetch(`${API_BASE_URL}/monthly-summary`),
-                fetch(`${API_BASE_URL}/mcc-codes`),
-                fetch(`${API_BASE_URL}/monthly-category-summary`), // Fetches data for the optimized overview
-                fetch(`${API_BASE_URL}/recent-transactions`),
-                fetch(`${API_BASE_URL}/categories`),
-                fetch(`${API_BASE_URL}/common-vendors`),
-                fetch(`${API_BASE_URL}/transactions/needs-review`) // New endpoint for transactions needing review
-            ]);
-
-            // Check if all network responses are successful
-            if (!cardsRes.ok || !rulesRes.ok || !monthlyRes.ok || !mccRes.ok || !monthlyCatRes.ok || !recentTxRes.ok || !categoriesRes.ok || !commonVendorsRes.ok || !reviewTxRes.ok) {
-                throw new Error('A network response was not ok. Please check the server.');
-            }
-
-            // Parse all JSON data from the responses
-            const cardsData = await cardsRes.json();
-            const rulesData = await rulesRes.json();
-            const monthlyData = await monthlyRes.json();
-            const mccData = await mccRes.json();
-            const monthlyCatData = await monthlyCatRes.json();
-            const recentTxData = await recentTxRes.json(); 
-            const categoriesData = await categoriesRes.json(); 
-            const commonVendorsData = await commonVendorsRes.json();
-            const reviewTxData = await reviewTxRes.json(); // New data for transactions needing review
-
-            // Set all the state variables for the application
-            setCards(cardsData);
-            setRules(rulesData);
-            setMonthlySummary(monthlyData);
-            setMccMap(mccData.mccDescriptionMap || {});
-            setMonthlyCategorySummary(monthlyCatData); // Set the new state for the overview tab
-            setRecentTransactions(recentTxData); // Set the new state
-            setAllCategories(categoriesData); // Set the new state for all categories
-            setCommonVendors(commonVendorsData);
-            setReviewTransactions(reviewTxData); // Set the new state for review transactions
-
-            const mappedRules = rulesData.map(r => ({ ...r, name: r.ruleName }));
-            const mappedMonthlyCats = monthlyCatData.map(c => ({ ...c, name: c.summaryId }));
-
-            setCashbackRules(mappedRules);
-            setMonthlyCashbackCategories(mappedMonthlyCats);
-
-        } catch (err) {
-            setError("Failed to fetch data. Please check the backend, .env configuration, and Notion permissions.");
-            console.error(err);
-            if (isSilent) { // Only show toast on background refresh fails
-                toast.error("Failed to refresh data in the background.");
-            }
-        } finally {
-            if (!isSilent) {
-                setLoading(false);
-            }
-        }
-    };
+    
 
     // Dynamic list of available months from transactions
     const statementMonths = useMemo(() => {
@@ -280,13 +192,7 @@ export default function CashbackDashboard() {
         checkAuthStatus();
     }, []); // Empty dependency array means this runs only once on component mount.
 
-    useEffect(() => {
-        // This effect runs whenever 'isAuthenticated' changes.
-        // It will only fetch data if the user is authenticated.
-        if (isAuthenticated) {
-            fetchData();
-        }
-    }, [isAuthenticated]); // Dependency array is correct
+    
 
     useEffect(() => {
         // Determine which month to fetch transactions for.
@@ -452,7 +358,7 @@ export default function CashbackDashboard() {
         
         const openDate = new Date(openDateStr);
         const nextFeeDate = new Date(nextFeeDateStr);
-        const today = new Date(); // Using the live date
+        const today = new Date();
 
         const totalDuration = nextFeeDate.getTime() - openDate.getTime();
         const elapsedDuration = today.getTime() - openDate.getTime();
@@ -490,8 +396,6 @@ export default function CashbackDashboard() {
         const finalMonth = month + 1;
         return `${year}${String(finalMonth).padStart(2, '0')}`;
     }, []);
-
-    // --- RENDER LOGIC ---
 
     // --- NEW LOADING STATE FOR AUTH CHECK ---
     if (isAuthenticated === null) {
@@ -531,11 +435,10 @@ export default function CashbackDashboard() {
             {/* --- RESPONSIVE HEADER --- */}
             <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-white px-4 shadow-sm sm:px-6">
                 <h1 className="text-xl font-semibold flex items-center gap-2 shrink-0">
-                    {/* The DollarSign icon is replaced with your custom SVG */}
                     <img 
                         src="/favicon.svg" 
                         alt="Cardifier icon" 
-                        className="h-8 w-8" 
+                        className="h-10 w-10" 
                     />
                     <span className="hidden md:inline">Cardifier | Cashback Optimizer</span>
                 </h1>
@@ -562,7 +465,7 @@ export default function CashbackDashboard() {
                             <Search className="mr-2 h-4 w-4" />
                             Card Finder
                         </Button>
-                        <Button variant="outline" className="h-10" onClick={() => fetchData(false)}>
+                        <Button variant="outline" className="h-10" onClick={() => refreshData(false)}>
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Refresh
                         </Button>
@@ -651,7 +554,7 @@ export default function CashbackDashboard() {
                                     <Search className="mr-2 h-4 w-4" />
                                     <span>Card Finder</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => fetchData(false)}>
+                                <DropdownMenuItem onSelect={() => refreshData(false)}>
                                     <RefreshCw className="mr-2 h-4 w-4" />
                                     <span>Refresh Data</span>
                                 </DropdownMenuItem>
@@ -968,7 +871,6 @@ export default function CashbackDashboard() {
         </TooltipProvider>
     );
 }
-
 
 // --------------------------
 // 3) UI SUB-COMPONENTS
