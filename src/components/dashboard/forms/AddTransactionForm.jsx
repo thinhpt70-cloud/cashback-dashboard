@@ -315,7 +315,27 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         e.preventDefault();
         setIsSubmitting(true);
 
-        // This data object is built once and used for both adding and editing.
+        let finalSummaryId = null;
+        if (applicableRuleId && cardSummaryCategoryId === 'new') {
+            try {
+                const summaryResponse = await fetch('/api/summaries', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cardId: cardId, month: cashbackMonth, ruleId: applicableRuleId }),
+                });
+                if (!summaryResponse.ok) throw new Error('Failed to create new monthly summary.');
+                const newSummary = await summaryResponse.json();
+                finalSummaryId = newSummary.id;
+            } catch (error) {
+                console.error('Error creating summary during submission:', error);
+                toast.error('Could not create the required category summary.');
+                setIsSubmitting(false);
+                return;
+            }
+        } else if (applicableRuleId) {
+            finalSummaryId = cardSummaryCategoryId;
+        }
+
         const transactionData = {
             merchant,
             amount: parseFloat(String(amount).replace(/,/g, '')),
@@ -325,6 +345,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             mccCode: mccCode || null,
             merchantLookup: merchantLookup || null,
             applicableRuleId: applicableRuleId || null,
+            cardSummaryCategoryId: finalSummaryId,
             notes: notes || null,
             otherDiscounts: otherDiscounts ? parseFloat(String(otherDiscounts).replace(/,/g, '')) : null,
             otherFees: otherFees ? parseFloat(String(otherFees).replace(/,/g, '')) : null,
@@ -341,7 +362,6 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
 
             if (initialData) {
                 // --- EDIT MODE ---
-                // If `initialData` exists, we send a PATCH request to update.
                 response = await fetch(`/api/transactions/${initialData.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
@@ -354,29 +374,14 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
 
                 resultTransaction = await response.json();
                 toast.success("Transaction updated successfully!");
-                onTransactionUpdated(resultTransaction); // Call the update handler
+                onTransactionUpdated(resultTransaction);
 
             } else {
                 // --- ADD MODE ---
-                // If `initialData` is null, we proceed with the logic to add a new transaction.
-                let finalSummaryId = null;
-                if (applicableRuleId && cardSummaryCategoryId === 'new') {
-                    const summaryResponse = await fetch('/api/summaries', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cardId: cardId, month: cashbackMonth, ruleId: applicableRuleId }),
-                    });
-                    if (!summaryResponse.ok) throw new Error('Failed to create new monthly summary.');
-                    const newSummary = await summaryResponse.json();
-                    finalSummaryId = newSummary.id;
-                } else if (applicableRuleId && cardSummaryCategoryId !== 'new') {
-                    finalSummaryId = cardSummaryCategoryId;
-                }
-                
                 response = await fetch('/api/transactions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...transactionData, cardSummaryCategoryId: finalSummaryId }),
+                    body: JSON.stringify(transactionData),
                 });
 
                 if (!response.ok) {
@@ -385,8 +390,8 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
 
                 resultTransaction = await response.json();
                 toast.success("Transaction added successfully!");
-                onTransactionAdded(resultTransaction); // Call the add handler
-                resetForm(); // Only reset the form on a new submission
+                onTransactionAdded(resultTransaction);
+                resetForm();
             }
 
         } catch (error) {
