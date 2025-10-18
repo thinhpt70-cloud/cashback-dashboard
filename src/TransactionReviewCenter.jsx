@@ -77,7 +77,7 @@ export function TransactionReviewCenter({ transactions, onReview, onApprove, cur
                         <AccordionContent>
                             <div className="space-y-4 pt-2">
                                 {transactions.map(tx => {
-                                    const isApprovable = tx['Transaction Name'].startsWith('Email_') && tx['MCC Code'] && tx['Applicable Rule'];
+                                    const isApprovable = tx['MCC Code'] && tx['Applicable Rule'] && tx['Card Summary Category'];
                                     
                                     // Get additional details using the provided maps
                                     const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;

@@ -56,6 +56,7 @@ const mapTransaction = (tx) => {
         'subCategory': props['Sub Category'],
         'billingDate': props['Billing Date'],
         'Applicable Rule': props['Applicable Rule'],
+        'Card Summary Category': props['Card Summary Category'],
     };
 };
 
@@ -906,9 +907,7 @@ app.patch('/api/transactions/:id/approve', async (req, res) => {
     }
 
     try {
-        // REMOVED: Redundant Notion client initialization
-
-        await notion.pages.update({ // Use the global 'notion' client
+        await notion.pages.update({
             page_id: pageId,
             properties: {
                 'Transaction Name': {
@@ -917,13 +916,14 @@ app.patch('/api/transactions/:id/approve', async (req, res) => {
                             content: newName
                         }
                     }]
-                }
+                },
+                'Automated': { checkbox: false },
             }
         });
-        
-        const updatedPage = await notion.pages.retrieve({ page_id: pageId }); // Use the global 'notion' client
-        const updatedTransaction = mapTransaction(updatedPage); // <-- FIXED: Use mapTransaction
-        
+
+        const updatedPage = await notion.pages.retrieve({ page_id: pageId });
+        const updatedTransaction = mapTransaction(updatedPage);
+
         res.json(updatedTransaction);
 
     } catch (error) {
