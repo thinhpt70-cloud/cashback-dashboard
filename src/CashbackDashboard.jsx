@@ -30,6 +30,7 @@ import BestCardFinderDialog from './components/dashboard/dialogs/BestCardFinderD
 import TransactionDetailsDialog from './components/dashboard/dialogs/TransactionDetailsDialog';
 import PaymentLogDialog from './components/dashboard/dialogs/PaymentLogDialog';
 import StatementLogDialog from './components/dashboard/dialogs/StatementLogDialog';
+import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
 
 // --------------------------
 // 1) API & DATA FETCHING
