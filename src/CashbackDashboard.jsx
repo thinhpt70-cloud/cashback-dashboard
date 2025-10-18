@@ -27,109 +27,19 @@ import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
 import LoginScreen from './components/auth/LoginScreen';
 import AddTransactionForm from './components/dashboard/forms/AddTransactionForm';
 
+import StatCard from "./components/dashboard/StatCard";
+import useMediaQuery from "./hooks/useMediaQuery";
+import useIOSKeyboardGapFix from "./hooks/useIOSKeyboardGapFix";
+
+import { COLORS, cardThemes } from './lib/constants'; 
+import { calculateDaysLeft, calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from './lib/date';
+import { currency, fmtYMShort } from './lib/formatters'; 
+
 // --------------------------
 // 1) API & DATA FETCHING
 // --------------------------
 const API_BASE_URL = '/api';
 
-const calculateDaysLeft = (paymentDateString) => {
-    if (!paymentDateString || paymentDateString === "N/A") return null;
-
-    const today = new Date(); 
-    today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(paymentDateString);
-    dueDate.setHours(0, 0, 0, 0);
-    
-    if (isNaN(dueDate)) return null;
-
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-    
-    return diffDays >= 0 ? diffDays : null;
-};
-
-const calculateDaysLeftInCashbackMonth = (cashbackMonth) => {
-    if (!cashbackMonth) return { days: null, status: 'N/A' };
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const year = parseInt(cashbackMonth.slice(0, 4), 10);
-    const month = parseInt(cashbackMonth.slice(4, 6), 10); // e.g., 10 for October
-
-    // Get the last day of the given cashback month by getting day 0 of the *next* month
-    const lastDayOfMonth = new Date(year, month, 0);
-    
-    if (isNaN(lastDayOfMonth.getTime())) return { days: null, status: 'N/A' };
-
-    const diffTime = lastDayOfMonth.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) {
-        return { days: null, status: 'Completed' };
-    }
-    return { days: diffDays, status: 'Upcoming' };
-};
-
-const calculateDaysUntilStatement = (statementDay, activeMonth) => {
-    if (!statementDay || !activeMonth) return { days: null, status: 'N/A' };
-
-    const today = new Date(); // Using today's date
-    today.setHours(0, 0, 0, 0); // Normalize to the beginning of the day
-
-    const year = parseInt(activeMonth.slice(0, 4), 10);
-    const month = parseInt(activeMonth.slice(4, 6), 10);
-    
-    // Create the statement date for the active month
-    const statementDate = new Date(year, month - 1, statementDay);
-
-    if (isNaN(statementDate.getTime())) return { days: null, status: 'N/A' };
-    
-    // Calculate the difference in days
-    const diffTime = statementDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) {
-        return { days: null, status: 'Completed' };
-    }
-    return { days: diffDays, status: 'Upcoming' };
-};
-
-const COLORS = ['#0ea5e9', '#84cc16', '#f43f5e', '#f59e0b', '#6366f1', '#14b8a6', '#d946ef'];
-
-const cardThemes = {
-    // Existing Themes with full class names
-    'VIB': { gradient: 'bg-gradient-to-r from-sky-500 to-sky-700', textColor: 'text-white' },
-    'HSBC': { gradient: 'bg-gradient-to-r from-red-600 to-red-800', textColor: 'text-white' },
-    'Shinhan Bank': { gradient: 'bg-gradient-to-r from-blue-400 to-blue-600', textColor: 'text-white' },
-    'Techcombank': { gradient: 'bg-gradient-to-r from-red-500 to-orange-500', textColor: 'text-white' },
-    
-    // --- NEW THEMES TO ADD ---
-    'Kbank': { gradient: 'bg-gradient-to-r from-lime-500 to-green-600', textColor: 'text-white' },
-    'Cake': { gradient: 'bg-gradient-to-r from-pink-500 to-fuchsia-600', textColor: 'text-white' },
-    'MSB': { gradient: 'bg-gradient-to-r from-orange-500 to-orange-700', textColor: 'text-white' },
-    'UOB': { gradient: 'bg-gradient-to-r from-blue-700 to-blue-900', textColor: 'text-white' },
-    
-    // Fallback Theme
-    'default': { gradient: 'bg-gradient-to-r from-slate-600 to-slate-800', textColor: 'text-white' },
-};
-
-const useMediaQuery = (query) => {
-    const [matches, setMatches] = useState(false);
-
-    useEffect(() => {
-        const media = window.matchMedia(query);
-        if (media.matches !== matches) {
-            setMatches(media.matches);
-        }
-        const listener = () => setMatches(media.matches);
-        // Use the modern addEventListener syntax
-        media.addEventListener('change', listener);
-        return () => media.removeEventListener('change', listener);
-    }, [matches, query]);
-
-    return matches;
-};
 
 export default function CashbackDashboard() {
 
@@ -411,16 +321,7 @@ export default function CashbackDashboard() {
     // --------------------------
 
     // --- UTILITIES ---
-    const currency = useCallback((n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }), []);
     const mccName = (code) => mccMap[code]?.vn || "Unknown";    
-
-    const fmtYMShort = useCallback((ymCode) => {
-        if (!ymCode || typeof ymCode !== 'string' || ymCode.length !== 6) return "";
-        const year = Number(ymCode.slice(0, 4));
-        const month = Number(ymCode.slice(4, 6));
-        if (isNaN(year) || isNaN(month)) return "";
-        return new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
-    }, []); // The empty array [] tells React this function never needs to be re-created.
 
     const renderCustomBarLabel = (props) => {
         const { x, y, width, value } = props;
@@ -1072,29 +973,6 @@ export default function CashbackDashboard() {
 // --------------------------
 // 3) UI SUB-COMPONENTS
 // --------------------------
-function StatCard({ title, value, icon, valueClassName }) {
-    return (
-        <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            {icon}
-        </CardHeader>
-        <CardContent>
-            {/* This 'cn' utility will merge the default styles with your new color class */}
-            <div className={cn("text-2xl font-bold", valueClassName)}>{value}</div>
-        </CardContent>
-        </Card>
-    );
-}
-
-function Skeleton({ className, ...props }) {
-  return (
-    <div
-      className={cn("animate-pulse rounded-md bg-slate-200", className)}
-      {...props}
-    />
-  );
-}
 
 const CustomRechartsTooltip = ({ active, payload, label }) => {
 
@@ -2989,81 +2867,4 @@ function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySumm
             </CardContent>
         </Card>
     );
-}
-
-function useIOSKeyboardGapFix() {
-  useEffect(() => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (!isIOS) return;
-
-    const handleBlur = (event) => {
-      const elementLosingFocus = event.target;
-      const elementGainingFocus = event.relatedTarget;
-
-      // 1. First, check if the element losing focus is an input-type element.
-      //    If not, the keyboard wasn't open, so we do nothing.
-      if (!elementLosingFocus || !['INPUT', 'SELECT', 'TEXTAREA'].includes(elementLosingFocus.tagName)) {
-        return;
-      }
-
-      // 2. Second, check if focus is simply moving to another input.
-      //    If so, the keyboard is staying open, so we do nothing.
-      if (elementGainingFocus && ['INPUT', 'SELECT', 'TEXTAREA'].includes(elementGainingFocus.tagName)) {
-        return;
-      }
-      
-      // 3. If we get here, an input has lost focus to a non-input element,
-      //    meaning the keyboard is closing. Now we can safely scroll to the top.
-      setTimeout(() => {
-        window.scrollTo(0, 0);
-      }, 100);
-    };
-
-    window.addEventListener('blur', handleBlur, true);
-
-    return () => {
-      window.removeEventListener('blur', handleBlur, true);
-    };
-  }, []);
-}
-
-function AppSkeleton() {
-  return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      {/* Skeleton Header */}
-      <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-white px-4 shadow-sm sm:px-6">
-        <Skeleton className="h-8 w-8" />
-        <Skeleton className="hidden h-6 w-48 md:block" />
-        <div className="ml-auto flex items-center gap-2">
-          <Skeleton className="h-10 w-32" />
-          <div className="hidden items-center gap-2 md:flex">
-            <Skeleton className="h-10 w-28" />
-            <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-10 w-40" />
-          </div>
-        </div>
-      </header>
-      
-      {/* Skeleton Main Content */}
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="flex items-center">
-          <Skeleton className="h-10 w-64" />
-        </div>
-
-        {/* Skeleton for Stat Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Skeleton className="h-[105px] w-full" />
-          <Skeleton className="h-[105px] w-full" />
-          <Skeleton className="h-[105px] w-full" />
-          <Skeleton className="h-[105px] w-full" />
-        </div>
-
-        {/* Skeleton for Main Content Grid */}
-        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
-          <Skeleton className="h-[400px] lg:col-span-7" />
-          <Skeleton className="h-[400px] lg:col-span-5" />
-        </div>
-      </main>
-    </div>
-  );
 }
