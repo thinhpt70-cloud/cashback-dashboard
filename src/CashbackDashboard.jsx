@@ -464,6 +464,7 @@ export default function CashbackDashboard() {
 
     const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
     const rulesMap = useMemo(() => new Map(rules.map(r => [r.id, r])), [rules]);
+    const summaryMap = useMemo(() => new Map(monthlyCategorySummary.map(s => [s.id, s])), [monthlyCategorySummary]);
 
     const overviewStats = useMemo(() => {
         // Filter the summary data for only the currently selected month
@@ -942,6 +943,7 @@ export default function CashbackDashboard() {
                             cardMap={cardMap}
                             rulesMap={rulesMap}
                             mccMap={mccMap}
+                            summaryMap={summaryMap}
                         />
                         <TransactionsTab
                             isDesktop={isDesktop}
