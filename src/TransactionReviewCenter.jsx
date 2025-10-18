@@ -1,34 +1,33 @@
-// src/TransactionReviewCenter.jsx
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
 import { AlertTriangle, FilePenLine, CalendarClock, Wallet, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Badge } from "./components/ui/badge";
 
 /**
  * A component that displays a list of automated transactions that require user review.
- * It provides a "Quick Approve" option for transactions that have most data filled in,
- * and a full "Review" option for those with significant missing information.
+ * It provides a "Quick Approve" option and a full "Review" option.
  *
  * @param {object[]} transactions - Array of transaction objects needing review.
  * @param {function} onReview - Callback function to open the full edit form for a transaction.
  * @param {function} onApprove - Callback function invoked after a transaction is successfully quick-approved.
  * @param {function} currencyFn - A function to format numbers as currency.
+ * @param {Map} cardMap - Map of card IDs to card objects.
+ * @param {Map} rulesMap - Map of rule IDs to rule objects.
+ * @param {object} mccMap - Object mapping MCC codes to descriptions.
  */
-export function TransactionReviewCenter({ transactions, onReview, onApprove, currencyFn }) {
+export function TransactionReviewCenter({ transactions, onReview, onApprove, currencyFn, cardMap, rulesMap, mccMap }) {
     if (!transactions || transactions.length === 0) {
         return null; // Don't render anything if there are no items to review
     }
 
     /**
-     * Handles the "Quick Approve" action. It sends a PATCH request to the backend
-     * to update the transaction's name and then calls the onApprove callback.
+     * Handles the "Quick Approve" action.
      * @param {object} tx - The transaction object to be approved.
      */
     const handleApproveClick = async (tx) => {
-        // The new name will be the 'merchantLookup' field if it exists, otherwise the raw name without the "Email_" prefix.
         const newName = tx.merchantLookup || tx['Transaction Name'].substring(6);
         
         try {
@@ -47,7 +46,8 @@ export function TransactionReviewCenter({ transactions, onReview, onApprove, cur
             onApprove(updatedTransaction); // Call parent handler to update UI state
             toast.success(`'${newName}' has been approved.`);
             
-        } catch (error) {
+        } catch (error)
+        {
             console.error('Quick Approve failed:', error);
             toast.error(`Could not approve transaction: ${error.message}`);
         }
@@ -75,39 +75,69 @@ export function TransactionReviewCenter({ transactions, onReview, onApprove, cur
                     <AccordionItem value="review-list">
                         <AccordionTrigger>Show Items for Review</AccordionTrigger>
                         <AccordionContent>
-                            <div className="space-y-3 pt-2">
+                            <div className="space-y-4 pt-2">
                                 {transactions.map(tx => {
-                                    // A transaction is eligible for "Quick Approve" if its name has the "Email_" prefix,
-                                    // but the critical MCC Code and Applicable Rule have already been found and filled in by the automation.
                                     const isApprovable = tx['Transaction Name'].startsWith('Email_') && tx['MCC Code'] && tx['Applicable Rule'];
                                     
+                                    // Get additional details using the provided maps
+                                    const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
+                                    const rule = tx['Applicable Rule'] ? rulesMap.get(tx['Applicable Rule'][0]) : null;
+                                    const mccDescription = tx['MCC Code'] ? mccMap[tx['MCC Code']]?.vn || 'Unknown' : 'N/A';
+                                    const summaryId = tx['Card Summary Category'] ? tx['Card Summary Category'][0] : 'N/A';
+
                                     return (
-                                        <div key={tx.id} className="p-3 border rounded-md bg-white flex justify-between items-center gap-4">
-                                            <div className="flex-1">
+                                        <div key={tx.id} className="p-3 border rounded-md bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                            {/* Main Info Section */}
+                                            <div className="flex-1 space-y-2 w-full">
                                                 <p className="font-semibold">{tx['Transaction Name']}</p>
-                                                <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                                                <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                                                     <span className="flex items-center gap-1.5"><CalendarClock className="h-3 w-3" /> {tx['Transaction Date']}</span>
                                                     <span className="flex items-center gap-1.5"><Wallet className="h-3 w-3" /> {currencyFn(tx['Amount'])}</span>
+                                                    {tx.estCashback > 0 && (
+                                                         <span className="flex items-center gap-1.5 font-medium text-emerald-600"><CheckCircle className="h-3 w-3" /> {currencyFn(tx.estCashback)}</span>
+                                                    )}
                                                 </div>
-                                                <div className="text-xs text-orange-600 font-medium mt-1">
-                                                    {/* Highlight what's still missing */}
-                                                    {!tx['MCC Code'] && <span>• Missing MCC </span>}
-                                                    {!tx['Applicable Rule'] && <span>• Missing Rule</span>}
+
+                                                {/* Additional Details Section */}
+                                                <div className="text-xs text-slate-600 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 pt-2 border-t mt-2">
+                                                    <div>
+                                                        <p className="font-semibold text-slate-400">Card</p>
+                                                        <p>{card ? card.name : 'N/A'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-semibold text-slate-400">MCC</p>
+                                                        <p className="truncate" title={`${tx['MCC Code']} - ${mccDescription}`}>{tx['MCC Code'] ? `${tx['MCC Code']} - ${mccDescription}` : 'N/A'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-semibold text-slate-400">Rule</p>
+                                                        <p>{rule ? rule.ruleName : 'N/A'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-semibold text-slate-400">Summary ID</p>
+                                                        <p className="truncate" title={summaryId}>{summaryId}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Highlight what's still missing */}
+                                                <div className="pt-1">
+                                                    {!tx['MCC Code'] && <Badge variant="destructive">Missing MCC</Badge>}
+                                                    {!tx['Applicable Rule'] && <Badge variant="destructive" className="ml-1">Missing Rule</Badge>}
                                                 </div>
                                             </div>
                                             
-                                            {/* Conditionally render the correct button based on whether it's approvable or needs a full review */}
-                                            {isApprovable ? (
-                                                <Button size="sm" variant="outline" onClick={() => handleApproveClick(tx)} className="text-emerald-600 border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700">
-                                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                                    Quick Approve
-                                                </Button>
-                                            ) : (
+                                            {/* Buttons Section */}
+                                            <div className="flex items-center gap-2 self-end md:self-center flex-shrink-0">
+                                                {isApprovable && (
+                                                    <Button size="sm" variant="outline" onClick={() => handleApproveClick(tx)} className="text-emerald-600 border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700">
+                                                        <CheckCircle className="mr-2 h-4 w-4" />
+                                                        Quick Approve
+                                                    </Button>
+                                                )}
                                                 <Button size="sm" onClick={() => onReview(tx)}>
                                                     <FilePenLine className="mr-2 h-4 w-4" />
                                                     Review
                                                 </Button>
-                                            )}
+                                            </div>
                                         </div>
                                     );
                                 })}

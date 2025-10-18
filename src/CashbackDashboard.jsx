@@ -189,6 +189,23 @@ export default function CashbackDashboard() {
         fetchData(true); 
     };
 
+    // Create the handler for a successful approval
+    const handleTransactionApproved = (approvedTransaction) => {
+        // Instantly remove the approved transaction from the review list
+        setReviewTransactions(prevReview => 
+            prevReview.filter(tx => tx.id !== approvedTransaction.id)
+        );
+        
+        // Optional: You can also update the main transaction lists for immediate consistency,
+        // though the background fetchData will handle this as well.
+        setMonthlyTransactions(prevTxs => 
+            prevTxs.map(tx => tx.id === approvedTransaction.id ? approvedTransaction : tx)
+        );
+        setRecentTransactions(prevRecent =>
+            prevRecent.map(tx => tx.id === approvedTransaction.id ? approvedTransaction : tx)
+        );
+    };
+
     const handleViewTransactions = useCallback(async (cardId, cardName, month, monthLabel) => {
         setDialogDetails({ cardId, cardName, month, monthLabel });
         setIsDialogLoading(true);
@@ -446,6 +463,7 @@ export default function CashbackDashboard() {
     }, [cards]);
 
     const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
+    const rulesMap = useMemo(() => new Map(rules.map(r => [r.id, r])), [rules]);
 
     const overviewStats = useMemo(() => {
         // Filter the summary data for only the currently selected month
@@ -919,7 +937,11 @@ export default function CashbackDashboard() {
                         <TransactionReviewCenter 
                             transactions={reviewTransactions}
                             onReview={handleEditClick}
+                            onApprove={handleTransactionApproved}
                             currencyFn={currency}
+                            cardMap={cardMap}
+                            rulesMap={rulesMap}
+                            mccMap={mccMap}
                         />
                         <TransactionsTab
                             isDesktop={isDesktop}

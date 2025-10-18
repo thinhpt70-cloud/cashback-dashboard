@@ -866,17 +866,17 @@ app.get('/api/transactions/needs-review', async (req, res) => {
             filter: {
                 or: [
                     {
-                        property: 'Transaction Name',
-                        title: {
-                            starts_with: 'Email_'
-                        }
+                        property: 'Automated',
+                        checkbox: {
+                            equals: true,
+                        },
                     },
                     {
-                        property: 'MCC Code',
-                        rich_text: {
-                            is_empty: true
-                        }
-                    }
+                        property: 'Match',
+                        checkbox: {
+                            equals: false,
+                        },
+                    },
                 ]
             },
             sorts: [
