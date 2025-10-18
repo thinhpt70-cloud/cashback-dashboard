@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '/ui/accordion';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { AlertTriangle, FilePenLine, CalendarClock, Wallet, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from './ui/badge';
