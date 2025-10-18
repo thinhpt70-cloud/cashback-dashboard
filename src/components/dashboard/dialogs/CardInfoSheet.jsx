@@ -5,8 +5,9 @@ import { Badge } from '../../ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../../ui/sheet';
 import { Info, Search, ChevronDown } from 'lucide-react';
 import { cn } from '../../../lib/utils';
+import useIOSKeyboardGapFix from '../../../hooks/useIOSKeyboardGapFix';
 
-export default function CardInfoSheet({ card, rules, mccMap, isDesktop, useIOSKeyboardGapFix }) {
+export default function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
     // --- State for search and expansion ---
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedRuleId, setExpandedRuleId] = useState(null);

@@ -19,7 +19,7 @@ import { Badge } from './ui/badge';
  * @param {object} mccMap - Object mapping MCC codes to descriptions.
  * @param {Map} summaryMap - Map of summary IDs to summary objects.
  */
-export function TransactionReviewCenter({ transactions, onReview, onApprove, currencyFn, cardMap, rulesMap, mccMap, summaryMap }) {
+export default function TransactionReviewCenter({ transactions, onReview, onApprove, currencyFn, cardMap, rulesMap, mccMap, summaryMap }) {
     if (!transactions || transactions.length === 0) {
         return null; // Don't render anything if there are no items to review
     }

@@ -2168,7 +2168,6 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                     onSave={handleSavePayment}
                     currencyFn={currencyFn}
                     fmtYMShortFn={fmtYMShortFn}
-                    useIOSKeyboardGapFix={useIOSKeyboardGapFix}
                 />
             )}
             {activeStatement && (
@@ -2179,7 +2178,6 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                     onSave={handleSaveStatement}
                     currencyFn={currencyFn}
                     fmtYMShortFn={fmtYMShortFn}
-                    useIOSKeyboardGapFix={useIOSKeyboardGapFix}
                 />
             )}
         </div>
@@ -2820,7 +2818,6 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                         rules={rules} 
                         mccMap={mccMap} 
                         isDesktop={isDesktop} 
-                        useIOSKeyboardGapFix={useIOSKeyboardGapFix}
                     />
                 </div>
             </div>

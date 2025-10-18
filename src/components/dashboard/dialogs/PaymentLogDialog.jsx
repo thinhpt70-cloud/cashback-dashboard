@@ -8,8 +8,9 @@ import {
 } from '../../ui/dialog';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
+import useIOSKeyboardGapFix from '../../../hooks/useIOSKeyboardGapFix';
 
-export default function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtYMShortFn, useIOSKeyboardGapFix }) {
+export default function PaymentLogDialog({ isOpen, onClose, statement, onSave, currencyFn, fmtYMShortFn }) {
     const [amount, setAmount] = useState('');
     const inputRef = useRef(null);
 
