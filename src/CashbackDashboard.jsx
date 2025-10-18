@@ -16,18 +16,26 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./components/ui/sheet";
+import { Skeleton } from "./components/ui/skeleton";
 
 import TransactionReviewCenter from './components/TransactionReviewCenter';
+
 import SpendByCardChart from './components/dashboard/charts/SpendByCardChart';
 import CardPerformanceLineChart from './components/dashboard/charts/CardPerformanceLineChart';
+
 import BestCardFinderDialog from './components/dashboard/dialogs/BestCardFinderDialog';
 import TransactionDetailsDialog from './components/dashboard/dialogs/TransactionDetailsDialog';
 import PaymentLogDialog from './components/dashboard/dialogs/PaymentLogDialog';
 import StatementLogDialog from './components/dashboard/dialogs/StatementLogDialog';
 import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
-import LoginScreen from './components/auth/LoginScreen';
+
 import AddTransactionForm from './components/dashboard/forms/AddTransactionForm';
+
 import StatCard from "./components/dashboard/StatCard";
+
+import LoginScreen from './components/auth/LoginScreen';
+
+import AppSkeleton from "./components/shared/AppSkeleton";
 
 import useMediaQuery from "./hooks/useMediaQuery";
 import useIOSKeyboardGapFix from "./hooks/useIOSKeyboardGapFix";
@@ -36,6 +44,8 @@ import useCashbackData from "./hooks/useCashbackData";
 import { COLORS, cardThemes } from './lib/constants'; 
 import { calculateDaysLeft, calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from './lib/date';
 import { currency, fmtYMShort } from './lib/formatters'; 
+
+const API_BASE_URL = '/api';
 
 export default function CashbackDashboard() {
 
