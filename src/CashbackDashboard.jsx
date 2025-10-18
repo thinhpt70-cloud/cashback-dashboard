@@ -606,12 +606,7 @@ export default function CashbackDashboard() {
     }
 
     if (loading) {
-        return (
-            <div className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="mt-4 text-muted-foreground">Loading Dashboard Data from Notion...</p>
-            </div>
-        );
+        return <AppSkeleton />;
     }
     
     if (error) {
@@ -1084,6 +1079,15 @@ function StatCard({ title, value, icon, valueClassName }) {
         </CardContent>
         </Card>
     );
+}
+
+function Skeleton({ className, ...props }) {
+  return (
+    <div
+      className={cn("animate-pulse rounded-md bg-slate-200", className)}
+      {...props}
+    />
+  );
 }
 
 const CustomRechartsTooltip = ({ active, payload, label }) => {
@@ -4029,79 +4033,87 @@ function TransactionDetailsDialog({ isOpen, onClose, details, transactions, isLo
             </DialogDescription>
             </DialogHeader>
             <div className="max-h-[60vh] overflow-y-auto pr-4">
-            {isLoading ? (
-                <div className="flex justify-center items-center h-48">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-            ) : transactions.length > 0 ? (
-                <>
-                    {/* --- Mobile View --- */}
-                    {/* This view is hidden on screens 'sm' and larger */}
-                    <div className="space-y-3 sm:hidden">
-                        {sortedTransactions.map(tx => (
-                            <div key={tx.id} className="p-3 border rounded-lg">
-                                <div className="flex justify-between items-start gap-2">
-                                    <div className="flex-1">
-                                        <p className="font-semibold break-words">{tx['Transaction Name']}</p>
-                                        <p className="text-xs text-muted-foreground">{tx['Transaction Date']}</p>
+                {isLoading ? (                    
+                    <div className="space-y-4">
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className="flex items-center justify-between">
+                                    <div className="space-y-2">
+                                        <Skeleton className="h-4 w-32" />
+                                        <Skeleton className="h-3 w-20" />
                                     </div>
-                                    <div className="text-right flex-shrink-0">
-                                        <p className="font-medium">{currencyFn(tx['Amount'])}</p>
-                                        <p className="text-sm font-medium text-emerald-600">{currencyFn(tx.estCashback)}</p>
+                                    <Skeleton className="h-5 w-24" />
+                                </div>
+                            ))}
+                    </div>
+                ) : transactions.length > 0 ? (
+                    <>
+                        {/* --- Mobile View --- */}
+                        {/* This view is hidden on screens 'sm' and larger */}
+                        <div className="space-y-3 sm:hidden">
+                            {sortedTransactions.map(tx => (
+                                <div key={tx.id} className="p-3 border rounded-lg">
+                                    <div className="flex justify-between items-start gap-2">
+                                        <div className="flex-1">
+                                            <p className="font-semibold break-words">{tx['Transaction Name']}</p>
+                                            <p className="text-xs text-muted-foreground">{tx['Transaction Date']}</p>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                            <p className="font-medium">{currencyFn(tx['Amount'])}</p>
+                                            <p className="text-sm font-medium text-emerald-600">{currencyFn(tx.estCashback)}</p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
-                        {/* Mobile Totals Footer */}
-                        <div className="pt-3 mt-3 border-t font-medium">
-                             <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Total Amount:</span>
-                                <span>{currencyFn(totals.totalAmount)}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-emerald-600">
-                                <span className="text-muted-foreground">Total Cashback:</span>
-                                <span>{currencyFn(totals.totalCashback)}</span>
+                            ))}
+                            {/* Mobile Totals Footer */}
+                            <div className="pt-3 mt-3 border-t font-medium">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-muted-foreground">Total Amount:</span>
+                                    <span>{currencyFn(totals.totalAmount)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-emerald-600">
+                                    <span className="text-muted-foreground">Total Cashback:</span>
+                                    <span>{currencyFn(totals.totalCashback)}</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* --- Desktop View (Existing Table) --- */}
-                    {/* This table is hidden by default and shown on screens 'sm' and larger */}
-                    <Table className="hidden sm:table">
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Transaction</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                            <TableHead className="text-right">Cashback</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {sortedTransactions.map(tx => (
-                            <TableRow key={tx.id}>
-                                <TableCell>{tx['Transaction Date']}</TableCell>
-                                <TableCell className="font-medium">{tx['Transaction Name']}</TableCell>
-                                <TableCell className="text-right">{currencyFn(tx['Amount'])}</TableCell>
-                                <TableCell className="text-right text-emerald-600 font-medium">{currencyFn(tx.estCashback)}</TableCell>
-                            </TableRow>
-                            ))}
-                        </TableBody>
-                        <tfoot className="border-t-2 font-semibold">
-                            <TableRow>
-                                <TableCell colSpan={2}>Totals</TableCell>
-                                <TableCell className="text-right">{currencyFn(totals.totalAmount)}</TableCell>
-                                <TableCell className="text-right text-emerald-600">
-                                    {currencyFn(totals.totalCashback)}
-                                </TableCell>
-                            </TableRow>
-                        </tfoot>
-                    </Table>
-                </>
-            ) : (
-                <div className="flex justify-center items-center h-48 text-muted-foreground">
-                <p>No transactions found for this period.</p>
-                </div>
-            )}
+                        {/* --- Desktop View (Existing Table) --- */}
+                        {/* This table is hidden by default and shown on screens 'sm' and larger */}
+                        <Table className="hidden sm:table">
+                            <TableHeader>
+                                <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Transaction</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                                <TableHead className="text-right">Cashback</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {sortedTransactions.map(tx => (
+                                <TableRow key={tx.id}>
+                                    <TableCell>{tx['Transaction Date']}</TableCell>
+                                    <TableCell className="font-medium">{tx['Transaction Name']}</TableCell>
+                                    <TableCell className="text-right">{currencyFn(tx['Amount'])}</TableCell>
+                                    <TableCell className="text-right text-emerald-600 font-medium">{currencyFn(tx.estCashback)}</TableCell>
+                                </TableRow>
+                                ))}
+                            </TableBody>
+                            <tfoot className="border-t-2 font-semibold">
+                                <TableRow>
+                                    <TableCell colSpan={2}>Totals</TableCell>
+                                    <TableCell className="text-right">{currencyFn(totals.totalAmount)}</TableCell>
+                                    <TableCell className="text-right text-emerald-600">
+                                        {currencyFn(totals.totalCashback)}
+                                    </TableCell>
+                                </TableRow>
+                            </tfoot>
+                        </Table>
+                    </>
+                ) : (
+                    <div className="flex justify-center items-center h-48 text-muted-foreground">
+                    <p>No transactions found for this period.</p>
+                    </div>
+                )}
             </div>
         </DialogContent>
         </Dialog>
@@ -4670,10 +4682,19 @@ function BestCardFinderDialog({ isOpen, onOpenChange, allCards, allRules, mccMap
     // --- RENDER LOGIC ---
     const renderContent = () => {
         if (isLoading) {
+            // Return a skeleton list instead of a spinner
             return (
-                <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="mt-4 text-muted-foreground">Finding suggestions...</p>
+                <div className="space-y-3 p-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-4">
+                            <Skeleton className="h-12 w-12 rounded-lg" />
+                            <div className="flex-1 space-y-2">
+                                <Skeleton className="h-4 w-3/4" />
+                                <Skeleton className="h-3 w-1/2" />
+                            </div>
+                            <Skeleton className="h-6 w-24" />
+                        </div>
+                    ))}
                 </div>
             );
         }
@@ -4948,4 +4969,45 @@ function FinderOptionItem({ item, mccMap, onSelect, icon }) {
             </div>
         </button>
     );
+}
+
+function AppSkeleton() {
+  return (
+    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      {/* Skeleton Header */}
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-white px-4 shadow-sm sm:px-6">
+        <Skeleton className="h-8 w-8" />
+        <Skeleton className="hidden h-6 w-48 md:block" />
+        <div className="ml-auto flex items-center gap-2">
+          <Skeleton className="h-10 w-32" />
+          <div className="hidden items-center gap-2 md:flex">
+            <Skeleton className="h-10 w-28" />
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-40" />
+          </div>
+        </div>
+      </header>
+      
+      {/* Skeleton Main Content */}
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        <div className="flex items-center">
+          <Skeleton className="h-10 w-64" />
+        </div>
+
+        {/* Skeleton for Stat Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Skeleton className="h-[105px] w-full" />
+          <Skeleton className="h-[105px] w-full" />
+          <Skeleton className="h-[105px] w-full" />
+          <Skeleton className="h-[105px] w-full" />
+        </div>
+
+        {/* Skeleton for Main Content Grid */}
+        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
+          <Skeleton className="h-[400px] lg:col-span-7" />
+          <Skeleton className="h-[400px] lg:col-span-5" />
+        </div>
+      </main>
+    </div>
+  );
 }
