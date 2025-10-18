@@ -858,10 +858,10 @@ app.get('/api/common-vendors', async (req, res) => {
 // GET /api/transactions/needs-review
 app.get('/api/transactions/needs-review', async (req, res) => {
     try {
-        const notionClient = new Client({ auth: process.env.NOTION_API_KEY });
+        // REMOVED: Redundant Notion client initialization
         const databaseId = process.env.NOTION_TRANSACTIONS_DB_ID;
 
-        const response = await notionClient.databases.query({
+        const response = await notion.databases.query({ // Use the global 'notion' client
             database_id: databaseId,
             filter: {
                 or: [
@@ -887,7 +887,7 @@ app.get('/api/transactions/needs-review', async (req, res) => {
             ]
         });
 
-        const transactions = response.results.map(page => parseNotionPage(page)); // Assuming you have a parser function
+        const transactions = response.results.map(mapTransaction); // <-- FIXED: Use mapTransaction
         res.json(transactions);
 
     } catch (error) {
@@ -899,16 +899,16 @@ app.get('/api/transactions/needs-review', async (req, res) => {
 // PATCH /api/transactions/:id/approve
 app.patch('/api/transactions/:id/approve', async (req, res) => {
     const { id: pageId } = req.params;
-    const { newName } = req.body; // The new, clean name for the transaction
+    const { newName } = req.body; 
 
     if (!newName) {
         return res.status(400).json({ message: 'A new name is required.' });
     }
 
     try {
-        const notionClient = new Client({ auth: process.env.NOTION_API_KEY });
+        // REMOVED: Redundant Notion client initialization
 
-        await notionClient.pages.update({
+        await notion.pages.update({ // Use the global 'notion' client
             page_id: pageId,
             properties: {
                 'Transaction Name': {
@@ -921,9 +921,8 @@ app.patch('/api/transactions/:id/approve', async (req, res) => {
             }
         });
         
-        // Respond with the updated transaction so the UI can be updated
-        const updatedPage = await notionClient.pages.retrieve({ page_id: pageId });
-        const updatedTransaction = parseNotionPage(updatedPage); // Use your existing parser
+        const updatedPage = await notion.pages.retrieve({ page_id: pageId }); // Use the global 'notion' client
+        const updatedTransaction = mapTransaction(updatedPage); // <-- FIXED: Use mapTransaction
         
         res.json(updatedTransaction);
 
@@ -932,7 +931,6 @@ app.patch('/api/transactions/:id/approve', async (req, res) => {
         res.status(500).json({ message: 'Error updating transaction in Notion.' });
     }
 });
-
 
 if (process.env.NODE_ENV !== 'production') {
     app.listen(port, () => {
