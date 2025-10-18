@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 
 const API_BASE_URL = '/api';
 
-export function useCashbackData(isAuthenticated) {
+export default function useCashbackData(isAuthenticated) {
     
     // --- STATE MANAGEMENT ---
     const [cards, setCards] = useState([]);
