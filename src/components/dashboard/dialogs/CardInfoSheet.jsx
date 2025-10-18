@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Badge } from '../ui/badge';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
+import { Button } from '../../ui/button';
+import { Input } from '../../ui/input';
+import { Badge } from '../../ui/badge';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../../ui/sheet';
 import { Info, Search, ChevronDown } from 'lucide-react';
-import { cn } from '../../lib/utils'; // Adjust this path if needed
+import { cn } from '../../../lib/utils';
 
 export default function CardInfoSheet({ card, rules, mccMap, isDesktop, useIOSKeyboardGapFix }) {
     // --- State for search and expansion ---
