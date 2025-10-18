@@ -855,6 +855,84 @@ app.get('/api/common-vendors', async (req, res) => {
     }
 });
 
+// GET /api/transactions/needs-review
+app.get('/api/transactions/needs-review', async (req, res) => {
+    try {
+        const notionClient = new Client({ auth: process.env.NOTION_API_KEY });
+        const databaseId = process.env.NOTION_TRANSACTIONS_DB_ID;
+
+        const response = await notionClient.databases.query({
+            database_id: databaseId,
+            filter: {
+                or: [
+                    {
+                        property: 'Transaction Name',
+                        title: {
+                            starts_with: 'Email_'
+                        }
+                    },
+                    {
+                        property: 'MCC Code',
+                        rich_text: {
+                            is_empty: true
+                        }
+                    }
+                ]
+            },
+            sorts: [
+                {
+                    property: 'Transaction Date',
+                    direction: 'descending'
+                }
+            ]
+        });
+
+        const transactions = response.results.map(page => parseNotionPage(page)); // Assuming you have a parser function
+        res.json(transactions);
+
+    } catch (error) {
+        console.error("Error fetching transactions for review:", error);
+        res.status(500).json({ message: "Failed to fetch transactions for review" });
+    }
+});
+
+// PATCH /api/transactions/:id/approve
+app.patch('/api/transactions/:id/approve', async (req, res) => {
+    const { id: pageId } = req.params;
+    const { newName } = req.body; // The new, clean name for the transaction
+
+    if (!newName) {
+        return res.status(400).json({ message: 'A new name is required.' });
+    }
+
+    try {
+        const notionClient = new Client({ auth: process.env.NOTION_API_KEY });
+
+        await notionClient.pages.update({
+            page_id: pageId,
+            properties: {
+                'Transaction Name': {
+                    title: [{
+                        text: {
+                            content: newName
+                        }
+                    }]
+                }
+            }
+        });
+        
+        // Respond with the updated transaction so the UI can be updated
+        const updatedPage = await notionClient.pages.retrieve({ page_id: pageId });
+        const updatedTransaction = parseNotionPage(updatedPage); // Use your existing parser
+        
+        res.json(updatedTransaction);
+
+    } catch (error) {
+        console.error('Failed to quick approve transaction:', error);
+        res.status(500).json({ message: 'Error updating transaction in Notion.' });
+    }
+});
+
 
 if (process.env.NODE_ENV !== 'production') {
     app.listen(port, () => {

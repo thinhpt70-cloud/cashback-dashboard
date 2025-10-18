@@ -22,7 +22,7 @@ import { cn } from "./lib/utils";
 import { Toaster, toast } from 'sonner';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
-
+import { TransactionReviewCenter } from "./TransactionReviewCenter"; // Adjust path if needed
 
 
 // --------------------------
@@ -159,6 +159,7 @@ export default function CashbackDashboard() {
     const [isDialogLoading, setIsDialogLoading] = useState(false);
     const [commonVendors, setCommonVendors] = useState([]);
     const [cardView, setCardView] = useState('month'); // 'month', 'ytd', or 'roi'
+    const [reviewTransactions, setReviewTransactions] = useState([]);
 
     const handleLogout = async () => {
         try {
@@ -237,6 +238,10 @@ export default function CashbackDashboard() {
             prevRecent.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
         );
 
+        setReviewTransactions(prevReview => 
+            prevReview.filter(tx => tx.id !== updatedTransaction.id)
+        );
+
         setEditingTransaction(null); // Close the edit form
         fetchData(true); // Silently refresh all aggregate data in the background
     };
@@ -257,7 +262,8 @@ export default function CashbackDashboard() {
                 monthlyCatRes,
                 recentTxRes,
                 categoriesRes,
-                commonVendorsRes
+                commonVendorsRes,
+                reviewTxRes
             ] = await Promise.all([
                 fetch(`${API_BASE_URL}/cards`),
                 fetch(`${API_BASE_URL}/rules`),
@@ -267,10 +273,11 @@ export default function CashbackDashboard() {
                 fetch(`${API_BASE_URL}/recent-transactions`),
                 fetch(`${API_BASE_URL}/categories`),
                 fetch(`${API_BASE_URL}/common-vendors`),
+                fetch(`${API_BASE_URL}/transactions/needs-review`) // New endpoint for transactions needing review
             ]);
 
             // Check if all network responses are successful
-            if (!cardsRes.ok || !rulesRes.ok || !monthlyRes.ok || !mccRes.ok || !monthlyCatRes.ok || !recentTxRes.ok || !categoriesRes.ok || !commonVendorsRes.ok) {
+            if (!cardsRes.ok || !rulesRes.ok || !monthlyRes.ok || !mccRes.ok || !monthlyCatRes.ok || !recentTxRes.ok || !categoriesRes.ok || !commonVendorsRes.ok || !reviewTxRes.ok) {
                 throw new Error('A network response was not ok. Please check the server.');
             }
 
@@ -283,6 +290,7 @@ export default function CashbackDashboard() {
             const recentTxData = await recentTxRes.json(); 
             const categoriesData = await categoriesRes.json(); 
             const commonVendorsData = await commonVendorsRes.json();
+            const reviewTxData = await reviewTxRes.json(); // New data for transactions needing review
 
             // Set all the state variables for the application
             setCards(cardsData);
@@ -293,6 +301,7 @@ export default function CashbackDashboard() {
             setRecentTransactions(recentTxData); // Set the new state
             setAllCategories(categoriesData); // Set the new state for all categories
             setCommonVendors(commonVendorsData);
+            setReviewTransactions(reviewTxData); // Set the new state for review transactions
 
             const mappedRules = rulesData.map(r => ({ ...r, name: r.ruleName }));
             const mappedMonthlyCats = monthlyCatData.map(c => ({ ...c, name: c.summaryId }));
@@ -741,12 +750,12 @@ export default function CashbackDashboard() {
             <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
                 <Tabs defaultValue="overview">
                     <div className="flex items-center">
-                    <TabsList className="bg-slate-100 p-1 rounded-lg">
-                        <TabsTrigger value="overview">Overview</TabsTrigger>
-                        <TabsTrigger value="transactions">Transactions</TabsTrigger>
-                        <TabsTrigger value="cards">My Cards</TabsTrigger>
-                        <TabsTrigger value="payments">Payments</TabsTrigger>
-                    </TabsList>
+                        <TabsList className="bg-slate-100 p-1 rounded-lg">
+                            <TabsTrigger value="overview">Overview</TabsTrigger>
+                            <TabsTrigger value="transactions">Transactions</TabsTrigger>
+                            <TabsTrigger value="cards">My Cards</TabsTrigger>
+                            <TabsTrigger value="payments">Payments</TabsTrigger>
+                        </TabsList>
                     </div>
 
                     <TabsContent value="overview" className="space-y-4 pt-4">
@@ -906,7 +915,12 @@ export default function CashbackDashboard() {
                         )}
                     </TabsContent>
 
-                    <TabsContent value="transactions" className="pt-4">
+                    <TabsContent value="transactions" className="pt-4 space-y-4">
+                        <TransactionReviewCenter 
+                            transactions={reviewTransactions}
+                            onReview={handleEditClick}
+                            currencyFn={currency}
+                        />
                         <TransactionsTab
                             isDesktop={isDesktop}
                             // Use recentTransactions in live view, otherwise use monthlyTransactions
@@ -3301,6 +3315,12 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
 
     useEffect(() => {
         if (initialData) {
+            // Automatically clean the "Email_" prefix for a better user experience
+            let initialMerchant = initialData['Transaction Name'] || '';
+            if (initialMerchant.startsWith('Email_')) {
+                initialMerchant = initialMerchant.substring(6); // Remove "Email_"
+            }
+
             setMerchant(initialData['Transaction Name'] || '');
             setAmount((initialData['Amount'] || '').toLocaleString('en-US'));
             setDate(initialData['Transaction Date'] || new Date().toISOString().slice(0, 10));
@@ -3806,7 +3826,7 @@ function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMa
                 
                 <div className="pt-2">
                     <Button type="submit" disabled={isSubmitting} size="lg" className="w-full">
-                        {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Add Transaction"}
+                        {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : (initialData ? "Update Transaction" : "Add Transaction")}
                     </Button>
                 </div>
             </form>
