@@ -8,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '..
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui/tooltip';
 import QuickAddButtons from './QuickAddButtons';
 import CardRecommendations from './CardRecommendations';
-import { useIOSKeyboardGapFix } from '../../hooks/useIOSKeyboardGapFix';
+import useIOSKeyboardGapFix from '../../../hooks/useIOSKeyboardGapFix';
 import MccSearchResultsDialog from './MccSearchResultsDialog';
 
 export default function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, onClose }) {
