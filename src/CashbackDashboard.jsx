@@ -348,7 +348,7 @@ export default function CashbackDashboard() {
             });
             return monthData;
         });
-    }, [monthlySummary, cards, fmtYMShort]);
+    }, [monthlySummary, cards]);
 
     const monthlyChartData = useMemo(() => {
         const aggregated = {};
@@ -361,7 +361,7 @@ export default function CashbackDashboard() {
             aggregated[monthLabel].cashback += item.cashback || 0;
         });
         return Object.values(aggregated);
-    }, [monthlySummary, fmtYMShort]);
+    }, [monthlySummary]);
 
     const calculateFeeCycleProgress = (openDateStr, nextFeeDateStr) => {
         if (!openDateStr || !nextFeeDateStr) return { daysPast: 0, progressPercent: 0 };
