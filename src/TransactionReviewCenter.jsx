@@ -17,8 +17,9 @@ import { Badge } from "./components/ui/badge";
  * @param {Map} cardMap - Map of card IDs to card objects.
  * @param {Map} rulesMap - Map of rule IDs to rule objects.
  * @param {object} mccMap - Object mapping MCC codes to descriptions.
+ * @param {Map} summaryMap - Map of summary IDs to summary objects.
  */
-export function TransactionReviewCenter({ transactions, onReview, onApprove, currencyFn, cardMap, rulesMap, mccMap }) {
+export function TransactionReviewCenter({ transactions, onReview, onApprove, currencyFn, cardMap, rulesMap, mccMap, summaryMap }) {
     if (!transactions || transactions.length === 0) {
         return null; // Don't render anything if there are no items to review
     }
@@ -83,7 +84,11 @@ export function TransactionReviewCenter({ transactions, onReview, onApprove, cur
                                     const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
                                     const rule = tx['Applicable Rule'] ? rulesMap.get(tx['Applicable Rule'][0]) : null;
                                     const mccDescription = tx['MCC Code'] ? mccMap[tx['MCC Code']]?.vn || 'Unknown' : 'N/A';
-                                    const summaryId = tx['Card Summary Category'] ? tx['Card Summary Category'][0] : 'N/A';
+                                    
+                                    // Look up the summary name using the summaryMap
+                                    const summaryRelationId = tx['Card Summary Category'] ? tx['Card Summary Category'][0] : null;
+                                    const summary = summaryRelationId ? summaryMap.get(summaryRelationId) : null;
+                                    const summaryName = summary ? summary.summaryId : 'N/A'; // Note: 'summaryId' from your API contains the name
 
                                     return (
                                         <div key={tx.id} className="p-3 border rounded-md bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -114,7 +119,7 @@ export function TransactionReviewCenter({ transactions, onReview, onApprove, cur
                                                     </div>
                                                     <div>
                                                         <p className="font-semibold text-slate-400">Summary ID</p>
-                                                        <p className="truncate" title={summaryId}>{summaryId}</p>
+                                                        <p className="truncate" title={summaryName}>{summaryName}</p>
                                                     </div>
                                                 </div>
 

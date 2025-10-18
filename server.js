@@ -374,6 +374,7 @@ app.patch('/api/transactions/:id', async (req, res) => {
         if (applicableRuleId !== undefined) propertiesToUpdate['Applicable Rule'] = applicableRuleId ? { relation: [{ id: applicableRuleId }] } : { relation: [] };
         if (cardSummaryCategoryId !== undefined) propertiesToUpdate['Card Summary Category'] = cardSummaryCategoryId ? { relation: [{ id: cardSummaryCategoryId }] } : { relation: [] };
 
+        propertiesToUpdate['Automated'] = { checkbox: false };
 
         if (Object.keys(propertiesToUpdate).length === 0) {
             return res.status(400).json({ error: 'No fields to update were provided.' });
