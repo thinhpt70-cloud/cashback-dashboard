@@ -32,7 +32,7 @@ import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
 import AddTransactionForm from './components/dashboard/forms/AddTransactionForm';
 
 import StatCard from "./components/dashboard/StatCard";
-import RecentTransactionsCarousel from './components/dashboard/RecentTransactionsCarousel';
+import EnhancedSuggestions from "./components/dashboard/EnhancedSuggestions";
 
 import LoginScreen from './components/auth/LoginScreen';
 
