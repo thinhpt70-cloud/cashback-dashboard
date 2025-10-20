@@ -28,12 +28,11 @@ const RecommendationItem = ({ item, rank, onSelectCard, selectedCardId, currency
     return (
         <button
             type="button"
-            onClick={() => !isCappedOrIneligible && onSelectCard(card.id, rule.id)}
-            disabled={isCappedOrIneligible}
+            onClick={() => onSelectCard(card.id, rule.id)}
             className={cn(
                 "w-full text-left border rounded-lg p-2.5 transition-all space-y-2",
                 isSelected && !isCappedOrIneligible ? "bg-sky-50 border-sky-400 shadow-sm" : "bg-white hover:bg-slate-50",
-                isCappedOrIneligible && "bg-slate-50 opacity-60 grayscale cursor-not-allowed"
+                isCappedOrIneligible && "bg-slate-50 opacity-60 grayscale"
             )}
         >
             {/* Top Row: Rank, Name, Rate */}
