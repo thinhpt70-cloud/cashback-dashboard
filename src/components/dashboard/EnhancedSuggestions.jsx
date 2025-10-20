@@ -5,7 +5,7 @@ import { Badge } from "../ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { Lightbulb, ChevronUp, ChevronDown, AlertTriangle, Sparkles, DollarSign, ShoppingCart } from 'lucide-react';
 
-export function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard }) {
+export default function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard }) {
     const [startIndex, setStartIndex] = useState(0);
 
     const isLiveView = activeMonth === 'live';
