@@ -57,6 +57,7 @@ const mapTransaction = (tx) => {
         'billingDate': props['Billing Date'],
         'Applicable Rule': props['Applicable Rule'],
         'Card Summary Category': props['Card Summary Category'],
+        'Match': props['Match'],
     };
 };
 
