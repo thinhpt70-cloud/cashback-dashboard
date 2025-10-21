@@ -10,6 +10,8 @@ import QuickAddButtons from './QuickAddButtons';
 import CardRecommendations from './CardRecommendations';
 import useIOSKeyboardGapFix from '../../../hooks/useIOSKeyboardGapFix';
 import MccSearchResultsDialog from './MccSearchResultsDialog';
+import useCardRecommendations from '../../../hooks/useCardRecommendations';
+
 
 export default function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, onClose }) {
     // --- State Management ---
@@ -59,11 +61,12 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                 initialMerchant = initialMerchant.substring(6); // Remove "Email_"
             }
 
-            setMerchant(initialData['Transaction Name'] || '');
+            setMerchant(initialMerchant || '');
             setAmount((initialData['Amount'] || '').toLocaleString('en-US'));
             setDate(initialData['Transaction Date'] || new Date().toISOString().slice(0, 10));
             setCardId(initialData['Card'] ? initialData['Card'][0] : '');
             setApplicableRuleId(initialData['Applicable Rule'] ? initialData['Applicable Rule'][0] : '');
+            setCardSummaryCategoryId(initialData['Card Summary Category'] ? initialData['Card Summary Category'][0] : 'new'); // <-- ADDED THIS
             setCategory(initialData['Category'] || '');
             setMccCode(initialData['MCC Code'] || '');
             setMerchantLookup(initialData['merchantLookup'] || '');
@@ -75,8 +78,6 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             setPaidFor(initialData['paidFor'] || '');
             setSubCategory(initialData['subCategory'] || '');
             setBillingDate(initialData['billingDate'] || '');
-            // Note: Rule and Summary Category IDs are not pre-filled as they are complex relations
-            // and often need to be re-evaluated upon edit.
         }
     }, [initialData]);
 
@@ -140,8 +141,10 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         const effectiveMonthlyLimit = dynamicLimit > 0 ? dynamicLimit : selectedCard?.overallMonthlyLimit;
         const isMonthlyCapReached = effectiveMonthlyLimit > 0 ? (cardMonthSummary?.cashback || 0) >= effectiveMonthlyLimit : false;
         
-        const categoryLimit = categoryMonthSummary?.categoryLimit || Infinity;
-        const isCategoryCapReached = isFinite(categoryLimit) && (categoryMonthSummary?.cashback || 0) >= categoryLimit;
+        // Use the rule's default categoryLimit as a fallback if the summary doesn't exist
+        const categoryLimit = categoryMonthSummary?.categoryLimit || selectedRule.categoryLimit || Infinity;
+        const currentCategoryCashback = categoryMonthSummary?.cashback || 0;
+        const isCategoryCapReached = isFinite(categoryLimit) && currentCategoryCashback >= categoryLimit;
 
         const isMinSpendMet = selectedCard?.minimumMonthlySpend > 0 ? (cardMonthSummary?.spend || 0) >= selectedCard.minimumMonthlySpend : true;
 
@@ -178,59 +181,18 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     }, [cards, cardId, initialData]);
 
     const currencyFn = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
-        const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
 
-        const rankedCards = useMemo(() => {
-        if (!mccCode || !/^\d{4}$/.test(mccCode)) return [];
-
-        const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
-        
-        return rules
-            .filter(rule => rule.mccCodes && rule.mccCodes.split(',').map(c => c.trim()).includes(mccCode))
-            .map(rule => {
-                const card = cardMap.get(rule.cardId);
-                if (!card || card.status !== 'Active') return null;
-
-                const monthForCard = getCurrentCashbackMonthForCard(card, date);
-
-                const cardMonthSummary = monthlySummary.find(s => s.cardId === card.id && s.month === monthForCard);
-                const categorySummaryId = `${monthForCard} - ${rule.ruleName}`;
-                const categoryMonthSummary = monthlyCategorySummary.find(s => s.summaryId === categorySummaryId && s.cardId === card.id);
-                
-                const categoryLimit = categoryMonthSummary?.categoryLimit || Infinity;
-                const remainingCategoryCashback = categoryLimit - (categoryMonthSummary?.cashback || 0);
-
-                let calculatedCashback = null;
-                if (!isNaN(numericAmount) && numericAmount > 0) {
-                    calculatedCashback = numericAmount * rule.rate;
-                    if (rule.capPerTransaction > 0) {
-                        calculatedCashback = Math.min(calculatedCashback, rule.capPerTransaction);
-                    }
-                }
-
-                return { 
-                    rule, 
-                    card, 
-                    calculatedCashback, 
-                    isMinSpendMet: card.minimumMonthlySpend > 0 ? (cardMonthSummary?.spend || 0) >= card.minimumMonthlySpend : true,
-                    isCategoryCapReached: (categoryMonthSummary?.categoryLimit || 0) > 0 ? (categoryMonthSummary?.cashback || 0) >= categoryMonthSummary.categoryLimit : false,
-                    isMonthlyCapReached: (card.overallMonthlyLimit || 0) > 0 ? (cardMonthSummary?.cashback || 0) >= card.overallMonthlyLimit : false,
-                    remainingCategoryCashback,
-                };
-            })
-            .filter(Boolean)
-            .sort((a, b) => {
-                const isACapped = a.isMonthlyCapReached || a.isCategoryCapReached;
-                const isBCapped = b.isMonthlyCapReached || b.isCategoryCapReached;
-                if (isACapped !== isBCapped) return isACapped ? 1 : -1;
-                if (a.isMinSpendMet !== b.isMinSpendMet) return a.isMinSpendMet ? -1 : 1;
-                if (!isNaN(numericAmount)) {
-                    const cashbackDiff = (b.calculatedCashback || 0) - (a.calculatedCashback || 0);
-                    if (cashbackDiff !== 0) return cashbackDiff;
-                }
-                return b.rule.rate - a.rule.rate;
-            });
-    }, [mccCode, amount, rules, cardMap, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, date]);
+    // --- Use the new hook to get recommendations ---
+    const rankedCards = useCardRecommendations({
+        mccCode,
+        amount,
+        date,
+        rules,
+        cards,
+        monthlySummary,
+        monthlyCategorySummary,
+        getCurrentCashbackMonthForCard
+    });
 
     // --- Handlers ---
     const resetForm = () => {
@@ -293,10 +255,19 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             const allResults = [...(data.history || []).map(item => (["Your History", item.merchant, item.mcc, mccMap[item.mcc]?.en || "Unknown", mccMap[item.mcc]?.vn || "Không rõ"])), ...(data.external || []).map(item => (["External Suggestion", item.merchant, item.mcc, mccMap[item.mcc]?.en || "Unknown", mccMap[item.mcc]?.vn || "Không rõ"]))];
             setLookupResults(allResults);
 
-            if (data.bestMatch?.mcc && data.bestMatch?.merchant) {
+            if (data.bestMatch?.mcc) {
+                // Always set the MCC code if found
                 setMccCode(data.bestMatch.mcc);
-                setMerchantLookup(data.bestMatch.merchant);
-                toast.info("Auto-filled details based on best match.");
+                
+                let toastMessage = "Auto-filled MCC Code.";
+
+                // Only set the merchantLookup if it's currently empty
+                if (data.bestMatch.merchant && !merchantLookup) {
+                    setMerchantLookup(data.bestMatch.merchant);
+                    toastMessage = "Auto-filled MCC and Merchant Name."; // Update toast
+                }
+
+                toast.info(toastMessage);
                 if (allResults.length > 0) setShowLookupButton(true);
             } else if (allResults.length > 0) {
                 setIsLookupDialogOpen(true);
@@ -448,6 +419,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                 value={mccCode} 
                                 onChange={(e) => setMccCode(e.target.value)} 
                                 placeholder="e.g., 5411" 
+                                type="number"
                             />
                             {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
                         </div>
