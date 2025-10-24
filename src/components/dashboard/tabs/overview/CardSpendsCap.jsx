@@ -144,7 +144,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                 if (a.isCapReached !== b.isCapReached) return a.isCapReached ? 1 : -1;
                 return b.usedCapPct - a.usedCapPct;
             });
-    }, [cards, rules, activeMonth, monthlySummary, isLiveView, getCurrentCashbackMonthForCard]);
+    }, [cards, activeMonth, monthlySummary, isLiveView, getCurrentCashbackMonthForCard]);
 
     const getProgressColor = (percentage) => {
         if (percentage >= 100) return "bg-emerald-500";

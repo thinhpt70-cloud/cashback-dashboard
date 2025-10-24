@@ -7,36 +7,57 @@ import { Lightbulb, ChevronUp, ChevronDown, AlertTriangle, Sparkles, DollarSign,
 
 export default function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard }) {
     const [startIndex, setStartIndex] = useState(0);
-
     const isLiveView = activeMonth === 'live';
 
     const suggestions = useMemo(() => {
+
         const MINIMUM_RATE_THRESHOLD = 0.02;
 
         const allCandidates = rules.flatMap(rule => {
-            if (rule.rate < MINIMUM_RATE_THRESHOLD || rule.status !== 'Active') return [];
-            
             const card = cards.find(c => c.id === rule.cardId);
-            if (!card || card.status === 'Closed') return [];
+            if (!card || card.status === 'Closed' || rule.status !== 'Active') return [];
 
             const monthForCard = isLiveView ? getCurrentCashbackMonthForCard(card) : activeMonth;
-
-            const categorySummary = monthlyCategorySummary.find(s => s.cardId === rule.cardId && s.month === monthForCard && s.summaryId.endsWith(rule.ruleName));
+            
             const cardSummary = monthlySummary.find(s => s.cardId === rule.cardId && s.month === monthForCard);
+            const categorySummary = monthlyCategorySummary.find(s => s.cardId === rule.cardId && s.month === monthForCard && s.summaryId.endsWith(rule.ruleName));
             
-            const currentCashbackForCategory = categorySummary?.cashback || 0;
             const currentTotalSpendForCard = cardSummary?.spend || 0;
-            const remainingCategoryCap = card.limitPerCategory > 0 ? Math.max(0, card.limitPerCategory - currentCashbackForCategory) : Infinity;
+            const currentCashbackForCategory = categorySummary?.cashback || 0;
+
+            // --- NEW TIER LOGIC ---
+            const isTier2Met = card.cashbackType === '2 Tier' && card.tier2MinSpend > 0 && currentTotalSpendForCard >= card.tier2MinSpend;
             
+            // Determine effective rate and limits
+            const effectiveRate = isTier2Met && rule.tier2Rate ? rule.tier2Rate : rule.rate;
+            const effectiveCategoryLimit = (isTier2Met && rule.tier2CategoryLimit) ? rule.tier2CategoryLimit : rule.categoryLimit;
+            const isBoosted = isTier2Met && (rule.tier2Rate > rule.rate || rule.tier2CategoryLimit > rule.categoryLimit);
+            // --- END NEW TIER LOGIC ---
+
+            // Check against the *effective* rate
+            if (effectiveRate < MINIMUM_RATE_THRESHOLD) return [];
+
+            // **FIXED:** Use the new effectiveCategoryLimit
+            const remainingCategoryCap = effectiveCategoryLimit > 0 ? Math.max(0, effectiveCategoryLimit - currentCashbackForCategory) : Infinity;
+
             if (remainingCategoryCap === 0) return [];
             
             const hasMetMinSpend = card.minimumMonthlySpend > 0 ? currentTotalSpendForCard >= card.minimumMonthlySpend : true;
-            const spendingNeeded = remainingCategoryCap === Infinity ? Infinity : remainingCategoryCap / rule.rate;
+            // **FIXED:** Use the new effectiveRate
+            const spendingNeeded = remainingCategoryCap === Infinity ? Infinity : remainingCategoryCap / effectiveRate;
+            
             const categories = rule.category?.length ? rule.category : [rule.ruleName];
             
             return categories.map(cat => ({
-                ...rule, suggestionFor: cat, parentRuleName: rule.ruleName, cardName: card.name,
-                remainingCategoryCap, hasMetMinSpend, spendingNeeded
+                ...rule,
+                rate: effectiveRate, // Overwrite with effective rate for sorting
+                suggestionFor: cat, 
+                parentRuleName: rule.ruleName, 
+                cardName: card.name,
+                remainingCategoryCap, 
+                hasMetMinSpend, 
+                spendingNeeded,
+                isBoosted // For the UI
             }));
         }).filter(Boolean);
 
@@ -50,7 +71,10 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
         const bestCardPerCategory = Object.values(groupedByCategory).map(group => {
             const qualifiedCards = group.filter(c => c.hasMetMinSpend);
             const unqualifiedCards = group.filter(c => !c.hasMetMinSpend);
+            
+            // This ranker now correctly uses the effective rate and cap
             const ranker = (a, b) => (b.rate - a.rate) || (b.remainingCategoryCap - a.remainingCategoryCap);
+            
             qualifiedCards.sort(ranker);
             unqualifiedCards.sort(ranker);
             const bestQualified = qualifiedCards[0];
@@ -147,7 +171,11 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                             )}
                                         </div>
                                     </div>
-                                    <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200 px-2.5 py-1">{(s.rate * 100).toFixed(1)}%</Badge>
+                                    {/* UPDATED: Added sparkle for boosted rates */}
+                                    <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200 px-2.5 py-1">
+                                        {(s.rate * 100).toFixed(1)}%
+                                        {s.isBoosted && ' ✨'}
+                                    </Badge>
                                 </div>
                                 <div className="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
                                     <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600"/><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
