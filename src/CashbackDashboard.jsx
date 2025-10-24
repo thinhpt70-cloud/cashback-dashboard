@@ -45,7 +45,7 @@ import useIOSKeyboardGapFix from "./hooks/useIOSKeyboardGapFix";
 import useCashbackData from "./hooks/useCashbackData";
 
 import { COLORS, cardThemes } from './lib/constants'; 
-import { calculateDaysLeft, calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from './lib/date';
+import { calculateDaysLeft } from './lib/date';
 import { currency, fmtYMShort } from './lib/formatters'; 
 
 const API_BASE_URL = '/api';
@@ -386,7 +386,6 @@ export default function CashbackDashboard() {
 
     const getCurrentCashbackMonthForCard = useCallback((card, transactionDateStr = null) => {
         if (!card) return null;
-        // Use the provided date string, or default to the current date
         const effectiveDate = transactionDateStr ? new Date(transactionDateStr) : new Date();
 
         let year = effectiveDate.getFullYear();
@@ -600,6 +599,7 @@ export default function CashbackDashboard() {
                                     <div className="lg:col-span-7 flex flex-col">
                                         <CardSpendsCap
                                             cards={cards}
+                                            rules={rules}
                                             activeMonth={activeMonth}
                                             monthlySummary={monthlySummary}
                                             monthlyCategorySummary={monthlyCategorySummary}
@@ -675,6 +675,7 @@ export default function CashbackDashboard() {
                                     <div className="lg:col-span-7 flex flex-col">
                                         <CardSpendsCap
                                             cards={cards}
+                                            rules={rules}
                                             activeMonth={activeMonth}
                                             monthlySummary={monthlySummary}
                                             monthlyCategorySummary={monthlyCategorySummary}
