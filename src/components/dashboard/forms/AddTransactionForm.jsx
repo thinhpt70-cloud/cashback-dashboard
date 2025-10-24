@@ -100,22 +100,12 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         return rules.filter(rule => rule.cardId === cardId && rule.status === 'Active').sort((a, b) => a.name.localeCompare(b.name));
     }, [cardId, rules]);
     const selectedRule = useMemo(() => rules.find(r => r.id === applicableRuleId), [applicableRuleId, rules]);
+    
+    // --- UPDATED: Use the passed-in function ---
     const cashbackMonth = useMemo(() => {
         if (!selectedCard || !date) return null;
-        const transactionDate = new Date(date);
-        const statementDay = selectedCard.statementDay;
-        if (selectedCard.useStatementMonthForPayments) {
-            const year = transactionDate.getFullYear();
-            const month = transactionDate.getMonth() + 1;
-            return `${year}${String(month).padStart(2, '0')}`;
-        }
-        let year = transactionDate.getFullYear();
-        let month = transactionDate.getMonth();
-        if (transactionDate.getDate() >= statementDay) month += 1;
-        if (month > 11) { month = 0; year += 1; }
-        const finalMonth = month + 1;
-        return `${year}${String(finalMonth).padStart(2, '0')}`;
-    }, [selectedCard, date]);
+        return getCurrentCashbackMonthForCard(selectedCard, date);
+    }, [selectedCard, date, getCurrentCashbackMonthForCard]);
     
     const filteredSummaries = useMemo(() => {
         if (!selectedRule || !cardId || !cashbackMonth) return [];
@@ -125,10 +115,10 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
 
     const estimatedCashbackAndWarnings = useMemo(() => {
         const result = { cashback: 0, warnings: [] };
-        if (!selectedRule || !amount) return result;
+        if (!selectedRule || !amount || !selectedCard) return result;
 
         const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
-        if (isNaN(numericAmount)) return result;
+        if (isNaN(numericAmount) || numericAmount <= 0) return result;
         
         const cardMonthSummary = monthlySummary.find(s => s.cardId === cardId && s.month === cashbackMonth);
         const categoryMonthSummary = monthlyCategorySummary.find(s => 
@@ -137,17 +127,26 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             s.summaryId.endsWith(selectedRule.name)
         );
 
-        const dynamicLimit = cardMonthSummary?.monthlyCashbackLimit;
-        const effectiveMonthlyLimit = dynamicLimit > 0 ? dynamicLimit : selectedCard?.overallMonthlyLimit;
-        const isMonthlyCapReached = effectiveMonthlyLimit > 0 ? (cardMonthSummary?.cashback || 0) >= effectiveMonthlyLimit : false;
-        
-        // Use the rule's default categoryLimit as a fallback if the summary doesn't exist
-        const categoryLimit = categoryMonthSummary?.categoryLimit || selectedRule.categoryLimit || Infinity;
+        // --- NEW TIERED LOGIC ---
+        const currentMonthSpend = cardMonthSummary?.spend || 0;
+        const isTier2Met = selectedCard.cashbackType === '2 Tier' && selectedCard.tier2MinSpend > 0 && currentMonthSpend >= selectedCard.tier2MinSpend;
+
+        // Determine effective rate and limits
+        const effectiveRate = isTier2Met && selectedRule.tier2Rate ? selectedRule.tier2Rate : selectedRule.rate;
+        const effectiveCategoryLimit = (isTier2Met && selectedRule.tier2CategoryLimit) ? selectedRule.tier2CategoryLimit : selectedRule.categoryLimit;
+        const effectiveMonthlyLimit = (isTier2Met && selectedCard.tier2Limit) ? selectedCard.tier2Limit : selectedCard.overallMonthlyLimit;
+
+        // Category Cap
         const currentCategoryCashback = categoryMonthSummary?.cashback || 0;
-        const isCategoryCapReached = isFinite(categoryLimit) && currentCategoryCashback >= categoryLimit;
+        const isCategoryCapReached = (effectiveCategoryLimit > 0) && currentCategoryCashback >= effectiveCategoryLimit;
 
-        const isMinSpendMet = selectedCard?.minimumMonthlySpend > 0 ? (cardMonthSummary?.spend || 0) >= selectedCard.minimumMonthlySpend : true;
+        // Overall Card Cap
+        const isMonthlyCapReached = (effectiveMonthlyLimit > 0) ? (cardMonthSummary?.cashback || 0) >= effectiveMonthlyLimit : false;
 
+        // Min Spend
+        const isMinSpendMet = selectedCard.minimumMonthlySpend > 0 ? (cardMonthSummary?.spend || 0) >= selectedCard.minimumMonthlySpend : true;
+        
+        // Add Warnings
         if (!isMinSpendMet) result.warnings.push("Minimum monthly spend not met for this card.");
         if (isMonthlyCapReached) result.warnings.push("Card's overall monthly cashback limit has been reached.");
         if (isCategoryCapReached) result.warnings.push("This specific category's cashback limit has been reached.");
@@ -156,9 +155,21 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             return result;
         }
         
-        const calculatedCashback = numericAmount * selectedRule.rate;
-        const cap = selectedRule.capPerTransaction;
-        result.cashback = (cap > 0 && calculatedCashback > cap) ? cap : calculatedCashback;
+        // Calculate Cashback
+        let calculatedCashback = numericAmount * effectiveRate;
+        
+        // NEW Transaction Limit Logic
+        let cap = selectedRule.transactionLimit;
+        // Check for secondary criteria
+        if (selectedRule.secondaryTransactionCriteria > 0 && numericAmount >= selectedRule.secondaryTransactionCriteria) {
+            cap = selectedRule.secondaryTransactionLimit;
+        }
+        // Apply the determined cap
+        if (cap > 0) {
+            calculatedCashback = Math.min(calculatedCashback, cap);
+        }
+
+        result.cashback = calculatedCashback;
         
         return result;
     }, [amount, selectedRule, cardId, cashbackMonth, monthlySummary, monthlyCategorySummary, selectedCard]);
@@ -174,7 +185,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             const lastUsedCardId = localStorage.getItem('lastUsedCardId');
             if (lastUsedCardId && cards.some(c => c.id === lastUsedCardId)) {
                 setCardId(lastUsedCardId);
-            } else {
+            } else if (cards.length > 0) { // Added a check to prevent error on empty array
                 setCardId(cards[0].id);
             }
         }
@@ -212,6 +223,16 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         setPaidFor('');
         setSubCategory('');
         setBillingDate('');
+        
+        // Keep the selected card
+        if (cards.length > 0 && !cardId) {
+             const lastUsedCardId = localStorage.getItem('lastUsedCardId');
+             if (lastUsedCardId && cards.some(c => c.id === lastUsedCardId)) {
+                 setCardId(lastUsedCardId);
+             } else {
+                 setCardId(cards[0].id);
+             }
+         }
     };
 
     const handleAmountChange = (e) => {
@@ -455,7 +476,8 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                 <div className="space-y-4 border-t pt-6">
                     <div className="space-y-2">
                         <label htmlFor="card">Card</label>
-                        <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); }} className="w-full p-2 border rounded cursor-pointer" required>
+                        <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); localStorage.setItem('lastUsedCardId', e.target.value); }} className="w-full p-2 border rounded cursor-pointer" required>
+                            {/* Removed default "Select Card" option, selection is handled by useEffect */}
                             {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
                         </select>
                     </div>
@@ -463,11 +485,12 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                         <label htmlFor="rule">Applicable Cashback Rule</label>
                         <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border rounded cursor-pointer" disabled={filteredRules.length === 0}>
                             <option value="">{filteredRules.length === 0 ? 'No active rules for this card' : 'None'}</option>
-                            {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
+                            {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.ruleName}</option>)}
                         </select>
                         {selectedRule && (
                             <div className="flex items-center gap-2 pt-2">
                                 <Badge variant="secondary">Rate: {(selectedRule.rate * 100).toFixed(1)}%</Badge>
+                                {selectedRule.tier2Rate && <Badge variant="outline">Tier 2: {(selectedRule.tier2Rate * 100).toFixed(1)}%</Badge>}
                                 {estimatedCashbackAndWarnings.cashback > 0 && (
                                     <Badge variant="outline" className="text-emerald-600">
                                         Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashbackAndWarnings.cashback)}

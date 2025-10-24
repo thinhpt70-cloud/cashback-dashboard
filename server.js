@@ -416,7 +416,6 @@ app.get('/api/cards', async (req, res) => {
                 paymentDueDay: parsed['Payment Due Day'],
                 interestRateMonthly: parsed['Interest Rate (Monthly)'],
                 estYtdCashback: parsed['Total Cashback - Formula'], // Formula (YTD)
-                limitPerCategory: parsed['Limit per Category'],
                 overallMonthlyLimit: parsed['Overall Monthly Limit'],
                 annualFee: parsed['Annual Fee'],
                 totalSpendingYtd: parsed['Total Spending - Formula'],
@@ -425,6 +424,9 @@ app.get('/api/cards', async (req, res) => {
                 cardOpenDate: parsed['Card Open Date'],
                 useStatementMonthForPayments: parsed['Cashback <> Statement Month'] || false,
                 status: parsed['Status'],
+                cashbackType: parsed['Cashback Type'], // 1 Tier, 2 Tier
+                tier2MinSpend: parsed['Tier 2 Minimum Monthly Spend'],
+                tier2Limit: parsed['Tier 2 Monthly Limit'],
             };
         });
         res.json(results);
@@ -451,6 +453,15 @@ app.get('/api/rules', async (req, res) => {
                 capPerTransaction: parsed['Limit per Transaction'],
                 status: parsed['Status'],
                 mccCodes: parsed['MCC Code'],
+
+                type: parsed['Type'], // Transaction Limit, 1 Tier, 2 Tier
+                transactionLimit: parsed['Transaction Limit'], // Renamed from capPerTransaction conceptually
+                categoryLimit: parsed['Category Limit'],
+                secondaryTransactionCriteria: parsed['2nd Transaction Criteria'],
+                secondaryTransactionLimit: parsed['2nd Transaction Limit'],
+                tier2Rate: parsed['Tier 2 Cashback Rate'],
+                tier2CategoryLimit: parsed['Tier 2 Category Limit'],
+                method: parsed['Method'],
             };
         });
         res.json(results);
