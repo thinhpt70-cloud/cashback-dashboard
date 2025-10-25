@@ -154,22 +154,22 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                         dotTooltip = "2 Tier | Tier 2 Minimum Spend met";
                     } else { // Default if none of the above match (e.g., T2 not met, cap not reached, min spend met)
                         dotStatus = 'gray';
-                        dotTooltip = card.name;
+                        dotTooltip = `${card.name} | ${card.status}`;
                     }
 
                 } else { // It's a 1 Tier card
                     if (minSpendMet && isCapReached) { // Met minimum criteria and maxed out cashback
                         dotStatus = 'green';
-                        dotTooltip = "All Cashback Limits reached";
+                        dotTooltip = "1 Tier | All Cashback Limits reached";
                     } else if (!minSpendMet && minSpend > 0) { // Did NOT meet minimum criteria (and minimum criteria exists)
                         dotStatus = 'yellow';
-                        dotTooltip = "Minimum Spend not met";
+                        dotTooltip = "1 Tier | Minimum Spend not met";
                     } else if (!isCapReached && minSpendMet){ // Met minimum but not capped
                         dotStatus = 'blue';
-                        dotTooltip = "Minimum Spend met";
+                        dotTooltip = "1 Tier | Minimum Spend met";
                     } else { // Default if none of the above match (e.g., no minimum, not capped)
                         dotStatus = 'gray';
-                        dotTooltip = card.name;
+                        dotTooltip = `${card.name} | ${card.status}`;
                     }
                 }
 
@@ -353,7 +353,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                                             <h4 className="text-sm font-semibold text-center text-muted-foreground mb-3">Tier 2 Progress</h4>
                                                             {p.tier2Limit > 0 && (
                                                                 <p className="text-xs text-center text-muted-foreground -mt-2 mb-3">
-                                                                    Tier 2 monthly cap: <span className="font-semibold text-slate-700">{currencyFn(p.tier2Limit)}</span>
+                                                                    Tier 2 Monthly Cap: <span className="font-semibold text-slate-700">{currencyFn(p.tier2Limit)}</span>
                                                                 </p>
                                                             )}
                                                             <Progress value={p.tier2SpendPct} className="h-2" indicatorClassName="bg-blue-500" />
