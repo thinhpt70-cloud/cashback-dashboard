@@ -1,9 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../ui/card'; // Adjusted path
-import { Button } from '../../../ui/button'; // Adjusted path
-import { Badge } from '../../../ui/badge'; // Adjusted path
+import { Card, CardHeader, CardTitle, CardContent } from '../../../ui/card';
+import { Button } from '../../../ui/button';
+import { Badge } from '../../../ui/badge';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '../../../../lib/utils'; // Adjusted path
 
 export default function RecentTransactionsCarousel({ transactions, cardMap, currencyFn }) {
     const scrollContainerRef = useRef(null);
