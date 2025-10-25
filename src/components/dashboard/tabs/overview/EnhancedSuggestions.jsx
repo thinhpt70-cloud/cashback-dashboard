@@ -4,7 +4,7 @@ import { Button } from "../../../ui/button";
 import { Badge } from "../../../ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../ui/tooltip";
 import { Lightbulb, ChevronUp, ChevronDown, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle } from 'lucide-react';
-import { useMediaQuery } from '../../../../hooks/useMediaQuery';
+import useMediaQuery from '../../../../hooks/useMediaQuery';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../../ui/dialog";
 
 export default function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard }) {
