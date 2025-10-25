@@ -142,19 +142,16 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                 if (card.cashbackType === '2 Tier') {
                     if (isTier2Met && isCapReached) { // Met Tier 2 minimum and maxed out cashback
                         dotStatus = 'green';
-                        dotTooltip = "Tier 2 met & cashback limit reached";
+                        dotTooltip = "2 Tier | All Cashback Limits reached";
                     } else if (minSpendMet && isCapReached && !isTier2Met) { // Met Tier 1 minimum and maxed out cashback, but NOT Tier 2
                          dotStatus = 'blue';
-                         dotTooltip = "Tier 1 met & cashback limit reached (Tier 2 not met)";
+                         dotTooltip = "2 Tier | Potential for Tier 2";
                     } else if (!minSpendMet) { // Didn't meet even Tier 1 minimum
                          dotStatus = 'yellow';
-                         dotTooltip = "Minimum spend not met";
+                         dotTooltip = "2 Tier | Tier 1 Minimum Spend not met";
                     } else if (!isCapReached && isTier2Met) { // Met Tier 2 minimum but NOT maxed out cashback yet
-                        dotStatus = 'gray'; // Or another color if you want to distinguish this state
-                        dotTooltip = "Tier 2 met, cashback limit not reached";
-                    } else if (!isCapReached && !isTier2Met && minSpendMet) { // Met Tier 1 minimum but NOT Tier 2 minimum and NOT maxed out cashback yet
-                         dotStatus = 'gray'; // Or another color
-                         dotTooltip = "Tier 1 met, Tier 2 not met, cashback limit not reached";
+                        dotStatus = 'dark blue';
+                        dotTooltip = "2 Tier | Tier 2 Minimum Spend met";
                     } else { // Default if none of the above match (e.g., T2 not met, cap not reached, min spend met)
                         dotStatus = 'gray';
                         dotTooltip = card.name;
@@ -163,13 +160,13 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                 } else { // It's a 1 Tier card
                     if (minSpendMet && isCapReached) { // Met minimum criteria and maxed out cashback
                         dotStatus = 'green';
-                        dotTooltip = "Minimum spend met & cashback limit reached";
+                        dotTooltip = "All Cashback Limits reached";
                     } else if (!minSpendMet && minSpend > 0) { // Did NOT meet minimum criteria (and minimum criteria exists)
                         dotStatus = 'yellow';
-                        dotTooltip = "Minimum spend not met";
+                        dotTooltip = "Minimum Spend not met";
                     } else if (!isCapReached && minSpendMet){ // Met minimum but not capped
-                        dotStatus = 'gray';
-                        dotTooltip = "Minimum spend met, cashback limit not reached";
+                        dotStatus = 'blue';
+                        dotTooltip = "Minimum Spend met";
                     } else { // Default if none of the above match (e.g., no minimum, not capped)
                         dotStatus = 'gray';
                         dotTooltip = card.name;
@@ -219,7 +216,8 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
         switch (status) {
             case 'green': return "bg-emerald-500";
             case 'blue': return "bg-blue-500";
-            case 'yellow': return "bg-yellow-500";
+            case 'dark blue': return "bg-indigo-500";
+            case 'orange': return "bg-orange-500";
             default: return "bg-slate-400";
         }
     };
@@ -310,7 +308,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                             </span>
                                             <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-1.5 flex-grow" />
                                             <span className={cn(
-                                                "text-xs w-40 shrink-0 text-right font-mono",
+                                                "text-xs w-40 shrink-0 text-right",
                                                 p.isCapReached ? "text-slate-400" : "text-muted-foreground"
                                             )}>
                                                 {currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}

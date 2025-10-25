@@ -54,7 +54,6 @@ export default function RecentTransactionsCarousel({ transactions, cardMap, curr
                 <div 
                     ref={scrollContainerRef} 
                     className="flex gap-4 overflow-x-auto pb-4 scroll-smooth"
-                    // THIS IS THE CORRECTED STYLE OBJECT
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                     {transactions.map(tx => {
