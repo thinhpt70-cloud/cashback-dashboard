@@ -69,7 +69,13 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                                 </p>
                                 <span className="font-mono text-xs font-semibold text-slate-500">{cap.usedPct}%</span>
                             </div>
-                            <Progress value={cap.usedPct} className="h-2" />
+                            <Progress 
+                                value={cap.usedPct} 
+                                className="h-2" 
+                                indicatorClassName={cn(
+                                    cap.isBoosted ? "bg-indigo-500" : "bg-sky-500" // Use boost color
+                                )} 
+                            />
                             <div className="flex justify-between items-center text-xs text-muted-foreground mt-1.5">
                                 <span>{currencyFn(cap.currentCashback)} / {currencyFn(cap.limit)}</span>
                                 <span className="font-medium">{currencyFn(cap.remaining)} left</span>
@@ -105,19 +111,19 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                 const cardMonthSummary = monthlySummary.find(
                     summary => summary.cardId === card.id && summary.month === monthForCard
                 );
-                
+
                 const currentCashback = cardMonthSummary?.cashback || 0;
                 const currentSpend = cardMonthSummary?.spend || 0;
-                
+
                 const isTier2Met = card.cashbackType === '2 Tier' && card.tier2MinSpend > 0 && currentSpend >= card.tier2MinSpend;
                 const cardTierLimit = isTier2Met ? card.tier2Limit : card.overallMonthlyLimit;
-                
+
                 const dynamicLimit = cardMonthSummary?.monthlyCashbackLimit;
                 const monthlyLimit = dynamicLimit > 0 ? dynamicLimit : cardTierLimit;
-                
+
                 const usedCapPct = monthlyLimit > 0 ? Math.min(100, Math.round((currentCashback / monthlyLimit) * 100)) : 0;
                 const isCapReached = usedCapPct >= 100;
-                
+
                 const minSpend = card.minimumMonthlySpend || 0;
                 const minSpendMet = minSpend > 0 ? currentSpend >= minSpend : true;
                 const minSpendPct = minSpend > 0 ? Math.min(100, Math.round((currentSpend / minSpend) * 100)) : 100;
@@ -128,38 +134,77 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                     ? calculateDaysLeftInCashbackMonth(monthForCard)
                     : calculateDaysUntilStatement(card.statementDay, monthForCard);
 
+                // --- DOT LOGIC ---
                 let dotStatus = 'gray'; // Default
                 let dotTooltip = card.name; // Default tooltip
 
-                if (isCapReached) {
-                    dotStatus = 'green';
-                    dotTooltip = "Monthly cap reached";
-                } else if (card.cashbackType === '2 Tier' && !isTier2Met) {
-                    dotStatus = 'blue';
-                    dotTooltip = "Tier 2 minimum spend not met";
-                } else if (card.cashbackType !== '2 Tier' && !minSpendMet) {
-                    dotStatus = 'yellow';
-                    dotTooltip = "Minimum spend not met";
+                if (card.cashbackType === '2 Tier') {
+                    if (isTier2Met && isCapReached) { // Met Tier 2 minimum and maxed out cashback
+                        dotStatus = 'green';
+                        dotTooltip = "Tier 2 met & cashback limit reached";
+                    } else if (minSpendMet && isCapReached && !isTier2Met) { // Met Tier 1 minimum and maxed out cashback, but NOT Tier 2
+                         dotStatus = 'blue';
+                         dotTooltip = "Tier 1 met & cashback limit reached (Tier 2 not met)";
+                    } else if (!minSpendMet) { // Didn't meet even Tier 1 minimum
+                         dotStatus = 'yellow';
+                         dotTooltip = "Minimum spend not met";
+                    } else if (!isCapReached && isTier2Met) { // Met Tier 2 minimum but NOT maxed out cashback yet
+                        dotStatus = 'gray'; // Or another color if you want to distinguish this state
+                        dotTooltip = "Tier 2 met, cashback limit not reached";
+                    } else if (!isCapReached && !isTier2Met && minSpendMet) { // Met Tier 1 minimum but NOT Tier 2 minimum and NOT maxed out cashback yet
+                         dotStatus = 'gray'; // Or another color
+                         dotTooltip = "Tier 1 met, Tier 2 not met, cashback limit not reached";
+                    } else { // Default if none of the above match (e.g., T2 not met, cap not reached, min spend met)
+                        dotStatus = 'gray';
+                        dotTooltip = card.name;
+                    }
+
+                } else { // It's a 1 Tier card
+                    if (minSpendMet && isCapReached) { // Met minimum criteria and maxed out cashback
+                        dotStatus = 'green';
+                        dotTooltip = "Minimum spend met & cashback limit reached";
+                    } else if (!minSpendMet && minSpend > 0) { // Did NOT meet minimum criteria (and minimum criteria exists)
+                        dotStatus = 'yellow';
+                        dotTooltip = "Minimum spend not met";
+                    } else if (!isCapReached && minSpendMet){ // Met minimum but not capped
+                        dotStatus = 'gray';
+                        dotTooltip = "Minimum spend met, cashback limit not reached";
+                    } else { // Default if none of the above match (e.g., no minimum, not capped)
+                        dotStatus = 'gray';
+                        dotTooltip = card.name;
+                    }
                 }
+
 
                 return {
                     card, cardId: card.id, cardName: card.name, currentCashback,
                     currentSpend, monthlyLimit, usedCapPct, minSpend, minSpendMet,
                     minSpendPct, daysLeft: days, cycleStatus: status, isCapReached,
-                    activeMonth: monthForCard, 
+                    activeMonth: monthForCard,
                     isTier2Met,
                     cashbackType: card.cashbackType,
                     tier2MinSpend: card.tier2MinSpend,
-                    tier2Limit: card.tier2Limit, // <-- ADDED THIS
+                    tier2Limit: card.tier2Limit,
                     tier2SpendPct,
                     dotStatus,
                     dotTooltip
                 };
             })
             .sort((a, b) => {
-                if (a.minSpendMet !== b.minSpendMet) return a.minSpendMet ? 1 : -1;
-                if (a.isCapReached !== b.isCapReached) return a.isCapReached ? 1 : -1;
-                return b.usedCapPct - a.usedCapPct;
+                 if (a.isCapReached !== b.isCapReached) return a.isCapReached ? 1 : -1; // Capped cards last
+                 if (a.minSpendMet !== b.minSpendMet) return a.minSpendMet ? -1 : 1; // Unmet min spend cards last among uncapped
+                 // Prioritize 2 Tier cards that met Tier 2
+                 if (a.cashbackType === '2 Tier' && b.cashbackType !== '2 Tier') {
+                     if (a.isTier2Met) return -1;
+                 }
+                 if (a.cashbackType !== '2 Tier' && b.cashbackType === '2 Tier') {
+                      if (b.isTier2Met) return 1;
+                 }
+                 if (a.cashbackType === '2 Tier' && b.cashbackType === '2 Tier') {
+                     if(a.isTier2Met !== b.isTier2Met) return a.isTier2Met ? -1 : 1;
+                 }
+                 // Otherwise sort by percentage used (higher percentage first)
+                 return b.usedCapPct - a.usedCapPct;
             });
     }, [cards, activeMonth, monthlySummary, isLiveView, getCurrentCashbackMonthForCard]);
 
@@ -210,7 +255,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                     onClick={() => handleToggleExpand(p.cardId)}
                                 >
                                     <div className="flex justify-between items-center">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 min-w-0">
                                             <TooltipProvider delayDuration={100}>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
@@ -228,7 +273,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                                 { "text-slate-400 font-normal": p.isCapReached }
                                             )} title={p.cardName}>{p.cardName}</p>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 flex-shrink-0">
                                             <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
                                             <ChevronDown className={cn( "h-5 w-5 text-muted-foreground transition-transform duration-200 flex-shrink-0",
                                                 expandedCardId === p.cardId && "rotate-180"
@@ -246,7 +291,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                             </span>
                                             <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-1.5 flex-grow" />
                                             <span className={cn(
-                                                "text-xs w-40 shrink-0 text-right",
+                                                "text-xs w-40 shrink-0 text-right font-mono",
                                                 p.isCapReached ? "text-slate-400" : "text-muted-foreground"
                                             )}>
                                                 {currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}
@@ -278,7 +323,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                                     {p.isTier2Met ? (
                                                         // --- UPDATED: Unlocked State ---
                                                         <div className="rounded-md bg-emerald-50 border border-emerald-200 p-3 text-center">
-                                                            <p className="font-semibold text-emerald-800">✨ Tier 2 Benefits Unlocked!</p>
+                                                            <p className="font-semibold text-emerald-800">✨ Tier 2 Unlocked!</p>
                                                             {p.tier2Limit > 0 && (
                                                                 <p className="text-xs text-emerald-700 mt-1">
                                                                     Your monthly cap is now <span className="font-bold">{currencyFn(p.tier2Limit)}</span>.
@@ -288,10 +333,10 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                                     ) : (
                                                         // --- UPDATED: Locked State ---
                                                         <div>
-                                                            <h4 className="text-sm font-semibold text-center text-muted-foreground mb-3">Progress to Tier 2</h4>
+                                                            <h4 className="text-sm font-semibold text-center text-muted-foreground mb-3">Tier 2 Progress</h4>
                                                             {p.tier2Limit > 0 && (
                                                                 <p className="text-xs text-center text-muted-foreground -mt-2 mb-3">
-                                                                    to unlock a <span className="font-semibold text-slate-700">{currencyFn(p.tier2Limit)}</span> monthly cap!
+                                                                    Tier 2 monthly cap: <span className="font-semibold text-slate-700">{currencyFn(p.tier2Limit)}</span>
                                                                 </p>
                                                             )}
                                                             <Progress value={p.tier2SpendPct} className="h-2" indicatorClassName="bg-blue-500" />
