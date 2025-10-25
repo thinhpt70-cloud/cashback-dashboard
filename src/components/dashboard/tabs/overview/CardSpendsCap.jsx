@@ -1,12 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronDown, Info } from 'lucide-react';
+import { ChevronDown, CheckCircle2, Circle, Unlock, Lock } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../ui/card';
 import { Badge } from '../../../ui/badge';
 import { Progress } from '../../../ui/progress';
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '../../../ui/tooltip';
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '../../../../lib/date';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../ui/dialog";
 
 function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, currencyFn, isTier2Met }) {
     const categoryCapData = useMemo(() => {
@@ -58,7 +56,7 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
 
     return (
         <div className="px-4">
-            <h4 className="text-sm font-semibold text-center text-muted-foreground mb-4">Category Caps Usage</h4>
+            <h4 className="text-sm font-semibold text-muted-foreground mb-4">CATEGORY CAPS USAGE</h4>
             {categoryCapData.length > 0 ? (
                 <div className="space-y-4">
                     {categoryCapData.map(cap => (
@@ -135,44 +133,16 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                     ? calculateDaysLeftInCashbackMonth(monthForCard)
                     : calculateDaysUntilStatement(card.statementDay, monthForCard);
 
-                // --- DOT LOGIC ---
                 let dotStatus = 'gray'; // Default
-                let dotTooltip = card.name; // Default tooltip
-
-                if (card.cashbackType === '2 Tier') {
-                    if (isTier2Met && isCapReached) { // Met Tier 2 minimum and maxed out cashback
-                        dotStatus = 'green';
-                        dotTooltip = "2 Tier | All Cashback Limits reached";
-                    } else if (minSpendMet && isCapReached && !isTier2Met) { // Met Tier 1 minimum and maxed out cashback, but NOT Tier 2
-                         dotStatus = 'blue';
-                         dotTooltip = "2 Tier | Potential for Tier 2";
-                    } else if (!minSpendMet) { // Didn't meet even Tier 1 minimum
-                         dotStatus = 'yellow';
-                         dotTooltip = "2 Tier | Tier 1 Minimum Spend not met";
-                    } else if (!isCapReached && isTier2Met) { // Met Tier 2 minimum but NOT maxed out cashback yet
-                        dotStatus = 'dark blue';
-                        dotTooltip = "2 Tier | Tier 2 Minimum Spend met";
-                    } else { // Default if none of the above match (e.g., T2 not met, cap not reached, min spend met)
-                        dotStatus = 'gray';
-                        dotTooltip = `${card.name} | ${card.status}`;
-                    }
-
-                } else { // It's a 1 Tier card
-                    if (minSpendMet && isCapReached) { // Met minimum criteria and maxed out cashback
-                        dotStatus = 'green';
-                        dotTooltip = "1 Tier | All Cashback Limits reached";
-                    } else if (!minSpendMet && minSpend > 0) { // Did NOT meet minimum criteria (and minimum criteria exists)
-                        dotStatus = 'yellow';
-                        dotTooltip = "1 Tier | Minimum Spend not met";
-                    } else if (!isCapReached && minSpendMet){ // Met minimum but not capped
-                        dotStatus = 'blue';
-                        dotTooltip = "1 Tier | Minimum Spend met";
-                    } else { // Default if none of the above match (e.g., no minimum, not capped)
-                        dotStatus = 'gray';
-                        dotTooltip = `${card.name} | ${card.status}`;
-                    }
+                
+                if (isCapReached) {
+                    dotStatus = 'green'; // Fully capped
+                } else if (!minSpendMet && minSpend > 0) {
+                    dotStatus = 'yellow'; // Requires action: Minimum Spend not met
+                } else if (minSpendMet && !isCapReached) {
+                    dotStatus = 'blue'; // In progress: Minimums met, not capped
                 }
-
+                // 'gray' remains for default (e.g., no min spend, not capped)
 
                 return {
                     card, cardId: card.id, cardName: card.name, currentCashback,
@@ -185,7 +155,6 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                     tier2Limit: card.tier2Limit,
                     tier2SpendPct,
                     dotStatus,
-                    dotTooltip
                 };
             })
             .sort((a, b) => {
@@ -216,8 +185,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
         switch (status) {
             case 'green': return "bg-emerald-500";
             case 'blue': return "bg-blue-500";
-            case 'dark blue': return "bg-indigo-500";
-            case 'orange': return "bg-orange-500";
+            case 'yellow': return "bg-yellow-500";
             default: return "bg-slate-400";
         }
     };
@@ -255,7 +223,6 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                 >
                                     <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-2 min-w-0">
-
                                             <div className={cn(
                                                 "w-2 h-2 rounded-full flex-shrink-0",
                                                 getDotColorClass(p.dotStatus)
@@ -264,31 +231,6 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                                 "font-semibold truncate",
                                                 { "text-slate-400 font-normal": p.isCapReached }
                                             )} title={p.cardName}>{p.cardName}</p>
-
-                                            {/* DESKTOP: Tooltip Trigger */}
-                                            <TooltipProvider delayDuration={100}>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild className="hidden md:inline-flex cursor-pointer">
-                                                        <Info className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                                    </TooltipTrigger>
-                                                    <TooltipContent><p>{p.dotTooltip}</p></TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-
-                                            {/* MOBILE: Dialog Trigger */}
-                                            <Dialog>
-                                                <DialogTrigger asChild className="md:hidden" onClick={(e) => e.stopPropagation()}>
-                                                    <Info className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                                </DialogTrigger>
-                                                <DialogContent onClick={(e) => e.stopPropagation()}>
-                                                    <DialogHeader>
-                                                        <DialogTitle>{p.cardName} Status</DialogTitle>
-                                                        <DialogDescription className="pt-2">
-                                                            {p.dotTooltip}
-                                                        </DialogDescription>
-                                                    </DialogHeader>
-                                                </DialogContent>
-                                            </Dialog>
                                         </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
@@ -297,14 +239,13 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                             )} />
                                         </div>
                                     </div>
-                                    
                                     {p.monthlyLimit > 0 && (
                                         <div className="flex items-center gap-3 w-full text-sm">
                                             <span className={cn(
                                                 "font-medium w-32 shrink-0",
-                                                p.isCapReached ? "text-slate-400" : "text-emerald-600"
+                                                p.isCapReached ? "text-slate-500" : "text-emerald-600"
                                             )}>
-                                                {currencyFn(p.monthlyLimit - p.currentCashback)} left
+                                                {p.isCapReached ? "✓ Maximized" : `${currencyFn(p.monthlyLimit - p.currentCashback)} left`}
                                             </span>
                                             <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-1.5 flex-grow" />
                                             <span className={cn(
@@ -315,59 +256,68 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                             </span>
                                         </div>
                                     )}
+
+                                    {/* Status Tags Section */}
+                                    <div className="flex items-center gap-2 flex-wrap mt-3">
+                                        {/* Min Spend Tag */}
+                                        {p.minSpend > 0 && (
+                                            <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                    "text-xs h-6 px-2 font-semibold flex items-center gap-1.5",
+                                                    p.minSpendMet
+                                                        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                                        : "bg-yellow-100 text-yellow-800 border-yellow-200"
+                                                )}
+                                            >
+                                                {p.minSpendMet ? (
+                                                    <>
+                                                        <CheckCircle2 className="h-3 w-3" />
+                                                        <span>Min. Spend Met</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Circle className="h-3 w-3" />
+                                                        <span>
+                                                            Min Spend: {currencyFn(p.currentSpend)} / {currencyFn(p.minSpend)} ({p.minSpendPct}%)
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </Badge>
+                                        )}
+                                        {/* Tier 2 Tag */}
+                                        {p.cashbackType === '2 Tier' && p.tier2MinSpend > 0 && (
+                                            <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                    "text-xs h-6 px-2 font-semibold flex items-center gap-1.5",
+                                                    "bg-blue-100 text-blue-800 border-blue-200" 
+                                                )}
+                                            >
+                                                {p.isTier2Met ? (
+                                                    <>
+                                                        <Unlock className="h-3 w-3" />
+                                                        <span>Tier 2 Unlocked</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Lock className="h-3 w-3" />
+                                                        <span>
+                                                            Tier 2: {currencyFn(p.currentSpend)} / {currencyFn(p.tier2MinSpend)} ({p.tier2SpendPct}%)
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </div>
 
+                                {/* --- Expandable Section --- */}
                                 <div className={cn( "overflow-hidden transition-all duration-300 ease-in-out",
                                     expandedCardId === p.cardId ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
                                 )}>
                                     {expandedCardId === p.cardId && (
-                                        <div className="py-4 border-t space-y-4">
-                                            {p.minSpend > 0 && (
-                                                <div className="px-4">
-                                                     <h4 className="text-sm font-semibold text-center text-muted-foreground mb-3">Minimum Spend Progress</h4>
-                                                     <Progress value={p.minSpendPct} className="h-2" indicatorClassName={p.minSpendMet ? "bg-emerald-500" : "bg-yellow-500"} />
-                                                     <div className="flex justify-between items-center text-xs text-muted-foreground mt-1.5">
-                                                         <span className={cn("font-semibold", p.minSpendMet ? "text-emerald-600" : "text-yellow-600")}>
-                                                             {p.minSpendMet ? 'Met' : `${currencyFn(p.minSpend - p.currentSpend)} to go`}
-                                                         </span>
-                                                         <span>{currencyFn(p.currentSpend)} / {currencyFn(p.minSpend)}</span>
-                                                     </div>
-                                                </div>
-                                            )}
-
-                                            {p.cashbackType === '2 Tier' && p.tier2MinSpend > 0 && (
-                                                <div className="pt-2 px-4">
-                                                    {p.isTier2Met ? (
-                                                        // --- UPDATED: Unlocked State ---
-                                                        <div className="rounded-md bg-emerald-50 border border-emerald-200 p-3 text-center">
-                                                            <p className="font-semibold text-emerald-800">✨ Tier 2 Unlocked!</p>
-                                                            {p.tier2Limit > 0 && (
-                                                                <p className="text-xs text-emerald-700 mt-1">
-                                                                    Your monthly cap is now <span className="font-bold">{currencyFn(p.tier2Limit)}</span>.
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        // --- UPDATED: Locked State ---
-                                                        <div>
-                                                            <h4 className="text-sm font-semibold text-center text-muted-foreground mb-3">Tier 2 Progress</h4>
-                                                            {p.tier2Limit > 0 && (
-                                                                <p className="text-xs text-center text-muted-foreground -mt-2 mb-3">
-                                                                    Tier 2 Monthly Cap: <span className="font-semibold text-slate-700">{currencyFn(p.tier2Limit)}</span>
-                                                                </p>
-                                                            )}
-                                                            <Progress value={p.tier2SpendPct} className="h-2" indicatorClassName="bg-blue-500" />
-                                                            <div className="flex justify-between items-center text-xs text-muted-foreground mt-1.5">
-                                                                <span className="font-semibold text-blue-600">
-                                                                    {currencyFn(p.tier2MinSpend - p.currentSpend)} to go
-                                                                </span>
-                                                                <span>{currencyFn(p.currentSpend)} / {currencyFn(p.tier2MinSpend)}</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
+                                        <div className="py-4 border-t"> 
                                             <CategoryCapsUsage
                                                 card={p.card}
                                                 rules={rules.filter(r => r.cardId === p.cardId)}
