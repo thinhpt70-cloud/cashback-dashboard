@@ -91,7 +91,6 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
     );
 }
 
-
 export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummary, monthlyCategorySummary, currencyFn, getCurrentCashbackMonthForCard }) {
     const [expandedCardId, setExpandedCardId] = useState(null);
 
@@ -213,8 +212,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                             <div 
                                 key={p.cardId} 
                                 className={cn(
-                                    "border-b last:border-b-0 py-1 transition-colors duration-300",
-                                    { "bg-slate-50 rounded-md": p.isCapReached }
+                                    "border-b last:border-b-0 py-1 transition-colors duration-300"
                                 )}
                             >
                                 <div 
@@ -238,7 +236,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                                 expandedCardId === p.cardId && "rotate-180"
                                             )} />
                                         </div>
-                                    </div>
+                                    </div>                                 
                                     {p.monthlyLimit > 0 && (
                                         <div className="flex items-center gap-3 w-full text-sm">
                                             <span className={cn(
@@ -256,60 +254,62 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                             </span>
                                         </div>
                                     )}
-
-                                    {/* Status Tags Section */}
-                                    <div className="flex items-center gap-2 flex-wrap mt-3">
-                                        {/* Min Spend Tag */}
-                                        {p.minSpend > 0 && (
-                                            <Badge
-                                                variant="outline"
-                                                className={cn(
-                                                    "text-xs h-6 px-2 font-semibold flex items-center gap-1.5",
-                                                    p.minSpendMet
-                                                        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                                                        : "bg-yellow-100 text-yellow-800 border-yellow-200"
-                                                )}
-                                            >
-                                                {p.minSpendMet ? (
-                                                    <>
-                                                        <CheckCircle2 className="h-3 w-3" />
-                                                        <span>Min. Spend Met</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Circle className="h-3 w-3" />
-                                                        <span>
-                                                            Min Spend: {currencyFn(p.currentSpend)} / {currencyFn(p.minSpend)} ({p.minSpendPct}%)
-                                                        </span>
-                                                    </>
-                                                )}
-                                            </Badge>
-                                        )}
-                                        {/* Tier 2 Tag */}
-                                        {p.cashbackType === '2 Tier' && p.tier2MinSpend > 0 && (
-                                            <Badge
-                                                variant="outline"
-                                                className={cn(
-                                                    "text-xs h-6 px-2 font-semibold flex items-center gap-1.5",
-                                                    "bg-blue-100 text-blue-800 border-blue-200" 
-                                                )}
-                                            >
-                                                {p.isTier2Met ? (
-                                                    <>
-                                                        <Unlock className="h-3 w-3" />
-                                                        <span>Tier 2 Unlocked</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Lock className="h-3 w-3" />
-                                                        <span>
-                                                            Tier 2: {currencyFn(p.currentSpend)} / {currencyFn(p.tier2MinSpend)} ({p.tier2SpendPct}%)
-                                                        </span>
-                                                    </>
-                                                )}
-                                            </Badge>
-                                        )}
-                                    </div>
+                                    {(p.minSpend > 0 || (p.cashbackType === '2 Tier' && p.tier2MinSpend > 0)) && (
+                                        <div className="flex items-center gap-2 flex-wrap mt-2">
+                                            {/* Min Spend Tag */}
+                                            {p.minSpend > 0 && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className={cn(
+                                                        "text-xs h-5 px-1.5 font-semibold flex items-center gap-1.5",
+                                                        p.minSpendMet
+                                                            ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                                            : "bg-yellow-100 text-yellow-800 border-yellow-200"
+                                                    )}
+                                                >
+                                                    {p.minSpendMet ? (
+                                                        <>
+                                                            <CheckCircle2 className="h-3 w-3" />
+                                                            <span>Min. Spend Met</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Circle className="h-3 w-3" />
+                                                            <span>
+                                                                Min Spend: {currencyFn(p.currentSpend)} / {currencyFn(p.minSpend)} ({p.minSpendPct}%)
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </Badge>
+                                            )}
+                                            {/* Tier 2 Tag */}
+                                            {p.cashbackType === '2 Tier' && p.tier2MinSpend > 0 && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className={cn(
+                                                        "text-xs h-5 px-1.5 font-semibold flex items-center gap-1.5",
+                                                        p.isTier2Met
+                                                            ? "bg-emerald-100 text-emerald-800 border-emerald-200" // Unlocked = Green
+                                                            : "bg-blue-100 text-blue-800 border-blue-200" // Locked = Blue
+                                                    )}
+                                                >
+                                                    {p.isTier2Met ? (
+                                                        <>
+                                                            <Unlock className="h-3 w-3" />
+                                                            <span>Tier 2 Unlocked</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Lock className="h-3 w-3" />
+                                                            <span>
+                                                                Tier 2: {currencyFn(p.currentSpend)} / {currencyFn(p.tier2MinSpend)} ({p.tier2SpendPct}%)
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* --- Expandable Section --- */}
