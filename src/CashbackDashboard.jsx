@@ -1,10 +1,14 @@
+// CashbackDashboard.jsx
+
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Loader2, Plus, History, Check, Snowflake, LogOut, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, List, MoreHorizontal, FilePenLine, Trash2 } from "lucide-react";
 import { ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList } from "recharts";
 import { Toaster, toast } from 'sonner';
 
+// Import utility functions
 import { cn } from "./lib/utils";
 
+// Import UI components
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
@@ -18,32 +22,40 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./comp
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./components/ui/sheet";
 import { Skeleton } from "./components/ui/skeleton";
 
-import TransactionReviewCenter from './components/TransactionReviewCenter';
-
+// Import chart components
 import SpendByCardChart from './components/dashboard/charts/SpendByCardChart';
 import CardPerformanceLineChart from './components/dashboard/charts/CardPerformanceLineChart';
 
+// Import dialog components
 import BestCardFinderDialog from './components/dashboard/dialogs/BestCardFinderDialog';
 import TransactionDetailsDialog from './components/dashboard/dialogs/TransactionDetailsDialog';
 import PaymentLogDialog from './components/dashboard/dialogs/PaymentLogDialog';
 import StatementLogDialog from './components/dashboard/dialogs/StatementLogDialog';
 import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
 
+// Import form components
 import AddTransactionForm from './components/dashboard/forms/AddTransactionForm';
 
-import StatCard from "./components/dashboard/StatCard";
-import EnhancedSuggestions from "./components/dashboard/EnhancedSuggestions";
-
+// Import overview tab components
 import CardSpendsCap from "./components/dashboard/tabs/overview/CardSpendsCap";
+import EnhancedSuggestions from "./components/dashboard/tabs/overview/EnhancedSuggestions";
 
+// Import transactions tab components
+import TransactionReviewCenter from './components/dashboard/tabs/transactions/TransactionReviewCenter';
+
+// Import authentication component
 import LoginScreen from './components/auth/LoginScreen';
 
+// Import shared components
 import AppSkeleton from "./components/shared/AppSkeleton";
+import StatCard from "./components/shared/StatCard";
 
+// Import custom hooks
 import useMediaQuery from "./hooks/useMediaQuery";
 import useIOSKeyboardGapFix from "./hooks/useIOSKeyboardGapFix";
 import useCashbackData from "./hooks/useCashbackData";
 
+// Import constants and utilities
 import { COLORS, cardThemes } from './lib/constants'; 
 import { calculateDaysLeft } from './lib/date';
 import { currency, fmtYMShort } from './lib/formatters'; 

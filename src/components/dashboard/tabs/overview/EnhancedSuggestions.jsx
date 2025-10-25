@@ -1,19 +1,59 @@
 import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-import { Lightbulb, ChevronUp, ChevronDown, AlertTriangle, Sparkles, DollarSign, ShoppingCart } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "../../../ui/card";
+import { Button } from "../../../ui/button";
+import { Badge } from "../../../ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../ui/tooltip";
+import { Lightbulb, ChevronUp, ChevronDown, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle } from 'lucide-react';
+import { useMediaQuery } from '../../../../lib/hooks/useMediaQuery';
 
 export default function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard }) {
     const [startIndex, setStartIndex] = useState(0);
     const isLiveView = activeMonth === 'live';
+    const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+    const cardCountForSizing = useMemo(() => {
+        if (!cards) return 0; // Guard clause
+        // This is the *exact* filter logic from CardSpendsCap
+        return cards
+            .filter(card => card.status !== 'Closed')
+            .filter(card => card.overallMonthlyLimit > 0 || card.minimumMonthlySpend > 0 || (card.cashbackType === '2 Tier' && (card.tier2Limit > 0 || card.tier2MinSpend > 0)))
+            .length;
+    }, [cards]);
+
+    const VISIBLE_ITEMS = useMemo(() => {
+        if (!isDesktop) {
+            return 5; // Default for mobile as requested
+        }
+        
+        // For desktop, match the card count to align heights
+        const DEFAULT_DESKTOP_MIN = 5;
+        const DESKTOP_MAX_SUGGESTIONS = 10; // Failsafe for too many cards
+
+        if (cardCountForSizing === 0) {
+            return DEFAULT_DESKTOP_MIN; // Default if no cards
+        }
+
+        // Set suggestion count = card count, clamped between min/max
+        return Math.min(
+            Math.max(DEFAULT_DESKTOP_MIN, cardCountForSizing),
+            DESKTOP_MAX_SUGGESTIONS
+        );
+    }, [isDesktop, cardCountForSizing]);
 
     const suggestions = useMemo(() => {
 
         const MINIMUM_RATE_THRESHOLD = 0.02;
 
         const allCandidates = rules.flatMap(rule => {
+
+            // --- NEW TIER LOGIC ---
+            const isTier2Met = card.cashbackType === '2 Tier' && card.tier2MinSpend > 0 && currentTotalSpendForCard >= card.tier2MinSpend;
+            const effectiveRate = isTier2Met && rule.tier2Rate ? rule.tier2Rate : rule.rate;
+            const effectiveCategoryLimit = (isTier2Met && rule.tier2CategoryLimit) ? rule.tier2CategoryLimit : rule.categoryLimit;
+            const isBoosted = isTier2Met && (rule.tier2Rate > rule.rate || rule.tier2CategoryLimit > rule.categoryLimit);
+
+            const hasTier2 = card.cashbackType === '2 Tier' && (rule.tier2Rate > rule.rate || rule.tier2CategoryLimit > rule.categoryLimit);
+
             const card = cards.find(c => c.id === rule.cardId);
             if (!card || card.status === 'Closed' || rule.status !== 'Active') return [];
 
@@ -24,15 +64,6 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
             
             const currentTotalSpendForCard = cardSummary?.spend || 0;
             const currentCashbackForCategory = categorySummary?.cashback || 0;
-
-            // --- NEW TIER LOGIC ---
-            const isTier2Met = card.cashbackType === '2 Tier' && card.tier2MinSpend > 0 && currentTotalSpendForCard >= card.tier2MinSpend;
-            
-            // Determine effective rate and limits
-            const effectiveRate = isTier2Met && rule.tier2Rate ? rule.tier2Rate : rule.rate;
-            const effectiveCategoryLimit = (isTier2Met && rule.tier2CategoryLimit) ? rule.tier2CategoryLimit : rule.categoryLimit;
-            const isBoosted = isTier2Met && (rule.tier2Rate > rule.rate || rule.tier2CategoryLimit > rule.categoryLimit);
-            // --- END NEW TIER LOGIC ---
 
             // Check against the *effective* rate
             if (effectiveRate < MINIMUM_RATE_THRESHOLD) return [];
@@ -57,7 +88,12 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                 remainingCategoryCap, 
                 hasMetMinSpend, 
                 spendingNeeded,
-                isBoosted // For the UI
+                isBoosted,
+                hasTier2,
+                tier1Rate: rule.rate,
+                tier2Rate: rule.tier2Rate,
+                tier2MinSpend: card.tier2MinSpend || 0,
+                currentSpend: currentTotalSpendForCard
             }));
         }).filter(Boolean);
 
@@ -104,7 +140,6 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
     }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, isLiveView, getCurrentCashbackMonthForCard]);
 
     const topSuggestions = suggestions;
-    const VISIBLE_ITEMS = 5;
     
     const canScrollUp = startIndex > 0;
     const canScrollDown = startIndex < topSuggestions.length - VISIBLE_ITEMS;
@@ -161,7 +196,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                 <TooltipProvider delayDuration={100}>
                                                     <Tooltip>
                                                         <TooltipTrigger>
-                                                            <Sparkles className="h-4 w-4 text-blue-500" />
+                                                            <ArrowUpCircle className="h-4 w-4 text-blue-500" />
                                                         </TooltipTrigger>
                                                         <TooltipContent>
                                                             <p>A better card exists but its minimum spend is not met.</p>
@@ -171,11 +206,53 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                             )}
                                         </div>
                                     </div>
-                                    {/* UPDATED: Added sparkle for boosted rates */}
-                                    <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200 px-2.5 py-1">
-                                        {(s.rate * 100).toFixed(1)}%
-                                        {s.isBoosted && ' ✨'}
-                                    </Badge>
+                                    <TooltipProvider delayDuration={100}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200 px-2.5 py-1">
+                                                    
+                                                    {/* Case 1: Currently Boosted (Tier 2 Active) */}
+                                                    {s.isBoosted && (
+                                                        <span className="text-indigo-700">
+                                                            {(s.rate * 100).toFixed(1)}% ✨
+                                                        </span>
+                                                    )}
+                                                    
+                                                    {/* Case 2: Not Boosted, but Tier 2 exists */}
+                                                    {!s.isBoosted && s.hasTier2 && (
+                                                        <span>
+                                                            {(s.rate * 100).toFixed(1)}%
+                                                            <span className="text-xs font-normal text-slate-500"> (→ {(s.tier2Rate * 100).toFixed(1)}%)</span>
+                                                        </span>
+                                                    )}
+                                                    
+                                                    {/* Case 3: Simple 1-Tier card */}
+                                                    {!s.isBoosted && !s.hasTier2 && (
+                                                        <span>{(s.rate * 100).toFixed(1)}%</span>
+                                                    )}
+                                                </Badge>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                {/* Tooltip Case 1: Currently Boosted */}
+                                                {s.isBoosted && (
+                                                    <p>Tier 2 rate active! (Met {currencyFn(s.tier2MinSpend)} spend)</p>
+                                                )}
+                                                
+                                                {/* Tooltip Case 2: Not Boosted, but Tier 2 exists */}
+                                                {!s.isBoosted && s.hasTier2 && (
+                                                    <p>
+                                                        Spend {currencyFn(s.tier2MinSpend - s.currentSpend)} more on this card
+                                                        to unlock {(s.tier2Rate * 100).toFixed(1)}% rate.
+                                                    </p>
+                                                )}
+                                                
+                                                {/* Tooltip Case 3: Simple 1-Tier card */}
+                                                {!s.isBoosted && !s.hasTier2 && (
+                                                    <p>Standard cashback rate.</p>
+                                                )}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                 </div>
                                 <div className="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
                                     <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600"/><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
