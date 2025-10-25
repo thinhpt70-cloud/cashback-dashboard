@@ -47,14 +47,6 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
 
         const allCandidates = rules.flatMap(rule => {
 
-            // --- NEW TIER LOGIC ---
-            const isTier2Met = card.cashbackType === '2 Tier' && card.tier2MinSpend > 0 && currentTotalSpendForCard >= card.tier2MinSpend;
-            const effectiveRate = isTier2Met && rule.tier2Rate ? rule.tier2Rate : rule.rate;
-            const effectiveCategoryLimit = (isTier2Met && rule.tier2CategoryLimit) ? rule.tier2CategoryLimit : rule.categoryLimit;
-            const isBoosted = isTier2Met && (rule.tier2Rate > rule.rate || rule.tier2CategoryLimit > rule.categoryLimit);
-
-            const hasTier2 = card.cashbackType === '2 Tier' && (rule.tier2Rate > rule.rate || rule.tier2CategoryLimit > rule.categoryLimit);
-
             const card = cards.find(c => c.id === rule.cardId);
             if (!card || card.status === 'Closed' || rule.status !== 'Active') return [];
 
@@ -66,16 +58,22 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
             const currentTotalSpendForCard = cardSummary?.spend || 0;
             const currentCashbackForCategory = categorySummary?.cashback || 0;
 
+            // --- NEW TIER LOGIC ---
+            const isTier2Met = card.cashbackType === '2 Tier' && card.tier2MinSpend > 0 && currentTotalSpendForCard >= card.tier2MinSpend;
+            const effectiveRate = isTier2Met && rule.tier2Rate ? rule.tier2Rate : rule.rate;
+            const effectiveCategoryLimit = (isTier2Met && rule.tier2CategoryLimit) ? rule.tier2CategoryLimit : rule.categoryLimit;
+            const isBoosted = isTier2Met && (rule.tier2Rate > rule.rate || rule.tier2CategoryLimit > rule.categoryLimit);
+
+            const hasTier2 = card.cashbackType === '2 Tier' && (rule.tier2Rate > rule.rate || rule.tier2CategoryLimit > rule.categoryLimit);
+
             // Check against the *effective* rate
             if (effectiveRate < MINIMUM_RATE_THRESHOLD) return [];
 
-            // **FIXED:** Use the new effectiveCategoryLimit
             const remainingCategoryCap = effectiveCategoryLimit > 0 ? Math.max(0, effectiveCategoryLimit - currentCashbackForCategory) : Infinity;
 
             if (remainingCategoryCap === 0) return [];
             
             const hasMetMinSpend = card.minimumMonthlySpend > 0 ? currentTotalSpendForCard >= card.minimumMonthlySpend : true;
-            // **FIXED:** Use the new effectiveRate
             const spendingNeeded = remainingCategoryCap === Infinity ? Infinity : remainingCategoryCap / effectiveRate;
             
             const categories = rule.category?.length ? rule.category : [rule.ruleName];
