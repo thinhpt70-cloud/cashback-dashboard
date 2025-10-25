@@ -22,10 +22,6 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./comp
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./components/ui/sheet";
 import { Skeleton } from "./components/ui/skeleton";
 
-// Import chart components
-import SpendByCardChart from './components/dashboard/charts/SpendByCardChart';
-import CardPerformanceLineChart from './components/dashboard/charts/CardPerformanceLineChart';
-
 // Import dialog components
 import BestCardFinderDialog from './components/dashboard/dialogs/BestCardFinderDialog';
 import TransactionDetailsDialog from './components/dashboard/dialogs/TransactionDetailsDialog';
@@ -39,6 +35,8 @@ import AddTransactionForm from './components/dashboard/forms/AddTransactionForm'
 // Import overview tab components
 import CardSpendsCap from "./components/dashboard/tabs/overview/CardSpendsCap";
 import EnhancedSuggestions from "./components/dashboard/tabs/overview/EnhancedSuggestions";
+import SpendByCardChart from "./components/dashboard/tabs/overview/SpendByCardChart";
+import CardPerformanceLineChart from "./components/dashboard/tabs/overview/CardPerformanceLineChart";
 
 // Import transactions tab components
 import TransactionReviewCenter from './components/dashboard/tabs/transactions/TransactionReviewCenter';

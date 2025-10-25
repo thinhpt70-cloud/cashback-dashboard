@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../ui/card';
-import { Button } from '../../ui/button';
-import { cn } from '../../../lib/utils'; // Adjust path if needed
+import { Card, CardHeader, CardTitle, CardContent } from '../../../ui/card';
+import { Button } from '../../../ui/button';
+import { cn } from '../../../../lib/utils';
 import {
   ResponsiveContainer,
   LineChart,

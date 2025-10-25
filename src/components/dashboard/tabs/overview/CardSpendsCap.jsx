@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Info } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../ui/card';
 import { Badge } from '../../../ui/badge';
 import { Progress } from '../../../ui/progress';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '../../../ui/tooltip';
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '../../../../lib/date';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../ui/dialog";
 
 function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, currencyFn, isTier2Met }) {
     const categoryCapData = useMemo(() => {
@@ -256,22 +257,40 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                 >
                                     <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-2 min-w-0">
+
+                                            <div className={cn(
+                                                "w-2 h-2 rounded-full flex-shrink-0",
+                                                getDotColorClass(p.dotStatus)
+                                            )} />
+                                            <p className={cn(
+                                                "font-semibold truncate",
+                                                { "text-slate-400 font-normal": p.isCapReached }
+                                            )} title={p.cardName}>{p.cardName}</p>
+
+                                            {/* DESKTOP: Tooltip Trigger */}
                                             <TooltipProvider delayDuration={100}>
                                                 <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <div className={cn(
-                                                            "w-2 h-2 rounded-full flex-shrink-0",
-                                                            getDotColorClass(p.dotStatus)
-                                                        )} />
+                                                    <TooltipTrigger asChild className="hidden md:inline-flex cursor-pointer">
+                                                        <Info className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                                                     </TooltipTrigger>
                                                     <TooltipContent><p>{p.dotTooltip}</p></TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
 
-                                            <p className={cn(
-                                                "font-semibold truncate",
-                                                { "text-slate-400 font-normal": p.isCapReached }
-                                            )} title={p.cardName}>{p.cardName}</p>
+                                            {/* MOBILE: Dialog Trigger */}
+                                            <Dialog>
+                                                <DialogTrigger asChild className="md:hidden" onClick={(e) => e.stopPropagation()}>
+                                                    <Info className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                                </DialogTrigger>
+                                                <DialogContent onClick={(e) => e.stopPropagation()}>
+                                                    <DialogHeader>
+                                                        <DialogTitle>{p.cardName} Status</DialogTitle>
+                                                        <DialogDescription className="pt-2">
+                                                            {p.dotTooltip}
+                                                        </DialogDescription>
+                                                    </DialogHeader>
+                                                </DialogContent>
+                                            </Dialog>
                                         </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
