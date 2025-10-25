@@ -128,15 +128,16 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                     ? calculateDaysLeftInCashbackMonth(monthForCard)
                     : calculateDaysUntilStatement(card.statementDay, monthForCard);
 
-                let dotStatus = 'gray';
-                let dotTooltip = card.name;
+                let dotStatus = 'gray'; // Default
+                let dotTooltip = card.name; // Default tooltip
+
                 if (isCapReached) {
                     dotStatus = 'green';
                     dotTooltip = "Monthly cap reached";
-                } else if (card.cashbackType === '2 Tier') {
+                } else if (card.cashbackType === '2 Tier' && !isTier2Met) {
                     dotStatus = 'blue';
-                    dotTooltip = "Tier 2 Card";
-                } else if (!minSpendMet) {
+                    dotTooltip = "Tier 2 minimum spend not met";
+                } else if (card.cashbackType !== '2 Tier' && !minSpendMet) {
                     dotStatus = 'yellow';
                     dotTooltip = "Minimum spend not met";
                 }
