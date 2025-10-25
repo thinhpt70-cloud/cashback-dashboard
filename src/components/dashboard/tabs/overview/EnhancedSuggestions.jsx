@@ -4,12 +4,13 @@ import { Button } from "../../../ui/button";
 import { Badge } from "../../../ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../ui/tooltip";
 import { Lightbulb, ChevronUp, ChevronDown, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle } from 'lucide-react';
-import { useMediaQuery } from '../../../../lib/hooks/useMediaQuery';
+import { useMediaQuery } from '../../../../hooks/useMediaQuery';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../../ui/dialog";
 
 export default function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard }) {
     const [startIndex, setStartIndex] = useState(0);
     const isLiveView = activeMonth === 'live';
-    const isDesktop = useMediaQuery("(min-width: 1024px)");
+    const isDesktop = useMediaQuery("(min-width: 768px)");
 
     const cardCountForSizing = useMemo(() => {
         if (!cards) return 0; // Guard clause
@@ -206,53 +207,82 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                             )}
                                         </div>
                                     </div>
-                                    <TooltipProvider delayDuration={100}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200 px-2.5 py-1">
-                                                    
-                                                    {/* Case 1: Currently Boosted (Tier 2 Active) */}
+                                    {/* --- BADGE WITH CONDITIONAL COMPONENT --- */}
+                                    {isDesktop ? (
+                                        <TooltipProvider delayDuration={100}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200 px-2.5 py-1">
+                                                        {s.isBoosted && (
+                                                            <span className="text-indigo-700">{(s.rate * 100).toFixed(1)}% ✨</span>
+                                                        )}
+                                                        {!s.isBoosted && s.hasTier2 && (
+                                                            <span>
+                                                                {(s.rate * 100).toFixed(1)}%
+                                                                <span className="text-xs font-normal text-slate-500"> (→ {(s.tier2Rate * 100).toFixed(1)}%)</span>
+                                                            </span>
+                                                        )}
+                                                        {!s.isBoosted && !s.hasTier2 && (
+                                                            <span>{(s.rate * 100).toFixed(1)}%</span>
+                                                        )}
+                                                    </Badge>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
                                                     {s.isBoosted && (
-                                                        <span className="text-indigo-700">
-                                                            {(s.rate * 100).toFixed(1)}% ✨
-                                                        </span>
+                                                        <p>Tier 2 rate active! (Met {currencyFn(s.tier2MinSpend)} spend)</p>
                                                     )}
-                                                    
-                                                    {/* Case 2: Not Boosted, but Tier 2 exists */}
+                                                    {!s.isBoosted && s.hasTier2 && (
+                                                        <p>
+                                                            Spend {currencyFn(s.tier2MinSpend - s.currentSpend)} more on this card
+                                                            to unlock {(s.tier2Rate * 100).toFixed(1)}% rate.
+                                                        </p>
+                                                    )}
+                                                    {!s.isBoosted && !s.hasTier2 && (
+                                                        <p>Standard cashback rate.</p>
+                                                    )}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    ) : (
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200 px-2.5 py-1">
+                                                    {s.isBoosted && (
+                                                        <span className="text-indigo-700">{(s.rate * 100).toFixed(1)}% ✨</span>
+                                                    )}
                                                     {!s.isBoosted && s.hasTier2 && (
                                                         <span>
                                                             {(s.rate * 100).toFixed(1)}%
                                                             <span className="text-xs font-normal text-slate-500"> (→ {(s.tier2Rate * 100).toFixed(1)}%)</span>
                                                         </span>
                                                     )}
-                                                    
-                                                    {/* Case 3: Simple 1-Tier card */}
                                                     {!s.isBoosted && !s.hasTier2 && (
                                                         <span>{(s.rate * 100).toFixed(1)}%</span>
                                                     )}
                                                 </Badge>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                {/* Tooltip Case 1: Currently Boosted */}
-                                                {s.isBoosted && (
-                                                    <p>Tier 2 rate active! (Met {currencyFn(s.tier2MinSpend)} spend)</p>
-                                                )}
-                                                
-                                                {/* Tooltip Case 2: Not Boosted, but Tier 2 exists */}
-                                                {!s.isBoosted && s.hasTier2 && (
-                                                    <p>
-                                                        Spend {currencyFn(s.tier2MinSpend - s.currentSpend)} more on this card
-                                                        to unlock {(s.tier2Rate * 100).toFixed(1)}% rate.
-                                                    </p>
-                                                )}
-                                                
-                                                {/* Tooltip Case 3: Simple 1-Tier card */}
-                                                {!s.isBoosted && !s.hasTier2 && (
-                                                    <p>Standard cashback rate.</p>
-                                                )}
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>{s.cardName} Rate Info</DialogTitle>
+                                                </DialogHeader>
+                                                <div className="pt-2 text-sm space-y-2">
+                                                    {s.isBoosted && (
+                                                        <p>Tier 2 rate active! (Met {currencyFn(s.tier2MinSpend)} spend)</p>
+                                                    )}
+                                                    {!s.isBoosted && s.hasTier2 && (
+                                                        <p>
+                                                            Spend {currencyFn(s.tier2MinSpend - s.currentSpend)} more on this card
+                                                            to unlock {(s.tier2Rate * 100).toFixed(1)}% rate.
+                                                        </p>
+                                                    )}
+                                                    {!s.isBoosted && !s.hasTier2 && (
+                                                        <p>Standard cashback rate.</p>
+                                                    )}
+                                                </div>
+                                            </DialogContent>
+                                        </Dialog>
+                                    )}
+                                    {/* --- END OF CONDITIONAL COMPONENT --- */}
                                 </div>
                                 <div className="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
                                     <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600"/><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
