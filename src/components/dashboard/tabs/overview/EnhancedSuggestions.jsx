@@ -1,56 +1,192 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "../../../ui/card";
-import { Button } from "../../../ui/button";
 import { Badge } from "../../../ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../ui/tooltip";
-import { Lightbulb, ChevronUp, ChevronDown, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle } from 'lucide-react';
-import useMediaQuery from '../../../../hooks/useMediaQuery';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../../ui/dialog";
+import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award } from 'lucide-react';
 
-export default function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard }) {
-    const [startIndex, setStartIndex] = useState(0);
-    const isLiveView = activeMonth === 'live';
-    const isDesktop = useMediaQuery("(min-width: 768px)");
+// --- NEW SUB-COMPONENT: RateInfoText ---
+// Replaces the old complex badge logic with simple, descriptive text.
+function RateInfoText({ suggestion, currencyFn }) {
+    if (!suggestion) return null;
 
-    const cardCountForSizing = useMemo(() => {
-        if (!cards) return 0; // Guard clause
-        // This is the *exact* filter logic from CardSpendsCap
-        return cards
-            .filter(card => card.status !== 'Closed')
-            .filter(card => card.overallMonthlyLimit > 0 || card.minimumMonthlySpend > 0 || (card.cashbackType === '2 Tier' && (card.tier2Limit > 0 || card.tier2MinSpend > 0)))
-            .length;
-    }, [cards]);
+    const { isBoosted, hasTier2, tier2MinSpend, currentSpend, tier2Rate } = suggestion;
 
-    const VISIBLE_ITEMS = useMemo(() => {
-        if (!isDesktop) {
-            return 5; // Default for mobile as requested
-        }
-        
-        // For desktop, match the card count to align heights
-        const DEFAULT_DESKTOP_MIN = 5;
-        const DESKTOP_MAX_SUGGESTIONS = 10; // Failsafe for too many cards
-
-        if (cardCountForSizing === 0) {
-            return DEFAULT_DESKTOP_MIN; // Default if no cards
-        }
-
-        // Set suggestion count = card count, clamped between min/max
-        return Math.min(
-            Math.max(DEFAULT_DESKTOP_MIN, cardCountForSizing),
-            DESKTOP_MAX_SUGGESTIONS
+    if (isBoosted) {
+        return (
+            <p className="text-sm text-indigo-600 font-medium">
+                ✨ Tier 2 rate active! (Met {currencyFn(tier2MinSpend)} spend)
+            </p>
         );
-    }, [isDesktop, cardCountForSizing]);
+    }
 
+    if (hasTier2) {
+        return (
+            <p className="text-sm text-slate-600">
+                Spend {currencyFn(tier2MinSpend - currentSpend)} more to unlock {(tier2Rate * 100).toFixed(1)}%.
+            </p>
+        );
+    }
+
+    return (
+        <p className="text-sm text-slate-600">
+            Standard cashback rate.
+        </p>
+    );
+}
+
+// --- NEW SUB-COMPONENT: HeroSuggestion ---
+// Displays the #1 pick in a prominent "hero" card.
+function HeroSuggestion({ suggestion, currencyFn }) {
+    const s = suggestion; // for brevity
+
+    return (
+        <div className="p-4 rounded-lg border-2 border-sky-500 bg-sky-50 shadow-md">
+            {/* Header: Top Pick Badge + Card Name */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <Badge variant="default" className="bg-sky-600 w-fit">
+                    <Award className="h-4 w-4 mr-1.5" />
+                    TOP PICK
+                </Badge>
+                <span className="text-sm font-medium text-slate-600">{s.cardName}</span>
+            </div>
+
+            {/* Body: Category, Rate, and Rate Info */}
+            <div className="mt-3">
+                <h3 className="text-2xl font-semibold text-slate-800 break-words">{s.suggestionFor}</h3>
+                <p className="text-5xl font-bold text-sky-700 mt-1">
+                    {(s.rate * 100).toFixed(1)}%
+                </p>
+                <div className="mt-2">
+                    <RateInfoText suggestion={s} currencyFn={currencyFn} />
+                </div>
+            </div>
+
+            {/* Footer: Stats */}
+            <div className="mt-4 pt-3 border-t border-sky-200 text-xs text-slate-600 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-x-4 gap-y-2">
+                <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
+                <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
+            </div>
+        </div>
+    );
+}
+
+// --- NEW SUB-COMPONENT: SuggestionDetailDialog ---
+// Wrapper component that provides the Dialog context and content for a runner-up.
+function SuggestionDetailDialog({ suggestion, currencyFn, children }) {
+    const s = suggestion; // for brevity
+
+    return (
+        <Dialog>
+            {children} {/* This will be the <DialogTrigger> (RunnerUpItem) */}
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="break-words">{s.suggestionFor}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                    {/* Main Info: Card + Rate */}
+                    <div className="flex justify-between items-center">
+                        <span className="font-medium text-slate-700">{s.cardName}</span>
+                        <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200 px-2.5 py-1">
+                            {(s.rate * 100).toFixed(1)}%
+                        </Badge>
+                    </div>
+
+                    {/* Rate Tier Info */}
+                    <RateInfoText suggestion={s} currencyFn={currencyFn} />
+
+                    {/* Stats */}
+                    <div className="pt-4 border-t border-slate-200 text-sm text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
+                        <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
+                        <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
+                    </div>
+
+                    {/* Status Details */}
+                    <div className="space-y-2">
+                        {!s.hasMetMinSpend && (
+                            <div className="flex items-start gap-2 text-sm p-3 rounded-md bg-orange-50 border border-orange-200">
+                                <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-semibold text-orange-800">Minimum Spend Not Met</p>
+                                    <p className="text-orange-700 text-xs">This rate is not active until you meet the card's minimum spend requirement.</p>
+                                </div>
+                            </div>
+                        )}
+                        {s.hasBetterChallenger && (
+                             <div className="flex items-start gap-2 text-sm p-3 rounded-md bg-blue-50 border border-blue-200">
+                                <ArrowUpCircle className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-semibold text-blue-800">Better Offer Available</p>
+                                    <p className="text-blue-700 text-xs">A card with a higher rate or cap exists, but its minimum spend is not currently met.</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+
+// --- NEW SUB-COMPONENT: RunnerUpItem ---
+// A compact, clickable item that triggers the SuggestionDetailDialog.
+function RunnerUpItem({ suggestion, rank }) {
+    const s = suggestion; // for brevity
+    const hasStatus = !s.hasMetMinSpend || s.hasBetterChallenger;
+
+    return (
+        <DialogTrigger asChild>
+            <div className="p-3 rounded-lg border bg-white hover:bg-slate-50 cursor-pointer transition-colors shadow-sm">
+                {/* Line 1: Main Info */}
+                <div className="flex justify-between items-center gap-3">
+                    <div className="flex items-baseline gap-2 flex-1 min-w-0">
+                        <span className="text-sm font-semibold text-sky-600">#{rank}</span>
+                        <p className="font-medium text-slate-800 truncate" title={s.suggestionFor}>{s.suggestionFor}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-xs text-slate-500 hidden sm:block">{s.cardName}</span>
+                        <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200">
+                            {(s.rate * 100).toFixed(1)}%
+                        </Badge>
+                    </div>
+                </div>
+                 <span className="text-xs text-slate-500 sm:hidden ml-7 -mt-1 block">{s.cardName}</span>
+
+                {/* Line 2: Status Indicators */}
+                {hasStatus && (
+                    <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600 ml-7">
+                        {!s.hasMetMinSpend && (
+                            <span className="flex items-center gap-1.5">
+                                <AlertTriangle className="h-4 w-4 text-orange-400" />
+                                Min. Spend
+                            </span>
+                        )}
+                        {s.hasBetterChallenger && (
+                            <span className="flex items-center gap-1.5">
+                                <ArrowUpCircle className="h-4 w-4 text-blue-500" />
+                                Better Offer
+                            </span>
+                        )}
+                    </div>
+                )}
+            </div>
+        </DialogTrigger>
+    );
+}
+
+
+// --- REFACTORED MAIN COMPONENT ---
+export default function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard }) {
+    
+    // --- Core logic is preserved as requested ---
     const suggestions = useMemo(() => {
-
         const MINIMUM_RATE_THRESHOLD = 0.02;
 
         const allCandidates = rules.flatMap(rule => {
-
             const card = cards.find(c => c.id === rule.cardId);
             if (!card || card.status === 'Closed' || rule.status !== 'Active') return [];
 
-            const monthForCard = isLiveView ? getCurrentCashbackMonthForCard(card) : activeMonth;
+            const monthForCard = activeMonth === 'live' ? getCurrentCashbackMonthForCard(card) : activeMonth;
             
             const cardSummary = monthlySummary.find(s => s.cardId === rule.cardId && s.month === monthForCard);
             const categorySummary = monthlyCategorySummary.find(s => s.cardId === rule.cardId && s.month === monthForCard && s.summaryId.endsWith(rule.ruleName));
@@ -58,7 +194,6 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
             const currentTotalSpendForCard = cardSummary?.spend || 0;
             const currentCashbackForCategory = categorySummary?.cashback || 0;
 
-            // --- NEW TIER LOGIC ---
             const isTier2Met = card.cashbackType === '2 Tier' && card.tier2MinSpend > 0 && currentTotalSpendForCard >= card.tier2MinSpend;
             const effectiveRate = isTier2Met && rule.tier2Rate ? rule.tier2Rate : rule.rate;
             const effectiveCategoryLimit = (isTier2Met && rule.tier2CategoryLimit) ? rule.tier2CategoryLimit : rule.categoryLimit;
@@ -66,7 +201,6 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
 
             const hasTier2 = card.cashbackType === '2 Tier' && (rule.tier2Rate > rule.rate || rule.tier2CategoryLimit > rule.categoryLimit);
 
-            // Check against the *effective* rate
             if (effectiveRate < MINIMUM_RATE_THRESHOLD) return [];
 
             const remainingCategoryCap = effectiveCategoryLimit > 0 ? Math.max(0, effectiveCategoryLimit - currentCashbackForCategory) : Infinity;
@@ -80,7 +214,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
             
             return categories.map(cat => ({
                 ...rule,
-                rate: effectiveRate, // Overwrite with effective rate for sorting
+                rate: effectiveRate,
                 suggestionFor: cat, 
                 parentRuleName: rule.ruleName, 
                 cardName: card.name,
@@ -107,7 +241,6 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
             const qualifiedCards = group.filter(c => c.hasMetMinSpend);
             const unqualifiedCards = group.filter(c => !c.hasMetMinSpend);
             
-            // This ranker now correctly uses the effective rate and cap
             const ranker = (a, b) => (b.rate - a.rate) || (b.remainingCategoryCap - a.remainingCategoryCap);
             
             qualifiedCards.sort(ranker);
@@ -120,7 +253,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
             if (finalChoice) {
                 let hasBetterChallenger = false;
                 if (finalChoice.hasMetMinSpend && bestUnqualified) {
-                    if (bestUnqualified.rate > finalChoice.rate || bestUnqualified.remainingCategoryCap > finalChoice.remainingCategoryCap) {
+                    if (bestUnqualified.rate > finalChoice.rate || (bestUnqualified.rate === finalChoice.rate && bestUnqualified.remainingCategoryCap > finalChoice.remainingCategoryCap)) {
                         hasBetterChallenger = true;
                     }
                 }
@@ -136,164 +269,67 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
         });
 
         return bestCardPerCategory;
-    }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, isLiveView, getCurrentCashbackMonthForCard]);
+    }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, getCurrentCashbackMonthForCard]); // Removed isLiveView, it's derived from activeMonth
 
-    const topSuggestions = suggestions;
-    
-    const canScrollUp = startIndex > 0;
-    const canScrollDown = startIndex < topSuggestions.length - VISIBLE_ITEMS;
-
-    const handleScroll = (direction) => {
-        if (direction === 'up' && canScrollUp) setStartIndex(prev => prev - 1);
-        else if (direction === 'down' && canScrollDown) setStartIndex(prev => prev + 1);
-    };
-
-    const visibleSuggestions = topSuggestions.slice(startIndex, startIndex + VISIBLE_ITEMS);
+    // --- NEW: Split suggestions for Hero/Runner-up layout ---
+    const topSuggestion = suggestions[0];
+    const otherSuggestions = suggestions.slice(1);
 
     return (
         <Card className="flex flex-col">
             <CardHeader>
-                <div className="flex justify-between items-center">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        <Lightbulb className="h-5 w-5 text-sky-500" />
-                        Top Cashback Opportunities
-                    </CardTitle>
-                    {topSuggestions.length > VISIBLE_ITEMS && (
-                         <div className="flex items-center gap-1">
-                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleScroll('up')} disabled={!canScrollUp}><ChevronUp className="h-4 w-4" /></Button>
-                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleScroll('down')} disabled={!canScrollDown}><ChevronDown className="h-4 w-4" /></Button>
-                        </div>
-                    )}
-                </div>
+                {/* Removed scroll buttons */}
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Lightbulb className="h-5 w-5 text-sky-500" />
+                    Top Cashback Opportunities
+                </CardTitle>
             </CardHeader>
             <CardContent className="flex-grow">
-                {visibleSuggestions.length > 0 ? (
-                    <div className="space-y-3">
-                        {visibleSuggestions.map((s, index) => (
-                            <div key={`${s.id}-${s.suggestionFor}`} className="p-3 rounded-lg border bg-slate-50/70 shadow-sm">
-                                <div className="flex justify-between items-start gap-3">
-                                    <div>
-                                        <p className="font-semibold text-slate-800">
-                                            <span className="text-sky-600 mr-2">#{startIndex + index + 1}</span>
-                                            {s.suggestionFor}
-                                        </p>
-                                        <div className="flex items-center gap-1.5 text-sm text-slate-500 ml-7">
-                                            <span>{s.cardName}</span>
-                                            {!s.hasMetMinSpend && (
-                                                <TooltipProvider delayDuration={100}>
-                                                    <Tooltip>
-                                                        <TooltipTrigger>
-                                                            <AlertTriangle className="h-4 w-4 text-orange-400" />
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Minimum spend not met on this card.</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            )}
-                                            {s.hasBetterChallenger && (
-                                                <TooltipProvider delayDuration={100}>
-                                                    <Tooltip>
-                                                        <TooltipTrigger>
-                                                            <ArrowUpCircle className="h-4 w-4 text-blue-500" />
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>A better card exists but its minimum spend is not met.</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            )}
-                                        </div>
-                                    </div>
-                                    {/* --- BADGE WITH CONDITIONAL COMPONENT --- */}
-                                    {isDesktop ? (
-                                        <TooltipProvider delayDuration={100}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200 px-2.5 py-1">
-                                                        {s.isBoosted && (
-                                                            <span className="text-indigo-700">{(s.rate * 100).toFixed(1)}% ✨</span>
-                                                        )}
-                                                        {!s.isBoosted && s.hasTier2 && (
-                                                            <span>
-                                                                {(s.rate * 100).toFixed(1)}%
-                                                                <span className="text-xs font-normal text-slate-500"> (→ {(s.tier2Rate * 100).toFixed(1)}%)</span>
-                                                            </span>
-                                                        )}
-                                                        {!s.isBoosted && !s.hasTier2 && (
-                                                            <span>{(s.rate * 100).toFixed(1)}%</span>
-                                                        )}
-                                                    </Badge>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    {s.isBoosted && (
-                                                        <p>Tier 2 rate active! (Met {currencyFn(s.tier2MinSpend)} spend)</p>
-                                                    )}
-                                                    {!s.isBoosted && s.hasTier2 && (
-                                                        <p>
-                                                            Spend {currencyFn(s.tier2MinSpend - s.currentSpend)} more on this card
-                                                            to unlock {(s.tier2Rate * 100).toFixed(1)}% rate.
-                                                        </p>
-                                                    )}
-                                                    {!s.isBoosted && !s.hasTier2 && (
-                                                        <p>Standard cashback rate.</p>
-                                                    )}
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    ) : (
-                                        <Dialog>
-                                            <DialogTrigger asChild>
-                                                <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200 px-2.5 py-1">
-                                                    {s.isBoosted && (
-                                                        <span className="text-indigo-700">{(s.rate * 100).toFixed(1)}% ✨</span>
-                                                    )}
-                                                    {!s.isBoosted && s.hasTier2 && (
-                                                        <span>
-                                                            {(s.rate * 100).toFixed(1)}%
-                                                            <span className="text-xs font-normal text-slate-500"> (→ {(s.tier2Rate * 100).toFixed(1)}%)</span>
-                                                        </span>
-                                                    )}
-                                                    {!s.isBoosted && !s.hasTier2 && (
-                                                        <span>{(s.rate * 100).toFixed(1)}%</span>
-                                                    )}
-                                                </Badge>
-                                            </DialogTrigger>
-                                            <DialogContent>
-                                                <DialogHeader>
-                                                    <DialogTitle>{s.cardName} Rate Info</DialogTitle>
-                                                </DialogHeader>
-                                                <div className="pt-2 text-sm space-y-2">
-                                                    {s.isBoosted && (
-                                                        <p>Tier 2 rate active! (Met {currencyFn(s.tier2MinSpend)} spend)</p>
-                                                    )}
-                                                    {!s.isBoosted && s.hasTier2 && (
-                                                        <p>
-                                                            Spend {currencyFn(s.tier2MinSpend - s.currentSpend)} more on this card
-                                                            to unlock {(s.tier2Rate * 100).toFixed(1)}% rate.
-                                                        </p>
-                                                    )}
-                                                    {!s.isBoosted && !s.hasTier2 && (
-                                                        <p>Standard cashback rate.</p>
-                                                    )}
-                                                </div>
-                                            </DialogContent>
-                                        </Dialog>
-                                    )}
-                                    {/* --- END OF CONDITIONAL COMPONENT --- */}
-                                </div>
-                                <div className="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
-                                    <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600"/><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
-                                    <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5"/><span>Spend</span><span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
+                {/* --- NEW 3-SCENARIO RENDER LOGIC --- */}
+
+                {/* Scenario 1: No suggestions */}
+                {suggestions.length === 0 && (
                     <div className="flex flex-col items-center justify-center text-center p-4 rounded-lg bg-emerald-50 h-full min-h-[200px]">
                         <Sparkles className="h-8 w-8 text-emerald-500 mb-2" />
                         <p className="font-semibold text-emerald-800">All Qualified Tiers Maxed Out!</p>
                         <p className="text-xs text-emerald-700 mt-1">No high-tier opportunities are available on cards that have met their minimum spend.</p>
+                    </div>
+                )}
+
+                {/* Scenarios 2 & 3: At least one suggestion exists */}
+                {suggestions.length > 0 && (
+                    <div className="space-y-4">
+                        <HeroSuggestion 
+                            suggestion={topSuggestion} 
+                            currencyFn={currencyFn} 
+                        />
+
+                        {/* Scenario 3: More than one suggestion */}
+                        {otherSuggestions.length > 0 && (
+                            <div>
+                                <div className="flex items-center gap-3 my-4">
+                                    <h4 className="text-sm font-medium text-slate-600">Other Suggestions</h4>
+                                    <div className="flex-grow border-t border-slate-200"></div>
+                                </div>
+                                
+                                {/* Scrollable list of RunnerUpItems */}
+                                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                    {otherSuggestions.map((s, index) => (
+                                        <SuggestionDetailDialog 
+                                            key={`${s.id}-${s.suggestionFor}`}
+                                            suggestion={s}
+                                            currencyFn={currencyFn}
+                                        >
+                                            <RunnerUpItem 
+                                                suggestion={s}
+                                                rank={index + 2} // Rank starts at #2
+                                            />
+                                        </SuggestionDetailDialog>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {/* Scenario 2 (suggestions.length === 1) implicitly ends here, as otherSuggestions.length will be 0 */}
                     </div>
                 )}
             </CardContent>
