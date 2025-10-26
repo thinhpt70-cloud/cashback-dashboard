@@ -201,7 +201,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
     );
 
     return (
-        <Card className="lg:col-span-3">
+        <Card className="flex flex-col h-full">
             <CardHeader>
                 <CardTitle>Card Spends Cap</CardTitle>
             </CardHeader>

@@ -144,7 +144,7 @@ function RunnerUpItem({ suggestion, rank, currencyFn }) {
     return (
         <DialogTrigger asChild>
             <div className="p-3 rounded-lg border bg-white hover:bg-slate-50 cursor-pointer transition-colors shadow-sm">
-                {/* Line 1: Main Info */}
+                {/* Line 1: Main Info (No changes here) */}
                 <div className="flex justify-between items-center gap-3">
                     <div className="flex items-baseline gap-2 flex-1 min-w-0">
                         <span className="text-sm font-semibold text-sky-600">#{rank}</span>
@@ -159,36 +159,46 @@ function RunnerUpItem({ suggestion, rank, currencyFn }) {
                 </div>
                  <span className="text-xs text-slate-500 sm:hidden ml-7 -mt-1 block">{s.cardName}</span>
 
-                {/* Line 2: Status Indicators */}
-                {hasStatus && (
-                    <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600 ml-7">
-                        {!s.hasMetMinSpend && (
-                            <span className="flex items-center gap-1.5">
-                                <AlertTriangle className="h-4 w-4 text-orange-400" />
-                                Min. Spend
-                            </span>
-                        )}
-                        {s.hasBetterChallenger && (
-                            <span className="flex items-center gap-1.5">
-                                <ArrowUpCircle className="h-4 w-4 text-blue-500" />
-                                Better Offer
-                            </span>
-                        )}
-                    </div>
-                )}
+                {/* --- NEW: Unified Footer --- */}
+                {/* This single div now contains both alerts and stats, separated by a space-y-2 */}
+                <div className="mt-2 pt-2 border-t border-slate-100 space-y-2">
+                    
+                    {/* 1. Status Indicators (if they exist) */}
+                    {/* We've removed the ml-7 and given them more descriptive text and color */}
+                    {hasStatus && (
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                            {!s.hasMetMinSpend && (
+                                <span className="flex items-center gap-1.5 text-orange-600 font-medium">
+                                    {/* --- CHANGED: Icon size harmonized --- */}
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    {/* --- CHANGED: More descriptive text --- */}
+                                    Min. Spend Not Met
+                                </span>
+                            )}
+                            {s.hasBetterChallenger && (
+                                <span className="flex items-center gap-1.5 text-blue-600 font-medium">
+                                    {/* --- CHANGED: Icon size harmonized --- */}
+                                    <ArrowUpCircle className="h-3.5 w-3.5" />
+                                    {/* --- CHANGED: More descriptive text --- */}
+                                    Better Offer Available
+                                </span>
+                            )}
+                        </div>
+                    )}
 
-                {/* --- NEW: Stats Line --- */}
-                <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
-                    <span className="flex items-center gap-1.5">
-                        <DollarSign className="h-3.5 w-3.5 text-emerald-600"/>
-                        <span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span>
-                        <span>left</span>
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                        <ShoppingCart className="h-3.5 w-3.5"/>
-                        <span>Spend</span>
-                        <span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span>
-                    </span>
+                    {/* 2. Stats Line (Unchanged, but now part of the unified footer) */}
+                    <div className="text-xs text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
+                        <span className="flex items-center gap-1.5">
+                            <DollarSign className="h-3.5 w-3.5 text-emerald-600"/>
+                            <span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span>
+                            <span>left</span>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                            <ShoppingCart className="h-3.5 w-3.5"/>
+                            <span>Spend</span>
+                            <span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span>
+                        </span>
+                    </div>
                 </div>
             </div>
         </DialogTrigger>
