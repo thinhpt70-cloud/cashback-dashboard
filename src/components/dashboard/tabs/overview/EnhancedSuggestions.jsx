@@ -2,10 +2,9 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "../../../ui/card";
 import { Badge } from "../../../ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../../ui/dialog";
-import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award } from 'lucide-react';
+import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award, ChevronDown } from 'lucide-react';
 
 // --- NEW SUB-COMPONENT: RateInfoText ---
-// Replaces the old complex badge logic with simple, descriptive text.
 function RateInfoText({ suggestion, currencyFn }) {
     if (!suggestion) return null;
 
@@ -34,15 +33,15 @@ function RateInfoText({ suggestion, currencyFn }) {
     );
 }
 
-// --- NEW SUB-COMPONENT: HeroSuggestion ---
-// Displays the #1 pick in a prominent "hero" card.
+// --- UPDATED SUB-COMPONENT: HeroSuggestion ---
+// No changes
 function HeroSuggestion({ suggestion, currencyFn }) {
     const s = suggestion; // for brevity
 
     return (
-        <div className="p-4 rounded-lg border-2 border-sky-500 bg-sky-50 shadow-md">
+        <div className="p-3 rounded-lg border-2 border-sky-500 bg-sky-50 shadow-md">
             {/* Header: Top Pick Badge + Card Name */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                 <Badge variant="default" className="bg-sky-600 w-fit">
                     <Award className="h-4 w-4 mr-1.5" />
                     TOP PICK
@@ -50,19 +49,29 @@ function HeroSuggestion({ suggestion, currencyFn }) {
                 <span className="text-sm font-medium text-slate-600">{s.cardName}</span>
             </div>
 
-            {/* Body: Category, Rate, and Rate Info */}
-            <div className="mt-3">
-                <h3 className="text-2xl font-semibold text-slate-800 break-words">{s.suggestionFor}</h3>
-                <p className="text-5xl font-bold text-sky-700 mt-1">
-                    {(s.rate * 100).toFixed(1)}%
-                </p>
-                <div className="mt-2">
-                    <RateInfoText suggestion={s} currencyFn={currencyFn} />
+            {/* Body: Split into two columns for better space use */}
+            <div className="mt-2 flex flex-col sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                
+                {/* Left Column: Info */}
+                <div className="flex-1 min-w-0">
+                    <h3 className="text-xl font-semibold text-slate-800 break-words truncate" title={s.suggestionFor}>
+                        {s.suggestionFor}
+                    </h3>
+                    <div className="mt-1">
+                        <RateInfoText suggestion={s} currencyFn={currencyFn} />
+                    </div>
+                </div>
+
+                {/* Right Column: Rate (smaller font) */}
+                <div className="flex-shrink-0 mt-1 sm:mt-0 sm:text-right">
+                     <p className="text-4xl font-bold text-sky-700">
+                        {(s.rate * 100).toFixed(1)}%
+                    </p>
                 </div>
             </div>
 
-            {/* Footer: Stats */}
-            <div className="mt-4 pt-3 border-t border-sky-200 text-xs text-slate-600 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-x-4 gap-y-2">
+            {/* Footer: Stats (reduced margins) */}
+            <div className="mt-3 pt-2 border-t border-sky-200 text-xs text-slate-600 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-x-4 gap-y-1">
                 <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
                 <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
             </div>
@@ -71,7 +80,6 @@ function HeroSuggestion({ suggestion, currencyFn }) {
 }
 
 // --- NEW SUB-COMPONENT: SuggestionDetailDialog ---
-// Wrapper component that provides the Dialog context and content for a runner-up.
 function SuggestionDetailDialog({ suggestion, currencyFn, children }) {
     const s = suggestion; // for brevity
 
@@ -128,9 +136,8 @@ function SuggestionDetailDialog({ suggestion, currencyFn, children }) {
 }
 
 
-// --- NEW SUB-COMPONENT: RunnerUpItem ---
-// A compact, clickable item that triggers the SuggestionDetailDialog.
-function RunnerUpItem({ suggestion, rank }) {
+// --- *** UPDATED SUB-COMPONENT: RunnerUpItem *** ---
+function RunnerUpItem({ suggestion, rank, currencyFn }) {
     const s = suggestion; // for brevity
     const hasStatus = !s.hasMetMinSpend || s.hasBetterChallenger;
 
@@ -169,6 +176,20 @@ function RunnerUpItem({ suggestion, rank }) {
                         )}
                     </div>
                 )}
+
+                {/* --- NEW: Stats Line --- */}
+                <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
+                    <span className="flex items-center gap-1.5">
+                        <DollarSign className="h-3.5 w-3.5 text-emerald-600"/>
+                        <span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span>
+                        <span>left</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <ShoppingCart className="h-3.5 w-3.5"/>
+                        <span>Spend</span>
+                        <span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span>
+                    </span>
+                </div>
             </div>
         </DialogTrigger>
     );
@@ -269,24 +290,21 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
         });
 
         return bestCardPerCategory;
-    }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, getCurrentCashbackMonthForCard]); // Removed isLiveView, it's derived from activeMonth
+    }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, getCurrentCashbackMonthForCard]);
 
-    // --- NEW: Split suggestions for Hero/Runner-up layout ---
     const topSuggestion = suggestions[0];
     const otherSuggestions = suggestions.slice(1);
 
     return (
-        <Card className="flex flex-col">
+        <Card className="flex flex-col h-full">
             <CardHeader>
-                {/* Removed scroll buttons */}
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                     <Lightbulb className="h-5 w-5 text-sky-500" />
                     Top Cashback Opportunities
                 </CardTitle>
             </CardHeader>
-            <CardContent className="flex-grow">
-                {/* --- NEW 3-SCENARIO RENDER LOGIC --- */}
-
+            
+            <CardContent className="flex-1 flex flex-col">
                 {/* Scenario 1: No suggestions */}
                 {suggestions.length === 0 && (
                     <div className="flex flex-col items-center justify-center text-center p-4 rounded-lg bg-emerald-50 h-full min-h-[200px]">
@@ -298,7 +316,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
 
                 {/* Scenarios 2 & 3: At least one suggestion exists */}
                 {suggestions.length > 0 && (
-                    <div className="space-y-4">
+                    <div className="space-y-3 flex flex-col flex-1">
                         <HeroSuggestion 
                             suggestion={topSuggestion} 
                             currencyFn={currencyFn} 
@@ -306,14 +324,13 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
 
                         {/* Scenario 3: More than one suggestion */}
                         {otherSuggestions.length > 0 && (
-                            <div>
-                                <div className="flex items-center gap-3 my-4">
+                            <div className="flex flex-col flex-1 min-h-0">
+                                <div className="flex items-center gap-3 my-3">
                                     <h4 className="text-sm font-medium text-slate-600">Other Suggestions</h4>
                                     <div className="flex-grow border-t border-slate-200"></div>
                                 </div>
                                 
-                                {/* Scrollable list of RunnerUpItems */}
-                                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                <div className="space-y-2 flex-1 min-h-0 overflow-y-auto pr-1">
                                     {otherSuggestions.map((s, index) => (
                                         <SuggestionDetailDialog 
                                             key={`${s.id}-${s.suggestionFor}`}
@@ -323,13 +340,13 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                             <RunnerUpItem 
                                                 suggestion={s}
                                                 rank={index + 2} // Rank starts at #2
+                                                currencyFn={currencyFn}
                                             />
                                         </SuggestionDetailDialog>
                                     ))}
                                 </div>
                             </div>
                         )}
-                        {/* Scenario 2 (suggestions.length === 1) implicitly ends here, as otherSuggestions.length will be 0 */}
                     </div>
                 )}
             </CardContent>
