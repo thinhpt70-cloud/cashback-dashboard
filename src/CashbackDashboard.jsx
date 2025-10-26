@@ -38,7 +38,6 @@ import EnhancedSuggestions from "./components/dashboard/tabs/overview/EnhancedSu
 import SpendByCardChart from "./components/dashboard/tabs/overview/SpendByCardChart";
 import CardPerformanceLineChart from "./components/dashboard/tabs/overview/CardPerformanceLineChart";
 import RecentTransactionsCarousel from './components/dashboard/tabs/overview/RecentTransactionsCarousel';
-import OverviewSnapshotCard from './components/dashboard/tabs/overview/OverviewSnapshotCard';
 
 // Import transactions tab components
 import TransactionReviewCenter from './components/dashboard/tabs/transactions/TransactionReviewCenter';
@@ -85,7 +84,7 @@ export default function CashbackDashboard() {
         recentTransactions, allCategories, commonVendors, reviewTransactions,
         loading, error, refreshData, 
         setRecentTransactions, setReviewTransactions,
-        cashbackRules, monthlyCashbackCategories // <-- ADD THESE
+        cashbackRules, monthlyCashbackCategories, liveSummary
     } = useCashbackData(isAuthenticated);
 
     const handleLogout = async () => {
@@ -300,35 +299,96 @@ export default function CashbackDashboard() {
     const rulesMap = useMemo(() => new Map(rules.map(r => [r.id, r])), [rules]);
     const summaryMap = useMemo(() => new Map(monthlyCategorySummary.map(s => [s.id, s])), [monthlyCategorySummary]);
 
-    const overviewStats = useMemo(() => {
+    // --- NEW: CONSOLIDATED STATS LOGIC ---
+    // This single hook provides all stats for the StatCards,
+    // for both 'live' and 'historical' views.
+    const displayStats = useMemo(() => {
+        const today = getTodaysMonth(); // e.g., '2024-07'
+        const lastCompletedMonth = getPreviousMonth(today); // e.g., '2024-06'
+
+        // --- Helper to get data for a specific month ---
+        const getMonthStats = (month) => {
+            if (!month) return { totalSpend: 0, totalCashback: 0, effectiveRate: 0 };
+            const monthData = monthlySummary.filter(s => s.month === month);
+            const totalSpend = monthData.reduce((acc, curr) => acc + (curr.spend || 0), 0);
+            const totalCashback = monthData.reduce((acc, curr) => acc + (curr.cashback || 0), 0);
+            const effectiveRate = totalSpend > 0 ? totalCashback / totalSpend : 0;
+            return { totalSpend, totalCashback, effectiveRate };
+        };
+        
+        // --- Calculate sparkline data (last 6 completed months) ---
+        const sparklineBaseMonth = activeMonth === 'live' ? lastCompletedMonth : activeMonth;
+        const spendSparkline = getMetricSparkline(monthlySummary, sparklineBaseMonth, 6, 'spend');
+        const cashbackSparkline = getMetricSparkline(monthlySummary, sparklineBaseMonth, 6, 'cashback');
+        const rateSparkline = getMetricSparkline(monthlySummary, sparklineBaseMonth, 6, 'cashback')
+            .map((cb, i) => {
+                const spend = spendSparkline[i];
+                return spend > 0 ? cb / spend : 0;
+            });
+
+
+        // --- CASE 1: LIVE VIEW ---
+        if (activeMonth === 'live') {
+            const { totalSpend: prevMonthSpend, totalCashback: prevMonthCashback, effectiveRate: prevMonthRate } = getMonthStats(lastCompletedMonth);
+            
+            // Assuming liveSummary is passed from useCashbackData
+            const totalSpend = liveSummary?.liveSpend || 0;
+            const totalCashback = liveSummary?.liveCashback || 0;
+            const effectiveRate = totalSpend > 0 ? totalCashback / totalSpend : 0;
+
+            return {
+                label: "Latest", // <-- Changed from "Live"
+                totalSpend,
+                totalCashback,
+                effectiveRate,
+                prevMonthSpend,
+                prevMonthCashback,
+                prevMonthRate,
+                spendSparkline,
+                cashbackSparkline,
+                rateSparkline
+            };
+        }
+
+        // --- CASE 2: HISTORICAL VIEW ---
+        const { totalSpend, totalCashback, effectiveRate } = getMonthStats(activeMonth);
+        const prevMonth = getPreviousMonth(activeMonth);
+        const { totalSpend: prevMonthSpend, totalCashback: prevMonthCashback, effectiveRate: prevMonthRate } = getMonthStats(prevMonth);
+
+        return {
+            label: fmtYMShort(activeMonth),
+            totalSpend,
+            totalCashback,
+            effectiveRate,
+            prevMonthSpend,
+            prevMonthCashback,
+            prevMonthRate,
+            spendSparkline,
+            cashbackSparkline,
+            rateSparkline
+        };
+
+    }, [activeMonth, monthlySummary, liveSummary]);
+
+
+    // --- RENAMED: This hook now ONLY calculates pie chart data ---
+    const overviewChartStats = useMemo(() => {
         // Filter the summary data for only the currently selected month
         const monthData = monthlySummary.filter(s => s.month === activeMonth);
-
-        // Calculate total spend and cashback for that month
-        const totalSpend = monthData.reduce((acc, curr) => acc + (curr.spend || 0), 0);
-        const totalCashback = monthData.reduce((acc, curr) => acc + (curr.cashback || 0), 0);
-        const effectiveRate = totalSpend > 0 ? totalCashback / totalSpend : 0;
 
         // Prepare data formatted for the pie charts
         const spendByCard = monthData.map(item => ({
             name: cardMap.get(item.cardId)?.name || "Unknown Card",
             value: item.spend || 0,
         })).sort((a, b) => b.value - a.value);
-
+        
         const cashbackByCard = monthData.map(item => ({
             name: cardMap.get(item.cardId)?.name || "Unknown Card",
             value: item.cashback || 0,
         })).sort((a, b) => b.value - a.value);
 
-        // --- Include monthLabel in the returned object ---
-        return {
-            totalSpend,
-            totalCashback,
-            effectiveRate,
-            spendByCard,
-            cashbackByCard,
-            monthLabel: fmtYMShort(activeMonth) // Add monthLabel here
-        };
+        // --- Removed totalSpend, totalCashback, effectiveRate ---
+        return { spendByCard, cashbackByCard };
     }, [activeMonth, monthlySummary, cardMap]);
 
     // ADD THIS NEW HOOK to calculate stats for the "My Cards" tab
@@ -611,158 +671,122 @@ export default function CashbackDashboard() {
                     </div>
 
                     <TabsContent value="overview" className="space-y-4 pt-4">
-                        {/* --- HYBRID LIVE VIEW --- */}
-                        {activeMonth === 'live' && (
-                            <>
-                                {/* 1. LIVE COMPONENTS: These show real-time data */}
-                                <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
-                                    <div className="lg:col-span-7 flex flex-col">
-                                        <CardSpendsCap
-                                            cards={cards}
-                                            rules={rules}
-                                            activeMonth={activeMonth}
-                                            monthlySummary={monthlySummary}
-                                            monthlyCategorySummary={monthlyCategorySummary}
-                                            currencyFn={currency}
-                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                        />
-                                    </div>
-                                    <div className="lg:col-span-5 flex flex-col">
-                                        <EnhancedSuggestions
-                                            rules={rules}
-                                            cards={cards}
-                                            monthlyCategorySummary={monthlyCategorySummary}
-                                            monthlySummary={monthlySummary}
-                                            activeMonth={activeMonth}
-                                            currencyFn={currency}
-                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                        />
-                                    </div>
-                                </div>
+                        
+                        {/* --- 1. NEW UNIFIED STATCARD GRID --- */}
+                        {/* This grid now shows for BOTH live and historical views */}
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                            <StatCard
+                                title="Selected Period"
+                                value={displayStats.label}
+                                icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />}
+                                // No trend or sparkline for the label card
+                            />
+                            <StatCard
+                                title="Total Spend"
+                                value={currency(displayStats.totalSpend)}
+                                icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                                currentMonthLabel={displayStats.label}
+                                lastMonthValue={displayStats.prevMonthSpend}
+                                sparklineData={displayStats.spendSparkline}
+                            />
+                            <StatCard
+                                title="Est. Cashback"
+                                value={currency(displayStats.totalCashback)}
+                                icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
+                                currentMonthLabel={displayStats.label}
+                                lastMonthValue={displayStats.prevMonthCashback}
+                                sparklineData={displayStats.cashbackSparkline}
+                            />
+                            <StatCard
+                                title="Effective Rate"
+                                value={`${(displayStats.effectiveRate * 100).toFixed(2)}%`}
+                                icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+                                currentMonthLabel={displayStats.label}
+                                lastMonthValue={displayStats.prevMonthRate} 
+                                sparklineData={displayStats.rateSparkline}
+                            />
+                        </div>
 
-                                {/* 2. HISTORICAL/CONTEXTUAL COMPONENTS: These are always visible */}
-                                <RecentTransactionsCarousel 
-                                    transactions={recentTransactions}
-                                    cardMap={cardMap}
+                        {/* --- 2. UNIFIED DYNAMIC COMPONENTS --- */}
+                        {/* These components are now shown for both views */}
+                        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
+                            <div className="lg:col-span-7 flex flex-col">
+                                <CardSpendsCap
+                                    cards={cards}
+                                    rules={rules}
+                                    activeMonth={activeMonth}
+                                    monthlySummary={monthlySummary}
+                                    monthlyCategorySummary={monthlyCategorySummary}
                                     currencyFn={currency}
+                                    getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
                                 />
+                            </div>
+                            <div className="lg:col-span-5 flex flex-col">
+                                <EnhancedSuggestions
+                                    rules={rules}
+                                    cards={cards}
+                                    monthlyCategorySummary={monthlyCategorySummary}
+                                    monthlySummary={monthlySummary}
+                                    activeMonth={activeMonth}
+                                    currencyFn={currency}
+                                    getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                />
+                            </div>
+                        </div>
 
-                                <div className="grid gap-4">
-                                    <Card className="flex flex-col min-h-[300px]">
-                                        <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
-                                        <CardContent className="pl-2 flex-grow">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={monthlyChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-                                                    <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} />
-                                                    <RechartsTooltip content={<CustomRechartsTooltip />} />
-                                                    <Legend formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)} />
-                                                    <Bar dataKey="spend" fill="#0BA6DF" radius={[4, 4, 0, 0]}>
-                                                    <LabelList dataKey="spend" content={renderCustomBarLabel} />
-                                                    </Bar>
-                                                    <Bar dataKey="cashback" fill="#67C090" radius={[4, 4, 0, 0]}>
-                                                    <LabelList dataKey="cashback" content={renderCustomBarLabel} />
-                                                    </Bar>
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </CardContent>
-                                    </Card>
-                                </div>
+                        {/* --- 3. UNIFIED CONTEXTUAL COMPONENTS --- */}
+                        <RecentTransactionsCarousel 
+                            transactions={recentTransactions}
+                            cardMap={cardMap}
+                            currencyFn={currency}
+                        />
 
-                                <div className="mt-4">
-                                    <CardPerformanceLineChart 
-                                        data={cardPerformanceData}
-                                        cards={cards}
-                                        currencyFn={currency}
-                                        cardColorMap={cardColorMap} 
-                                    />
-                                </div>
-                            </>
-                        )}
+                        <div className="grid gap-4">
+                            <Card className="flex flex-col min-h-[300px]">
+                                <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
+                                <CardContent className="pl-2 flex-grow">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={monthlyChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                                            <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} />
+                                            <RechartsTooltip content={<CustomRechartsTooltip />} />
+                                            <Legend formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)} />
+                                            <Bar dataKey="spend" fill="#0BA6DF" radius={[4, 4, 0, 0]}>
+                                            <LabelList dataKey="spend" content={renderCustomBarLabel} />
+                                            </Bar>
+                                            <Bar dataKey="cashback" fill="#67C090" radius={[4, 4, 0, 0]}>
+                                            <LabelList dataKey="cashback" content={renderCustomBarLabel} />
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                        </div>
 
-                        {/* --- FULL HISTORICAL VIEW --- */}
+                        <div className="mt-4">
+                            <CardPerformanceLineChart 
+                                data={cardPerformanceData}
+                                cards={cards}
+                                currencyFn={currency}
+                                cardColorMap={cardColorMap} 
+                            />
+                        </div>
+                            
+                        {/* --- 4. CONDITIONAL HISTORICAL CHARTS --- */}
+                        {/* These charts only render for historical months */}
                         {activeMonth !== 'live' && (
-                            <>
-                                <OverviewSnapshotCard
-                                        totalSpend={overviewStats.totalSpend}
-                                        totalCashback={overviewStats.totalCashback}
-                                        effectiveRate={overviewStats.effectiveRate}
-                                    />
-                                <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
-                                    <div className="lg:col-span-7 flex flex-col">
-                                        <CardSpendsCap
-                                            cards={cards}
-                                            rules={rules}
-                                            activeMonth={activeMonth}
-                                            monthlySummary={monthlySummary}
-                                            monthlyCategorySummary={monthlyCategorySummary}
-                                            currencyFn={currency}
-                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                        />
-                                    </div>
-                                    <div className="lg:col-span-5 flex flex-col">
-                                        <EnhancedSuggestions
-                                            rules={rules}
-                                            cards={cards}
-                                            monthlyCategorySummary={monthlyCategorySummary}
-                                            monthlySummary={monthlySummary}
-                                            activeMonth={activeMonth}
-                                            currencyFn={currency}
-                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                        />
-                                    </div>
-                                </div>
-
-                                <RecentTransactionsCarousel 
-                                    transactions={recentTransactions}
-                                    cardMap={cardMap}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <SpendByCardChart
+                                    spendData={overviewChartStats.spendByCard}
                                     currencyFn={currency}
+                                    cardColorMap={cardColorMap}
                                 />
-
-                                <div className="grid gap-4">
-                                    <Card className="flex flex-col min-h-[300px]">
-                                        <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
-                                        <CardContent className="pl-2 flex-grow">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={monthlyChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-                                                <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                                                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} />
-                                                <RechartsTooltip content={<CustomRechartsTooltip />} />
-                                                <Legend formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)} />
-                                                <Bar dataKey="spend" fill="#0BA6DF" radius={[4, 4, 0, 0]}>
-                                                <LabelList dataKey="spend" content={renderCustomBarLabel} />
-                                                </Bar>
-                                                <Bar dataKey="cashback" fill="#67C090" radius={[4, 4, 0, 0]}>
-                                                <LabelList dataKey="cashback" content={renderCustomBarLabel} />
-                                                </Bar>
-                                            </BarChart>
-                                            </ResponsiveContainer>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-
-                                <div className="mt-4">
-                                    <CardPerformanceLineChart 
-                                        data={cardPerformanceData}
-                                        cards={cards}
-                                        currencyFn={currency}
-                                        cardColorMap={cardColorMap} 
-                                    />
-                                </div>
-                                    
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <SpendByCardChart
-                                        spendData={overviewStats.spendByCard}
-                                        currencyFn={currency}
-                                        cardColorMap={cardColorMap}
-                                    />
-                                    <CashbackByCardChart
-                                        cashbackData={overviewStats.cashbackByCard}
-                                        currencyFn={currency}
-                                        cardColorMap={cardColorMap}
-                                    />
-                                </div>
-                            </>
+                                <CashbackByCardChart
+                                    cashbackData={overviewChartStats.cashbackByCard}
+                                    currencyFn={currency}
+                                    cardColorMap={cardColorMap}
+                                />
+                            </div>
                         )}
                     </TabsContent>
 
