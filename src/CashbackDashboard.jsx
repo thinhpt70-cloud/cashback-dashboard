@@ -38,6 +38,7 @@ import EnhancedSuggestions from "./components/dashboard/tabs/overview/EnhancedSu
 import SpendByCardChart from "./components/dashboard/tabs/overview/SpendByCardChart";
 import CardPerformanceLineChart from "./components/dashboard/tabs/overview/CardPerformanceLineChart";
 import RecentTransactionsCarousel from './components/dashboard/tabs/overview/RecentTransactionsCarousel';
+import OverviewSnapshotCard from './components/dashboard/tabs/overview/OverviewSnapshotCard';
 
 // Import transactions tab components
 import TransactionReviewCenter from './components/dashboard/tabs/transactions/TransactionReviewCenter';
@@ -313,13 +314,21 @@ export default function CashbackDashboard() {
             name: cardMap.get(item.cardId)?.name || "Unknown Card",
             value: item.spend || 0,
         })).sort((a, b) => b.value - a.value);
-        
+
         const cashbackByCard = monthData.map(item => ({
             name: cardMap.get(item.cardId)?.name || "Unknown Card",
             value: item.cashback || 0,
         })).sort((a, b) => b.value - a.value);
 
-        return { totalSpend, totalCashback, effectiveRate, spendByCard, cashbackByCard };
+        // --- Include monthLabel in the returned object ---
+        return {
+            totalSpend,
+            totalCashback,
+            effectiveRate,
+            spendByCard,
+            cashbackByCard,
+            monthLabel: fmtYMShort(activeMonth) // Add monthLabel here
+        };
     }, [activeMonth, monthlySummary, cardMap]);
 
     // ADD THIS NEW HOOK to calculate stats for the "My Cards" tab
@@ -674,14 +683,11 @@ export default function CashbackDashboard() {
                         {/* --- FULL HISTORICAL VIEW --- */}
                         {activeMonth !== 'live' && (
                             <>
-                                {/* All original components are here, including Stat Cards and Pie Charts */}
-                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                                    <StatCard title="Month" value={fmtYMShort(activeMonth)} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
-                                    <StatCard title="Total Spend" value={currency(overviewStats.totalSpend)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
-                                    <StatCard title="Est. Cashback" value={currency(overviewStats.totalCashback)} icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} />
-                                    <StatCard title="Effective Rate" value={`${(overviewStats.effectiveRate * 100).toFixed(2)}%`} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
-                                </div>
-
+                                <OverviewSnapshotCard
+                                        totalSpend={overviewStats.totalSpend}
+                                        totalCashback={overviewStats.totalCashback}
+                                        effectiveRate={overviewStats.effectiveRate}
+                                    />
                                 <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
                                     <div className="lg:col-span-7 flex flex-col">
                                         <CardSpendsCap
