@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "../../../ui/card";
 import { Badge } from "../../../ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../../ui/dialog";
-import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award, ChevronDown } from 'lucide-react';
+import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award } from 'lucide-react';
 
 // --- NEW SUB-COMPONENT: RateInfoText ---
 function RateInfoText({ suggestion, currencyFn }) {
