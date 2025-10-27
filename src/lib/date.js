@@ -13,6 +13,27 @@ export function getTodaysMonth(date = new Date()) {
  * @param {string | Date} monthStrOrDate - The month string ('YYYYMM') or Date object to calculate from.
  * @returns {string} - The formatted string for the previous month (e.g., "Sep 2025").
  */
+export function getPreviousMonth(monthStrOrDate) {
+    let date;
+    if (typeof monthStrOrDate === 'string' && monthStrOrDate.length === 6) {
+        const year = parseInt(monthStrOrDate.slice(0, 4), 10);
+        const month = parseInt(monthStrOrDate.slice(4, 6), 10);
+         // Create date for the 1st of the *given* month
+        date = new Date(year, month - 1, 1);
+    } else if (monthStrOrDate instanceof Date) {
+        date = new Date(monthStrOrDate);
+    } else {
+         // Default to previous month from today if input is invalid
+        date = new Date();
+    }
+
+    // Go back one month
+    date.setMonth(date.getMonth() - 1);
+
+    // Format the previous month's date
+    return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+}
+
 export const getPreviousMonth = (monthString) => {
     // Expects "YYYYMM" format
     if (!monthString || monthString.length !== 6) return null;
