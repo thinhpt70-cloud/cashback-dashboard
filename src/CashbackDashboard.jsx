@@ -680,7 +680,7 @@ export default function CashbackDashboard() {
                                     <StatCard
                                         title="Est. Cashback"
                                         value={currency(displayStats.totalCashback)}
-                                        numericValue={displayStats.totalSpend}
+                                        numericValue={displayStats.totalCashback}
                                         icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
                                         lastMonthValue={displayStats.prevMonthCashback}
                                         sparklineData={displayStats.cashbackSparkline}
@@ -688,7 +688,7 @@ export default function CashbackDashboard() {
                                     <StatCard
                                         title="Effective Rate"
                                         value={`${(displayStats.effectiveRate * 100).toFixed(2)}%`}
-                                        numericValue={displayStats.totalSpend}
+                                        numericValue={displayStats.effectiveRate}
                                         icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
                                         lastMonthValue={displayStats.prevMonthRate} 
                                         sparklineData={displayStats.rateSparkline}
