@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { fetchWithAuth } from '../lib/utils';
 import { getCurrentCashbackMonthForCard } from '../lib/date';
 
 const API_BASE_URL = '/api';
