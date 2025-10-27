@@ -63,12 +63,12 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                 <div className="space-y-4">
                     {categoryCapData.map(cap => (
                         <div key={cap.id}>
-                            <div className="flex justify-between items-center text-sm mb-1.5">
-                                <p className="font-medium text-slate-700 min-w-0 pr-4 truncate" title={cap.category}>
+                            <div className="flex justify-between items-start text-sm mb-1.5 gap-2">
+                                <p className="font-medium text-slate-700 flex-1 min-w-0 break-words" title={cap.category}>
                                     {cap.category}
                                     {cap.isBoosted && ' ✨'}
                                 </p>
-                                <span className="font-mono text-xs font-semibold text-slate-500">{cap.usedPct}%</span>
+                                <span className="font-mono text-xs font-semibold text-slate-500 flex-shrink-0">{cap.usedPct}%</span>
                             </div>
                             <Progress 
                                 value={cap.usedPct} 
