@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
+import { fetchWithAuth } from '../lib/utils';
+import { getCurrentCashbackMonthForCard } from '../lib/date';
 
 const API_BASE_URL = '/api';
 
@@ -100,12 +102,32 @@ export default function useCashbackData(isAuthenticated) {
         }
     }, [isAuthenticated, fetchData]); // It runs when auth status changes.
 
+    const liveSummary = useMemo(() => {
+        // Wait until monthlySummary is loaded
+        if (!monthlySummary || monthlySummary.length === 0) {
+        return { liveSpend: 0, liveCashback: 0 };
+        }
+
+        // Get the current month in 'YYYYMM' format
+        const currentMonth = getCurrentCashbackMonthForCard();
+        
+        // Find the summary object for the current month
+        const currentMonthSummary = monthlySummary.find(m => m.month === currentMonth);
+
+        // Return the data in the format CashbackDashboard expects
+        return {
+        liveSpend: currentMonthSummary?.totalSpend || 0,
+        liveCashback: currentMonthSummary?.totalCashback || 0,
+        };
+    }, [monthlySummary]); // This recalculates only when monthlySummary changes
+
     // --- Return everything the component needs ---
     return {
         // Data states
         cards,
         rules,
         monthlySummary,
+        liveSummary,
         mccMap,
         monthlyCategorySummary,
         recentTransactions,
