@@ -8,7 +8,7 @@ import { Toaster, toast } from 'sonner';
 // Import utility functions
 import { cn } from "./lib/utils";
 import { getMetricSparkline } from './lib/stats';
-import { getTodaysMonth, getPreviousMonth } from './lib/date'; // Import the new functions
+import { getTodaysMonth, getPreviousMonth, getCurrentCashbackMonthForCard } from './lib/date';
 
 // Import UI components
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
@@ -465,31 +465,6 @@ export default function CashbackDashboard() {
 
         return { daysPast, progressPercent };
     };
-
-    const getCurrentCashbackMonthForCard = useCallback((card, transactionDateStr = null) => {
-        if (!card) return null;
-        const effectiveDate = transactionDateStr ? new Date(transactionDateStr) : new Date();
-
-        let year = effectiveDate.getFullYear();
-        let month = effectiveDate.getMonth(); // 0-indexed
-
-        if (card.useStatementMonthForPayments) {
-            const currentMonth = month + 1;
-            return `${year}${String(currentMonth).padStart(2, '0')}`;
-        }
-
-        if (effectiveDate.getDate() >= card.statementDay) {
-            month += 1;
-        }
-
-        if (month > 11) {
-            month = 0;
-            year += 1;
-        }
-
-        const finalMonth = month + 1;
-        return `${year}${String(finalMonth).padStart(2, '0')}`;
-    }, []);
 
     // --- NEW LOADING STATE FOR AUTH CHECK ---
     if (isAuthenticated === null) {

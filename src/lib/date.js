@@ -131,12 +131,39 @@ export const calculateDaysUntilStatement = (statementDay, activeMonth) => {
 };
 
 /**
- * Gets the current cashback month (e.g., '202510') based on today's date.
+ * --- NEW REPLACEMENT FUNCTION ---
+ * Gets the current cashback month for a specific card based on its statement day.
+ * If no card is provided, defaults to the current calendar month.
+ * @param {object} [card] - The card object (must have statementDay and useStatementMonthForPayments).
+ * @param {string} [transactionDateStr] - An optional date string to calculate for.
  * @returns {string} - The current month in 'YYYYMM' format.
  */
-export const getCurrentCashbackMonthForCard = () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0'); // getMonth() is 0-indexed
-  return `${year}${month}`;
+export const getCurrentCashbackMonthForCard = (card = null, transactionDateStr = null) => {
+    const effectiveDate = transactionDateStr ? new Date(transactionDateStr) : new Date();
+
+    let year = effectiveDate.getFullYear();
+    let month = effectiveDate.getMonth(); // 0-indexed
+
+    // Default to current calendar month if no card is passed
+    if (!card) {
+        const finalMonth = month + 1;
+        return `${year}${String(finalMonth).padStart(2, '0')}`;
+    }
+
+    if (card.useStatementMonthForPayments) {
+        const currentMonth = month + 1;
+        return `${year}${String(currentMonth).padStart(2, '0')}`;
+    }
+
+    if (effectiveDate.getDate() >= card.statementDay) {
+        month += 1;
+    }
+
+    if (month > 11) {
+        month = 0;
+        year += 1;
+    }
+
+    const finalMonth = month + 1;
+    return `${year}${String(finalMonth).padStart(2, '0')}`;
 };

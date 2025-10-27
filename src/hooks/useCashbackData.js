@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { getCurrentCashbackMonthForCard } from '../lib/date';
+import { getCurrentCashbackMonthForCard } from '../lib/date'; // This import now gets the correct function
 
 const API_BASE_URL = '/api';
 
@@ -77,7 +77,8 @@ export default function useCashbackData(isAuthenticated) {
             setCommonVendors(commonVendorsData);
             setReviewTransactions(reviewTxData); // Set the new state for review transactions
 
-        } catch (err) {
+        } catch (err)
+ {
             setError("Failed to fetch data. Please check the backend, .env configuration, and Notion permissions.");
             console.error(err);
             if (isSilent) { // Only show toast on background refresh fails
@@ -102,32 +103,44 @@ export default function useCashbackData(isAuthenticated) {
     }, [isAuthenticated, fetchData]); // It runs when auth status changes.
 
     const liveSummary = useMemo(() => {
-        // Wait until monthlySummary is loaded
-        if (!monthlySummary || monthlySummary.length === 0) {
-        return { liveSpend: 0, liveCashback: 0 };
+        // Wait until both cards and summary data are loaded
+        if (!monthlySummary || monthlySummary.length === 0 || !cards || cards.length === 0) {
+            return { liveSpend: 0, liveCashback: 0 };
         }
 
-        // Get the current month in 'YYYYMM' format
-        const currentMonth = getCurrentCashbackMonthForCard();
+        // --- NEW "STATEMENT CYCLE" LOGIC ---
         
-        // --- FIX: Sum totals for ALL cards using the correct properties ---
+        // Create a fast lookup map for summaries
+        const summaryMap = new Map();
+        monthlySummary.forEach(s => {
+            const key = `${s.cardId}-${s.month}`;
+            summaryMap.set(key, s);
+        });
+
         let totalSpend = 0;
         let totalCashback = 0;
 
-        monthlySummary.forEach(summary => {
-            if (summary.month === currentMonth) {
-                // USE 'spend' and 'cashback', NOT 'totalSpend' and 'totalCashback'
+        // Iterate over each card to find its current statement cycle
+        cards.forEach(card => {
+            // 1. Get the card's specific in-progress month (e.g., "202410" or "202411")
+            const currentMonthForCard = getCurrentCashbackMonthForCard(card);
+
+            // 2. Find the summary for that specific card and that specific month
+            const summary = summaryMap.get(`${card.id}-${currentMonthForCard}`);
+
+            // 3. Add its spend and cashback to the totals
+            if (summary) {
                 totalSpend += summary.spend || 0;
                 totalCashback += summary.cashback || 0;
             }
         });
 
-        // Return the data in the format CashbackDashboard expects
         return {
             liveSpend: totalSpend,
             liveCashback: totalCashback,
         };
-    }, [monthlySummary]); // This recalculates only when monthlySummary changes
+        // Add `cards` to the dependency array
+    }, [monthlySummary, cards]); 
 
     // --- Return everything the component needs ---
     return {
@@ -135,7 +148,7 @@ export default function useCashbackData(isAuthenticated) {
         cards,
         rules,
         monthlySummary,
-        liveSummary,
+        liveSummary, // This is now calculated with the new logic
         mccMap,
         monthlyCategorySummary,
         recentTransactions,
