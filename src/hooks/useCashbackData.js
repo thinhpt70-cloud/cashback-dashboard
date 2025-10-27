@@ -104,19 +104,27 @@ export default function useCashbackData(isAuthenticated) {
     const liveSummary = useMemo(() => {
         // Wait until monthlySummary is loaded
         if (!monthlySummary || monthlySummary.length === 0) {
-        return { liveSpend: 0, liveCashback: 0 };
+            return { liveSpend: 0, liveCashback: 0 };
         }
 
         // Get the current month in 'YYYYMM' format
         const currentMonth = getCurrentCashbackMonthForCard();
         
-        // Find the summary object for the current month
-        const currentMonthSummary = monthlySummary.find(m => m.month === currentMonth);
+        // --- FIX: Sum totals for ALL cards for the current month ---
+        let totalSpend = 0;
+        let totalCashback = 0;
+
+        monthlySummary.forEach(summary => {
+            if (summary.month === currentMonth) {
+                totalSpend += summary.totalSpend || 0;
+                totalCashback += summary.totalCashback || 0;
+            }
+        });
 
         // Return the data in the format CashbackDashboard expects
         return {
-        liveSpend: currentMonthSummary?.totalSpend || 0,
-        liveCashback: currentMonthSummary?.totalCashback || 0,
+            liveSpend: totalSpend,
+            liveCashback: totalCashback,
         };
     }, [monthlySummary]); // This recalculates only when monthlySummary changes
 
