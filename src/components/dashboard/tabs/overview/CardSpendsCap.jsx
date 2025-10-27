@@ -91,6 +91,150 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
     );
 }
 
+// --- NEW SingleCapCard component ---
+// This component renders an individual Card for each item in the progress list.
+function SingleCapCard({ 
+    p, 
+    isExpanded, 
+    onToggleExpand, 
+    currencyFn, 
+    rules, 
+    monthlyCategorySummary, 
+    getProgressColor, 
+    getDotColorClass, 
+    DaysLeftBadge 
+}) {
+    return (
+        <Card key={p.cardId} className="w-full">
+            {/* Clickable Header Area */}
+            <div 
+                className="flex flex-col gap-3 p-4 cursor-pointer"
+                onClick={() => onToggleExpand(p.cardId)}
+            >
+                {/* Card Name and Days Left */}
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <div className={cn(
+                            "w-2 h-2 rounded-full flex-shrink-0",
+                            getDotColorClass(p.dotStatus)
+                        )} />
+                        <p className={cn(
+                            "font-semibold truncate",
+                            { "text-slate-400 font-normal": p.isCapReached }
+                        )} title={p.cardName}>{p.cardName}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
+                        <ChevronDown className={cn( "h-5 w-5 text-muted-foreground transition-transform duration-200 flex-shrink-0",
+                            isExpanded && "rotate-180"
+                        )} />
+                    </div>
+                </div>
+                
+                {/* Progress Bar and Figures */}
+                {p.monthlyLimit > 0 && (
+                    <div className="space-y-2">
+                        {/* Key Figures (responsive) */}
+                        <div className="flex justify-between items-center w-full text-sm">
+                            <span className={cn(
+                                "font-medium",
+                                p.isCapReached ? "text-slate-500" : "text-emerald-600"
+                            )}>
+                                {p.isCapReached ? "✓ Maximized" : `${currencyFn(p.monthlyLimit - p.currentCashback)} left`}
+                            </span>
+                            <span className={cn(
+                                "text-xs text-right font-mono",
+                                p.isCapReached ? "text-slate-400" : "text-muted-foreground"
+                            )}>
+                                {currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}
+                            </span>
+                        </div>
+                        {/* Progress Bar */}
+                        <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-1.5 w-full" />
+                    </div>
+                )}
+
+                {/* Status Badges */}
+                {(p.minSpend > 0 || (p.cashbackType === '2 Tier' && p.tier2MinSpend > 0)) && (
+                    <div className="flex items-center gap-2 flex-wrap mt-1">
+                        {/* Min Spend Tag */}
+                        {p.minSpend > 0 && (
+                            <Badge
+                                variant="outline"
+                                className={cn(
+                                    "text-xs h-5 px-1.5 font-semibold flex items-center gap-1.5",
+                                    p.minSpendMet
+                                        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                        : "bg-yellow-100 text-yellow-800 border-yellow-200"
+                                )}
+                            >
+                                {p.minSpendMet ? (
+                                    <>
+                                        <CheckCircle2 className="h-3 w-3" />
+                                        <span>Min. Spend Met</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Circle className="h-3 w-3" />
+                                        <span>
+                                            Min Spend: {currencyFn(p.currentSpend)} / {currencyFn(p.minSpend)} ({p.minSpendPct}%)
+                                        </span>
+                                    </>
+                                )}
+                            </Badge>
+                        )}
+                        {/* Tier 2 Tag */}
+                        {p.cashbackType === '2 Tier' && p.tier2MinSpend > 0 && (
+                            <Badge
+                                variant="outline"
+                                className={cn(
+                                    "text-xs h-5 px-1.5 font-semibold flex items-center gap-1.5",
+                                    p.isTier2Met
+                                        ? "bg-emerald-100 text-emerald-800 border-emerald-200" // Unlocked = Green
+                                        : "bg-blue-100 text-blue-800 border-blue-200" // Locked = Blue
+                                )}
+                            >
+                                {p.isTier2Met ? (
+                                    <>
+                                        <Unlock className="h-3 w-3" />
+                                        <span>Tier 2 Unlocked</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Lock className="h-3 w-3" />
+                                        <span>
+                                            Tier 2: {currencyFn(p.currentSpend)} / {currencyFn(p.tier2MinSpend)} ({p.tier2SpendPct}%)
+                                        </span>
+                                    </>
+                                )}
+                            </Badge>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Expandable Section */}
+            <div className={cn( "overflow-hidden transition-all duration-300 ease-in-out",
+                isExpanded ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
+            )}>
+                {isExpanded && (
+                    <div className="pb-4 border-t"> 
+                        <CategoryCapsUsage
+                            card={p.card}
+                            rules={rules.filter(r => r.cardId === p.cardId)}
+                            activeMonth={p.activeMonth}
+                            monthlyCategorySummary={monthlyCategorySummary}
+                            currencyFn={currencyFn}
+                            isTier2Met={p.isTier2Met}
+                        />
+                    </div>
+                )}
+            </div>
+        </Card>
+    );
+}
+
+// --- REFACTORED CardSpendsCap Component ---
 export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummary, monthlyCategorySummary, currencyFn, getCurrentCashbackMonthForCard }) {
     const [expandedCardId, setExpandedCardId] = useState(null);
 
@@ -201,141 +345,38 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
     );
 
     return (
-        <Card className="flex flex-col h-full">
-            <CardHeader>
-                <CardTitle>Card Spends Cap</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {cardSpendsCapProgress.length > 0 ? (
-                    <div className="space-y-1">
-                        {cardSpendsCapProgress.map(p => (
-                            <div 
-                                key={p.cardId} 
-                                className={cn(
-                                    "border-b last:border-b-0 py-1 transition-colors duration-300"
-                                )}
-                            >
-                                <div 
-                                    className="flex flex-col gap-2 p-2 cursor-pointer hover:bg-muted/50 rounded-md"
-                                    onClick={() => handleToggleExpand(p.cardId)}
-                                >
-                                    <div className="flex justify-between items-center">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <div className={cn(
-                                                "w-2 h-2 rounded-full flex-shrink-0",
-                                                getDotColorClass(p.dotStatus)
-                                            )} />
-                                            <p className={cn(
-                                                "font-semibold truncate",
-                                                { "text-slate-400 font-normal": p.isCapReached }
-                                            )} title={p.cardName}>{p.cardName}</p>
-                                        </div>
-                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                            <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
-                                            <ChevronDown className={cn( "h-5 w-5 text-muted-foreground transition-transform duration-200 flex-shrink-0",
-                                                expandedCardId === p.cardId && "rotate-180"
-                                            )} />
-                                        </div>
-                                    </div>                                 
-                                    {p.monthlyLimit > 0 && (
-                                        <div className="flex items-center gap-3 w-full text-sm">
-                                            <span className={cn(
-                                                "font-medium w-32 shrink-0",
-                                                p.isCapReached ? "text-slate-500" : "text-emerald-600"
-                                            )}>
-                                                {p.isCapReached ? "✓ Maximized" : `${currencyFn(p.monthlyLimit - p.currentCashback)} left`}
-                                            </span>
-                                            <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-1.5 flex-grow" />
-                                            <span className={cn(
-                                                "text-xs w-40 shrink-0 text-right",
-                                                p.isCapReached ? "text-slate-400" : "text-muted-foreground"
-                                            )}>
-                                                {currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {(p.minSpend > 0 || (p.cashbackType === '2 Tier' && p.tier2MinSpend > 0)) && (
-                                        <div className="flex items-center gap-2 flex-wrap mt-2">
-                                            {/* Min Spend Tag */}
-                                            {p.minSpend > 0 && (
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn(
-                                                        "text-xs h-5 px-1.5 font-semibold flex items-center gap-1.5",
-                                                        p.minSpendMet
-                                                            ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                                                            : "bg-yellow-100 text-yellow-800 border-yellow-200"
-                                                    )}
-                                                >
-                                                    {p.minSpendMet ? (
-                                                        <>
-                                                            <CheckCircle2 className="h-3 w-3" />
-                                                            <span>Min. Spend Met</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Circle className="h-3 w-3" />
-                                                            <span>
-                                                                Min Spend: {currencyFn(p.currentSpend)} / {currencyFn(p.minSpend)} ({p.minSpendPct}%)
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                </Badge>
-                                            )}
-                                            {/* Tier 2 Tag */}
-                                            {p.cashbackType === '2 Tier' && p.tier2MinSpend > 0 && (
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn(
-                                                        "text-xs h-5 px-1.5 font-semibold flex items-center gap-1.5",
-                                                        p.isTier2Met
-                                                            ? "bg-emerald-100 text-emerald-800 border-emerald-200" // Unlocked = Green
-                                                            : "bg-blue-100 text-blue-800 border-blue-200" // Locked = Blue
-                                                    )}
-                                                >
-                                                    {p.isTier2Met ? (
-                                                        <>
-                                                            <Unlock className="h-3 w-3" />
-                                                            <span>Tier 2 Unlocked</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Lock className="h-3 w-3" />
-                                                            <span>
-                                                                Tier 2: {currencyFn(p.currentSpend)} / {currencyFn(p.tier2MinSpend)} ({p.tier2SpendPct}%)
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+        // This div replaces the original outer <Card>
+        <div>
+            {/* This h3 replaces the original <CardTitle> */}
+            <h3 className="text-lg font-semibold mb-4 px-1">Card Spends Cap</h3>
 
-                                {/* --- Expandable Section --- */}
-                                <div className={cn( "overflow-hidden transition-all duration-300 ease-in-out",
-                                    expandedCardId === p.cardId ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
-                                )}>
-                                    {expandedCardId === p.cardId && (
-                                        <div className="py-4 border-t"> 
-                                            <CategoryCapsUsage
-                                                card={p.card}
-                                                rules={rules.filter(r => r.cardId === p.cardId)}
-                                                activeMonth={p.activeMonth}
-                                                monthlyCategorySummary={monthlyCategorySummary}
-                                                currencyFn={currencyFn}
-                                                isTier2Met={p.isTier2Met}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+            {/* This div replaces the original <CardContent> */}
+            <div>
+                {cardSpendsCapProgress.length > 0 ? (
+                    <div className="space-y-4"> {/* This stacks the new <SingleCapCard> components */}
+                        {cardSpendsCapProgress.map(p => (
+                            <SingleCapCard
+                                key={p.cardId}
+                                p={p}
+                                isExpanded={expandedCardId === p.cardId}
+                                onToggleExpand={handleToggleExpand}
+                                currencyFn={currencyFn}
+                                rules={rules}
+                                monthlyCategorySummary={monthlyCategorySummary}
+                                getProgressColor={getProgressColor}
+                                getDotColorClass={getDotColorClass}
+                                DaysLeftBadge={DaysLeftBadge}
+                            />
                         ))}
                     </div>
                 ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">No monthly limits or minimums defined for your active cards.</p>
+                    <Card>
+                        <CardContent className="pt-6"> {/* Add pt-6 to match default CardContent padding */}
+                            <p className="text-sm text-muted-foreground text-center py-4">No monthly limits or minimums defined for your active cards.</p>
+                        </CardContent>
+                    </Card>
                 )}
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }
