@@ -1,4 +1,60 @@
 /**
+ * Gets the current month and year string.
+ * @param {Date} [date=new Date()] - The date object to use.
+ * @returns {string} - The formatted string (e.g., "Oct 2025").
+ */
+export function getTodaysMonth(date = new Date()) {
+  // Using 'en-US' locale for consistent "Oct 2025" format
+  return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+}
+
+/**
+ * Gets the previous month and year string relative to a given date.
+ * @param {string | Date} monthStrOrDate - The month string ('YYYYMM') or Date object to calculate from.
+ * @returns {string} - The formatted string for the previous month (e.g., "Sep 2025").
+ */
+export function getPreviousMonth(monthStrOrDate) {
+    let date;
+    if (typeof monthStrOrDate === 'string' && monthStrOrDate.length === 6) {
+        const year = parseInt(monthStrOrDate.slice(0, 4), 10);
+        const month = parseInt(monthStrOrDate.slice(4, 6), 10);
+         // Create date for the 1st of the *given* month
+        date = new Date(year, month - 1, 1);
+    } else if (monthStrOrDate instanceof Date) {
+        date = new Date(monthStrOrDate);
+    } else {
+         // Default to previous month from today if input is invalid
+        date = new Date();
+    }
+
+    // Go back one month
+    date.setMonth(date.getMonth() - 1);
+
+    // Format the previous month's date
+    return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+}
+
+/**
+ * Gets an array of month strings (YYYYMM) for the past N months, ending at endMonth.
+ * @param {string} endMonth - The ending month in 'YYYYMM' format (e.g., '202407').
+ * @param {number} length - The number of months to retrieve.
+ * @returns {string[]} - Array of month strings (e.g., ['202402', ..., '202407']).
+ */
+export const getPastNMonths = (endMonth, length) => {
+    const months = [];
+    const year = parseInt(endMonth.slice(0, 4), 10);
+    const month = parseInt(endMonth.slice(4, 6), 10) - 1; // 0-indexed month
+
+    for (let i = 0; i < length; i++) {
+        const d = new Date(year, month - i, 1);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        months.push(`${y}${m}`);
+    }
+    return months.reverse(); // Return in chronological order
+};
+
+/**
  * Calculates the number of days left until a given payment date string.
  * @param {string} paymentDateString - The due date in 'YYYY-MM-DD' format.
  * @returns {number | null} - The number of days remaining, or null if invalid or past.

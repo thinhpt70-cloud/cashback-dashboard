@@ -7,6 +7,8 @@ import { Toaster, toast } from 'sonner';
 
 // Import utility functions
 import { cn } from "./lib/utils";
+import { getMetricSparkline } from './lib/stats';
+import { getTodaysMonth, getPreviousMonth } from './lib/date'; // Import the new functions
 
 // Import UI components
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
