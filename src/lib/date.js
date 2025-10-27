@@ -1,39 +1,19 @@
 /**
- * Gets the current month and year string.
+ * Gets the current month and year string in YYYYMM format.
  * @param {Date} [date=new Date()] - The date object to use.
- * @returns {string} - The formatted string (e.g., "Oct 2025").
+ * @returns {string} - The formatted string (e.g., "202510").
  */
 export function getTodaysMonth(date = new Date()) {
-  // Using 'en-US' locale for consistent "Oct 2025" format
-  return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}${month}`; // Returns 'YYYYMM'
 }
 
 /**
- * Gets the previous month and year string relative to a given date.
- * @param {string | Date} monthStrOrDate - The month string ('YYYYMM') or Date object to calculate from.
- * @returns {string} - The formatted string for the previous month (e.g., "Sep 2025").
+ * Gets the previous month string relative to a given 'YYYYMM' string.
+ * @param {string} monthString - The month string ('YYYYMM') to calculate from.
+ * @returns {string | null} - The formatted string for the previous month (e.g., "202509").
  */
-export function getPreviousMonth(monthStrOrDate) {
-    let date;
-    if (typeof monthStrOrDate === 'string' && monthStrOrDate.length === 6) {
-        const year = parseInt(monthStrOrDate.slice(0, 4), 10);
-        const month = parseInt(monthStrOrDate.slice(4, 6), 10);
-         // Create date for the 1st of the *given* month
-        date = new Date(year, month - 1, 1);
-    } else if (monthStrOrDate instanceof Date) {
-        date = new Date(monthStrOrDate);
-    } else {
-         // Default to previous month from today if input is invalid
-        date = new Date();
-    }
-
-    // Go back one month
-    date.setMonth(date.getMonth() - 1);
-
-    // Format the previous month's date
-    return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
-}
-
 export const getPreviousMonth = (monthString) => {
     // Expects "YYYYMM" format
     if (!monthString || monthString.length !== 6) return null;
@@ -58,6 +38,12 @@ export const getPreviousMonth = (monthString) => {
  * @returns {string[]} - Array of month strings (e.g., ['202402', ..., '202407']).
  */
 export const getPastNMonths = (endMonth, length) => {
+    // Add this check to prevent the 'slice of null' error
+    if (!endMonth || typeof endMonth !== 'string' || endMonth.length !== 6) {
+        console.warn('getPastNMonths called with invalid endMonth:', endMonth);
+        return [];
+    }
+
     const months = [];
     const year = parseInt(endMonth.slice(0, 4), 10);
     const month = parseInt(endMonth.slice(4, 6), 10) - 1; // 0-indexed month
