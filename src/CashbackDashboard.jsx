@@ -649,45 +649,40 @@ export default function CashbackDashboard() {
 
                     <TabsContent value="overview" className="space-y-4 pt-4">
                         
-                        {/* --- 1. NEW UNIFIED STATCARD GRID --- */}
-                        {/* This grid now shows for BOTH live and historical views */}
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                            <StatCard
-                                title="Selected Period"
-                                value={displayStats.label}
-                                icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />}
-                                // No trend or sparkline for the label card
-                            />
-                            <StatCard
-                                title="Total Spend"
-                                value={currency(displayStats.totalSpend)}
-                                icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-                                currentMonthLabel={displayStats.label}
-                                lastMonthValue={displayStats.prevMonthSpend}
-                                sparklineData={displayStats.spendSparkline}
-                            />
-                            <StatCard
-                                title="Est. Cashback"
-                                value={currency(displayStats.totalCashback)}
-                                icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-                                currentMonthLabel={displayStats.label}
-                                lastMonthValue={displayStats.prevMonthCashback}
-                                sparklineData={displayStats.cashbackSparkline}
-                            />
-                            <StatCard
-                                title="Effective Rate"
-                                value={`${(displayStats.effectiveRate * 100).toFixed(2)}%`}
-                                icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-                                currentMonthLabel={displayStats.label}
-                                lastMonthValue={displayStats.prevMonthRate} 
-                                sparklineData={displayStats.rateSparkline}
-                            />
-                        </div>
-
-                        {/* --- 2. UNIFIED DYNAMIC COMPONENTS --- */}
-                        {/* These components are now shown for both views */}
+                        {/* --- 1. UNIFIED DYNAMIC COMPONENTS (MOVED UP) --- */}
                         <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
-                            <div className="lg:col-span-7 flex flex-col">
+                            {/* This is the LEFT COLUMN */}
+                            <div className="lg:col-span-7 flex flex-col gap-4">
+                                
+                                {/* --- STATCARD GRID (MOVED HERE) --- */}
+                                <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+                                    {/* "Selected Period" card is REMOVED */}
+                                    <StatCard
+                                        title="Total Spend"
+                                        value={currency(displayStats.totalSpend)}
+                                        icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                                        currentMonthLabel={displayStats.label}
+                                        lastMonthValue={displayStats.prevMonthSpend}
+                                        sparklineData={displayStats.spendSparkline}
+                                    />
+                                    <StatCard
+                                        title="Est. Cashback"
+                                        value={currency(displayStats.totalCashback)}
+                                        icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
+                                        currentMonthLabel={displayStats.label}
+                                        lastMonthValue={displayStats.prevMonthCashback}
+                                        sparklineData={displayStats.cashbackSparkline}
+                                    />
+                                    <StatCard
+                                        title="Effective Rate"
+                                        value={`${(displayStats.effectiveRate * 100).toFixed(2)}%`}
+                                        icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+                                        currentMonthLabel={displayStats.label}
+                                        lastMonthValue={displayStats.prevMonthRate} 
+                                        sparklineData={displayStats.rateSparkline}
+                                    />
+                                </div>
+
                                 <CardSpendsCap
                                     cards={cards}
                                     rules={rules}
@@ -698,6 +693,8 @@ export default function CashbackDashboard() {
                                     getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
                                 />
                             </div>
+                            
+                            {/* This is the RIGHT COLUMN */}
                             <div className="lg:col-span-5 flex flex-col">
                                 <EnhancedSuggestions
                                     rules={rules}
