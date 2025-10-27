@@ -656,13 +656,24 @@ export default function CashbackDashboard() {
                                 
                                 {/* --- STATCARD GRID (MOVED HERE) --- */}
                                 <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-                                    {/* "Selected Period" card is REMOVED */}
+                                    <Card className="shadow-sm border border-slate-200">
+                                        <CardContent className="p-4 flex flex-col justify-between h-full">
+                                            <div className="flex items-center text-sm font-medium text-muted-foreground">
+                                                <CalendarClock className="h-4 w-4 text-muted-foreground mr-2" />
+                                                Selected Period
+                                            </div>
+                                            <div className="flex-grow flex items-end">
+                                                <p className="text-2xl font-bold tracking-tight leading-none mt-3">
+                                                    {displayStats.label} {/* <-- The label is now displayed here */}
+                                                </p>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
                                     <StatCard
                                         title="Total Spend"
                                         value={currency(displayStats.totalSpend)}
                                         numericValue={displayStats.totalSpend}
                                         icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-                                        currentMonthLabel={displayStats.label}
                                         lastMonthValue={displayStats.prevMonthSpend}
                                         sparklineData={displayStats.spendSparkline}
                                     />
@@ -671,7 +682,6 @@ export default function CashbackDashboard() {
                                         value={currency(displayStats.totalCashback)}
                                         numericValue={displayStats.totalSpend}
                                         icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-                                        currentMonthLabel={displayStats.label}
                                         lastMonthValue={displayStats.prevMonthCashback}
                                         sparklineData={displayStats.cashbackSparkline}
                                     />
@@ -680,7 +690,6 @@ export default function CashbackDashboard() {
                                         value={`${(displayStats.effectiveRate * 100).toFixed(2)}%`}
                                         numericValue={displayStats.totalSpend}
                                         icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-                                        currentMonthLabel={displayStats.label}
                                         lastMonthValue={displayStats.prevMonthRate} 
                                         sparklineData={displayStats.rateSparkline}
                                     />
