@@ -129,3 +129,14 @@ export const calculateDaysUntilStatement = (statementDay, activeMonth) => {
     }
     return { days: diffDays, status: 'Upcoming' };
 };
+
+/**
+ * Gets the current cashback month (e.g., '202510') based on today's date.
+ * @returns {string} - The current month in 'YYYYMM' format.
+ */
+export const getCurrentCashbackMonthForCard = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0'); // getMonth() is 0-indexed
+  return `${year}${month}`;
+};
