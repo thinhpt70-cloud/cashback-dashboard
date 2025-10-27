@@ -38,7 +38,7 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
             
             const usedPct = categoryLimit > 0 ? Math.min(100, Math.round((currentCashback / categoryLimit) * 100)) : 0;
             const remaining = categoryLimit - currentCashback;
-            const isCompleted = usedPct >= 100; // <-- ADDED: Check for completion
+            const isCompleted = usedPct >= 100;
             
             return { 
                 id: summary.id, 
@@ -48,7 +48,7 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                 usedPct, 
                 remaining,
                 isBoosted,
-                isCompleted // <-- ADDED: Pass completion status
+                isCompleted 
             };
         });
 
@@ -74,7 +74,6 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                                 value={cap.usedPct} 
                                 className="h-2" 
                                 indicatorClassName={cn(
-                                    // --- CHANGED: Logic for progress bar color ---
                                     cap.isCompleted ? "bg-blue-500" : "bg-black"
                                 )} 
                             />
@@ -111,7 +110,6 @@ function SingleCapCard({
         <Card key={p.cardId} className="w-full">
             {/* Clickable Header Area */}
             <div 
-                // --- CHANGED: Reduced padding and gap for compactness ---
                 className="flex flex-col gap-2 p-3 cursor-pointer"
                 onClick={() => onToggleExpand(p.cardId)}
             >
@@ -137,7 +135,6 @@ function SingleCapCard({
                 
                 {/* Progress Bar and Figures */}
                 {p.monthlyLimit > 0 && (
-                    // --- CHANGED: Reduced vertical space ---
                     <div className="space-y-1.5">
                         {/* Key Figures (responsive) */}
                         <div className="flex justify-between items-center w-full text-sm">
@@ -155,7 +152,7 @@ function SingleCapCard({
                             </span>
                         </div>
                         {/* Progress Bar */}
-                        <Progress value={p.usedPct} indicatorClassName={getProgressColor(p.usedPct)} className="h-1.5 w-full" />
+                        <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-1.5 w-full" />
                     </div>
                 )}
 
@@ -223,7 +220,6 @@ function SingleCapCard({
                 isExpanded ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
             )}>
                 {isExpanded && (
-                    // --- CHANGED: Added py-4 to fix top padding ---
                     <div className="py-4 border-t"> 
                         <CategoryCapsUsage
                             card={p.card}
