@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronDown, CheckCircle2, Circle, Unlock, Lock } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../ui/card';
+import { Card, CardContent } from '../../../ui/card';
 import { Badge } from '../../../ui/badge';
 import { Progress } from '../../../ui/progress';
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '../../../../lib/date';
