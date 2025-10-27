@@ -14,15 +14,33 @@ function SparklineChart({ data, lineColor, fillColor, dataKey, currencyFn }) {
     // Format data for Recharts (AreaChart needs objects with keys)
     const formattedData = data.map((value, index) => ({ name: index, [dataKey]: value }));
 
-    const formatTooltipValue = (value) => {
+    const formatTooltipValue = (value, name, props) => {
+        // 'name' is the dataKey, 'value' is the actual numeric value
+
+        // 1. If a currency function is provided (passed down from StatCard), use it.
+        //    Format it to remove trailing decimals and use grouping.
         if (currencyFn) {
-            return currencyFn(value);
+            // Use Intl.NumberFormat directly for more control
+            const formatter = new Intl.NumberFormat('vi-VN', { 
+                style: 'currency', 
+                currency: 'VND', 
+                minimumFractionDigits: 0, // Remove .00
+                maximumFractionDigits: 0  // Remove .00
+            });
+            return formatter.format(value);
         }
-        // For rates/percentages, format as percentage
-        if (value < 1 && value > -1) {
+        
+        // 2. If it's a rate (a decimal between -1 and 1), format as percentage.
+        if (value > -1 && value < 1 && value !== 0) { // Exclude exact 0
             return `${(value * 100).toFixed(2)}%`;
         }
-        return value.toFixed(2);
+        
+        // 3. Fallback for any other number (e.g., if currencyFn is missing).
+        //    Format with thousand separators and no decimals.
+        return value.toLocaleString('en-US', { 
+            minimumFractionDigits: 0, 
+            maximumFractionDigits: 0 
+        });
     };
 
     return (
@@ -67,16 +85,15 @@ function SparklineChart({ data, lineColor, fillColor, dataKey, currencyFn }) {
  */
 export default function StatCard({
     title,
-    value,            // The formatted string for display (e.g., "10.000.000 ₫")
-    numericValue,     // The raw number for calculations (e.g., 10000000)
+    value,
+    numericValue,
     icon,
-    lastMonthValue,   // The raw number for the previous period
-    currentMonthLabel,
+    lastMonthValue,
+    currentMonthLabel, 
     sparklineData,
-    currencyFn      // Function to format currency in tooltip
-}) {
-    
-    // --- NEW, ROBUST Trend Calculation ---
+    currencyFn
+}) {    
+    // --- Trend Calculation Logic ---
     let trend = null;
     let trendColorClass = "";
     let TrendIcon = null;
@@ -120,7 +137,6 @@ export default function StatCard({
     // If lastMonthValue is not a number (null/undefined), 'trend' remains null and no badge is shown.
 
     // --- Sparkline Color Logic ---
-    // (Based on the trend we just calculated)
     let lineColor = "hsl(215 20% 65%)"; // Default slate-500
     let fillColor = "hsl(215 20% 65%)"; 
     if (TrendIcon === ArrowUp) {
@@ -134,13 +150,13 @@ export default function StatCard({
     return (
         <Card className="flex flex-col justify-between shadow-sm border border-slate-200 overflow-hidden">
             <CardContent className="p-4 flex-grow flex flex-col justify-between">
+                {/* --- Top Row: Title and Trend Badge --- */}
                 <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center text-sm font-medium text-muted-foreground">
                         {icon && <span className="mr-2">{icon}</span>}
                         {title}
                     </div>
-                    {/* --- Trend Badge Display Logic --- */}
-                    {trend !== null ? (
+                    {trend !== null && (
                          <div className={cn(
                              "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold",
                              trendColorClass
@@ -148,18 +164,20 @@ export default function StatCard({
                              {TrendIcon && <TrendIcon className="h-3 w-3" />}
                              <span>{trend}</span>
                          </div>
-                     ) : currentMonthLabel ? (
-                        // Fallback to month label if no trend to show
-                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-                            {currentMonthLabel}
-                        </span>
-                     ) : null}
+                     )}
                 </div>
-                
-                {/* Main Value Display (uses the formatted string) */}
-                <p className="text-2xl font-bold tracking-tight leading-none mt-1 mb-2">
-                    {value}
-                </p>
+
+                {/* --- Middle Content: Value and Month Label --- */}
+                <div className="mb-2"> 
+                    <p className="text-2xl font-bold tracking-tight leading-none mt-1">
+                        {value}
+                    </p>
+                    {currentMonthLabel && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                            {currentMonthLabel}
+                        </p>
+                    )}
+                </div>
 
             </CardContent>
             

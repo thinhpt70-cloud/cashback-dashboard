@@ -355,9 +355,7 @@ export default function CashbackDashboard() {
         // --- CASE 2: HISTORICAL VIEW ---
         const { totalSpend, totalCashback, effectiveRate } = getMonthStats(activeMonth);
         const prevMonth = getPreviousMonth(activeMonth);
-        console.log('Previous Month:', prevMonth);
         const { totalSpend: prevMonthSpend, totalCashback: prevMonthCashback, effectiveRate: prevMonthRate } = getMonthStats(prevMonth);
-        console.log('Previous Month Stats:', getMonthStats(prevMonth));
 
         return {
             label: fmtYMShort(activeMonth),
@@ -651,31 +649,18 @@ export default function CashbackDashboard() {
 
                     <TabsContent value="overview" className="space-y-4 pt-4">
                         
-                        {/* --- 1. UNIFIED DYNAMIC COMPONENTS (MOVED UP) --- */}
+                        {/* --- 1. UNIFIED DYNAMIC COMPONENTS --- */}
                         <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
-                            {/* This is the LEFT COLUMN */}
+                            {/* LEFT COLUMN */}
                             <div className="lg:col-span-7 flex flex-col gap-4">
-                                
-                                {/* --- STATCARD GRID (MOVED HERE) --- */}
+                                {/* --- STATCARD GRID --- */}
                                 <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-                                    <Card className="shadow-sm border border-slate-200">
-                                        <CardContent className="p-4 flex flex-col justify-between h-full">
-                                            <div className="flex items-center text-sm font-medium text-muted-foreground">
-                                                <CalendarClock className="h-4 w-4 text-muted-foreground mr-2" />
-                                                Selected Period
-                                            </div>
-                                            <div className="flex-grow flex items-end">
-                                                <p className="text-2xl font-bold tracking-tight leading-none mt-3">
-                                                    {displayStats.label} {/* <-- The label is now displayed here */}
-                                                </p>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
                                     <StatCard
                                         title="Total Spend"
                                         value={currency(displayStats.totalSpend)}
                                         numericValue={displayStats.totalSpend}
                                         icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                                        currentMonthLabel={displayStats.label}
                                         lastMonthValue={displayStats.prevMonthSpend}
                                         sparklineData={displayStats.spendSparkline}
                                     />
@@ -684,6 +669,7 @@ export default function CashbackDashboard() {
                                         value={currency(displayStats.totalCashback)}
                                         numericValue={displayStats.totalCashback}
                                         icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
+                                        currentMonthLabel={displayStats.label}
                                         lastMonthValue={displayStats.prevMonthCashback}
                                         sparklineData={displayStats.cashbackSparkline}
                                     />
@@ -692,6 +678,7 @@ export default function CashbackDashboard() {
                                         value={`${(displayStats.effectiveRate * 100).toFixed(2)}%`}
                                         numericValue={displayStats.effectiveRate}
                                         icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+                                        currentMonthLabel={displayStats.label}
                                         lastMonthValue={displayStats.prevMonthRate} 
                                         sparklineData={displayStats.rateSparkline}
                                     />
@@ -708,7 +695,7 @@ export default function CashbackDashboard() {
                                 />
                             </div>
                             
-                            {/* This is the RIGHT COLUMN */}
+                            {/* RIGHT COLUMN */}
                             <div className="lg:col-span-5 flex flex-col">
                                 <EnhancedSuggestions
                                     rules={rules}
