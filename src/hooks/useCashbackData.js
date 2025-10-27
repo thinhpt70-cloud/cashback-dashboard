@@ -104,20 +104,21 @@ export default function useCashbackData(isAuthenticated) {
     const liveSummary = useMemo(() => {
         // Wait until monthlySummary is loaded
         if (!monthlySummary || monthlySummary.length === 0) {
-            return { liveSpend: 0, liveCashback: 0 };
+        return { liveSpend: 0, liveCashback: 0 };
         }
 
         // Get the current month in 'YYYYMM' format
         const currentMonth = getCurrentCashbackMonthForCard();
         
-        // --- FIX: Sum totals for ALL cards for the current month ---
+        // --- FIX: Sum totals for ALL cards using the correct properties ---
         let totalSpend = 0;
         let totalCashback = 0;
 
         monthlySummary.forEach(summary => {
             if (summary.month === currentMonth) {
-                totalSpend += summary.totalSpend || 0;
-                totalCashback += summary.totalCashback || 0;
+                // USE 'spend' and 'cashback', NOT 'totalSpend' and 'totalCashback'
+                totalSpend += summary.spend || 0;
+                totalCashback += summary.cashback || 0;
             }
         });
 
