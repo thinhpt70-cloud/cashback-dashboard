@@ -355,7 +355,9 @@ export default function CashbackDashboard() {
         // --- CASE 2: HISTORICAL VIEW ---
         const { totalSpend, totalCashback, effectiveRate } = getMonthStats(activeMonth);
         const prevMonth = getPreviousMonth(activeMonth);
+        console.log('Previous Month:', prevMonth);
         const { totalSpend: prevMonthSpend, totalCashback: prevMonthCashback, effectiveRate: prevMonthRate } = getMonthStats(prevMonth);
+        console.log('Previous Month Stats:', getMonthStats(prevMonth));
 
         return {
             label: fmtYMShort(activeMonth),

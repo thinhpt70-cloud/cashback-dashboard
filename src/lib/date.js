@@ -13,26 +13,22 @@ export function getTodaysMonth(date = new Date()) {
  * @param {string | Date} monthStrOrDate - The month string ('YYYYMM') or Date object to calculate from.
  * @returns {string} - The formatted string for the previous month (e.g., "Sep 2025").
  */
-export function getPreviousMonth(monthStrOrDate) {
-    let date;
-    if (typeof monthStrOrDate === 'string' && monthStrOrDate.length === 6) {
-        const year = parseInt(monthStrOrDate.slice(0, 4), 10);
-        const month = parseInt(monthStrOrDate.slice(4, 6), 10);
-         // Create date for the 1st of the *given* month
-        date = new Date(year, month - 1, 1);
-    } else if (monthStrOrDate instanceof Date) {
-        date = new Date(monthStrOrDate);
-    } else {
-         // Default to previous month from today if input is invalid
-        date = new Date();
-    }
-
-    // Go back one month
-    date.setMonth(date.getMonth() - 1);
-
-    // Format the previous month's date
-    return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
-}
+export const getPreviousMonth = (monthString) => {
+    // Expects "YYYYMM" format
+    if (!monthString || monthString.length !== 6) return null;
+    
+    const year = parseInt(monthString.substring(0, 4), 10);
+    const month = parseInt(monthString.substring(4, 6), 10); // 1-12
+    
+    // new Date(year, month - 2) creates a date for the *previous* month.
+    // (Month is 0-indexed, so 10 (Oct) becomes 9. 9-1 = 8, which is September)
+    const prevMonthDate = new Date(year, month - 2, 1);
+    
+    const prevYear = prevMonthDate.getFullYear();
+    const prevMonth = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
+    
+    return `${prevYear}${prevMonth}`;
+};
 
 /**
  * Gets an array of month strings (YYYYMM) for the past N months, ending at endMonth.
