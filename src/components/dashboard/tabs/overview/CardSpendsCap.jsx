@@ -145,7 +145,7 @@ function SingleCapCard({
                                 {p.isCapReached ? "✓ Maximized" : `${currencyFn(p.monthlyLimit - p.currentCashback)} left`}
                             </span>
                             <span className={cn(
-                                "text-xs text-right font-mono",
+                                "text-xs text-right",
                                 p.isCapReached ? "text-slate-400" : "text-muted-foreground"
                             )}>
                                 {currencyFn(p.currentCashback)} / {currencyFn(p.monthlyLimit)}
