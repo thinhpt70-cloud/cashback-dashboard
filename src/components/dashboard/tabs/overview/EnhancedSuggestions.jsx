@@ -2,14 +2,17 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "../../../ui/card";
 import { Badge } from "../../../ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../../../ui/accordion";
-import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award } from 'lucide-react';
+import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award} from 'lucide-react';
+import { cn } from '../../../../lib/utils'; // Import cn utility
+
+// --- ADDED: Date calculation utilities ---
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '../../../../lib/date';
 
 // --- NEW SUB-COMPONENT: RateStatusBadge ---
 function RateStatusBadge({ suggestion }) {
     if (suggestion.isBoosted) {
         return (
-            <Badge variant="default" className="bg-indigo-600 hover:bg-indigo-700 text-xs">
+            <Badge variant="default" className="bg-indigo-600 hover:bg-indigo-700 text-xs h-5 px-2">
                 ✨ Tier 2 Active
             </Badge>
         );
@@ -17,18 +20,22 @@ function RateStatusBadge({ suggestion }) {
 
     if (suggestion.hasTier2) {
         return (
-            <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 text-xs">
+            <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 text-xs h-5 px-2">
                 Tier 2 Available
             </Badge>
         );
     }
 
-    return <Badge variant="outline" className="text-xs">Standard Rate</Badge>;
+    // --- MODIFIED: Return null for standard rate ---
+    return null; 
 }
 
 // --- NEW SUB-COMPONENT: SuggestionDetails (for Accordion Content) ---
 function SuggestionDetails({ suggestion, currencyFn }) {
     const s = suggestion; // for brevity
+
+    // --- MODIFIED: Improved daysLeft display logic ---
+    const daysLeftDisplay = s.daysLeft === 0 ? "0 days (Cycle ends today)" : `${s.daysLeft} days`;
 
     return (
         <div className="space-y-4">
@@ -68,12 +75,10 @@ function SuggestionDetails({ suggestion, currencyFn }) {
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 rounded-md bg-slate-50 border">
                     <div className="space-y-0.5">
                         <p className="text-xs text-slate-500">Days Left in Cycle</p>
-                        <p className="font-medium text-slate-800">{s.daysLeft} days</p>
+                        {/* --- MODIFIED: Use new display string --- */}
+                        <p className="font-medium text-slate-800">{daysLeftDisplay}</p>
                     </div>
-                    <div className="space-y-0.5">
-                        <p className="text-xs text-slate-500">Cycle Status</p>
-                        <p className="font-medium text-slate-800">{s.cycleStatus}</p>
-                    </div>
+                    {/* --- REMOVED: Redundant Cycle Status --- */}
                     <div className="space-y-0.5">
                         <p className="text-xs text-slate-500">Total Card Spend</p>
                         <p className="font-medium text-slate-800">{currencyFn(s.currentSpend)}</p>
@@ -123,70 +128,15 @@ function SuggestionDetails({ suggestion, currencyFn }) {
                     )}
                 </div>
             </div>
-
-            {/* 4. Original Stats Footer */}
-            <div className="pt-4 border-t border-slate-200 text-xs text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
-                <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
-                <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
-            </div>
+            
+            {/* --- REMOVED: Original Stats Footer --- */}
         </div>
     );
 }
 
 
-// --- UPDATED SUB-COMPONENT: HeroSuggestion ---
-function HeroSuggestion({ suggestion, currencyFn }) {
-    const s = suggestion; // for brevity
-
-    return (
-        <div className="p-4 rounded-lg border-2 border-sky-500 bg-sky-50 shadow-md">
-            {/* Header: Top Pick Badge + Card Name */}
-            <div className="flex items-center justify-between gap-2">
-                <Badge variant="default" className="bg-sky-600 w-fit">
-                    <Award className="h-4 w-4 mr-1.5" />
-                    TOP PICK
-                </Badge>
-                <span className="text-sm font-medium text-slate-600 truncate" title={s.cardName}>{s.cardName}</span>
-            </div>
-
-            {/* Body: Split into two columns */}
-            <div className="mt-3 flex items-start justify-between gap-4">
-                
-                {/* Left Column: Info */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                        {/* --- ADDED: Alert Icons --- */}
-                        {!s.hasMetMinSpend && (
-                            <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0" />
-                        )}
-                        {s.hasBetterChallenger && (
-                             <ArrowUpCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
-                        )}
-                        <h3 className="text-xl font-semibold text-slate-800 break-words truncate" title={s.suggestionFor}>
-                            {s.suggestionFor}
-                        </h3>
-                    </div>
-                    <div className="mt-1.5">
-                        <RateStatusBadge suggestion={s} />
-                    </div>
-                </div>
-
-                {/* Right Column: Rate (smaller font) */}
-                <div className="flex-shrink-0 sm:text-right">
-                     <p className="text-4xl font-bold text-sky-700">
-                        {(s.rate * 100).toFixed(1)}%
-                    </p>
-                </div>
-            </div>
-
-            {/* Footer: Stats (reduced margins) */}
-            <div className="mt-4 pt-3 border-t border-sky-200 text-xs text-slate-600 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-x-4 gap-y-1">
-                <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
-                <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
-            </div>
-        </div>
-    );
-}
+// --- REMOVED: HeroSuggestion component ---
+// This is no longer a separate component and will be built directly in the main return.
 
 
 // --- REFACTORED MAIN COMPONENT ---
@@ -206,7 +156,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
             const categorySummary = monthlyCategorySummary.find(s => s.cardId === rule.cardId && s.month === monthForCard && s.summaryId.endsWith(rule.ruleName));
             
             const currentTotalSpendForCard = cardSummary?.spend || 0;
-            const currentCashbackForCategory = categorySummary?.cashback || 0; // <-- ADDED: Get this value
+            const currentCashbackForCategory = categorySummary?.cashback || 0; 
 
             const isTier2Met = card.cashbackType === '2 Tier' && card.tier2MinSpend > 0 && currentTotalSpendForCard >= card.tier2MinSpend;
             const effectiveRate = isTier2Met && rule.tier2Rate ? rule.tier2Rate : rule.rate;
@@ -226,7 +176,6 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
             
             const categories = rule.category?.length ? rule.category : [rule.ruleName];
 
-            // --- ADDED: Date/Cycle Calculation ---
             const { days, status } = card.useStatementMonthForPayments
                 ? calculateDaysLeftInCashbackMonth(monthForCard)
                 : calculateDaysUntilStatement(card.statementDay, monthForCard);
@@ -246,15 +195,14 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                 tier2Rate: rule.tier2Rate,
                 tier2MinSpend: card.tier2MinSpend || 0,
                 currentSpend: currentTotalSpendForCard,
-                // --- ADDED: New properties for enhanced details ---
-                minimumMonthlySpend: card.minimumMonthlySpend || 0, // <-- Pass min spend
-                currentCategoryCashback: currentCashbackForCategory, // <-- Pass current category CB
-                daysLeft: days,       // <-- Pass days left
-                cycleStatus: status,  // <-- Pass cycle status
-                categoryLimit: rule.categoryLimit || Infinity, // <-- Pass base T1 limit
-                tier2CategoryLimit: rule.tier2CategoryLimit || Infinity, // <-- Pass T2 limit
-                transactionLimit: rule.transactionLimit || 0, // <-- Pass tx limit
-                secondaryTransactionLimit: rule.secondaryTransactionLimit || 0 // <-- Pass 2nd tx limit
+                minimumMonthlySpend: card.minimumMonthlySpend || 0, 
+                currentCategoryCashback: currentCashbackForCategory, 
+                daysLeft: days,       
+                cycleStatus: status,  
+                categoryLimit: rule.categoryLimit || Infinity, 
+                tier2CategoryLimit: rule.tier2CategoryLimit || Infinity, 
+                transactionLimit: rule.transactionLimit || 0, 
+                secondaryTransactionLimit: rule.secondaryTransactionLimit || 0 
             }));
         }).filter(Boolean);
 
@@ -280,12 +228,11 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
 
             if (finalChoice) {
                 let hasBetterChallenger = false;
-                let challengerDetails = null; // <-- ADDED: Challenger details object
+                let challengerDetails = null; 
 
                 if (finalChoice.hasMetMinSpend && bestUnqualified) {
                     if (bestUnqualified.rate > finalChoice.rate || (bestUnqualified.rate === finalChoice.rate && bestUnqualified.remainingCategoryCap > finalChoice.remainingCategoryCap)) {
                         hasBetterChallenger = true;
-                        // --- ADDED: Store the challenger's details ---
                         challengerDetails = {
                             cardName: bestUnqualified.cardName,
                             rate: bestUnqualified.rate,
@@ -294,7 +241,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                         };
                     }
                 }
-                finalChoice = { ...finalChoice, hasBetterChallenger, challengerDetails }; // <-- Pass details
+                finalChoice = { ...finalChoice, hasBetterChallenger, challengerDetails }; 
             }
             return finalChoice;
         }).filter(Boolean);
@@ -312,7 +259,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
     const otherSuggestions = suggestions.slice(1);
 
     return (
-        <Card className="flex flex-col h-full max-h-[1000px]">
+        <Card className="flex flex-col h-full max-h-[800px]">
             <CardHeader>
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                     <Lightbulb className="h-5 w-5 text-sky-500" />
@@ -332,11 +279,72 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
 
                 {/* Scenarios 2 & 3: At least one suggestion exists */}
                 {suggestions.length > 0 && (
-                    <div className="space-y-3 flex flex-col flex-1 min-h-0">
-                        <HeroSuggestion 
-                            suggestion={topSuggestion} 
-                            currencyFn={currencyFn} 
-                        />
+                    // --- MODIFIED: Added min-h-0 here ---
+                    <div className="space-y-3 flex flex-col flex-1 min-h-0"> 
+                        
+                        {/* --- MODIFIED: Top Pick is now an Accordion --- */}
+                        <Accordion type="single" collapsible className="w-full">
+                            <AccordionItem 
+                                value="top-pick"
+                                className="border-2 border-sky-500 bg-sky-50 shadow-md rounded-lg overflow-hidden"
+                            >
+                                <AccordionTrigger className="p-4 hover:no-underline hover:bg-sky-100/50 data-[state=open]:border-b border-sky-200">
+                                    <div className="w-full space-y-3">
+                                        {/* Header: Top Pick Badge + Card Name */}
+                                        <div className="flex items-center justify-between gap-2">
+                                            <Badge variant="default" className="bg-sky-600 w-fit">
+                                                <Award className="h-4 w-4 mr-1.5" />
+                                                TOP PICK
+                                            </Badge>
+                                            <span className="text-sm font-medium text-slate-600 truncate" title={topSuggestion.cardName}>{topSuggestion.cardName}</span>
+                                        </div>
+
+                                        {/* Body: Split into two columns */}
+                                        <div className="flex items-start justify-between gap-4">
+                                            {/* Left Column: Info */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5">
+                                                    {!topSuggestion.hasMetMinSpend && (
+                                                        <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                                                    )}
+                                                    {topSuggestion.hasBetterChallenger && (
+                                                        <ArrowUpCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                                                    )}
+                                                    <h3 className="text-xl font-semibold text-slate-800 break-words truncate" title={topSuggestion.suggestionFor}>
+                                                        {topSuggestion.suggestionFor}
+                                                    </h3>
+                                                </div>
+                                                <div className="mt-1.5 flex gap-2 items-center">
+                                                    {/* Badge only shows for special cases */}
+                                                    {(topSuggestion.isBoosted || topSuggestion.hasTier2) && (
+                                                        <RateStatusBadge suggestion={topSuggestion} />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {/* Right Column: Rate */}
+                                            <div className="flex-shrink-0 sm:text-right">
+                                                <p className="text-4xl font-bold text-sky-700">
+                                                    {(topSuggestion.rate * 100).toFixed(1)}%
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* Footer: Stats */}
+                                        <div className="pt-3 border-t border-sky-200 text-xs text-slate-600 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-x-4 gap-y-1">
+                                            <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700">{topSuggestion.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(topSuggestion.remainingCategoryCap)}</span><span>left</span></span>
+                                            <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800">{topSuggestion.spendingNeeded === Infinity ? 'N/A' : currencyFn(topSuggestion.spendingNeeded)}</span></span>
+                                        </div>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="p-4 pt-3 bg-white">
+                                    <SuggestionDetails 
+                                        suggestion={topSuggestion}
+                                        currencyFn={currencyFn}
+                                    />
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                        
 
                         {/* Scenario 3: More than one suggestion */}
                         {otherSuggestions.length > 0 && (
@@ -355,12 +363,12 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                 className="rounded-lg border bg-white shadow-sm overflow-hidden" // Item is styled as a card
                                             >
                                                 <AccordionTrigger className="p-3 hover:no-underline hover:bg-slate-50 w-full text-left data-[state=open]:border-b border-slate-200">
-                                                    {/* Content from old RunnerUpItem (top half) */}
-                                                    <div className="w-full">
+                                                    <div className="w-full space-y-2">
+                                                        {/* --- MODIFIED: Main Info Row --- */}
                                                         <div className="flex justify-between items-center gap-3">
+                                                            {/* Left side: Rank, Icons, Category, Badge */}
                                                             <div className="flex items-center gap-2 flex-1 min-w-0">
                                                                 <span className="text-sm font-semibold text-sky-600">#{index + 2}</span>
-                                                                {/* --- ADDED: Alert Icons --- */}
                                                                 {!s.hasMetMinSpend && (
                                                                     <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
                                                                 )}
@@ -368,7 +376,12 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                                     <ArrowUpCircle className="h-4 w-4 text-blue-500 flex-shrink-0" />
                                                                 )}
                                                                 <p className="font-medium text-slate-800 truncate" title={s.suggestionFor}>{s.suggestionFor}</p>
+                                                                {/* --- MODIFIED: Badge is here, and conditional --- */}
+                                                                {(s.isBoosted || s.hasTier2) && (
+                                                                    <RateStatusBadge suggestion={s} />
+                                                                )}
                                                             </div>
+                                                            {/* Right side: Card Name, Rate */}
                                                             <div className="flex items-center gap-2 flex-shrink-0">
                                                                 <span className="text-xs text-slate-500 hidden sm:block">{s.cardName}</span>
                                                                 <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200">
@@ -376,18 +389,17 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                                 </Badge>
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-xs text-slate-500 sm:hidden ml-7 -mt-1 block">{s.cardName}</span>
-                                                            {/* --- REPLACED: Added RateStatusBadge --- */}
-                                                            <div className="ml-7 mt-1">
-                                                                <RateStatusBadge suggestion={s} />
-                                                            </div>
+                                                        <span className="text-xs text-slate-500 sm:hidden ml-7 -mt-1 block">{s.cardName}</span>
+
+                                                        {/* --- MOVED: Stats Footer is now in the trigger --- */}
+                                                        <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
+                                                            <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
+                                                            <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
                                                         </div>
                                                     </div>
                                                 </AccordionTrigger>
                                                 
                                                 <AccordionContent className="p-4 pt-3 bg-white">
-                                                    {/* --- REPLACED: Old content with new details component --- */}
                                                     <SuggestionDetails 
                                                         suggestion={s}
                                                         currencyFn={currencyFn}
