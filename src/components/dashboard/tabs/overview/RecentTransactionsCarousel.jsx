@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../ui/card';
-import { Button } from '../../../ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '../../../ui/card'; // Adjusted path
+import { Button } from '../../../ui/button'; // Adjusted path
 import { Badge } from '../../../ui/badge';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -54,6 +54,7 @@ export default function RecentTransactionsCarousel({ transactions, cardMap, curr
                 <div 
                     ref={scrollContainerRef} 
                     className="flex gap-4 overflow-x-auto pb-4 scroll-smooth"
+                    // THIS IS THE CORRECTED STYLE OBJECT
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                     {transactions.map(tx => {

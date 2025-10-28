@@ -694,9 +694,10 @@ export default function CashbackDashboard() {
                                     getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
                                 />
                             </div>
-                            
-                            {/* RIGHT COLUMN */}
-                            <div className="lg:col-span-5 flex flex-col">
+
+                            {/* --- RIGHT COLUMN (REVISED LAYOUT) --- */}
+                            <div className="lg:col-span-5 flex flex-col gap-4">
+                                {/* EnhancedSuggestions is first, with a max-height on desktop */}
                                 <EnhancedSuggestions
                                     rules={rules}
                                     cards={cards}
@@ -705,7 +706,10 @@ export default function CashbackDashboard() {
                                     activeMonth={activeMonth}
                                     currencyFn={currency}
                                     getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                    className="lg:max-h-[800px]"
                                 />
+                                
+                                {/* RecentTransactions is second, and will fill remaining space */}
                                 <RecentTransactions 
                                     transactions={recentTransactions}
                                     cardMap={cardMap}

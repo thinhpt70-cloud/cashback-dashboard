@@ -4,37 +4,60 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../ui/card';
 import { Button } from '../../../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../../ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react';
-import { subWeeks, subMonths, startOfDay, isAfter, parseISO, format } from 'date-fns';
+// --- UPDATED IMPORT ---
+import { ChevronDown, History } from 'lucide-react';
+import { 
+    subWeeks, 
+    startOfDay, 
+    parseISO, 
+    format, 
+    startOfWeek, 
+    endOfWeek, 
+    startOfMonth, 
+    endOfMonth, 
+    isWithinInterval 
+} from 'date-fns';
 
 export default function RecentTransactions({ transactions, cardMap, currencyFn }) {
-    const [activityFilter, setActivityFilter] = useState('week'); // 'week', '2week', 'month'
+    const [activityFilter, setActivityFilter] = useState('thisWeek'); // 'thisWeek', 'lastWeek', 'thisMonth'
 
     const filterLabels = {
-        week: 'This Week',
-        '2week': 'Last 2 Weeks',
-        month: 'This Month',
+        thisWeek: 'This Week',
+        lastWeek: 'Last Week',
+        thisMonth: 'This Month',
     };
 
     const filteredTransactions = useMemo(() => {
-        const now = startOfDay(new Date());
-        let startDate;
+        const today = startOfDay(new Date());
+        let interval;
 
-        if (activityFilter === 'week') {
-            startDate = subWeeks(now, 1);
-        } else if (activityFilter === '2week') {
-            startDate = subWeeks(now, 2);
-        } else if (activityFilter === 'month') {
-            startDate = subMonths(now, 1);
+        if (activityFilter === 'thisWeek') {
+            interval = {
+                start: startOfWeek(today),
+                end: endOfWeek(today)
+            };
+        } else if (activityFilter === 'lastWeek') {
+            const lastWeekDay = subWeeks(today, 1);
+            interval = {
+                start: startOfWeek(lastWeekDay),
+                end: endOfWeek(lastWeekDay)
+            };
+        } else if (activityFilter === 'thisMonth') {
+            interval = {
+                start: startOfMonth(today),
+                end: endOfMonth(today)
+            };
         } else {
             return transactions; // Fallback
         }
 
+        // Filter transactions that are within the calculated interval
         return transactions.filter(tx => {
             try {
                 const txDate = parseISO(tx['Transaction Date']);
-                return isAfter(txDate, startDate);
+                return isWithinInterval(txDate, interval);
             } catch (e) {
+                console.error("Error parsing date:", tx['Transaction Date']);
                 return false;
             }
         });
@@ -52,9 +75,15 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
     if (!transactions) return null;
 
     return (
-        <Card className="flex flex-col lg:h-full">
+        // Card fills remaining vertical space on desktop (lg:flex-1)
+        // min-h-0 is required for flex children to shrink properly
+        <Card className="flex flex-col lg:flex-1 lg:min-h-0">
             <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Recent Activity</CardTitle>
+                {/* --- UPDATED CARD TITLE --- */}
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Recent Activity
+                </CardTitle>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm" className="ml-auto gap-1">
@@ -63,18 +92,19 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setActivityFilter('week')}>
+                        <DropdownMenuItem onSelect={() => setActivityFilter('thisWeek')}>
                             This Week
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setActivityFilter('2week')}>
-                            Last 2 Weeks
+                        <DropdownMenuItem onSelect={() => setActivityFilter('lastWeek')}>
+                            Last Week
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setActivityFilter('month')}>
+                        <DropdownMenuItem onSelect={() => setActivityFilter('thisMonth')}>
                             This Month
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </CardHeader>
+            {/* CardContent fills the card (flex-1) and scrolls on desktop */}
             <CardContent className="flex-1 lg:overflow-y-auto p-4">
                 {/* List Headers */}
                 <div className="flex items-center text-sm font-medium text-slate-500 mb-2 px-2">
