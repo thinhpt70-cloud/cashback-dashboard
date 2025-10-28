@@ -212,7 +212,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
 
                 {/* Scenarios 2 & 3: At least one suggestion exists */}
                 {suggestions.length > 0 && (
-                    <div className="space-y-3 flex flex-col flex-1">
+                    <div className="space-y-3 flex flex-col flex-1 min-h-0">
                         <HeroSuggestion 
                             suggestion={topSuggestion} 
                             currencyFn={currencyFn} 
