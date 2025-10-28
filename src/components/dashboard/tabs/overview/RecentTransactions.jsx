@@ -76,7 +76,7 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
     return (
         <Card className="flex flex-col lg:flex-1 lg:min-h-0">
             <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>
+                <CardTitle className="flex items-center gap-2">
                     <History className="h-5 w-5" />
                     Recent Activity
                 </CardTitle>

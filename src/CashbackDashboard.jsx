@@ -650,9 +650,9 @@ export default function CashbackDashboard() {
                     <TabsContent value="overview" className="space-y-4 pt-4">
                         
                         {/* --- 1. UNIFIED DYNAMIC COMPONENTS --- */}
-                        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-12">
+                        <div className="flex flex-col lg:flex-row gap-4">
                             {/* LEFT COLUMN */}
-                            <div className="lg:col-span-7 flex flex-col gap-4">
+                            <div className="lg:w-7/12 flex flex-col gap-4">
                                 {/* --- STATCARD GRID --- */}
                                 <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
                                     <StatCard
@@ -696,7 +696,7 @@ export default function CashbackDashboard() {
                             </div>
 
                             {/* --- RIGHT COLUMN (REVISED LAYOUT) --- */}
-                            <div className="lg:col-span-5 flex flex-col gap-4">
+                            <div className="lg:w-5/12 flex flex-col gap-4">
                                 {/* EnhancedSuggestions is first, with a max-height on desktop */}
                                 <EnhancedSuggestions
                                     rules={rules}
