@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "../../../ui/card";
 import { Badge } from "../../../ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../../../ui/accordion";
-import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award} from 'lucide-react';
+import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award } from 'lucide-react';
+import { cn } from '../../../../lib/utils'; // Import cn utility
 
 // --- ADDED: Date calculation utilities ---
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '../../../../lib/date';
@@ -34,7 +35,17 @@ function SuggestionDetails({ suggestion, currencyFn }) {
     const s = suggestion; // for brevity
 
     // --- MODIFIED: Improved daysLeft display logic ---
-    const daysLeftDisplay = s.daysLeft === 0 ? "0 days (Cycle ends today)" : `${s.daysLeft} days`;
+    let daysLeftDisplay;
+    let daysLeftColor = "text-slate-800"; // Default color
+
+    if (s.daysLeft === null) {
+        daysLeftDisplay = "Completed";
+        daysLeftColor = "text-emerald-600"; // Green color as requested
+    } else if (s.daysLeft === 0) {
+        daysLeftDisplay = "0 days (Cycle ends today)";
+    } else {
+        daysLeftDisplay = s.daysLeft === 1 ? `${s.daysLeft} day` : `${s.daysLeft} days`; // Handle plural
+    }
 
     return (
         <div className="space-y-4">
@@ -74,10 +85,16 @@ function SuggestionDetails({ suggestion, currencyFn }) {
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 rounded-md bg-slate-50 border">
                     <div className="space-y-0.5">
                         <p className="text-xs text-slate-500">Days Left in Cycle</p>
-                        {/* --- MODIFIED: Use new display string --- */}
-                        <p className="font-medium text-slate-800">{daysLeftDisplay}</p>
+                        {/* --- MODIFIED: Use new display string and color class --- */}
+                        <p className={cn("font-medium", daysLeftColor)}>{daysLeftDisplay}</p>
                     </div>
-                    {/* --- REMOVED: Redundant Cycle Status --- */}
+                    {/* --- RE-ADDED: Cycle Status, but only if not 'Completed' --- */}
+                    {s.cycleStatus !== 'Completed' && s.daysLeft !== null && (
+                        <div className="space-y-0.5">
+                            <p className="text-xs text-slate-500">Cycle Status</p>
+                            <p className="font-medium text-slate-800">{s.cycleStatus}</p>
+                        </div>
+                    )}
                     <div className="space-y-0.5">
                         <p className="text-xs text-slate-500">Total Card Spend</p>
                         <p className="font-medium text-slate-800">{currencyFn(s.currentSpend)}</p>
@@ -258,7 +275,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
     const otherSuggestions = suggestions.slice(1);
 
     return (
-        <Card className="flex flex-col h-full max-h-[800px]">
+        <Card className="flex flex-col h-full max-h-[600px]">
             <CardHeader>
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                     <Lightbulb className="h-5 w-5 text-sky-500" />
