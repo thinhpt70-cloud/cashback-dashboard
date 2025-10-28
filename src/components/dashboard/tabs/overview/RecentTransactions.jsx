@@ -4,7 +4,6 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../ui/card';
 import { Button } from '../../../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../../ui/dropdown-menu';
-// --- UPDATED IMPORT ---
 import { ChevronDown, History } from 'lucide-react';
 import { 
     subWeeks, 
@@ -75,12 +74,9 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
     if (!transactions) return null;
 
     return (
-        // Card fills remaining vertical space on desktop (lg:flex-1)
-        // min-h-0 is required for flex children to shrink properly
         <Card className="flex flex-col lg:flex-1 lg:min-h-0">
             <CardHeader className="flex flex-row items-center justify-between">
-                {/* --- UPDATED CARD TITLE --- */}
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <CardTitle>
                     <History className="h-5 w-5" />
                     Recent Activity
                 </CardTitle>
@@ -104,24 +100,29 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
                     </DropdownMenuContent>
                 </DropdownMenu>
             </CardHeader>
-            {/* CardContent fills the card (flex-1) and scrolls on desktop */}
-            <CardContent className="flex-1 lg:overflow-y-auto p-4">
+            
+            {/* --- FIX ---
+                1. CardContent is now a flex container that can shrink (lg:min-h-0).
+            */}
+            <CardContent className="flex-1 flex flex-col lg:min-h-0 p-4">
                 {/* List Headers */}
-                <div className="flex items-center text-sm font-medium text-slate-500 mb-2 px-2">
+                <div className="flex items-center text-sm font-medium text-slate-500 mb-2 px-2 flex-shrink-0">
                     <div className="flex-1 min-w-0">Name</div>
                     <div className="w-28 text-left px-2 flex-shrink-0">Date</div>
                     <div className="w-28 text-right flex-shrink-0">Amount</div>
                 </div>
 
-                {/* List Container */}
-                <div className="space-y-2">
+                {/* --- FIX ---
+                    2. The list container now fills the remaining space (lg:flex-1) and scrolls.
+                */}
+                <div className="space-y-2 lg:flex-1 lg:overflow-y-auto">
                     {filteredTransactions.length === 0 ? (
                         <div className="text-center text-sm text-slate-500 py-8">
                             No activity for this period.
                         </div>
                     ) : (
                         filteredTransactions.map(tx => {
-                            const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
+                            const card = tx['Card'] ? cardMap.get(tx['Card_DB_ID_HIDDEN']) [0] : null;
                             const cardName = card ? card.name : 'Unknown Card';
                             return (
                                 <div key={tx.id} className="flex items-center p-2 rounded-md hover:bg-slate-50">
