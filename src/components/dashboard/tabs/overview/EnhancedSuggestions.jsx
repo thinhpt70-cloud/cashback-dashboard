@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "../../../ui/card";
 import { Badge } from "../../../ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../../../ui/accordion";
-import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award, CalendarClock, Info } from 'lucide-react';
+import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award } from 'lucide-react';
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '../../../../lib/date';
 
 // --- NEW SUB-COMPONENT: RateStatusBadge ---
@@ -312,7 +312,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
     const otherSuggestions = suggestions.slice(1);
 
     return (
-        <Card className="flex flex-col h-full max-h-[600px]">
+        <Card className="flex flex-col h-full max-h-[1000px]">
             <CardHeader>
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                     <Lightbulb className="h-5 w-5 text-sky-500" />
