@@ -39,7 +39,7 @@ import CardSpendsCap from "./components/dashboard/tabs/overview/CardSpendsCap";
 import EnhancedSuggestions from "./components/dashboard/tabs/overview/EnhancedSuggestions";
 import SpendByCardChart from "./components/dashboard/tabs/overview/SpendByCardChart";
 import CardPerformanceLineChart from "./components/dashboard/tabs/overview/CardPerformanceLineChart";
-import RecentTransactionsCarousel from './components/dashboard/tabs/overview/RecentTransactionsCarousel';
+import RecentTransactions from './components/dashboard/tabs/overview/RecentTransactions';
 
 // Import transactions tab components
 import TransactionReviewCenter from './components/dashboard/tabs/transactions/TransactionReviewCenter';
@@ -706,15 +706,15 @@ export default function CashbackDashboard() {
                                     currencyFn={currency}
                                     getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
                                 />
+                                <RecentTransactions 
+                                    transactions={recentTransactions}
+                                    cardMap={cardMap}
+                                    currencyFn={currency}
+                                />
                             </div>
                         </div>
 
                         {/* --- 3. UNIFIED CONTEXTUAL COMPONENTS --- */}
-                        <RecentTransactionsCarousel 
-                            transactions={recentTransactions}
-                            cardMap={cardMap}
-                            currencyFn={currency}
-                        />
 
                         <div className="grid gap-4">
                             <Card className="flex flex-col min-h-[300px]">
