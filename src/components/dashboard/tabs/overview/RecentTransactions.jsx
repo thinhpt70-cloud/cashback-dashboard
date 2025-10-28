@@ -3,7 +3,6 @@
 import React, { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../ui/card';
 import { Button } from '../../../ui/button';
-import { Badge } from '../../../ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../../ui/dropdown-menu';
 import { ChevronDown } from 'lucide-react';
 import { subWeeks, subMonths, startOfDay, isAfter, parseISO, format } from 'date-fns';
