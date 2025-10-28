@@ -32,7 +32,7 @@ function RateInfoText({ suggestion, currencyFn }) {
 
     return (
         <p className="text-sm text-slate-600">
-            Standard cashback rate.
+            Standard cashback rate
         </p>
     );
 }
@@ -200,7 +200,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                 </CardTitle>
             </CardHeader>
             
-            <CardContent className="flex-1 flex flex-col">
+            <CardContent className="flex-1 flex flex-col min-h-0">
                 {/* Scenario 1: No suggestions (Unchanged) */}
                 {suggestions.length === 0 && (
                     <div className="flex flex-col items-center justify-center text-center p-4 rounded-lg bg-emerald-50 h-full min-h-[200px]">
