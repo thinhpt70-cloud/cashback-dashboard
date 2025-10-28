@@ -122,7 +122,7 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
                         </div>
                     ) : (
                         filteredTransactions.map(tx => {
-                            const card = tx['Card'] ? cardMap.get(tx['Card_DB_ID_HIDDEN']) [0] : null;
+                            const card = tx['Card'] ? cardMap.get(tx['Card_DB_ID_HIDDEN'])[0] : null;
                             const cardName = card ? card.name : 'Unknown Card';
                             return (
                                 <div key={tx.id} className="flex items-center p-2 rounded-md hover:bg-slate-50">
