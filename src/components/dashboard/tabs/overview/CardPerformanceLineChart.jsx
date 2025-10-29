@@ -1,121 +1,178 @@
-// src/components/dashboard/tabs/overview/SpendByCardChart.jsx
-
-import React, { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
+import React, { useState } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '../../../ui/card';
+import { Button } from '../../../ui/button';
+import { cn } from '../../../../lib/utils';
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell, // We still use Cell to color each bar
+  LineChart,
+  Line,
+  CartesianGrid,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip as RechartsTooltip,
 } from 'recharts';
 
-/**
- * NEW: Custom Tooltip (dark theme)
- * This is self-contained and uses the currencyFn prop.
- */
-const CustomTooltip = ({ active, payload, label, currencyFn }) => {
+// Co-locating the custom tooltip component here is a good practice.
+function CustomLineChartTooltip({ active, payload, label, currencyFn, cards }) {
   if (active && payload?.length) {
+    // Group payload items by card name
+    const dataByCard = payload.reduce((acc, entry) => {
+      const cardName = cards.find((c) => entry.dataKey.startsWith(c.name))?.name;
+      if (!cardName) return acc;
+
+      const type = entry.dataKey.includes('Spend') ? 'spend' : 'cashback';
+
+      if (!acc[cardName]) {
+        acc[cardName] = { color: entry.stroke, name: cardName };
+      }
+      acc[cardName][type] = entry.value;
+
+      return acc;
+    }, {});
+
     return (
-      <div className="rounded-lg bg-gray-900 p-3 text-sm shadow-xl transition-all">
-        <p className="font-bold text-white mb-1">{label}</p>
-        <p className="text-white flex justify-between items-center gap-4">
-          <span>Spend:</span>
-          {/* Use the bar's color in the tooltip */}
-          <span className="font-bold" style={{ color: payload[0].fill }}>
-            {currencyFn(payload[0].value)}
-          </span>
-        </p>
+      <div className="rounded-lg border bg-white/90 backdrop-blur-sm p-3 text-xs shadow-lg">
+        <p className="font-bold mb-2 text-sm">{label}</p>
+        <div className="space-y-2">
+          {Object.values(dataByCard).map((cardData) => (
+            <div key={cardData.name}>
+              <p className="font-semibold" style={{ color: cardData.color }}>
+                {cardData.name}
+              </p>
+              <div className="grid grid-cols-[1fr_auto] gap-x-4">
+                <span className="text-muted-foreground">Spend:</span>
+                <span className="font-medium text-right">{currencyFn(cardData.spend)}</span>
+                <span className="text-muted-foreground">Cashback:</span>
+                <span className="font-medium text-right">{currencyFn(cardData.cashback)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
   return null;
-};
+}
 
-export default function SpendByCardChart({ spendData, currencyFn, cardColorMap }) {
-  
-  // Sort data from highest to lowest spend for better readability
-  const sortedData = useMemo(() => {
-    // FIX: Check if spendData is an array. If not, use an empty array.
-    if (!Array.isArray(spendData)) {
-      return [];
-    }
-    // If it is an array, proceed as normal
-    return [...spendData].sort((a, b) => b.value - a.value);
-  }, [spendData]);
+// This is the main component for this file.
+export default function CardPerformanceLineChart({ data, cards, currencyFn, cardColorMap }) {
+  const [view, setView] = useState('All');
 
-  // We'll set a min-height for the container to give the bars room
-  // 40px per bar + 50px for chrome = a good starting point
-  const chartHeight = Math.max(250, sortedData.length * 40 + 50);
+  const SquareDot = (props) => {
+    const { cx, cy, stroke, value } = props;
+    const size = 7;
+    if (value === null || value === undefined) return null;
+    return <rect x={cx - size / 2} y={cy - size / 2} width={size} height={size} fill={stroke} />;
+  };
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Spending by Card</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {/* Set a dynamic height based on the number of cards */}
-        <ResponsiveContainer width="100%" height={chartHeight}>
-          <BarChart
-            data={sortedData}
-            layout="vertical" // This makes it a horizontal bar chart
-            margin={{
-              top: 5,
-              right: 30,  // Margin for value labels
-              left: 30,   // Increased margin for card names
-              bottom: 5,
-            }}
+      <CardHeader className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle>Card Performance Trend</CardTitle>
+        <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
+          <Button
+            onClick={() => setView('All')}
+            variant="ghost"
+            size="sm"
+            className={cn('h-7 px-3', view === 'All' && 'bg-white text-primary shadow-sm hover:bg-white')}
           >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              horizontal={false} // We want vertical grid lines
-              stroke="#e5e7eb"
-            />
-            <XAxis
-              type="number"
-              stroke="#64748b"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
-              // Format ticks as millions (e.g., "5M")
-              tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`}
-            />
+            All
+          </Button>
+          <Button
+            onClick={() => setView('Spending')}
+            variant="ghost"
+            size="sm"
+            className={cn('h-7 px-3', view === 'Spending' && 'bg-white text-primary shadow-sm hover:bg-white')}
+          >
+            Spending
+          </Button>
+          <Button
+            onClick={() => setView('Cashback')}
+            variant="ghost"
+            size="sm"
+            className={cn('h-7 px-3', view === 'Cashback' && 'bg-white text-primary shadow-sm hover:bg-white')}
+          >
+            Cashback
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="pl-2">
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
             <YAxis
-              type="category"
-              dataKey="name" // The card name
-              stroke="#64748b"
+              yAxisId="left"
+              domain={[0, 'auto']}
+              stroke="#888888"
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              width={120} // Give ample space for long card names
-              dx={-5}
-              // Truncate long labels if needed (optional)
-              // tickFormatter={(label) => label.length > 15 ? `${label.substring(0, 15)}...` : label}
+              tickFormatter={
+                view === 'Cashback'
+                  ? (v) => `${(v / 1000).toFixed(0)}k`
+                  : (v) => `${(v / 1000000).toFixed(0)}M`
+              }
             />
-            <RechartsTooltip
-              // Pass currencyFn to the custom tooltip
-              content={<CustomTooltip currencyFn={currencyFn} />}
-              cursor={{ fill: 'transparent' }} // Hide the hover background
-            />
-            {/* The Legend is removed as the Y-Axis labels serve this purpose */}
-            <Bar
-              dataKey="value"
-              radius={[0, 4, 4, 0]} // Rounded end for the bars
-              barSize={20} // Set a consistent bar thickness
-            >
-              {/* Map colors to each bar using Cell */}
-              {sortedData.map((entry) => (
-                <Cell
-                  key={`cell-${entry.name}`}
-                  fill={cardColorMap.get(entry.name) || '#cccccc'}
-                />
-              ))}
-            </Bar>
-          </BarChart>
+            {view === 'All' && (
+              <YAxis
+                yAxisId="right"
+                domain={[0, 'auto']}
+                orientation="right"
+                stroke="#888888"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+              />
+            )}
+            <RechartsTooltip content={<CustomLineChartTooltip currencyFn={currencyFn} cards={cards} />} />
+
+            {cards.map((card) => {
+              const cardColor = cardColorMap.get(card.name) || '#cccccc';
+              return (
+                <React.Fragment key={card.id}>
+                  {(view === 'All' || view === 'Spending') && (
+                    <Line
+                      type="linear"
+                      connectNulls
+                      dataKey={`${card.name} Spend`}
+                      stroke={cardColor}
+                      strokeWidth={2}
+                      yAxisId="left"
+                      activeDot={{ r: 6 }}
+                      dot={{ r: 4 }}
+                    />
+                  )}
+                  {(view === 'All' || view === 'Cashback') && (
+                    <Line
+                      type="linear"
+                      connectNulls
+                      dataKey={`${card.name} Cashback`}
+                      stroke={cardColor}
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      yAxisId={view === 'All' ? 'right' : 'left'}
+                      activeDot={{ r: 6 }}
+                      dot={<SquareDot />}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </LineChart>
         </ResponsiveContainer>
+        <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs">
+          {cards.map((card) => (
+            <div key={card.id} className="flex items-center gap-1.5">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: cardColorMap.get(card.name) || '#cccccc' }}
+              />
+              <span>{card.name}</span>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

@@ -118,16 +118,20 @@ export default function SpendVsCashbackTrendChart({ data }) {
                     </DropdownMenuContent>
                 </DropdownMenu>
             </CardHeader>
-            {/* Alignment fix: removed pl-2 */}
-            <CardContent className="flex-grow">
+            <CardContent className="pl-2 flex-grow">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} 
+                        // --- THIS IS THE CHANGE ---
+                        // Set a fixed margin that works for all views.
+                        // This reserves space for the right Y-axis even when hidden,
+                        // preventing the chart from jumping.
                         margin={{ 
                             top: 5, 
-                            right: 40,
-                            left: 0, // Alignment fix: changed from -15
+                            right: 40, // Fixed right margin for 'all' view's axis
+                            left: -15,  // Fixed left margin for all views
                             bottom: 5 
                         }}
+                        // --- END OF CHANGE ---
                     >
                         
                         <defs>
@@ -159,7 +163,7 @@ export default function SpendVsCashbackTrendChart({ data }) {
                             dy={5}
                         />
                         
-                        {/* 1. Left Y-Axis (Currency) */}
+                        {/* 1. Left Y-Axis (Currency) - Shows for 'all', 'spend', 'cashback' */}
                         {(!isRateViewOnly) && (
                             <YAxis 
                                 yAxisId="left"
@@ -168,11 +172,11 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 tickLine={false} 
                                 axisLine={false} 
                                 tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} 
-                                // Alignment fix: removed dx={-5}
+                                dx={-5}
                             />
                         )}
                         
-                        {/* 2. Left Y-Axis (Percentage) */}
+                        {/* 2. Left Y-Axis (Percentage) - Shows ONLY for 'rate' */}
                         {(isRateViewOnly) && (
                             <YAxis 
                                 yAxisId="left"
@@ -181,12 +185,12 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 tickLine={false} 
                                 axisLine={false} 
                                 tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} 
+                                dx={-5}
                                 domain={[0, 'auto']}
-                                // Alignment fix: removed dx={-5}
                             />
                         )}
 
-                        {/* 3. Right Y-Axis (Percentage) - Renders for 'all' view */}
+                        {/* 3. Right Y-Axis (Percentage) - Shows ONLY for 'all' */}
                         {(isAllView) && (
                             <YAxis 
                                 yAxisId="right"
@@ -217,7 +221,6 @@ export default function SpendVsCashbackTrendChart({ data }) {
                             )}
                         />
                         
-                        {/* --- Spend Area --- */}
                         {(isAllView || chartView === 'spend') && (
                             <Area 
                                 type="monotone"
@@ -229,10 +232,8 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 dot={{ r: 3, fill: '#f59e0b' }}
                                 activeDot={{ r: 6, stroke: '#f59e0b', fill: '#fff', strokeWidth: 2 }}
                                 yAxisId="left"
-                                animationDuration={300} // Animation
                             />
                         )}
-                        {/* --- Cashback Area --- */}
                         {(isAllView || chartView === 'cashback') && (
                             <Area 
                                 type="monotone"
@@ -244,11 +245,9 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 dot={{ r: 3, fill: '#3b82f6' }}
                                 activeDot={{ r: 6, stroke: '#3b82f6', fill: '#fff', strokeWidth: 2 }}
                                 yAxisId="left"
-                                animationDuration={300} // Animation
                             />
                         )}
                         
-                        {/* --- Effective Rate Area (Rate view ONLY) --- */}
                         {isRateViewOnly && (
                             <Area 
                                 type="monotone"
@@ -261,11 +260,9 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 dot={{ r: 3, fill: '#10b981' }}
                                 activeDot={{ r: 6, stroke: '#10b981', fill: '#fff', strokeWidth: 2 }}
                                 yAxisId="left"
-                                animationDuration={300} // Animation
                             />
                         )}
                         
-                        {/* --- Effective Rate Line (All view ONLY) --- */}
                         {isAllView && (
                             <Line 
                                 type="monotone"
@@ -276,7 +273,6 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 dot={{ r: 3, fill: '#10b981' }}
                                 activeDot={{ r: 6, stroke: '#10b981', fill: '#fff', strokeWidth: 2 }}
                                 yAxisId="right"
-                                animationDuration={300} // Animation
                             />
                         )}
                     </AreaChart>
