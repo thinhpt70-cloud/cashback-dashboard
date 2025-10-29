@@ -99,8 +99,7 @@ export default function SpendVsCashbackTrendChart({ data }) {
     return (
         <Card className="flex flex-col min-h-[350px]">
             <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Spend vs Cashback Trend</CardTitle>
-                
+                <CardTitle>Cashflow Trend</CardTitle>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-[160px] justify-between">
@@ -118,20 +117,15 @@ export default function SpendVsCashbackTrendChart({ data }) {
                     </DropdownMenuContent>
                 </DropdownMenu>
             </CardHeader>
-            <CardContent className="pl-2 flex-grow">
+            <CardContent className="flex-grow">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} 
-                        // --- THIS IS THE CHANGE ---
-                        // Set a fixed margin that works for all views.
-                        // This reserves space for the right Y-axis even when hidden,
-                        // preventing the chart from jumping.
                         margin={{ 
                             top: 5, 
-                            right: 40, // Fixed right margin for 'all' view's axis
-                            left: -15,  // Fixed left margin for all views
+                            right: 40,
+                            left: 0,
                             bottom: 5 
                         }}
-                        // --- END OF CHANGE ---
                     >
                         
                         <defs>
@@ -172,7 +166,6 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 tickLine={false} 
                                 axisLine={false} 
                                 tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} 
-                                dx={-5}
                             />
                         )}
                         
@@ -185,7 +178,6 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 tickLine={false} 
                                 axisLine={false} 
                                 tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} 
-                                dx={-5}
                                 domain={[0, 'auto']}
                             />
                         )}

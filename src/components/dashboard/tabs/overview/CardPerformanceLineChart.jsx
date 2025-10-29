@@ -39,6 +39,11 @@ export default function SpendByCardChart({ spendData, currencyFn, cardColorMap }
   
   // Sort data from highest to lowest spend for better readability
   const sortedData = useMemo(() => {
+    // FIX: Check if spendData is an array. If not, use an empty array.
+    if (!Array.isArray(spendData)) {
+      return [];
+    }
+    // If it is an array, proceed as normal
     return [...spendData].sort((a, b) => b.value - a.value);
   }, [spendData]);
 
