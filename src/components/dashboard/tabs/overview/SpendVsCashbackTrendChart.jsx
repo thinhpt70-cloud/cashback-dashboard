@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import {
     Card, CardContent, CardHeader, CardTitle
-} from "../../../ui/card"; // Assumes path from original setup
+} from "../../../ui/card";
 import { Button } from "../../../ui/button";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup,
@@ -19,8 +19,7 @@ import { ChevronsUpDown } from 'lucide-react'; // For the dropdown button
  * Custom Tooltip Component
  * Updated to handle both currency (All/Spend/Cashback) and percentage (Rate) views.
  */
-const CustomRechartsTooltip = ({ active, payload, label, isRateView }) => {
-    // Defines its own currency formatter, so it's self-contained.
+const CustomRechartsTooltip = ({ active, payload, label, isRateView, isAllView }) => {
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     
     if (active && payload?.length) {
@@ -41,29 +40,33 @@ const CustomRechartsTooltip = ({ active, payload, label, isRateView }) => {
             );
         }
 
-        // --- Standard View (Spend/Cashback) ---
+        // --- Standard View (Spend/Cashback) or All View ---
         const spendEntry = payload.find(p => p.dataKey === 'spend');
         const cashbackEntry = payload.find(p => p.dataKey === 'cashback');
-        
+        const effectiveRateEntry = payload.find(p => p.dataKey === 'effectiveRate'); // Get rate entry
+
         const spend = spendEntry ? spendEntry.value : 0;
         const cashback = cashbackEntry ? cashbackEntry.value : 0;
-        const effectiveRate = spend > 0 ? (cashback / spend) * 100 : 0;
+        const effectiveRate = effectiveRateEntry ? effectiveRateEntry.value : (spend > 0 ? (cashback / spend) : 0);
 
         return (
             <div className="rounded-lg bg-gray-900 p-3 text-sm shadow-xl transition-all">
                 <p className="font-bold text-white mb-2">{label}</p>
-                {payload.map((p, i) => (
+                {payload
+                    // Filter out effectiveRate if it's already computed implicitly for the all view
+                    .filter(p => !isAllView || p.dataKey !== 'effectiveRate')
+                    .map((p, i) => (
                     <p key={i} style={{ color: p.color }} className="font-medium flex justify-between items-center gap-4">
                         <span className="capitalize">{p.name}:</span>
                         <span className="font-bold">{currency(p.value)}</span>
                     </p>
                 ))}
-                {/* Only show rate in tooltip if both are visible */}
-                {spendEntry && cashbackEntry && (
+                {/* Always show rate in tooltip for All view, or if explicitly requested */}
+                {(isAllView || (spendEntry && cashbackEntry)) && (
                     <div className="mt-2 pt-2 border-t border-gray-600">
                         <p className="font-semibold text-white flex justify-between items-center">
                             <span>Effective Rate:</span>
-                            <span className="font-bold">{effectiveRate.toFixed(2)}%</span>
+                            <span className="font-bold">{(effectiveRate * 100).toFixed(2)}%</span>
                         </p>
                     </div>
                 )}
@@ -97,7 +100,8 @@ export default function SpendVsCashbackTrendChart({ data }) {
         rate: "Effective Rate"
     };
 
-    const isRateView = chartView === 'rate';
+    const isRateViewOnly = chartView === 'rate'; // Only Effective Rate is visible
+    const showRateYAxis = isRateViewOnly || chartView === 'all'; // Show rate Y-axis for All or Rate view
 
     return (
         <Card className="flex flex-col min-h-[350px]">
@@ -124,10 +128,14 @@ export default function SpendVsCashbackTrendChart({ data }) {
             </CardHeader>
             <CardContent className="pl-2 flex-grow">
                 <ResponsiveContainer width="100%" height="100%">
-                    {/* 4. Swapped LineChart for AreaChart */}
-                    <AreaChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <AreaChart data={chartData} 
+                        margin={{ 
+                            top: 5, 
+                            right: showRateYAxis ? 40 : 20, // More right margin if rate axis is present
+                            left: showRateYAxis ? -15 : 0, // Negative left margin for rate axis
+                            bottom: 5 
+                        }}>
                         
-                        {/* 5. Define Gradients for fill */}
                         <defs>
                             <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
@@ -137,7 +145,7 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
                                 <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                             </linearGradient>
-                             <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
                                 <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                             </linearGradient>
@@ -157,8 +165,8 @@ export default function SpendVsCashbackTrendChart({ data }) {
                             dy={5}
                         />
                         
-                        {/* 6. Conditional Y-Axes */}
-                        {!isRateView && (
+                        {/* Primary Y-Axis for currency values */}
+                        {!isRateViewOnly && (
                             <YAxis 
                                 yAxisId="left"
                                 stroke="#64748b"
@@ -169,22 +177,24 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 dx={-5}
                             />
                         )}
-                        {isRateView && (
+                        
+                        {/* Secondary Y-Axis for Effective Rate percentage */}
+                        {showRateYAxis && (
                             <YAxis 
                                 yAxisId="right"
-                                orientation="right" // Place on the right side
+                                orientation="right"
                                 stroke="#64748b"
                                 fontSize={12} 
                                 tickLine={false} 
                                 axisLine={false} 
-                                // Format decimal as percentage
                                 tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} 
-                                dx={5}
+                                // Adjust dx for more space, similar to the example image
+                                dx={20} // Adjusted from 5 to 20 for more separation
                                 domain={[0, 'auto']} // Start at 0%
                             />
                         )}
 
-                        <RechartsTooltip content={<CustomRechartsTooltip isRateView={isRateView} />} />
+                        <RechartsTooltip content={<CustomRechartsTooltip isRateView={isRateViewOnly} isAllView={chartView === 'all'} />} />
                         
                         <Legend 
                             verticalAlign="top" 
@@ -199,18 +209,18 @@ export default function SpendVsCashbackTrendChart({ data }) {
                             )}
                         />
                         
-                        {/* 7. Conditional Area components */}
+                        {/* Conditional Area components */}
                         {(chartView === 'all' || chartView === 'spend') && (
                             <Area 
                                 type="monotone"
                                 dataKey="spend" 
                                 stroke="#f59e0b"
                                 fillOpacity={1}
-                                fill="url(#colorSpend)" // Use gradient fill
+                                fill="url(#colorSpend)"
                                 strokeWidth={2.5}
                                 dot={{ r: 3, fill: '#f59e0b' }}
                                 activeDot={{ r: 6, stroke: '#f59e0b', fill: '#fff', strokeWidth: 2 }}
-                                yAxisId="left" // Assign to left axis
+                                yAxisId="left"
                             />
                         )}
                         {(chartView === 'all' || chartView === 'cashback') && (
@@ -219,25 +229,26 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 dataKey="cashback" 
                                 stroke="#3b82f6"
                                 fillOpacity={1}
-                                fill="url(#colorCashback)" // Use gradient fill
+                                fill="url(#colorCashback)"
                                 strokeWidth={2.5}
                                 dot={{ r: 3, fill: '#3b82f6' }}
                                 activeDot={{ r: 6, stroke: '#3b82f6', fill: '#fff', strokeWidth: 2 }}
-                                yAxisId="left" // Assign to left axis
+                                yAxisId="left"
                             />
                         )}
-                        {chartView === 'rate' && (
+                        {/* Effective Rate Area for 'all' and 'rate' views */}
+                        {(chartView === 'all' || chartView === 'rate') && (
                             <Area 
                                 type="monotone"
                                 dataKey="effectiveRate" 
-                                name="Effective Rate" // Set name for Legend/Tooltip
+                                name="Effective Rate"
                                 stroke="#10b981" // emerald-500
                                 fillOpacity={1}
-                                fill="url(#colorRate)" // Use gradient fill
+                                fill="url(#colorRate)"
                                 strokeWidth={2.5}
                                 dot={{ r: 3, fill: '#10b981' }}
                                 activeDot={{ r: 6, stroke: '#10b981', fill: '#fff', strokeWidth: 2 }}
-                                yAxisId="right" // Assign to right axis
+                                yAxisId="right" // Always assign rate to the right axis
                             />
                         )}
                     </AreaChart>
