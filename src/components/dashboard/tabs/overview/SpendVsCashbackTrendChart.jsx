@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import {
     ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip,
-    AreaChart, Area, CartesianGrid, Legend, Line
+    AreaChart, Area, CartesianGrid, Legend
 } from 'recharts';
 import {
     Card, CardContent, CardHeader, CardTitle
@@ -13,16 +13,17 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup,
     DropdownMenuRadioItem, DropdownMenuTrigger
 } from "../../../ui/dropdown-menu";
-import { ChevronsUpDown } from 'lucide-react';
+import { ChevronsUpDown } from 'lucide-react'; // For the dropdown button
 
 /**
  * Custom Tooltip Component
- * (No changes needed here)
+ * Updated to handle both currency (All/Spend/Cashback) and percentage (Rate) views.
  */
 const CustomRechartsTooltip = ({ active, payload, label, isRateView, isAllView }) => {
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     
     if (active && payload?.length) {
+        // --- Rate View ---
         if (isRateView) {
             const rateEntry = payload.find(p => p.dataKey === 'effectiveRate');
             if (!rateEntry) return null;
@@ -39,9 +40,10 @@ const CustomRechartsTooltip = ({ active, payload, label, isRateView, isAllView }
             );
         }
 
+        // --- Standard View (Spend/Cashback) or All View ---
         const spendEntry = payload.find(p => p.dataKey === 'spend');
         const cashbackEntry = payload.find(p => p.dataKey === 'cashback');
-        const effectiveRateEntry = payload.find(p => p.dataKey === 'effectiveRate');
+        const effectiveRateEntry = payload.find(p => p.dataKey === 'effectiveRate'); // Get rate entry
 
         const spend = spendEntry ? spendEntry.value : 0;
         const cashback = cashbackEntry ? cashbackEntry.value : 0;
@@ -51,6 +53,7 @@ const CustomRechartsTooltip = ({ active, payload, label, isRateView, isAllView }
             <div className="rounded-lg bg-gray-900 p-3 text-sm shadow-xl transition-all">
                 <p className="font-bold text-white mb-2">{label}</p>
                 {payload
+                    // Filter out effectiveRate if it's already computed implicitly for the all view
                     .filter(p => !isAllView || p.dataKey !== 'effectiveRate')
                     .map((p, i) => (
                     <p key={i} style={{ color: p.color }} className="font-medium flex justify-between items-center gap-4">
@@ -58,6 +61,7 @@ const CustomRechartsTooltip = ({ active, payload, label, isRateView, isAllView }
                         <span className="font-bold">{currency(p.value)}</span>
                     </p>
                 ))}
+                {/* Always show rate in tooltip for All view, or if explicitly requested */}
                 {(isAllView || (spendEntry && cashbackEntry)) && (
                     <div className="mt-2 pt-2 border-t border-gray-600">
                         <p className="font-semibold text-white flex justify-between items-center">
@@ -77,15 +81,18 @@ const CustomRechartsTooltip = ({ active, payload, label, isRateView, isAllView }
  * Main Chart Component
  */
 export default function SpendVsCashbackTrendChart({ data }) {
-    const [chartView, setChartView] = useState("all");
+    const [chartView, setChartView] = useState("all"); // "all", "spend", "cashback", "rate"
     
+    // 1. Calculate effective rate for the chart data
     const chartData = useMemo(() => {
         return data.map(item => ({
             ...item,
+            // Calculate rate as a decimal (e.g., 0.05 for 5%)
             effectiveRate: item.spend > 0 ? (item.cashback / item.spend) : 0
         }));
     }, [data]);
     
+    // 2. Labels for the dropdown
     const viewLabels = {
         all: "All",
         spend: "Spending",
@@ -93,14 +100,15 @@ export default function SpendVsCashbackTrendChart({ data }) {
         rate: "Effective Rate"
     };
 
-    const isRateViewOnly = chartView === 'rate';
-    const isAllView = chartView === 'all';
+    const isRateViewOnly = chartView === 'rate'; // Only Effective Rate is visible
+    const showRateYAxis = isRateViewOnly || chartView === 'all'; // Show rate Y-axis for All or Rate view
 
     return (
         <Card className="flex flex-col min-h-[350px]">
             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Spend vs Cashback Trend</CardTitle>
                 
+                {/* 3. Add Dropdown Menu */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-[160px] justify-between">
@@ -121,18 +129,12 @@ export default function SpendVsCashbackTrendChart({ data }) {
             <CardContent className="pl-2 flex-grow">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} 
-                        // --- THIS IS THE CHANGE ---
-                        // Set a fixed margin that works for all views.
-                        // This reserves space for the right Y-axis even when hidden,
-                        // preventing the chart from jumping.
                         margin={{ 
                             top: 5, 
-                            right: 40, // Fixed right margin for 'all' view's axis
-                            left: -15,  // Fixed left margin for all views
+                            right: showRateYAxis ? 40 : 20, // More right margin if rate axis is present
+                            left: showRateYAxis ? -15 : 0, // Negative left margin for rate axis
                             bottom: 5 
-                        }}
-                        // --- END OF CHANGE ---
-                    >
+                        }}>
                         
                         <defs>
                             <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
@@ -163,8 +165,8 @@ export default function SpendVsCashbackTrendChart({ data }) {
                             dy={5}
                         />
                         
-                        {/* 1. Left Y-Axis (Currency) - Shows for 'all', 'spend', 'cashback' */}
-                        {(!isRateViewOnly) && (
+                        {/* Primary Y-Axis for currency values */}
+                        {!isRateViewOnly && (
                             <YAxis 
                                 yAxisId="left"
                                 stroke="#64748b"
@@ -176,22 +178,8 @@ export default function SpendVsCashbackTrendChart({ data }) {
                             />
                         )}
                         
-                        {/* 2. Left Y-Axis (Percentage) - Shows ONLY for 'rate' */}
-                        {(isRateViewOnly) && (
-                            <YAxis 
-                                yAxisId="left"
-                                stroke="#64748b"
-                                fontSize={12} 
-                                tickLine={false} 
-                                axisLine={false} 
-                                tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} 
-                                dx={-5}
-                                domain={[0, 'auto']}
-                            />
-                        )}
-
-                        {/* 3. Right Y-Axis (Percentage) - Shows ONLY for 'all' */}
-                        {(isAllView) && (
+                        {/* Secondary Y-Axis for Effective Rate percentage */}
+                        {showRateYAxis && (
                             <YAxis 
                                 yAxisId="right"
                                 orientation="right"
@@ -200,13 +188,13 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 tickLine={false} 
                                 axisLine={false} 
                                 tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} 
-                                dx={20}
-                                domain={[0, 'auto']}
+                                // Adjust dx for more space, similar to the example image
+                                dx={20} // Adjusted from 5 to 20 for more separation
+                                domain={[0, 'auto']} // Start at 0%
                             />
                         )}
 
-
-                        <RechartsTooltip content={<CustomRechartsTooltip isRateView={isRateViewOnly} isAllView={isAllView} />} />
+                        <RechartsTooltip content={<CustomRechartsTooltip isRateView={isRateViewOnly} isAllView={chartView === 'all'} />} />
                         
                         <Legend 
                             verticalAlign="top" 
@@ -221,7 +209,8 @@ export default function SpendVsCashbackTrendChart({ data }) {
                             )}
                         />
                         
-                        {(isAllView || chartView === 'spend') && (
+                        {/* Conditional Area components */}
+                        {(chartView === 'all' || chartView === 'spend') && (
                             <Area 
                                 type="monotone"
                                 dataKey="spend" 
@@ -234,7 +223,7 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 yAxisId="left"
                             />
                         )}
-                        {(isAllView || chartView === 'cashback') && (
+                        {(chartView === 'all' || chartView === 'cashback') && (
                             <Area 
                                 type="monotone"
                                 dataKey="cashback" 
@@ -247,32 +236,19 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 yAxisId="left"
                             />
                         )}
-                        
-                        {isRateViewOnly && (
+                        {/* Effective Rate Area for 'all' and 'rate' views */}
+                        {(chartView === 'all' || chartView === 'rate') && (
                             <Area 
                                 type="monotone"
                                 dataKey="effectiveRate" 
                                 name="Effective Rate"
-                                stroke="#10b981"
+                                stroke="#10b981" // emerald-500
                                 fillOpacity={1}
                                 fill="url(#colorRate)"
                                 strokeWidth={2.5}
                                 dot={{ r: 3, fill: '#10b981' }}
                                 activeDot={{ r: 6, stroke: '#10b981', fill: '#fff', strokeWidth: 2 }}
-                                yAxisId="left"
-                            />
-                        )}
-                        
-                        {isAllView && (
-                            <Line 
-                                type="monotone"
-                                dataKey="effectiveRate" 
-                                name="Effective Rate"
-                                stroke="#10b981"
-                                strokeWidth={2.5}
-                                dot={{ r: 3, fill: '#10b981' }}
-                                activeDot={{ r: 6, stroke: '#10b981', fill: '#fff', strokeWidth: 2 }}
-                                yAxisId="right"
+                                yAxisId="right" // Always assign rate to the right axis
                             />
                         )}
                     </AreaChart>
