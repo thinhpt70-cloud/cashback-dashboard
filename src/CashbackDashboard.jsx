@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Loader2, Plus, History, Check, Snowflake, LogOut, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2 } from "lucide-react";
-import { ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList } from "recharts";
+import { ResponsiveContainer, Tooltip as RechartsTooltip, PieChart, Pie, Cell, Legend } from "recharts";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
@@ -40,6 +40,7 @@ import EnhancedSuggestions from "./components/dashboard/tabs/overview/EnhancedSu
 import SpendByCardChart from "./components/dashboard/tabs/overview/SpendByCardChart";
 import CardPerformanceLineChart from "./components/dashboard/tabs/overview/CardPerformanceLineChart";
 import RecentTransactions from './components/dashboard/tabs/overview/RecentTransactions';
+import SpendVsCashbackTrendChart from "./components/dashboard/tabs/overview/SpendVsCashbackTrendChart";
 
 // Import transactions tab components
 import TransactionReviewCenter from './components/dashboard/tabs/transactions/TransactionReviewCenter';
@@ -254,21 +255,6 @@ export default function CashbackDashboard() {
 
     // --- UTILITIES ---
     const mccName = (code) => mccMap[code]?.vn || "Unknown";    
-
-    const renderCustomBarLabel = (props) => {
-        const { x, y, width, value } = props;
-        // Format the value to millions (e.g., 39,500,000 becomes "40M")
-        const formattedValue = (value / 1000000).toFixed(2) + 'M';
-        
-        // Don't show the label if the bar is too small, to prevent clutter
-        if (width < 30) return null; 
-
-        return (
-            <text x={x + width / 2} y={y} fill="#6b7280" textAnchor="middle" dy={-6} fontSize={12}>
-            {formattedValue}
-            </text>
-        );
-    };
 
     const sortedCards = useMemo(() => {
         const statusOrder = {
@@ -721,25 +707,7 @@ export default function CashbackDashboard() {
                         {/* --- 3. UNIFIED CONTEXTUAL COMPONENTS --- */}
 
                         <div className="grid gap-4">
-                            <Card className="flex flex-col min-h-[300px]">
-                                <CardHeader><CardTitle>Spend vs Cashback Trend</CardTitle></CardHeader>
-                                <CardContent className="pl-2 flex-grow">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={monthlyChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-                                            <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} />
-                                            <RechartsTooltip content={<CustomRechartsTooltip />} />
-                                            <Legend formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)} />
-                                            <Bar dataKey="spend" fill="#0BA6DF" radius={[4, 4, 0, 0]}>
-                                            <LabelList dataKey="spend" content={renderCustomBarLabel} />
-                                            </Bar>
-                                            <Bar dataKey="cashback" fill="#67C090" radius={[4, 4, 0, 0]}>
-                                            <LabelList dataKey="cashback" content={renderCustomBarLabel} />
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
+                            <SpendVsCashbackTrendChart data={monthlyChartData} />
                         </div>
 
                         <div className="mt-4">
@@ -909,40 +877,6 @@ export default function CashbackDashboard() {
 // --------------------------
 // 3) UI SUB-COMPONENTS
 // --------------------------
-
-const CustomRechartsTooltip = ({ active, payload, label }) => {
-
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
-    
-    if (active && payload?.length) {
-        // Find the spend and cashback values from the tooltip's data payload
-        const spendEntry = payload.find(p => p.dataKey === 'spend');
-        const cashbackEntry = payload.find(p => p.dataKey === 'cashback');
-        
-        const spend = spendEntry ? spendEntry.value : 0;
-        const cashback = cashbackEntry ? cashbackEntry.value : 0;
-
-        // Calculate the effective rate, handling the case where spend is 0
-        const effectiveRate = spend > 0 ? (cashback / spend) * 100 : 0;
-
-        return (
-        <div className="rounded-lg border bg-white p-2 text-sm shadow-sm">
-            <p className="font-bold">{label}</p>
-            {payload.map((p, i) => (
-            <p key={i} style={{ color: p.color }}>
-                {/* Capitalize the name for display */}
-                {`${p.name.charAt(0).toUpperCase() + p.name.slice(1)}: ${currency(p.value)}`}
-            </p>
-            ))}
-            {/* ADD THIS NEW LINE to display the effective rate */}
-            <p className="font-semibold mt-2 pt-2 border-t">
-            Effective Rate: {effectiveRate.toFixed(2)}%
-            </p>
-        </div>
-        );
-    }
-    return null;
-};
 
 function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange, statementMonths, isDesktop, onTransactionDeleted, onEditTransaction }) {
     const [searchTerm, setSearchTerm] = useState("");
