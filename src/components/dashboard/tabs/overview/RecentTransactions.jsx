@@ -74,7 +74,7 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
     if (!transactions) return null;
 
     return (
-        <Card className="flex flex-col lg:flex-1 lg:min-h-0">
+        <Card className="flex flex-col lg:flex-1 lg:min-h-0 max-h-[400px]">
             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                     <History className="h-5 w-5" />
@@ -100,21 +100,13 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
                     </DropdownMenuContent>
                 </DropdownMenu>
             </CardHeader>
-            
-            {/* --- FIX ---
-                1. CardContent is now a flex container that can shrink (lg:min-h-0).
-            */}
             <CardContent className="flex-1 flex flex-col lg:min-h-0 p-4">
                 {/* List Headers */}
                 <div className="flex items-center text-sm font-medium text-slate-500 mb-2 px-2 flex-shrink-0">
                     <div className="flex-1 min-w-0">Name</div>
-                    <div className="w-28 text-left px-2 flex-shrink-0">Date</div>
+                    <div className="w-28 text-left px-2 flex-shrink-0 hidden sm:block">Date</div>
                     <div className="w-28 text-right flex-shrink-0">Amount</div>
                 </div>
-
-                {/* --- FIX ---
-                    2. The list container now fills the remaining space (lg:flex-1) and scrolls.
-                */}
                 <div className="space-y-2 lg:flex-1 lg:overflow-y-auto">
                     {filteredTransactions.length === 0 ? (
                         <div className="text-center text-sm text-slate-500 py-8">
@@ -134,7 +126,7 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
                                         <p className="text-sm text-slate-500">{cardName}</p>
                                     </div>
                                     {/* Date Column */}
-                                    <div className="w-28 text-sm text-slate-600 text-left px-2 flex-shrink-0">
+                                    <div className="w-28 text-sm text-slate-600 text-left px-2 flex-shrink-0 hidden sm:block">
                                         {formatDate(tx['Transaction Date'])}
                                     </div>
                                     {/* Amount Column */}
