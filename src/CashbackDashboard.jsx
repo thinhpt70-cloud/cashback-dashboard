@@ -422,16 +422,27 @@ export default function CashbackDashboard() {
     }, [monthlySummary, cards]);
 
     const monthlyChartData = useMemo(() => {
-        const aggregated = {};
-        monthlySummary.forEach(item => {
-            const monthLabel = fmtYMShort(item.month);
-            if (!aggregated[monthLabel]) {
-                aggregated[monthLabel] = { month: monthLabel, spend: 0, cashback: 0 };
+        const aggregated = new Map(); // Use a Map to aggregate and preserve order
+        
+        // Ensure monthlySummary is sorted by month before aggregating
+        const sortedSummary = [...monthlySummary].sort((a, b) => a.month.localeCompare(b.month));
+
+        sortedSummary.forEach(item => {
+            const monthCode = item.month; // e.g., "2024-07"
+            if (!aggregated.has(monthCode)) {
+                aggregated.set(monthCode, { month: monthCode, spend: 0, cashback: 0 });
             }
-            aggregated[monthLabel].spend += item.spend || 0;
-            aggregated[monthLabel].cashback += item.cashback || 0;
+            const current = aggregated.get(monthCode);
+            current.spend += item.spend || 0;
+            current.cashback += item.cashback || 0;
         });
-        return Object.values(aggregated);
+
+        // Convert map values to array and format the month label for display
+        return Array.from(aggregated.values())
+            .map(item => ({
+                ...item,
+                month: fmtYMShort(item.month) // Converts "2024-07" to "Jul 2024"
+            }));
     }, [monthlySummary]);
 
     const calculateFeeCycleProgress = (openDateStr, nextFeeDateStr) => {
