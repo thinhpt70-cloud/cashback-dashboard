@@ -1,11 +1,9 @@
 // src/components/dashboard/tabs/overview/SpendVsCashbackTrendChart.jsx
-// --- DIAGNOSTIC SCRIPT ---
-// Purpose: Test if the Line chart renders in isolation.
 
 import React, { useState, useMemo } from 'react';
 import {
     ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip,
-    AreaChart, Area, CartesianGrid, Legend, Line
+    AreaChart, Area, CartesianGrid, Legend, Line // We import Line, but will test by using Area instead
 } from 'recharts';
 import {
     Card, CardContent, CardHeader, CardTitle
@@ -168,19 +166,17 @@ export default function SpendVsCashbackTrendChart({ data }) {
                             dy={5}
                         />
                         
-                        {/* --- DIAGNOSTIC: Commented out primary Y-Axis --- */}
+                        {/* Primary Y-Axis for currency values */}
                         {!isRateViewOnly && (
-                            <>{/*
-                                <YAxis 
-                                    yAxisId="leftCurrency"
-                                    stroke="#64748b"
-                                    fontSize={12} 
-                                    tickLine={false} 
-                                    axisLine={false} 
-                                    tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} 
-                                    dx={-5}
-                                />
-                            */}</>
+                            <YAxis 
+                                yAxisId="leftCurrency"
+                                stroke="#64748b"
+                                fontSize={12} 
+                                tickLine={false} 
+                                axisLine={false} 
+                                tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} 
+                                dx={-5}
+                            />
                         )}
                         
                         {/* Y-Axis for Rate (LEFT side, for 'rate' view only) */}
@@ -227,36 +223,32 @@ export default function SpendVsCashbackTrendChart({ data }) {
                             )}
                         />
                         
-                        {/* --- DIAGNOSTIC: Commented out Area components --- */}
+                        {/* Conditional Area components */}
                         {(chartView === 'all' || chartView === 'spend') && (
-                            <>{/*
-                                <Area 
-                                    type="monotone"
-                                    dataKey="spend" 
-                                    stroke="#f59e0b"
-                                    fillOpacity={1}
-                                    fill="url(#colorSpend)"
-                                    strokeWidth={2.5}
-                                    dot={{ r: 3, fill: '#f59e0b' }}
-                                    activeDot={{ r: 6, stroke: '#f59e0b', fill: '#fff', strokeWidth: 2 }}
-                                    yAxisId="leftCurrency"
-                                />
-                            */}</>
+                            <Area 
+                                type="monotone"
+                                dataKey="spend" 
+                                stroke="#f59e0b"
+                                fillOpacity={1}
+                                fill="url(#colorSpend)"
+                                strokeWidth={2.5}
+                                dot={{ r: 3, fill: '#f59e0b' }}
+                                activeDot={{ r: 6, stroke: '#f59e0b', fill: '#fff', strokeWidth: 2 }}
+                                yAxisId="leftCurrency"
+                            />
                         )}
                         {(chartView === 'all' || chartView === 'cashback') && (
-                            <>{/*
-                                <Area 
-                                    type="monotone"
-                                    dataKey="cashback" 
-                                    stroke="#3b82f6"
-                                    fillOpacity={1}
-                                    fill="url(#colorCashback)"
-                                    strokeWidth={2.5}
-                                    dot={{ r: 3, fill: '#3b82f6' }}
-                                    activeDot={{ r: 6, stroke: '#3b82f6', fill: '#fff', strokeWidth: 2 }}
-                                    yAxisId="leftCurrency"
-                                />
-                            */}</>
+                            <Area 
+                                type="monotone"
+                                dataKey="cashback" 
+                                stroke="#3b82f6"
+                                fillOpacity={1}
+                                fill="url(#colorCashback)"
+                                strokeWidth={2.5}
+                                dot={{ r: 3, fill: '#3b82f6' }}
+                                activeDot={{ r: 6, stroke: '#3b82f6', fill: '#fff', strokeWidth: 2 }}
+                                yAxisId="leftCurrency"
+                            />
                         )}
                         {/* Effective Rate Area (for 'rate' view) */}
                         {chartView === 'rate' && (
@@ -273,13 +265,18 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 yAxisId="leftRate"
                             />
                         )}
-                        {/* Effective Rate Line (for 'all' view) */}
+                        
+                        {/* --- FINAL TEST --- */}
+                        {/* We are changing the <Line> component to an <Area> component */}
+                        {/* This will confirm if the <Line> component itself is the source of the problem. */}
                         {chartView === 'all' && (
-                            <Line 
+                            <Area 
                                 type="monotone"
                                 dataKey="effectiveRate" 
                                 name="Effective Rate"
                                 stroke="#10b981" // emerald-500
+                                fillOpacity={0.3} // Set a low opacity to avoid covering other charts
+                                fill="url(#colorRate)"
                                 strokeWidth={2.5}
                                 dot={{ r: 3, fill: '#10b981' }}
                                 activeDot={{ r: 6, stroke: '#10b981', fill: '#fff', strokeWidth: 2 }}
