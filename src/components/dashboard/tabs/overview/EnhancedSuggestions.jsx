@@ -277,7 +277,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
     return (
         <Card className="flex flex-col h-full max-h-[600px]">
             <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle>
                     <Lightbulb className="h-5 w-5" />
                     Top Cashback Opportunities
                 </CardTitle>
