@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import {
     ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip,
-    AreaChart, Area, CartesianGrid, Legend, Line
+    AreaChart, Area, CartesianGrid, Legend
 } from 'recharts';
 import {
     Card, CardContent, CardHeader, CardTitle
