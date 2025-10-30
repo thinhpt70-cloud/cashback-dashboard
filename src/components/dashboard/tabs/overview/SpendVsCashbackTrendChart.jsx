@@ -104,6 +104,8 @@ export default function SpendVsCashbackTrendChart({ data }) {
     const isAllView = chartView === 'all';
     const showRightAxis = isAllView; // Right axis is only shown for 'all' view now
 
+    console.log("Calculated Chart Data:", JSON.stringify(chartData, null, 2));
+
     return (
         <Card className="flex flex-col min-h-[350px]">
             <CardHeader className="flex flex-row items-center justify-between">
