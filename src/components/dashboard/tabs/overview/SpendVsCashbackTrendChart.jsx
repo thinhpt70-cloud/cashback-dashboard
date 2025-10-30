@@ -1,4 +1,6 @@
 // src/components/dashboard/tabs/overview/SpendVsCashbackTrendChart.jsx
+// --- DIAGNOSTIC SCRIPT ---
+// Purpose: Test if the Line chart renders in isolation.
 
 import React, { useState, useMemo } from 'react';
 import {
@@ -104,8 +106,6 @@ export default function SpendVsCashbackTrendChart({ data }) {
     const isAllView = chartView === 'all';
     const showRightAxis = isAllView; // Right axis is only shown for 'all' view now
 
-    console.log("Calculated Chart Data:", JSON.stringify(chartData, null, 2));
-
     return (
         <Card className="flex flex-col min-h-[350px]">
             <CardHeader className="flex flex-row items-center justify-between">
@@ -168,17 +168,19 @@ export default function SpendVsCashbackTrendChart({ data }) {
                             dy={5}
                         />
                         
-                        {/* Primary Y-Axis for currency values */}
+                        {/* --- DIAGNOSTIC: Commented out primary Y-Axis --- */}
                         {!isRateViewOnly && (
-                            <YAxis 
-                                yAxisId="leftCurrency"
-                                stroke="#64748b"
-                                fontSize={12} 
-                                tickLine={false} 
-                                axisLine={false} 
-                                tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} 
-                                dx={-5}
-                            />
+                            <>{/*
+                                <YAxis 
+                                    yAxisId="leftCurrency"
+                                    stroke="#64748b"
+                                    fontSize={12} 
+                                    tickLine={false} 
+                                    axisLine={false} 
+                                    tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} 
+                                    dx={-5}
+                                />
+                            */}</>
                         )}
                         
                         {/* Y-Axis for Rate (LEFT side, for 'rate' view only) */}
@@ -225,32 +227,36 @@ export default function SpendVsCashbackTrendChart({ data }) {
                             )}
                         />
                         
-                        {/* Conditional Area components */}
+                        {/* --- DIAGNOSTIC: Commented out Area components --- */}
                         {(chartView === 'all' || chartView === 'spend') && (
-                            <Area 
-                                type="monotone"
-                                dataKey="spend" 
-                                stroke="#f59e0b"
-                                fillOpacity={1}
-                                fill="url(#colorSpend)"
-                                strokeWidth={2.5}
-                                dot={{ r: 3, fill: '#f59e0b' }}
-                                activeDot={{ r: 6, stroke: '#f59e0b', fill: '#fff', strokeWidth: 2 }}
-                                yAxisId="leftCurrency"
-                            />
+                            <>{/*
+                                <Area 
+                                    type="monotone"
+                                    dataKey="spend" 
+                                    stroke="#f59e0b"
+                                    fillOpacity={1}
+                                    fill="url(#colorSpend)"
+                                    strokeWidth={2.5}
+                                    dot={{ r: 3, fill: '#f59e0b' }}
+                                    activeDot={{ r: 6, stroke: '#f59e0b', fill: '#fff', strokeWidth: 2 }}
+                                    yAxisId="leftCurrency"
+                                />
+                            */}</>
                         )}
                         {(chartView === 'all' || chartView === 'cashback') && (
-                            <Area 
-                                type="monotone"
-                                dataKey="cashback" 
-                                stroke="#3b82f6"
-                                fillOpacity={1}
-                                fill="url(#colorCashback)"
-                                strokeWidth={2.5}
-                                dot={{ r: 3, fill: '#3b82f6' }}
-                                activeDot={{ r: 6, stroke: '#3b82f6', fill: '#fff', strokeWidth: 2 }}
-                                yAxisId="leftCurrency"
-                            />
+                            <>{/*
+                                <Area 
+                                    type="monotone"
+                                    dataKey="cashback" 
+                                    stroke="#3b82f6"
+                                    fillOpacity={1}
+                                    fill="url(#colorCashback)"
+                                    strokeWidth={2.5}
+                                    dot={{ r: 3, fill: '#3b82f6' }}
+                                    activeDot={{ r: 6, stroke: '#3b82f6', fill: '#fff', strokeWidth: 2 }}
+                                    yAxisId="leftCurrency"
+                                />
+                            */}</>
                         )}
                         {/* Effective Rate Area (for 'rate' view) */}
                         {chartView === 'rate' && (
