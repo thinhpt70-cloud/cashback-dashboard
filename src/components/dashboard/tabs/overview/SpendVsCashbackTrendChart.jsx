@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import {
     ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip,
-    AreaChart, Area, CartesianGrid, Legend, Line // We import Line, but will test by using Area instead
+    AreaChart, Area, CartesianGrid, Legend, Line
 } from 'recharts';
 import {
     Card, CardContent, CardHeader, CardTitle
@@ -61,7 +61,9 @@ const CustomRechartsTooltip = ({ active, payload, label, isRateView, isAllView }
                         <span className="font-bold">{currency(p.value)}</span>
                     </p>
                 ))}
-                {/* Always show rate in tooltip for All view, or if explicitly requested */}
+                
+                {/* --- UPDATE --- */}
+                {/* Reverted to show rate in 'All' view tooltip as requested */}
                 {(isAllView || (spendEntry && cashbackEntry)) && (
                     <div className="mt-2 pt-2 border-t border-gray-600">
                         <p className="font-semibold text-white flex justify-between items-center">
@@ -102,12 +104,14 @@ export default function SpendVsCashbackTrendChart({ data }) {
 
     const isRateViewOnly = chartView === 'rate'; // Only Effective Rate is visible
     const isAllView = chartView === 'all';
-    const showRightAxis = isAllView; // Right axis is only shown for 'all' view now
+    
+    // Right axis is no longer shown
+    const showRightAxis = false;
 
     return (
         <Card className="flex flex-col min-h-[350px]">
             <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-base font-semibold">Card Cashflow</CardTitle>
+                <CardTitle>Current Cashflow</CardTitle>
                 
                 {/* 3. Add Dropdown Menu */}
                 <DropdownMenu>
@@ -132,7 +136,7 @@ export default function SpendVsCashbackTrendChart({ data }) {
                     <AreaChart data={chartData} 
                         margin={{ 
                             top: 5, 
-                            right: showRightAxis ? 40 : 20, // More right margin if rate axis is present
+                            right: showRightAxis ? 40 : 20, // Will now always be 20
                             left: 10, // Universal left margin
                             bottom: 5 
                         }}>
@@ -193,8 +197,8 @@ export default function SpendVsCashbackTrendChart({ data }) {
                             />
                         )}
 
-                        {/* Secondary Y-Axis for Effective Rate percentage (RIGHT side, for 'all' view only) */}
-                        {isAllView && (
+                        {/* Right Y-Axis is now controlled by 'showRightAxis' which is false */}
+                        {showRightAxis && (
                             <YAxis 
                                 yAxisId="rightRate"
                                 orientation="right"
@@ -203,8 +207,8 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 tickLine={false} 
                                 axisLine={false} 
                                 tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} 
-                                dx={20} // Adjusted from 5 to 20 for more separation
-                                domain={[0, 'auto']} // Start at 0%
+                                dx={20} 
+                                domain={[0, 'auto']} 
                             />
                         )}
 
@@ -264,25 +268,7 @@ export default function SpendVsCashbackTrendChart({ data }) {
                                 activeDot={{ r: 6, stroke: '#10b981', fill: '#fff', strokeWidth: 2 }}
                                 yAxisId="leftRate"
                             />
-                        )}
-                        
-                        {/* --- FINAL TEST --- */}
-                        {/* We are changing the <Line> component to an <Area> component */}
-                        {/* This will confirm if the <Line> component itself is the source of the problem. */}
-                        {chartView === 'all' && (
-                            <Area 
-                                type="monotone"
-                                dataKey="effectiveRate" 
-                                name="Effective Rate"
-                                stroke="#10b981" // emerald-500
-                                fillOpacity={0.3} // Set a low opacity to avoid covering other charts
-                                fill="url(#colorRate)"
-                                strokeWidth={2.5}
-                                dot={{ r: 3, fill: '#10b981' }}
-                                activeDot={{ r: 6, stroke: '#10b981', fill: '#fff', strokeWidth: 2 }}
-                                yAxisId="rightRate"
-                            />
-                        )}
+                        )}                    
                     </AreaChart>
                 </ResponsiveContainer>
             </CardContent>
