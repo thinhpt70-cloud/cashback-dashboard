@@ -136,7 +136,7 @@ export default function SpendVsCashbackTrendChart({ data }) {
                     <AreaChart data={chartData} 
                         margin={{ 
                             top: 5, 
-                            right: showRightAxis ? 40 : 20, // Will now always be 20
+                            right: showRightAxis ? 20 : 10, // Will now always be 10
                             left: 10, // Universal left margin
                             bottom: 5 
                         }}>
