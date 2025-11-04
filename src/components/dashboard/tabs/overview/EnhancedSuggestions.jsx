@@ -275,7 +275,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
     const otherSuggestions = suggestions.slice(1);
 
     return (
-        <Card className="flex flex-col h-full">
+        <Card className="flex flex-col h-full max-h-[600px]">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Lightbulb className="h-5 w-5" />

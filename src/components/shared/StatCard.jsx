@@ -147,12 +147,17 @@ export default function StatCard({
     // --- Sparkline Color Logic ---
     let lineColor = "hsl(215 20% 65%)"; // Default slate-500
     let fillColor = "hsl(215 20% 65%)"; 
+
+    // Define colors
+    const positiveLineColor = invertTrendColor ? "hsl(0 72% 51%)" : "hsl(142 71% 45%)"; // Red or Green
+    const negativeLineColor = invertTrendColor ? "hsl(142 71% 45%)" : "hsl(0 72% 51%)"; // Green or Red
+
     if (TrendIcon === ArrowUp) {
-        lineColor = "hsl(142 71% 45%)"; // Emerald-600
-        fillColor = "hsl(142 71% 45%)";
+        lineColor = positiveLineColor;
+        fillColor = positiveLineColor;
     } else if (TrendIcon === ArrowDown) {
-        lineColor = "hsl(0 72% 51%)";   // Red-600
-        fillColor = "hsl(0 72% 51%)";
+        lineColor = negativeLineColor;
+        fillColor = negativeLineColor;
     }
 
     return (

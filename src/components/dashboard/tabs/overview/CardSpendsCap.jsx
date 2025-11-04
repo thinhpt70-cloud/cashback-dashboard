@@ -68,21 +68,23 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                                     {cap.category}
                                     {cap.isBoosted && ' ✨'}
                                 </p>
-                                <span className="font-mono text-xs font-semibold text-slate-500 flex-shrink-0">{cap.usedPct}%</span>
+                                {cap.limit > 0 && (
+                                    <span className="font-mono text-xs font-semibold text-slate-500 flex-shrink-0">{cap.usedPct}%</span>
+                                )}
                             </div>
                             <Progress 
                                 value={cap.limit === 0 ? 100 : cap.usedPct}
                                 className="h-2" 
                                 indicatorClassName={cn(
-                                    cap.isCompleted || cap.limit === 0 ? "bg-blue-500" : "bg-black"
+                                    cap.limit === 0 ? "bg-gray-400" : (cap.isCompleted ? "bg-blue-500" : "bg-black")
                                 )} 
                             />
                             <div className="flex justify-between items-center text-xs text-muted-foreground mt-1.5">
                                 <span>
-                                    {currencyFn(cap.currentCashback)} / {cap.limit === 0 ? 'Unlimited' : currencyFn(cap.limit)}
+                                    {currencyFn(cap.currentCashback)}{cap.limit > 0 ? ` / ${currencyFn(cap.limit)}` : ''}
                                 </span>
                                 <span className="font-medium">
-                                    {cap.limit === 0 ? currencyFn(0) : currencyFn(cap.remaining)} left
+                                    {cap.limit === 0 ? 'Unlimited' : `${currencyFn(cap.remaining)} left`}
                                 </span>
                             </div>
                         </div>

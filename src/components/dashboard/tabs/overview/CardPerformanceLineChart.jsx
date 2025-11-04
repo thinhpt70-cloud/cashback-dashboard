@@ -154,7 +154,7 @@ export default function CardPerformanceLineChart({ data, cards, currencyFn }) {
   const chartData = selectedCardId === 'all' ? cumulativeAggregatedData : cumulativeData;
 
   return (
-    <Card>
+    <Card className="flex flex-col min-h-[350px]">
       <CardHeader className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle>Cummulative Results</CardTitle>
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">

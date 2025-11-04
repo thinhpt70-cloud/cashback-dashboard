@@ -109,7 +109,7 @@ export default function SpendVsCashbackTrendChart({ data }) {
     const showRightAxis = false;
 
     return (
-        <Card className="h-[450px] flex flex-col">
+        <Card className="flex flex-col min-h-[350px]">
             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Current Cashflow</CardTitle>
                 
