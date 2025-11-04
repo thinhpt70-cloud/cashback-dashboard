@@ -212,7 +212,7 @@ export default function CardPerformanceLineChart({ data, cards, currencyFn }) {
         </div>
       </CardHeader>
       <CardContent className="pl-2">
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
             {/* [New] Gradient definitions */}
             <defs>
