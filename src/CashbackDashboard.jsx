@@ -773,6 +773,7 @@ export default function CashbackDashboard() {
                             statementMonths={statementMonths}
                             onTransactionDeleted={handleTransactionDeleted}
                             onEditTransaction={handleEditClick}
+                            fmtYMShortFn={fmtYMShort}
                         />
                     </TabsContent>  
 
@@ -889,7 +890,7 @@ export default function CashbackDashboard() {
 // 3) UI SUB-COMPONENTS
 // --------------------------
 
-function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange, statementMonths, isDesktop, onTransactionDeleted, onEditTransaction }) {
+function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange, statementMonths, isDesktop, onTransactionDeleted, onEditTransaction, fmtYMShortFn }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [cardFilter, setCardFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
@@ -1238,9 +1239,9 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <CardTitle>
-                            {activeMonth === 'live' 
-                                ? 'Recent Transactions' 
-                                : `Transactions for ${fmtYMShort(activeMonth)}`
+                            {activeMonth === 'live'
+                                ? 'Recent Transactions'
+                                : `Transactions for ${fmtYMShortFn(activeMonth)}`
                             }
                         </CardTitle>
                         {activeMonth !== 'live' && (
