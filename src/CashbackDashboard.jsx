@@ -660,6 +660,7 @@ export default function CashbackDashboard() {
                                         currentMonthLabel={displayStats.label}
                                         lastMonthValue={displayStats.prevMonthSpend}
                                         sparklineData={displayStats.spendSparkline}
+                                         invertTrendColor={true}
                                     />
                                     <StatCard
                                         title="Est. Cashback"

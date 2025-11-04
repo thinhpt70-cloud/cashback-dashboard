@@ -275,11 +275,11 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
     const otherSuggestions = suggestions.slice(1);
 
     return (
-        <Card className="flex flex-col h-full max-h-[600px]">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>
+        <Card className="flex flex-col h-full">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                     <Lightbulb className="h-5 w-5" />
-                    Top Cashback Opportunities
+                    <span>Top Cashback Opportunities</span>
                 </CardTitle>
             </CardHeader>
             
@@ -316,7 +316,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                         </div>
 
                                         {/* Body: Split into two columns */}
-                                        <div className="flex items-start justify-between gap-4">
+                                         <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                                             {/* Left Column: Info */}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-1.5">
@@ -326,7 +326,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                     {topSuggestion.hasBetterChallenger && (
                                                         <ArrowUpCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
                                                     )}
-                                                    <h3 className="text-xl font-semibold text-slate-800 break-words truncate" title={topSuggestion.suggestionFor}>
+                                                     <h3 className="text-xl font-semibold text-slate-800 break-words" title={topSuggestion.suggestionFor}>
                                                         {topSuggestion.suggestionFor}
                                                     </h3>
                                                 </div>

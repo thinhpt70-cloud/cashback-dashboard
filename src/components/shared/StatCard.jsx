@@ -91,7 +91,8 @@ export default function StatCard({
     lastMonthValue,
     currentMonthLabel, 
     sparklineData,
-    currencyFn
+    currencyFn,
+    invertTrendColor = false // New prop
 }) {    
     // --- Trend Calculation Logic ---
     let trend = null;
@@ -115,18 +116,25 @@ export default function StatCard({
             } else {
                 // Significant change
                 trend = `${Math.abs(percentageChange).toFixed(1)}%`;
-                if (percentageChange > 0) {
-                    trendColorClass = "text-emerald-600 bg-emerald-100/60";
+                const isPositive = percentageChange > 0;
+
+                // Determine colors based on inversion logic
+                const positiveColor = invertTrendColor ? "text-red-600 bg-red-100/60" : "text-emerald-600 bg-emerald-100/60";
+                const negativeColor = invertTrendColor ? "text-emerald-600 bg-emerald-100/60" : "text-red-600 bg-red-100/60";
+
+                if (isPositive) {
+                    trendColorClass = positiveColor;
                     TrendIcon = ArrowUp;
                 } else {
-                    trendColorClass = "text-red-600 bg-red-100/60";
+                    trendColorClass = negativeColor;
                     TrendIcon = ArrowDown;
                 }
             }
         } else if (currentVal > 0) {
             // --- Case 2: Previous value was 0, but current is positive ---
             trend = "New";
-            trendColorClass = "text-emerald-600 bg-emerald-100/60";
+            // Invert color if needed for "New" trend
+            trendColorClass = invertTrendColor ? "text-red-600 bg-red-100/60" : "text-emerald-600 bg-emerald-100/60";
             TrendIcon = ArrowUp;
         } else {
             // --- Case 3: Both are 0 (or current is 0 and previous was 0) ---
