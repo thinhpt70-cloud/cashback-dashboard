@@ -904,14 +904,6 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
         setExpandedTxId(prevId => (prevId === txId ? null : txId));
     };
 
-    const fmtYMShort = (ymCode) => {
-        if (!ymCode || typeof ymCode !== 'string' || ymCode.length !== 6) return "";
-        const year = Number(ymCode.slice(0, 4));
-        const month = Number(ymCode.slice(4, 6));
-        if (isNaN(year) || isNaN(month)) return "";
-        return new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
-    };
-
     const categories = useMemo(() => {
         const uniqueCategories = Array.from(new Set(transactions.map(tx => tx['Category']).filter(Boolean)));
         uniqueCategories.sort((a, b) => a.localeCompare(b));
@@ -2283,4 +2275,5 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
             </div>
         </div>
     );
+
 }
