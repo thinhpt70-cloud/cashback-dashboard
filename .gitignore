@@ -13,3 +13,8 @@ Production build folder
 
 Mac system files
 .DS_Store
+
+# Log files
+npm_output.log
+server_output.log
+npm.log

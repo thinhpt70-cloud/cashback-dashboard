@@ -51,6 +51,7 @@ import LoginScreen from './components/auth/LoginScreen';
 // Import shared components
 import AppSkeleton from "./components/shared/AppSkeleton";
 import StatCard from "./components/shared/StatCard";
+import { ModeToggle } from "./components/ui/ThemeToggle";
 
 // Import custom hooks
 import useMediaQuery from "./hooks/useMediaQuery";
@@ -598,6 +599,7 @@ export default function CashbackDashboard() {
                         <Button variant="outline" className="h-10" onClick={handleLogout}>
                             <LogOut className="mr-2 h-4 w-4" />
                         </Button>
+                        <ModeToggle />
                     </div>
 
                     {/* --- Mobile Controls (hidden on desktop) --- */}
@@ -630,6 +632,7 @@ export default function CashbackDashboard() {
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
+                        <ModeToggle />
                     </div>
                 </div>
             </header>
