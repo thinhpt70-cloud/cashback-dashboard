@@ -81,65 +81,65 @@ function SuggestionDetails({ suggestion, currencyFn }) {
             
             {/* 2. Card & Cycle Stats */}
             <div className="space-y-2">
-                <h4 className="text-sm font-semibold text-slate-600">Card Status</h4>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 rounded-md bg-slate-50 border">
+                <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-400">Card Status</h4>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 rounded-md bg-slate-50 dark:bg-slate-800 border dark:border-slate-700">
                     <div className="space-y-0.5">
-                        <p className="text-xs text-slate-500">Days Left in Cycle</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Days Left in Cycle</p>
                         {/* --- MODIFIED: Use new display string and color class --- */}
                         <p className={cn("font-medium", daysLeftColor)}>{daysLeftDisplay}</p>
                     </div>
                     {/* --- RE-ADDED: Cycle Status, but only if not 'Completed' --- */}
                     {s.cycleStatus !== 'Completed' && s.daysLeft !== null && (
                         <div className="space-y-0.5">
-                            <p className="text-xs text-slate-500">Cycle Status</p>
-                            <p className="font-medium text-slate-800">{s.cycleStatus}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Cycle Status</p>
+                            <p className="font-medium text-slate-800 dark:text-slate-200">{s.cycleStatus}</p>
                         </div>
                     )}
                     <div className="space-y-0.5">
-                        <p className="text-xs text-slate-500">Total Card Spend</p>
-                        <p className="font-medium text-slate-800">{currencyFn(s.currentSpend)}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Total Card Spend</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-200">{currencyFn(s.currentSpend)}</p>
                     </div>
                     <div className="space-y-0.5">
-                        <p className="text-xs text-slate-500">This Category's CB</p>
-                        <p className="font-medium text-slate-800">{currencyFn(s.currentCategoryCashback)}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">This Category's CB</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-200">{currencyFn(s.currentCategoryCashback)}</p>
                     </div>
                 </div>
             </div>
 
             {/* 3. Rule Breakdown */}
             <div className="space-y-2">
-                <h4 className="text-sm font-semibold text-slate-600">Rule Breakdown</h4>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 rounded-md bg-slate-50 border">
+                <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-400">Rule Breakdown</h4>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 rounded-md bg-slate-50 dark:bg-slate-800 border dark:border-slate-700">
                     <div className="space-y-0.5">
-                        <p className="text-xs text-slate-500">Base Rate</p>
-                        <p className="font-medium text-slate-800">{(s.tier1Rate * 100).toFixed(1)}%</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Base Rate</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-200">{(s.tier1Rate * 100).toFixed(1)}%</p>
                     </div>
                     <div className="space-y-0.5">
-                        <p className="text-xs text-slate-500">Base Category Limit</p>
-                        <p className="font-medium text-slate-800">{s.categoryLimit === Infinity ? 'Unlimited' : currencyFn(s.categoryLimit)}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Base Category Limit</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-200">{s.categoryLimit === Infinity ? 'Unlimited' : currencyFn(s.categoryLimit)}</p>
                     </div>
                     {s.hasTier2 && (
                         <>
                             <div className="space-y-0.5">
-                                <p className="text-xs text-slate-500">Tier 2 Rate</p>
-                                <p className="font-medium text-slate-800">{(s.tier2Rate * 100).toFixed(1)}%</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">Tier 2 Rate</p>
+                                <p className="font-medium text-slate-800 dark:text-slate-200">{(s.tier2Rate * 100).toFixed(1)}%</p>
                             </div>
                             <div className="space-y-0.5">
-                                <p className="text-xs text-slate-500">Tier 2 Category Limit</p>
-                                <p className="font-medium text-slate-800">{s.tier2CategoryLimit === Infinity ? 'Unlimited' : currencyFn(s.tier2CategoryLimit)}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">Tier 2 Category Limit</p>
+                                <p className="font-medium text-slate-800 dark:text-slate-200">{s.tier2CategoryLimit === Infinity ? 'Unlimited' : currencyFn(s.tier2CategoryLimit)}</p>
                             </div>
                         </>
                     )}
                     {s.transactionLimit > 0 && (
                         <div className="space-y-0.5">
-                            <p className="text-xs text-slate-500">Max / Transaction</p>
-                            <p className="font-medium text-slate-800">{currencyFn(s.transactionLimit)}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Max / Transaction</p>
+                            <p className="font-medium text-slate-800 dark:text-slate-200">{currencyFn(s.transactionLimit)}</p>
                         </div>
                     )}
                     {s.secondaryTransactionLimit > 0 && (
                         <div className="space-y-0.5">
-                            <p className="text-xs text-slate-500">2nd Tx Limit</p>
-                            <p className="font-medium text-slate-800">{currencyFn(s.secondaryTransactionLimit)}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">2nd Tx Limit</p>
+                            <p className="font-medium text-slate-800 dark:text-slate-200">{currencyFn(s.secondaryTransactionLimit)}</p>
                         </div>
                     )}
                 </div>

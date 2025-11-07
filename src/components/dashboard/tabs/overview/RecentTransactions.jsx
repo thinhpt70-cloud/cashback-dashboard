@@ -102,14 +102,14 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
             </CardHeader>
             <CardContent className="flex-1 flex flex-col lg:min-h-0 p-4">
                 {/* List Headers */}
-                <div className="flex items-center text-sm font-medium text-slate-500 mb-2 px-2 flex-shrink-0">
+                <div className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 mb-2 px-2 flex-shrink-0">
                     <div className="flex-1 min-w-0">Name</div>
                     <div className="w-28 text-left px-2 flex-shrink-0 hidden sm:block">Date</div>
                     <div className="w-28 text-right flex-shrink-0">Amount</div>
                 </div>
                 <div className="space-y-2 lg:flex-1 lg:overflow-y-auto">
                     {filteredTransactions.length === 0 ? (
-                        <div className="text-center text-sm text-slate-500 py-8">
+                        <div className="text-center text-sm text-slate-500 dark:text-slate-400 py-8">
                             No activity for this period.
                         </div>
                     ) : (
@@ -117,22 +117,22 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
                             const card = tx['Card'] && tx['Card'][0] ? cardMap.get(tx['Card'][0]) : null;
                             const cardName = card ? card.name : 'Unknown Card';
                             return (
-                                <div key={tx.id} className="flex items-center p-2 rounded-md hover:bg-slate-50">
+                                <div key={tx.id} className="flex items-center p-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800">
                                     {/* Name Column */}
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-slate-800 truncate" title={tx['Transaction Name']}>
+                                        <p className="font-medium text-slate-800 dark:text-slate-200 truncate" title={tx['Transaction Name']}>
                                             {tx['Transaction Name']}
                                         </p>
-                                        <p className="text-sm text-slate-500">{cardName}</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">{cardName}</p>
                                     </div>
                                     {/* Date Column */}
-                                    <div className="w-28 text-sm text-slate-600 text-left px-2 flex-shrink-0 hidden sm:block">
+                                    <div className="w-28 text-sm text-slate-600 dark:text-slate-300 text-left px-2 flex-shrink-0 hidden sm:block">
                                         {formatDate(tx['Transaction Date'])}
                                     </div>
                                     {/* Amount Column */}
                                     <div className="w-28 text-right flex-shrink-0">
-                                        <p className="font-semibold text-slate-900">{currencyFn(tx['Amount'])}</p>
-                                        <p className="text-sm text-emerald-600 font-medium">+ {currencyFn(tx.estCashback)}</p>
+                                        <p className="font-semibold text-slate-900 dark:text-slate-100">{currencyFn(tx['Amount'])}</p>
+                                        <p className="text-sm text-emerald-600 dark:text-emerald-500 font-medium">+ {currencyFn(tx.estCashback)}</p>
                                     </div>
                                 </div>
                             );

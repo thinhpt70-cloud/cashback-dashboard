@@ -500,8 +500,8 @@ export default function CashbackDashboard() {
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
             <Toaster richColors position="top-center" />
             {/* --- RESPONSIVE HEADER --- */}
-            <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-white px-4 shadow-sm sm:px-6">
-                <h1 className="text-xl font-semibold flex items-center gap-2 shrink-0">
+            <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 shadow-sm sm:px-6">
+                <h1 className="text-xl font-semibold flex items-center gap-2 shrink-0 dark:text-white">
                     <img 
                         src="/favicon.svg" 
                         alt="Cardifier icon" 
@@ -639,7 +639,7 @@ export default function CashbackDashboard() {
             <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
                 <Tabs defaultValue="overview">
                     <div className="flex items-center">
-                        <TabsList className="bg-slate-100 p-1 rounded-lg">
+                        <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                             <TabsTrigger value="overview">Overview</TabsTrigger>
                             <TabsTrigger value="transactions">Transactions</TabsTrigger>
                             <TabsTrigger value="cards">My Cards</TabsTrigger>
@@ -785,15 +785,15 @@ export default function CashbackDashboard() {
                         <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
                         <Tabs defaultValue="month" value={cardView} onValueChange={(value) => setCardView(value)}>
                             {/* The container for the tabs, styled as a light grey rounded box */}
-                            <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-slate-100 p-1 text-muted-foreground">
+                            <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 p-1 text-muted-foreground">
                                 {/* The individual tab buttons */}
-                                <TabsTrigger value="month" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                                <TabsTrigger value="month" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
                                     This Month
                                 </TabsTrigger>
-                                <TabsTrigger value="ytd" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                                <TabsTrigger value="ytd" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
                                     Year to Date
                                 </TabsTrigger>
-                                <TabsTrigger value="roi" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                                <TabsTrigger value="roi" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
                                     ROI & Fees
                                 </TabsTrigger>
                             </TabsList>
@@ -1841,7 +1841,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
     const status = getStatus();
 
     return (
-        <div className={cn("bg-white rounded-xl shadow-sm overflow-hidden border",
+        <div className={cn("bg-card text-card-foreground rounded-xl shadow-sm overflow-hidden border",
             (isPaid || noPaymentNeeded) && "opacity-80",
             !isPaid && daysLeft !== null && daysLeft <= 3 && "border-2 border-red-500",
             isPartiallyPaid && "border-2 border-yellow-500"
@@ -1872,18 +1872,18 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
             <div className="p-4">
                 <div className="flex justify-between items-start mb-4">
                     <div>
-                        <p className="font-bold text-slate-800 text-lg">{card.name} <span className="text-base font-medium text-slate-400">•••• {card.last4}</span></p>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
+                        <p className="font-bold text-slate-800 dark:text-slate-200 text-lg">{card.name} <span className="text-base font-medium text-slate-400">•••• {card.last4}</span></p>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
                             <span>
-                                Statement: <span className="font-medium text-slate-600">{fmtYMShortFn(statement.month)}</span>
+                                Statement: <span className="font-medium text-slate-600 dark:text-slate-300">{fmtYMShortFn(statement.month)}</span>
                             </span>
                             <span className="text-slate-400">•</span>
                             <span>
-                                Issued: <span className="font-medium text-slate-600">{statement.statementDate}</span>
+                                Issued: <span className="font-medium text-slate-600 dark:text-slate-300">{statement.statementDate}</span>
                             </span>
                             <span className="text-slate-400">•</span>
                             <span>
-                                Due: <span className="font-medium text-slate-600">{statement.paymentDate}</span>
+                                Due: <span className="font-medium text-slate-600 dark:text-slate-300">{statement.paymentDate}</span>
                             </span>
                         </div>
                     </div>
@@ -1909,33 +1909,33 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
                 <div className="flex flex-col md:flex-row gap-4">
                     {noPaymentNeeded ? (
-                        <div className="flex-1 bg-slate-50 rounded-lg p-4 flex flex-col items-center justify-center text-center h-40">
-                            <Wallet className="h-8 w-8 text-slate-400 mb-2" />
-                            <p className="font-semibold text-slate-700">No Balance This Month</p>
-                            <p className="text-sm text-slate-500">You're all clear for this statement cycle.</p>
+                        <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 flex flex-col items-center justify-center text-center h-40">
+                            <Wallet className="h-8 w-8 text-slate-400 dark:text-slate-500 mb-2" />
+                            <p className="font-semibold text-slate-700 dark:text-slate-300">No Balance This Month</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">You're all clear for this statement cycle.</p>
                         </div>
                     ) : (
                         <>
-                            <div className="flex-1 bg-slate-100/80 rounded-lg p-3">
+                            <div className="flex-1 bg-slate-100/80 dark:bg-slate-800/50 rounded-lg p-3">
                                 {/* Label changed from ACTUAL BALANCE */}
                                 <div className="flex items-center gap-2">
-                                    <p className="text-xs text-slate-500 font-semibold">STATEMENT BALANCE</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">STATEMENT BALANCE</p>
                                     {/* Move the badge logic here and remove the top margin */}
                                     {(rawStatementAmount === 0 || rawStatementAmount === null) && <Badge variant="outline">Estimated</Badge>}
                                 </div>
-                                <p className="text-3xl font-extrabold text-slate-800 tracking-tight">{currencyFn(statementAmount)}</p>
+                                <p className="text-3xl font-extrabold text-slate-800 dark:text-slate-200 tracking-tight">{currencyFn(statementAmount)}</p>
                                 <div className="mt-2 space-y-1 text-sm">
-                                    <div className="flex justify-between items-center"><span className="text-slate-500">Paid:</span><span className="font-medium text-slate-600">{currencyFn(paidAmount)}</span></div>
-                                    <div className="flex justify-between items-center font-bold"><span className="text-slate-500">Remaining:</span><span className={cn(isPaid ? "text-emerald-600" : "text-red-600")}>{currencyFn(remaining)}</span></div>
+                                    <div className="flex justify-between items-center"><span className="text-slate-500 dark:text-slate-400">Paid:</span><span className="font-medium text-slate-600 dark:text-slate-300">{currencyFn(paidAmount)}</span></div>
+                                    <div className="flex justify-between items-center font-bold"><span className="text-slate-500 dark:text-slate-400">Remaining:</span><span className={cn(isPaid ? "text-emerald-600" : "text-red-600")}>{currencyFn(remaining)}</span></div>
                                 </div>
                             </div>
-                            <div className="w-full md:w-64 bg-slate-50/70 rounded-lg p-3">
+                            <div className="w-full md:w-64 bg-slate-50/70 dark:bg-slate-800/30 rounded-lg p-3">
                                 {/* Label changed from ESTIMATED BALANCE */}
-                                <p className="text-xs text-slate-500 font-semibold">SPEND SUMMARY</p>
-                                <p className="text-2xl font-bold text-slate-500 tracking-tight">{currencyFn(estimatedBalance)}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">SPEND SUMMARY</p>
+                                <p className="text-2xl font-bold text-slate-500 dark:text-slate-400 tracking-tight">{currencyFn(estimatedBalance)}</p>
                                 <div className="mt-2 space-y-1 text-sm">
-                                    <div className="flex justify-between items-center"><span className="text-slate-500">Total Spend:</span><span className="font-medium text-slate-600">{currencyFn(spend)}</span></div>
-                                    <div className="flex justify-between items-center"><span className="text-slate-500">Cashback:</span><span className="font-medium text-emerald-600">-{currencyFn(cashback)}</span></div>
+                                    <div className="flex justify-between items-center"><span className="text-slate-500 dark:text-slate-400">Total Spend:</span><span className="font-medium text-slate-600 dark:text-slate-300">{currencyFn(spend)}</span></div>
+                                    <div className="flex justify-between items-center"><span className="text-slate-500 dark:text-slate-400">Cashback:</span><span className="font-medium text-emerald-600">-{currencyFn(cashback)}</span></div>
                                 </div>
                             </div>
                         </>
@@ -2053,12 +2053,12 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
 
     return (
         <div>
-            <h3 className="text-sm font-semibold mb-2 text-slate-600">{title}</h3>
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <h3 className="text-sm font-semibold mb-2 text-slate-600 dark:text-slate-300">{title}</h3>
+            <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
                 <table className="w-full text-sm whitespace-nowrap">
-                    <thead className="text-left text-slate-500 bg-slate-100">
+                    <thead className="text-left text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800">
                         <tr>
-                            <th className="sticky left-0 bg-slate-100 p-2 font-medium">Month</th>
+                            <th className="sticky left-0 bg-slate-100 dark:bg-slate-800 p-2 font-medium">Month</th>
                             <th className="p-2 font-medium">Status</th>
                             <th className="p-2 font-medium">Statement Date</th>
                             <th className="p-2 font-medium">Payment Date</th>
@@ -2069,7 +2069,7 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                             <th className="p-2 font-medium text-center">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 bg-white">
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
                         {statements.map(stmt => {
                             let statusBadge;
                             if (stmt.daysLeft === null) {
@@ -2079,19 +2079,19 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                             }
                             
                             return (
-                                <tr key={stmt.id} className="hover:bg-slate-50">
-                                    <td className="sticky left-0 bg-white hover:bg-slate-50 p-2"><span className="bg-slate-200 text-slate-700 font-medium px-2 py-1 rounded-md text-xs">{fmtYMShortFn(stmt.month)}</span></td>
+                                <tr key={stmt.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                    <td className="sticky left-0 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 p-2"><span className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium px-2 py-1 rounded-md text-xs">{fmtYMShortFn(stmt.month)}</span></td>
                                     <td className="p-2">{statusBadge}</td>
                                     <td className="p-2">{stmt.statementDate}</td>
                                     <td className="p-2">{stmt.paymentDate}</td>
                                     <td className="p-2 text-right">{currencyFn(stmt.spend)}</td>
                                     <td className="p-2 text-right text-emerald-600">-{currencyFn(stmt.cashback)}</td>
-                                    <td className="p-2 text-right font-bold text-slate-700">{currencyFn(stmt.statementAmount)}</td>
+                                    <td className="p-2 text-right font-bold text-slate-700 dark:text-slate-300">{currencyFn(stmt.statementAmount)}</td>
                                     <td className="p-2 text-right">{currencyFn(stmt.paidAmount)}</td>
                                     <td className="p-2 text-center">
                                         <button 
                                             onClick={() => onViewTransactions(stmt.card.id, stmt.card.name, stmt.month, fmtYMShortFn(stmt.month))}
-                                            className="text-slate-400 hover:text-slate-600"
+                                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                                         >
                                             <List className="h-5 w-5"/>
                                         </button>
@@ -2101,7 +2101,7 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                         })}
                     </tbody>
                     {remainingCount > 0 && (
-                        <tfoot className="bg-slate-50">
+                        <tfoot className="bg-slate-50 dark:bg-slate-800/50">
                             <tr>
                                 <td colSpan="9" className="text-center p-2">
                                     <Button
@@ -2129,14 +2129,14 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
 
 function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = false }) {
     return (
-        <div className="p-2 bg-slate-50/70 rounded-lg">
-            <div className="flex items-center text-xs text-slate-500 mb-0.5">
+        <div className="p-2 bg-slate-50/70 dark:bg-slate-800/50 rounded-lg">
+            <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 mb-0.5">
                 {Icon && <Icon className="h-3.5 w-3.5 mr-1.5" />}
                 <span>{label}</span>
             </div>
             <p className={cn(
                 "font-bold transition-all duration-300",
-                isPrimary ? "text-xl text-slate-800" : "text-base text-slate-700",
+                isPrimary ? "text-xl text-slate-800 dark:text-slate-200" : "text-base text-slate-700 dark:text-slate-300",
                 valueClassName
             )}>
                 {value}
@@ -2170,7 +2170,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
 
     return (
         <div className={cn(
-            "bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 flex flex-col relative",
+            "bg-card text-card-foreground rounded-xl shadow-md overflow-hidden transition-all duration-300 flex flex-col relative",
             card.status === 'Closed' && 'filter grayscale',
             card.status === 'Frozen' && 'opacity-75'
         )}>
@@ -2201,9 +2201,9 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
             </div>
             
             <div className="p-4 flex-grow flex flex-col">
-                <div className="text-xs text-slate-500 grid grid-cols-2 gap-x-4">
-                    <p>Statement: <span className="font-medium text-slate-600">Day {card.statementDay}</span></p>
-                    <p>Payment Due: <span className="font-medium text-slate-600">Day {card.paymentDueDay}</span></p>
+                <div className="text-xs text-slate-500 dark:text-slate-400 grid grid-cols-2 gap-x-4">
+                    <p>Statement: <span className="font-medium text-slate-600 dark:text-slate-300">Day {card.statementDay}</span></p>
+                    <p>Payment Due: <span className="font-medium text-slate-600 dark:text-slate-300">Day {card.paymentDueDay}</span></p>
                 </div>
                 
                 <div className="flex-grow flex flex-col justify-center mt-4">
