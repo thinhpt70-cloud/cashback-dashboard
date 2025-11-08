@@ -771,21 +771,54 @@ app.post('/api/summaries', async (req, res) => {
             return res.status(400).json({ error: 'cardId, month, and ruleId are required' });
         }
 
-        // You might want to fetch the rule name here to create a more descriptive summary name
-        // For now, we'll use a simple name
+        const cardPage = await notion.pages.retrieve({ page_id: cardId });
+        const cardName = cardPage.properties['Card Name']?.title[0]?.plain_text || 'Untitled Card';
+
         const rulePage = await notion.pages.retrieve({ page_id: ruleId });
         const ruleName = rulePage.properties['Rule Name']?.title[0]?.plain_text || 'Untitled Rule';
 
-        const summaryName = `${month} - ${ruleName}`; 
+        const summaryName = `${month} - ${ruleName}`;
+        const trackerId = `${cardName} - ${month}`;
+
+        const properties = {
+            'Summary ID': { title: [{ text: { content: summaryName } }] },
+            'Card': { relation: [{ id: cardId }] },
+            'Month': { select: { name: month } },
+            'Cashback Rule': { relation: [{ id: ruleId }] },
+        };
+
+        let trackerPageId;
+        const trackerResponse = await notion.databases.query({
+            database_id: monthlySummaryDbId,
+            filter: {
+                property: 'Tracker ID',
+                title: {
+                    equals: trackerId,
+                },
+            },
+        });
+
+        if (trackerResponse.results.length > 0) {
+            trackerPageId = trackerResponse.results[0].id;
+        } else {
+            const newTrackerPage = await notion.pages.create({
+                parent: { database_id: monthlySummaryDbId },
+                properties: {
+                    'Tracker ID': { title: [{ text: { content: trackerId } }] },
+                    'Card': { relation: [{ id: cardId }] },
+                    'Month': { select: { name: month } },
+                },
+            });
+            trackerPageId = newTrackerPage.id;
+        }
+
+        if (trackerPageId) {
+            properties['Cashback Tracker'] = { relation: [{ id: trackerPageId }] };
+        }
 
         const newSummary = await notion.pages.create({
-            parent: { database_id: monthlyCategoryDbId }, // Make sure you have a constant for your Summary DB ID
-            properties: {
-                'Summary ID': { title: [{ text: { content: summaryName } }] },
-                'Card': { relation: [{ id: cardId }] },
-                'Month': { select: { name: month } },
-                // Add any other required fields for a new summary
-            },
+            parent: { database_id: monthlyCategoryDbId },
+            properties,
         });
 
         res.status(201).json({ id: newSummary.id, name: summaryName, cardId, month });

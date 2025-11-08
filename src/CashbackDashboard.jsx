@@ -664,6 +664,7 @@ export default function CashbackDashboard() {
                                     monthlyCategorySummary={monthlyCategorySummary}
                                     currencyFn={currency}
                                     getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                    transactions={monthlyTransactions}
                                 />
                             </div>
 

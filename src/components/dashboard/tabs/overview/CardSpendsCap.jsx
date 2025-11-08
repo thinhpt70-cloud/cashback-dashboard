@@ -1,12 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronDown, CheckCircle2, Circle, Unlock, Lock } from 'lucide-react';
+import { ChevronDown, CheckCircle2, Circle, Unlock, Lock, Infinity, Eye } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { Card, CardContent } from '../../../ui/card';
 import { Badge } from '../../../ui/badge';
 import { Progress } from '../../../ui/progress';
+import { Button } from '../../../ui/button';
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '../../../../lib/date';
 
-function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, currencyFn, isTier2Met }) {
+import ViewTransactionsDialog from '../../dialogs/ViewTransactionsDialog';
+
+function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, currencyFn, isTier2Met, onSelectCategory }) {
     const categoryCapData = useMemo(() => {
         const rulesMap = new Map(rules.map(r => [r.ruleName, r]));
 
@@ -72,20 +75,31 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                                     <span className="font-mono text-xs font-semibold text-slate-500 dark:text-slate-400 flex-shrink-0">{cap.usedPct}%</span>
                                 )}
                             </div>
-                            <Progress 
-                                value={cap.limit === 0 ? 100 : cap.usedPct}
-                                className="h-2" 
-                                indicatorClassName={cn(
-                                    cap.limit === 0 ? "bg-gray-400" : (cap.isCompleted ? "bg-blue-500" : "bg-black dark:bg-slate-200")
-                                )} 
-                            />
+                            {cap.limit > 0 ? (
+                                <Progress
+                                    value={cap.usedPct}
+                                    className="h-2"
+                                    indicatorClassName={cn(
+                                        cap.isCompleted ? "bg-emerald-500" : "bg-black dark:bg-slate-200"
+                                    )}
+                                />
+                            ) : (
+                                <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                                    <Infinity className="h-4 w-4 text-gray-500" />
+                                </div>
+                            )}
                             <div className="flex justify-between items-center text-xs text-muted-foreground mt-1.5">
                                 <span>
                                     {currencyFn(cap.currentCashback)}{cap.limit > 0 ? ` / ${currencyFn(cap.limit)}` : ''}
                                 </span>
-                                <span className="font-medium">
-                                    {cap.limit === 0 ? 'Unlimited' : `${currencyFn(cap.remaining)} left`}
-                                </span>
+                                {cap.limit > 0 && (
+                                    <span className="font-medium">
+                                        {`${currencyFn(cap.remaining)} left`}
+                                    </span>
+                                )}
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onSelectCategory(cap.category)}>
+                                    <Eye className="h-4 w-4" />
+                                </Button>
                             </div>
                         </div>
                     ))}
@@ -110,7 +124,8 @@ function SingleCapCard({
     monthlyCategorySummary, 
     getProgressColor, 
     getDotColorClass, 
-    DaysLeftBadge 
+    DaysLeftBadge,
+    onSelectCategory
 }) {
     return (
         <Card key={p.cardId} className="w-full">
@@ -234,6 +249,7 @@ function SingleCapCard({
                             monthlyCategorySummary={monthlyCategorySummary}
                             currencyFn={currencyFn}
                             isTier2Met={p.isTier2Met}
+                            onSelectCategory={onSelectCategory}
                         />
                     </div>
                 )}
@@ -243,8 +259,9 @@ function SingleCapCard({
 }
 
 // --- REFACTORED CardSpendsCap Component ---
-export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummary, monthlyCategorySummary, currencyFn, getCurrentCashbackMonthForCard }) {
+export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummary, monthlyCategorySummary, currencyFn, getCurrentCashbackMonthForCard, transactions }) {
     const [expandedCardId, setExpandedCardId] = useState(null);
+    const [selectedCategory, setSelectedCategory] = useState(null);
 
     const isLiveView = activeMonth === 'live';
 
@@ -352,6 +369,11 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
         </Badge>
     );
 
+    const filteredTransactions = useMemo(() => {
+        if (!selectedCategory) return [];
+        return transactions.filter(t => t['Card Summary Category']?.includes(selectedCategory));
+    }, [selectedCategory, transactions]);
+
     return (
         // This div replaces the original outer <Card>
         <div>
@@ -374,6 +396,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                 getProgressColor={getProgressColor}
                                 getDotColorClass={getDotColorClass}
                                 DaysLeftBadge={DaysLeftBadge}
+                                onSelectCategory={setSelectedCategory}
                             />
                         ))}
                     </div>
@@ -385,6 +408,13 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                     </Card>
                 )}
             </div>
+            <ViewTransactionsDialog
+                isOpen={!!selectedCategory}
+                onClose={() => setSelectedCategory(null)}
+                transactions={filteredTransactions}
+                categoryName={selectedCategory}
+                currencyFn={currencyFn}
+            />
         </div>
     );
 }
