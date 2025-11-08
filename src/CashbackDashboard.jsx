@@ -41,6 +41,7 @@ import SpendByCardChart from "./components/dashboard/tabs/overview/SpendByCardCh
 import CardPerformanceLineChart from "./components/dashboard/tabs/overview/CardPerformanceLineChart";
 import RecentTransactions from './components/dashboard/tabs/overview/RecentTransactions';
 import SpendVsCashbackTrendChart from "./components/dashboard/tabs/overview/SpendVsCashbackTrendChart";
+import StatCards from './components/dashboard/tabs/overview/OverviewStatCards';
 
 // Import transactions tab components
 import TransactionReviewCenter from './components/dashboard/tabs/transactions/TransactionReviewCenter';
@@ -653,37 +654,7 @@ export default function CashbackDashboard() {
                         <div className="flex flex-col lg:flex-row gap-4">
                             {/* LEFT COLUMN */}
                             <div className="lg:w-7/12 flex flex-col gap-4">
-                                {/* --- STATCARD GRID --- */}
-                                <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-                                    <StatCard
-                                        title="Total Spend"
-                                        value={currency(displayStats.totalSpend)}
-                                        numericValue={displayStats.totalSpend}
-                                        icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-                                        currentMonthLabel={displayStats.label}
-                                        lastMonthValue={displayStats.prevMonthSpend}
-                                        sparklineData={displayStats.spendSparkline}
-                                         invertTrendColor={true}
-                                    />
-                                    <StatCard
-                                        title="Est. Cashback"
-                                        value={currency(displayStats.totalCashback)}
-                                        numericValue={displayStats.totalCashback}
-                                        icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-                                        currentMonthLabel={displayStats.label}
-                                        lastMonthValue={displayStats.prevMonthCashback}
-                                        sparklineData={displayStats.cashbackSparkline}
-                                    />
-                                    <StatCard
-                                        title="Effective Rate"
-                                        value={`${(displayStats.effectiveRate * 100).toFixed(2)}%`}
-                                        numericValue={displayStats.effectiveRate}
-                                        icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-                                        currentMonthLabel={displayStats.label}
-                                        lastMonthValue={displayStats.prevMonthRate} 
-                                        sparklineData={displayStats.rateSparkline}
-                                    />
-                                </div>
+                                <StatCards stats={displayStats} currencyFn={currency} />
 
                                 <CardSpendsCap
                                     cards={cards}

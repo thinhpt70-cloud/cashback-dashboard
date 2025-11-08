@@ -8,38 +8,36 @@ import { AreaChart, Area, ResponsiveContainer, Tooltip as RechartsTooltip } from
 /**
  * A small sparkline chart component using Recharts
  */
-function SparklineChart({ data, lineColor, fillColor, dataKey, currencyFn }) {
+function SparklineChart({ data, lineColor, fillColor, dataKey, currencyFn, title }) {
     if (!data || data.length < 2) return null;
 
     // Format data for Recharts (AreaChart needs objects with keys)
     const formattedData = data.map((value, index) => ({ name: index, [dataKey]: value }));
 
-    const formatTooltipValue = (value, name, props) => {
-        // 'name' is the dataKey, 'value' is the actual numeric value
-
+    const formatTooltipValue = (value) => {
         // 1. If a currency function is provided (passed down from StatCard), use it.
         //    Format it to remove trailing decimals and use grouping.
         if (currencyFn) {
             // Use Intl.NumberFormat directly for more control
-            const formatter = new Intl.NumberFormat('vi-VN', { 
-                style: 'currency', 
-                currency: 'VND', 
+            const formatter = new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND',
                 minimumFractionDigits: 0, // Remove .00
                 maximumFractionDigits: 0  // Remove .00
             });
             return formatter.format(value);
         }
-        
+
         // 2. If it's a rate (a decimal between -1 and 1), format as percentage.
         if (value > -1 && value < 1 && value !== 0) { // Exclude exact 0
             return `${(value * 100).toFixed(2)}%`;
         }
-        
+
         // 3. Fallback for any other number (e.g., if currencyFn is missing).
         //    Format with thousand separators and no decimals.
-        return value.toLocaleString('en-US', { 
-            minimumFractionDigits: 0, 
-            maximumFractionDigits: 0 
+        return value.toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
         });
     };
 
@@ -60,7 +58,7 @@ function SparklineChart({ data, lineColor, fillColor, dataKey, currencyFn }) {
                     <RechartsTooltip
                         contentStyle={{ fontSize: '10px', padding: '2px 4px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.9)', border: '1px solid #ccc' }}
                         itemStyle={{ padding: 0, color: lineColor }}
-                        formatter={formatTooltipValue}
+                        formatter={(value) => [formatTooltipValue(value), title]}
                         labelFormatter={() => ''} // Hide the label (index)
                         cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '3 3' }}
                     />
@@ -112,15 +110,15 @@ export default function StatCard({
             if (Math.abs(percentageChange) < 0.1) {
                 // Negligible change
                 trend = '≈0%';
-                trendColorClass = "text-slate-600 bg-slate-100/60";
+                trendColorClass = "text-slate-600 bg-slate-100/60 dark:bg-slate-700 dark:text-slate-200";
             } else {
                 // Significant change
                 trend = `${Math.abs(percentageChange).toFixed(1)}%`;
                 const isPositive = percentageChange > 0;
 
                 // Determine colors based on inversion logic
-                const positiveColor = invertTrendColor ? "text-red-600 bg-red-100/60" : "text-emerald-600 bg-emerald-100/60";
-                const negativeColor = invertTrendColor ? "text-emerald-600 bg-emerald-100/60" : "text-red-600 bg-red-100/60";
+                const positiveColor = invertTrendColor ? "text-red-600 bg-red-100/60 dark:bg-red-900/50 dark:text-red-300" : "text-emerald-600 bg-emerald-100/60 dark:bg-emerald-900/50 dark:text-emerald-300";
+                const negativeColor = invertTrendColor ? "text-emerald-600 bg-emerald-100/60 dark:bg-emerald-900/50 dark:text-emerald-300" : "text-red-600 bg-red-100/60 dark:bg-red-900/50 dark:text-red-300";
 
                 if (isPositive) {
                     trendColorClass = positiveColor;
@@ -134,12 +132,12 @@ export default function StatCard({
             // --- Case 2: Previous value was 0, but current is positive ---
             trend = "New";
             // Invert color if needed for "New" trend
-            trendColorClass = invertTrendColor ? "text-red-600 bg-red-100/60" : "text-emerald-600 bg-emerald-100/60";
+            trendColorClass = invertTrendColor ? "text-red-600 bg-red-100/60 dark:bg-red-900/50 dark:text-red-300" : "text-emerald-600 bg-emerald-100/60 dark:bg-emerald-900/50 dark:text-emerald-300";
             TrendIcon = ArrowUp;
         } else {
             // --- Case 3: Both are 0 (or current is 0 and previous was 0) ---
             trend = '0%';
-            trendColorClass = "text-slate-600 bg-slate-100/60";
+            trendColorClass = "text-slate-600 bg-slate-100/60 dark:bg-slate-700 dark:text-slate-200";
         }
     }
     // If lastMonthValue is not a number (null/undefined), 'trend' remains null and no badge is shown.
@@ -203,6 +201,7 @@ export default function StatCard({
                         fillColor={fillColor}
                         dataKey={title.toLowerCase().replace(/\s+/g, '-')} // Unique key
                         currencyFn={title !== 'Effective Rate' ? currencyFn : undefined}
+                        title={title}
                     />
                 </div>
             )}
