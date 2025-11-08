@@ -97,7 +97,7 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                                         {`${currencyFn(cap.remaining)} left`}
                                     </span>
                                 )}
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onSelectCategory(cap.category)}>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onSelectCategory({ categoryName: cap.category, cardId: card.id })}>
                                     <Eye className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -371,7 +371,11 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
 
     const filteredTransactions = useMemo(() => {
         if (!selectedCategory) return [];
-        return transactions.filter(t => t['Card Summary Category']?.includes(selectedCategory));
+        // Filter transactions both by the category name and the specific card ID
+        return transactions.filter(t =>
+            t.cardId === selectedCategory.cardId &&
+            t['Card Summary Category']?.includes(selectedCategory.categoryName)
+        );
     }, [selectedCategory, transactions]);
 
     return (
@@ -412,7 +416,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                 isOpen={!!selectedCategory}
                 onClose={() => setSelectedCategory(null)}
                 transactions={filteredTransactions}
-                categoryName={selectedCategory}
+                categoryName={selectedCategory?.categoryName}
                 currencyFn={currencyFn}
             />
         </div>
