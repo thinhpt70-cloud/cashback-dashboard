@@ -7,7 +7,10 @@ import { Progress } from '../../../ui/progress';
 import { Button } from '../../../ui/button';
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '../../../../lib/date';
 
+import { toast } from 'sonner';
 import ViewTransactionsDialog from '../../dialogs/ViewTransactionsDialog';
+
+const API_BASE_URL = '/api';
 
 function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, currencyFn, isTier2Met, onSelectCategory }) {
     const categoryCapData = useMemo(() => {
@@ -92,14 +95,16 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                                 <span>
                                     {currencyFn(cap.currentCashback)}{cap.limit > 0 ? ` / ${currencyFn(cap.limit)}` : ''}
                                 </span>
-                                {cap.limit > 0 && (
-                                    <span className="font-medium">
-                                        {`${currencyFn(cap.remaining)} left`}
-                                    </span>
-                                )}
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onSelectCategory({ categoryName: cap.category, cardId: card.id })}>
-                                    <Eye className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center">
+                                    {cap.limit > 0 && (
+                                        <span className="font-medium mr-2">
+                                            {`${currencyFn(cap.remaining)} left`}
+                                        </span>
+                                    )}
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onSelectCategory({ categoryName: cap.category, cardId: card.id })}>
+                                        <Eye className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -259,14 +264,50 @@ function SingleCapCard({
 }
 
 // --- REFACTORED CardSpendsCap Component ---
-export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummary, monthlyCategorySummary, currencyFn, getCurrentCashbackMonthForCard, transactions }) {
+export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummary, monthlyCategorySummary, currencyFn, getCurrentCashbackMonthForCard }) {
     const [expandedCardId, setExpandedCardId] = useState(null);
-    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [dialogState, setDialogState] = useState({
+        isOpen: false,
+        isLoading: false,
+        categoryName: null,
+        transactions: [],
+    });
 
     const isLiveView = activeMonth === 'live';
 
     const handleToggleExpand = (cardId) => {
         setExpandedCardId(prevId => (prevId === cardId ? null : cardId));
+    };
+
+    const handleSelectCategory = async ({ categoryName, cardId }) => {
+        setDialogState({ isOpen: true, isLoading: true, categoryName, transactions: [] });
+
+        try {
+            const card = cards.find(c => c.id === cardId);
+            if (!card) throw new Error("Card not found");
+
+            const monthForCard = isLiveView ? getCurrentCashbackMonthForCard(card) : activeMonth;
+
+            const res = await fetch(`${API_BASE_URL}/transactions?month=${monthForCard.replace('-', '')}&filterBy=cashbackMonth&cardId=${cardId}`);
+            if (!res.ok) throw new Error('Failed to fetch transactions');
+
+            const allTransactions = await res.json();
+
+            const filtered = allTransactions.filter(t => {
+                const summaryCategories = t['Card Summary Category'];
+                if (!Array.isArray(summaryCategories) || summaryCategories.length === 0) {
+                    return false;
+                }
+                return summaryCategories.some(summary => summary.includes(categoryName));
+            });
+
+            setDialogState({ isOpen: true, isLoading: false, categoryName, transactions: filtered });
+
+        } catch (err) {
+            console.error(err);
+            toast.error("Could not load transaction details.");
+            setDialogState({ isOpen: false, isLoading: false, categoryName: null, transactions: [] });
+        }
     };
 
     const cardSpendsCapProgress = useMemo(() => {
@@ -369,15 +410,6 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
         </Badge>
     );
 
-    const filteredTransactions = useMemo(() => {
-        if (!selectedCategory) return [];
-        // Filter transactions both by the category name and the specific card ID
-        return transactions.filter(t =>
-            t.cardId === selectedCategory.cardId &&
-            t['Card Summary Category']?.includes(selectedCategory.categoryName)
-        );
-    }, [selectedCategory, transactions]);
-
     return (
         // This div replaces the original outer <Card>
         <div>
@@ -400,7 +432,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                                 getProgressColor={getProgressColor}
                                 getDotColorClass={getDotColorClass}
                                 DaysLeftBadge={DaysLeftBadge}
-                                onSelectCategory={setSelectedCategory}
+                                onSelectCategory={handleSelectCategory}
                             />
                         ))}
                     </div>
@@ -413,10 +445,11 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                 )}
             </div>
             <ViewTransactionsDialog
-                isOpen={!!selectedCategory}
-                onClose={() => setSelectedCategory(null)}
-                transactions={filteredTransactions}
-                categoryName={selectedCategory?.categoryName}
+                isOpen={dialogState.isOpen}
+                isLoading={dialogState.isLoading}
+                onClose={() => setDialogState({ isOpen: false, isLoading: false, categoryName: null, transactions: [] })}
+                transactions={dialogState.transactions}
+                categoryName={dialogState.categoryName}
                 currencyFn={currencyFn}
             />
         </div>

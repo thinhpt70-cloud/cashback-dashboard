@@ -289,6 +289,7 @@ export default function CashbackDashboard() {
     const rulesMap = useMemo(() => new Map(rules.map(r => [r.id, r])), [rules]);
     const summaryMap = useMemo(() => new Map(monthlyCategorySummary.map(s => [s.id, s])), [monthlyCategorySummary]);
 
+
     // --- NEW: CONSOLIDATED STATS LOGIC ---
     // This single hook provides all stats for the StatCards,
     // for both 'live' and 'historical' views.
@@ -664,7 +665,6 @@ export default function CashbackDashboard() {
                                     monthlyCategorySummary={monthlyCategorySummary}
                                     currencyFn={currency}
                                     getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                    transactions={monthlyTransactions}
                                 />
                             </div>
 
