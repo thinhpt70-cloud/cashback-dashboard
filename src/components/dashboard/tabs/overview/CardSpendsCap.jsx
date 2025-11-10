@@ -101,7 +101,11 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                                             {`${currencyFn(cap.remaining)} left`}
                                         </span>
                                     )}
-                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onSelectCategory({ categoryName: cap.category, cardId: card.id })}>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onSelectCategory({ 
+                                        categoryName: cap.category, 
+                                        cardId: card.id,
+                                        summaryPageId: cap.id
+                                    })}>
                                         <Eye className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -279,7 +283,7 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
         setExpandedCardId(prevId => (prevId === cardId ? null : cardId));
     };
 
-    const handleSelectCategory = async ({ categoryName, cardId }) => {
+    const handleSelectCategory = async ({ categoryName, cardId, summaryPageId }) => { // <-- 1. ADD summaryPageId here
         setDialogState({ isOpen: true, isLoading: true, categoryName, transactions: [] });
 
         try {
@@ -293,13 +297,17 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
 
             const allTransactions = await res.json();
 
+            // --- 2. REPLACE THE FILTER LOGIC ---
             const filtered = allTransactions.filter(t => {
-                const summaryCategories = t['Card Summary Category'];
+                const summaryCategories = t['Card Summary Category']; // This is an array of relation IDs
                 if (!Array.isArray(summaryCategories) || summaryCategories.length === 0) {
                     return false;
                 }
-                return summaryCategories.some(summary => summary.includes(categoryName));
+                // Check if the transaction's summary category IDs
+                // include the specific summaryPageId that was clicked.
+                return summaryCategories.includes(summaryPageId);
             });
+            // --- END OF REPLACEMENT ---
 
             setDialogState({ isOpen: true, isLoading: false, categoryName, transactions: filtered });
 
