@@ -12,7 +12,8 @@ import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '.
 function RateStatusBadge({ suggestion }) {
     if (suggestion.isBoosted) {
         return (
-            <Badge variant="default" className="bg-indigo-600 hover:bg-indigo-700 text-xs h-5 px-2">
+            // Using green for active boost, which works well on light/dark
+            <Badge variant="default" className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white dark:text-green-100 text-xs h-5 px-2">
                 ✨ Tier 2 Active
             </Badge>
         );
@@ -20,7 +21,8 @@ function RateStatusBadge({ suggestion }) {
 
     if (suggestion.hasTier2) {
         return (
-            <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 text-xs h-5 px-2">
+             // Adding specific dark mode styles for the outline badge
+            <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700 text-xs h-5 px-2">
                 Tier 2 Available
             </Badge>
         );
@@ -30,13 +32,48 @@ function RateStatusBadge({ suggestion }) {
     return null; 
 }
 
+// --- NEW SUB-COMPONENT: SuggestionInfoCallout (for Accordion Content) ---
+function SuggestionInfoCallout({ suggestion, currencyFn }) {
+    const s = suggestion;
+
+    if (s.isBoosted) {
+        return (
+            <div className="flex items-start gap-3 text-sm p-3 rounded-md bg-green-50 dark:bg-green-900/50 border border-green-200 dark:border-green-800">
+                <Sparkles className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                <div>
+                    <p className="font-semibold text-green-800 dark:text-green-300">Tier 2 Active</p>
+                    <p className="text-green-700 dark:text-green-400 text-xs">
+                        This card has met its {currencyFn(s.tier2MinSpend)} spend requirement, unlocking a higher cashback rate or an increased category limit.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    if (s.hasTier2) {
+        return (
+            <div className="flex items-start gap-3 text-sm p-3 rounded-md bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800">
+                <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div>
+                    <p className="font-semibold text-blue-800 dark:text-blue-300">Tier 2 Available</p>
+                    <p className="text-blue-700 dark:text-blue-400 text-xs">
+                        Spend {currencyFn(s.tier2MinSpend - s.currentSpend)} more on this card to unlock a better rate of <span className="font-bold">{(s.tier2Rate * 100).toFixed(1)}%</span>.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    return null;
+}
+
 // --- NEW SUB-COMPONENT: SuggestionDetails (for Accordion Content) ---
 function SuggestionDetails({ suggestion, currencyFn }) {
     const s = suggestion; // for brevity
 
     // --- MODIFIED: Improved daysLeft display logic ---
     let daysLeftDisplay;
-    let daysLeftColor = "text-slate-800"; // Default color
+    let daysLeftColor = "text-foreground dark:text-slate-200"; // Default color
 
     if (s.daysLeft === null) {
         daysLeftDisplay = "Completed";
@@ -52,26 +89,28 @@ function SuggestionDetails({ suggestion, currencyFn }) {
             
             {/* 1. Status Details (Alerts) - Now more descriptive */}
             <div className="space-y-2">
+                <SuggestionInfoCallout suggestion={s} currencyFn={currencyFn} />
+
                 {!s.hasMetMinSpend && (
-                    <div className="flex items-start gap-2 text-sm p-3 rounded-md bg-orange-50 border border-orange-200">
+                    <div className="flex items-start gap-2 text-sm p-3 rounded-md bg-orange-50 dark:bg-orange-900/50 border border-orange-200 dark:border-orange-800">
                         <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
                         <div>
-                            <p className="font-semibold text-orange-800">Minimum Spend Not Met</p>
-                            <p className="text-orange-700 text-xs">
+                            <p className="font-semibold text-orange-800 dark:text-orange-300">Minimum Spend Not Met</p>
+                            <p className="text-orange-700 dark:text-orange-400 text-xs">
                                 Spend <span className="font-bold">{currencyFn(s.minimumMonthlySpend - s.currentSpend)}</span> more on this card to activate this rate.
                             </p>
                         </div>
                     </div>
                 )}
                 {s.hasBetterChallenger && s.challengerDetails && (
-                     <div className="flex items-start gap-2 text-sm p-3 rounded-md bg-blue-50 border border-blue-200">
+                     <div className="flex items-start gap-2 text-sm p-3 rounded-md bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800">
                         <ArrowUpCircle className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
                         <div>
-                            <p className="font-semibold text-blue-800">Better Offer Available</p>
-                            <p className="text-blue-700 text-xs">
+                            <p className="font-semibold text-blue-800 dark:text-blue-300">Better Offer Available</p>
+                            <p className="text-blue-700 dark:text-blue-400 text-xs">
                                 <span className="font-bold">{s.challengerDetails.cardName}</span> offers <span className="font-bold">{(s.challengerDetails.rate * 100).toFixed(1)}%</span>.
                             </p>
-                            <p className="text-blue-700 text-xs mt-1">
+                            <p className="text-blue-700 dark:text-blue-400 text-xs mt-1">
                                 It's not active because its {currencyFn(s.challengerDetails.minSpend)} min. spend is not met (Current: {currencyFn(s.challengerDetails.currentSpend)}).
                             </p>
                         </div>
@@ -283,13 +322,13 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                 </CardTitle>
             </CardHeader>
             
-            <CardContent className="flex-1 flex flex-col min-h-0">
+            <CardContent className="flex-1 flex flex-col min-h-0 overflow-y-auto">
                 {/* Scenario 1: No suggestions */}
                 {suggestions.length === 0 && (
-                    <div className="flex flex-col items-center justify-center text-center p-4 rounded-lg bg-emerald-50 h-full min-h-[200px]">
+                    <div className="flex flex-col items-center justify-center text-center p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/50 h-full min-h-[200px]">
                         <Sparkles className="h-8 w-8 text-emerald-500 mb-2" />
-                        <p className="font-semibold text-emerald-800">All Qualified Tiers Maxed Out!</p>
-                        <p className="text-xs text-emerald-700 mt-1">No high-tier opportunities are available on cards that have met their minimum spend.</p>
+                        <p className="font-semibold text-emerald-800 dark:text-emerald-300">All Qualified Tiers Maxed Out!</p>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">No high-tier opportunities are available on cards that have met their minimum spend.</p>
                     </div>
                 )}
 
@@ -302,17 +341,17 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                         <Accordion type="single" collapsible className="w-full">
                             <AccordionItem 
                                 value="top-pick"
-                                className="border-2 border-sky-500 bg-sky-50 shadow-md rounded-lg overflow-hidden"
+                                className="border-2 border-sky-500 bg-sky-50 dark:bg-sky-900/40 dark:border-sky-700 shadow-md rounded-lg overflow-hidden"
                             >
-                                <AccordionTrigger className="p-4 hover:no-underline hover:bg-sky-100/50 data-[state=open]:border-b border-sky-200">
+                                <AccordionTrigger className="p-4 hover:no-underline hover:bg-sky-100/50 dark:hover:bg-sky-900/60 data-[state=open]:border-b border-sky-200 dark:border-sky-800 items-start">
                                     <div className="w-full space-y-3">
                                         {/* Header: Top Pick Badge + Card Name */}
                                         <div className="flex items-center justify-between gap-2">
-                                            <Badge variant="default" className="bg-sky-600 w-fit">
+                                            <Badge variant="default" className="bg-sky-600 dark:bg-sky-600 w-fit">
                                                 <Award className="h-4 w-4 mr-1.5" />
                                                 TOP PICK
                                             </Badge>
-                                            <span className="text-sm font-medium text-slate-600 truncate" title={topSuggestion.cardName}>{topSuggestion.cardName}</span>
+                                            <span className="text-sm font-medium text-slate-600 dark:text-slate-400 truncate" title={topSuggestion.cardName}>{topSuggestion.cardName}</span>
                                         </div>
 
                                         {/* Body: Split into two columns */}
@@ -326,7 +365,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                     {topSuggestion.hasBetterChallenger && (
                                                         <ArrowUpCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
                                                     )}
-                                                     <h3 className="text-xl font-semibold text-slate-800 break-words" title={topSuggestion.suggestionFor}>
+                                                     <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 break-words" title={topSuggestion.suggestionFor}>
                                                         {topSuggestion.suggestionFor}
                                                     </h3>
                                                 </div>
@@ -339,20 +378,20 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                             </div>
                                             {/* Right Column: Rate */}
                                             <div className="flex-shrink-0 sm:text-right">
-                                                <p className="text-4xl font-bold text-sky-700">
+                                                <p className="text-4xl font-bold text-sky-700 dark:text-sky-400">
                                                     {(topSuggestion.rate * 100).toFixed(1)}%
                                                 </p>
                                             </div>
                                         </div>
 
                                         {/* Footer: Stats */}
-                                        <div className="pt-3 border-t border-sky-200 text-xs text-slate-600 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-x-4 gap-y-1">
-                                            <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700">{topSuggestion.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(topSuggestion.remainingCategoryCap)}</span><span>left</span></span>
-                                            <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800">{topSuggestion.spendingNeeded === Infinity ? 'N/A' : currencyFn(topSuggestion.spendingNeeded)}</span></span>
+                                        <div className="pt-3 border-t border-sky-200 dark:border-sky-800 text-xs text-slate-600 dark:text-slate-400 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-x-4 gap-y-1">
+                                            <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700 dark:text-emerald-400">{topSuggestion.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(topSuggestion.remainingCategoryCap)}</span><span>left</span></span>
+                                            <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800 dark:text-slate-200">{topSuggestion.spendingNeeded === Infinity ? 'N/A' : currencyFn(topSuggestion.spendingNeeded)}</span></span>
                                         </div>
                                     </div>
                                 </AccordionTrigger>
-                                <AccordionContent className="p-4 pt-3 bg-white">
+                                <AccordionContent className="p-4 pt-3 bg-white dark:bg-slate-900 max-h-[400px] overflow-y-auto">
                                     <SuggestionDetails 
                                         suggestion={topSuggestion}
                                         currencyFn={currencyFn}
@@ -366,8 +405,8 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                         {otherSuggestions.length > 0 && (
                             <div className="flex flex-col flex-1 min-h-0">
                                 <div className="flex items-center gap-3 my-3">
-                                    <h4 className="text-sm font-medium text-slate-600">Other Suggestions</h4>
-                                    <div className="flex-grow border-t border-slate-200"></div>
+                                    <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">Other Suggestions</h4>
+                                    <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
                                 </div>
                                 
                                 <Accordion type="single" collapsible className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2">
@@ -376,22 +415,22 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                             <AccordionItem 
                                                 key={`${s.id}-${s.suggestionFor}`} 
                                                 value={s.suggestionFor}
-                                                className="rounded-lg border bg-white shadow-sm overflow-hidden" // Item is styled as a card
+                                                className="rounded-lg border bg-card shadow-sm overflow-hidden" // Item is styled as a card
                                             >
-                                                <AccordionTrigger className="p-3 hover:no-underline hover:bg-slate-50 w-full text-left data-[state=open]:border-b border-slate-200">
+                                                <AccordionTrigger className="p-3 hover:no-underline hover:bg-slate-50 dark:hover:bg-slate-800/60 w-full text-left data-[state=open]:border-b border-slate-200 dark:border-slate-700 items-start">
                                                     <div className="w-full space-y-2">
                                                         {/* --- MODIFIED: Main Info Row --- */}
                                                         <div className="flex justify-between items-center gap-3">
                                                             {/* Left side: Rank, Icons, Category, Badge */}
                                                             <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                                <span className="text-sm font-semibold text-sky-600">#{index + 2}</span>
+                                                                <span className="text-sm font-semibold text-sky-600 dark:text-sky-400">#{index + 2}</span>
                                                                 {!s.hasMetMinSpend && (
                                                                     <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
                                                                 )}
                                                                 {s.hasBetterChallenger && (
                                                                     <ArrowUpCircle className="h-4 w-4 text-blue-500 flex-shrink-0" />
                                                                 )}
-                                                                <p className="font-medium text-slate-800 truncate" title={s.suggestionFor}>{s.suggestionFor}</p>
+                                                                <p className="font-medium text-slate-800 dark:text-slate-200 truncate" title={s.suggestionFor}>{s.suggestionFor}</p>
                                                                 {/* --- MODIFIED: Badge is here, and conditional --- */}
                                                                 {(s.isBoosted || s.hasTier2) && (
                                                                     <RateStatusBadge suggestion={s} />
@@ -399,23 +438,23 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                             </div>
                                                             {/* Right side: Card Name, Rate */}
                                                             <div className="flex items-center gap-2 flex-shrink-0">
-                                                                <span className="text-xs text-slate-500 hidden sm:block">{s.cardName}</span>
-                                                                <Badge variant="outline" className="text-base font-bold text-sky-700 bg-sky-100 border-sky-200">
+                                                                <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">{s.cardName}</span>
+                                                                <Badge variant="outline" className="text-base font-bold text-sky-700 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/50 border-sky-200 dark:border-sky-800">
                                                                     {(s.rate * 100).toFixed(1)}%
                                                                 </Badge>
                                                             </div>
                                                         </div>
-                                                        <span className="text-xs text-slate-500 sm:hidden ml-7 -mt-1 block">{s.cardName}</span>
+                                                        <span className="text-xs text-slate-500 dark:text-slate-400 sm:hidden ml-7 -mt-1 block">{s.cardName}</span>
 
                                                         {/* --- MOVED: Stats Footer is now in the trigger --- */}
-                                                        <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-600 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
-                                                            <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
-                                                            <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
+                                                        <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
+                                                            <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700 dark:text-emerald-400">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
+                                                            <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800 dark:text-slate-200">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
                                                         </div>
                                                     </div>
                                                 </AccordionTrigger>
                                                 
-                                                <AccordionContent className="p-4 pt-3 bg-white">
+                                                <AccordionContent className="p-4 pt-3 bg-white dark:bg-slate-900 max-h-[400px] overflow-y-auto">
                                                     <SuggestionDetails 
                                                         suggestion={s}
                                                         currencyFn={currencyFn}
