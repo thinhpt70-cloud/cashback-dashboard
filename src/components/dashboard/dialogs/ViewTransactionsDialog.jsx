@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Loader2, Trash2, MoreVertical } from 'lucide-react';
+import { Loader2, Trash2, MoreVertical, Eye, Edit, Trash } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -15,10 +15,32 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '../../ui/dropdown-menu';
+import TransactionDetailsDialog from './TransactionDetailsDialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '../../ui/alert-dialog';
+import { toast } from 'sonner';
 
 
-export default function ViewTransactionsDialog({ isOpen, onClose, transactions, categoryName, currencyFn, isLoading }) {
+export default function ViewTransactionsDialog({ isOpen, onClose, transactions: initialTransactions, categoryName, currencyFn, isLoading }) {
+    const [transactions, setTransactions] = useState(initialTransactions);
     const [selectedRows, setSelectedRows] = useState(new Set());
+    const [detailsTransaction, setDetailsTransaction] = useState(null);
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const [isAlertOpen, setIsAlertOpen] = useState(false);
+    const [transactionToDelete, setTransactionToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+     React.useEffect(() => {
+        setTransactions(initialTransactions);
+    }, [initialTransactions]);
 
     const handleSelectAll = (checked) => {
         if (checked) {
@@ -41,13 +63,56 @@ export default function ViewTransactionsDialog({ isOpen, onClose, transactions, 
 
     const totals = useMemo(() => {
         return transactions.reduce((acc, t) => {
-            acc.amount += t['Amount'] || 0;
-            acc.cashback += t['Cashback Amount'] || 0;
+            acc.amount += Number(t['Amount']) || 0;
+            acc.cashback += Number(t['Cashback Amount']) || 0;
             return acc;
         }, { amount: 0, cashback: 0 });
     }, [transactions]);
 
     const isAllSelected = selectedRows.size > 0 && selectedRows.size === transactions.length;
+
+    const handleViewDetails = (transaction) => {
+        setDetailsTransaction(transaction);
+        setIsDetailsOpen(true);
+    };
+
+    const handleEdit = (transaction) => {
+        // For now, edit will just open the details view.
+        // This can be expanded to a form later.
+        setDetailsTransaction(transaction);
+        setIsDetailsOpen(true);
+    };
+
+    const handleDelete = (transaction) => {
+        setTransactionToDelete(transaction);
+        setIsAlertOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        setIsDeleting(true);
+        console.log("Simulating API call to delete transaction:", transactionToDelete.id);
+
+        // Simulate a network request
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        try {
+            // In a real app, this is where you'd get a success response
+            setTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
+
+            const newSelectedRows = new Set(selectedRows);
+            newSelectedRows.delete(transactionToDelete.id);
+            setSelectedRows(newSelectedRows);
+
+            toast.success("Transaction deleted successfully.");
+        } catch (error) {
+            console.error("Failed to delete transaction:", error);
+            toast.error("Failed to delete transaction. Please try again.");
+        } finally {
+            setIsDeleting(false);
+            setIsAlertOpen(false);
+            setTransactionToDelete(null);
+        }
+    };
 
     const handleDeleteSelected = () => {
         // In a real app, you'd call an API to delete the transactions
@@ -119,9 +184,18 @@ export default function ViewTransactionsDialog({ isOpen, onClose, transactions, 
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent>
-                                                    <DropdownMenuItem>Edit</DropdownMenuItem>
-                                                    <DropdownMenuItem>View Details</DropdownMenuItem>
-                                                    <DropdownMenuItem>Delete</DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => handleViewDetails(t)}>
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        <span>View Details</span>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => handleEdit(t)}>
+                                                        <Edit className="mr-2 h-4 w-4" />
+                                                        <span>Edit</span>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => handleDelete(t)}>
+                                                        <Trash className="mr-2 h-4 w-4" />
+                                                        <span>Delete</span>
+                                                    </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </td>
@@ -143,6 +217,36 @@ export default function ViewTransactionsDialog({ isOpen, onClose, transactions, 
                         </div>
                     )}
                 </div>
+
+                {detailsTransaction && (
+                    <TransactionDetailsDialog
+                        isOpen={isDetailsOpen}
+                        onClose={() => setIsDetailsOpen(false)}
+                        transactions={[detailsTransaction]}
+                        details={{ cardName: detailsTransaction['Card'], monthLabel: '' }}
+                        currencyFn={currencyFn}
+                        isLoading={false}
+                    />
+                )}
+
+                <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the transaction.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={confirmDelete} disabled={isDeleting}>
+                                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {isDeleting ? 'Deleting...' : 'Continue'}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
             </DialogContent>
         </Dialog>
     );
