@@ -140,7 +140,7 @@ export default function SharedTransactionsDialog({
                                                 <DropdownMenuContent>
                                                     {onEdit && <DropdownMenuItem onClick={() => onEdit(t)}>Edit</DropdownMenuItem>}
                                                     {onViewDetails && <DropdownMenuItem onClick={() => onViewDetails(t)}>View Details</DropdownMenuItem>}
-                                                    {onDelete && <DropdownMenuItem onClick={() => onDelete(t.id)}>Delete</DropdownMenuItem>}
+                                                    {onDelete && <DropdownMenuItem onClick={() => onDelete(t.id, t['Transaction Name'])}>Delete</DropdownMenuItem>}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </td>

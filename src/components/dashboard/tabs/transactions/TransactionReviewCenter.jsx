@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
 import { Button } from '../../../ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../../ui/accordion';
-import { AlertTriangle, FilePenLine, CalendarClock, Wallet, CheckCircle, Eye } from 'lucide-react';
+import { AlertTriangle, FilePenLine, CalendarClock, Wallet, CheckCircle, Eye, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '../../../ui/badge';
 import SharedTransactionsDialog from '../../../shared/SharedTransactionsDialog';
@@ -191,6 +191,10 @@ export default function TransactionReviewCenter({
                                                 <Button size="sm" onClick={() => onReview(tx)}>
                                                     <FilePenLine className="mr-2 h-4 w-4" />
                                                     Review
+                                                </Button>
+                                                <Button size="sm" variant="destructive" onClick={() => onDelete(tx.id, tx['Transaction Name'])}>
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    Delete
                                                 </Button>
                                             </div>
                                         </div>
