@@ -8,7 +8,7 @@ import { Button } from '../../../ui/button';
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '../../../../lib/date';
 
 import { toast } from 'sonner';
-import ViewTransactionsDialog from '../../dialogs/ViewTransactionsDialog';
+import SharedTransactionsDialog from '../../../shared/SharedTransactionsDialog';
 
 const API_BASE_URL = '/api';
 
@@ -268,7 +268,19 @@ function SingleCapCard({
 }
 
 // --- REFACTORED CardSpendsCap Component ---
-export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummary, monthlyCategorySummary, currencyFn, getCurrentCashbackMonthForCard }) {
+export default function CardSpendsCap({
+    cards,
+    rules,
+    activeMonth,
+    monthlySummary,
+    monthlyCategorySummary,
+    currencyFn,
+    getCurrentCashbackMonthForCard,
+    onEditTransaction,
+    onTransactionDeleted,
+    onBulkDelete,
+    onViewTransactionDetails
+}) {
     const [expandedCardId, setExpandedCardId] = useState(null);
     const [dialogState, setDialogState] = useState({
         isOpen: false,
@@ -452,13 +464,18 @@ export default function CardSpendsCap({ cards, rules, activeMonth, monthlySummar
                     </Card>
                 )}
             </div>
-            <ViewTransactionsDialog
+            <SharedTransactionsDialog
                 isOpen={dialogState.isOpen}
                 isLoading={dialogState.isLoading}
                 onClose={() => setDialogState({ isOpen: false, isLoading: false, categoryName: null, transactions: [] })}
                 transactions={dialogState.transactions}
-                categoryName={dialogState.categoryName}
+                title={`Transactions for ${dialogState.categoryName}`}
+                description="Here are the transactions for the selected category."
                 currencyFn={currencyFn}
+                onEdit={onEditTransaction}
+                onDelete={onTransactionDeleted}
+                onBulkDelete={onBulkDelete}
+                onViewDetails={onViewTransactionDetails}
             />
         </div>
     );
