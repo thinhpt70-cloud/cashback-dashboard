@@ -207,13 +207,6 @@ export default function CashbackDashboard() {
         setEditingTransaction(transaction);
     };
 
-    const handleViewTransactionDetails = async (transaction) => {
-        // For now, we'll just log the transaction to the console.
-        // In the future, this could open a dialog with more detailed information.
-        console.log("Viewing details for transaction:", transaction);
-        toast.info(`Viewing details for ${transaction['Transaction Name']}`);
-    };
-
     const handleBulkDelete = async (transactionIds) => {
         if (!window.confirm(`Are you sure you want to delete ${transactionIds.length} transactions? This action cannot be undone.`)) {
             return;
