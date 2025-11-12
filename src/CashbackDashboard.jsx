@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Loader2, Plus, History, Check, Snowflake, LogOut, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2 } from "lucide-react";
-import { ResponsiveContainer, Tooltip as RechartsTooltip, PieChart, Pie, Cell, Legend } from "recharts";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
@@ -43,6 +42,7 @@ import AddTransactionForm from './components/dashboard/forms/AddTransactionForm'
 import CardSpendsCap from "./components/dashboard/tabs/overview/CardSpendsCap";
 import EnhancedSuggestions from "./components/dashboard/tabs/overview/EnhancedSuggestions";
 import SpendByCardChart from "./components/dashboard/tabs/overview/SpendByCardChart";
+import CashbackByCardChart from "./components/dashboard/tabs/overview/CashbackByCardChart";
 import CardPerformanceLineChart from "./components/dashboard/tabs/overview/CardPerformanceLineChart";
 import RecentTransactions from './components/dashboard/tabs/overview/RecentTransactions';
 import SpendVsCashbackTrendChart from "./components/dashboard/tabs/overview/SpendVsCashbackTrendChart";
@@ -86,7 +86,7 @@ export default function CashbackDashboard() {
 
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
-    const isDesktop = useMediaQuery("(min-width: 1024px)");
+    const isDesktop = useMediaQuery("(min-width: 768px)");
     const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
     const {
@@ -1295,40 +1295,6 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                         <Button onClick={handleLoadMore} variant="outline">Load More</Button>
                     )}
                 </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function CashbackByCardChart({ cashbackData, currencyFn, cardColorMap }) {
-    const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-        const RADIAN = Math.PI / 180;
-        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-        const x = cx + radius * Math.cos(-midAngle * RADIAN);
-        const y = cy + radius * Math.sin(-midAngle * RADIAN);
-        if (percent < 0.05) return null;
-        return (
-            <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-xs font-semibold">
-                {`${(percent * 100).toFixed(0)}%`}
-            </text>
-        );
-    };
-
-    return (
-        <Card>
-            <CardHeader><CardTitle>Cashback by Card</CardTitle></CardHeader>
-            <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                        <Pie data={cashbackData} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} innerRadius={60} outerRadius={90} dataKey="value" nameKey="name" paddingAngle={3}>
-                            {cashbackData.map((entry) => (
-                                <Cell key={`cell-${entry.name}`} fill={cardColorMap.get(entry.name) || '#cccccc'} />
-                            ))}
-                        </Pie>
-                        <RechartsTooltip formatter={(value) => currencyFn(value)} />
-                        <Legend wrapperStyle={{ marginTop: '24px' }} />
-                    </PieChart>
-                </ResponsiveContainer>
             </CardContent>
         </Card>
     );
