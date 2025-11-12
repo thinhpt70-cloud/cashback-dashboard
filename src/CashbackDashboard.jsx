@@ -40,7 +40,7 @@ import SpendByCardChart from "./components/dashboard/tabs/overview/SpendByCardCh
 import CashbackByCardChart from "./components/dashboard/tabs/overview/CashbackByCardChart";
 import CardPerformanceLineChart from "./components/dashboard/tabs/overview/CardPerformanceLineChart";
 import RecentTransactions from './components/dashboard/tabs/overview/RecentTransactions';
-import SpendVsCashbackTrendChart from "./components/dashboard/tabs/overview/SpendVsCashbackTrendChart";
+import CummulativeResultsChart from "./components/dashboard/tabs/overview/CummulativeResultsChart";
 import StatCards from './components/dashboard/tabs/overview/OverviewStatCards';
 
 // Import transactions tab components
@@ -425,8 +425,11 @@ export default function CashbackDashboard() {
     }, [monthlySummary, cards]);
 
     const monthlyChartData = useMemo(() => {
-        const aggregated = new Map(); // Use a Map to aggregate and preserve order
+        if (!monthlySummary || monthlySummary.length === 0) {
+            return [];
+        }
 
+        const aggregated = new Map();
         // Ensure monthlySummary is sorted by month before aggregating
         const sortedSummary = [...monthlySummary].sort((a, b) => a.month.localeCompare(b.month));
 
@@ -440,12 +443,21 @@ export default function CashbackDashboard() {
             current.cashback += item.cashback || 0;
         });
 
-        // Convert map values to array and format the month label for display
-        return Array.from(aggregated.values())
-            .map(item => ({
-                ...item,
-                month: fmtYMShort(item.month) // Converts "2024-07" to "Jul 2024"
-            }));
+        const monthlyData = Array.from(aggregated.values());
+
+        // Now, create the cumulative data
+        let cumulativeSpend = 0;
+        let cumulativeCashback = 0;
+
+        return monthlyData.map(item => {
+            cumulativeSpend += item.spend;
+            cumulativeCashback += item.cashback;
+            return {
+                month: fmtYMShort(item.month), // Converts "2024-07" to "Jul 2024"
+                spend: cumulativeSpend,
+                cashback: cumulativeCashback,
+            };
+        });
     }, [monthlySummary]);
 
     const calculateFeeCycleProgress = (openDateStr, nextFeeDateStr) => {
@@ -694,7 +706,7 @@ export default function CashbackDashboard() {
                         {/* --- 3. UNIFIED CONTEXTUAL COMPONENTS --- */}
 
                         <div className="grid gap-4">
-                            <SpendVsCashbackTrendChart data={monthlyChartData} />
+                            <CummulativeResultsChart data={monthlyChartData} />
                         </div>
 
                         <div className="mt-4">
