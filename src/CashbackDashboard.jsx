@@ -660,9 +660,9 @@ export default function CashbackDashboard() {
                         {isDesktop ? (
                             <ResizablePanelGroup
                                 direction="horizontal"
-                                className="min-h-[800px] rounded-lg border"
+                                className="h-[800px] rounded-lg border"
                             >
-                                <ResizablePanel defaultSize={58}>
+                                <ResizablePanel defaultSize={58} minSize={30}>
                                     <div className="flex flex-col gap-4 p-4 h-full">
                                         <StatCards stats={displayStats} currencyFn={currency} />
                                         <CardSpendsCap
@@ -677,23 +677,32 @@ export default function CashbackDashboard() {
                                     </div>
                                 </ResizablePanel>
                                 <ResizableHandle withHandle />
-                                <ResizablePanel defaultSize={42}>
-                                    <div className="flex flex-col gap-4 p-4 h-full">
-                                        <EnhancedSuggestions
-                                            rules={rules}
-                                            cards={cards}
-                                            monthlyCategorySummary={monthlyCategorySummary}
-                                            monthlySummary={monthlySummary}
-                                            activeMonth={activeMonth}
-                                            currencyFn={currency}
-                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                        />
-                                        <RecentTransactions
-                                            transactions={recentTransactions}
-                                            cardMap={cardMap}
-                                            currencyFn={currency}
-                                        />
-                                    </div>
+                                <ResizablePanel defaultSize={42} minSize={30}>
+                                    <ResizablePanelGroup direction="vertical">
+                                        <ResizablePanel defaultSize={50} minSize={25}>
+                                            <div className="flex h-full items-center justify-center p-4">
+                                                <EnhancedSuggestions
+                                                    rules={rules}
+                                                    cards={cards}
+                                                    monthlyCategorySummary={monthlyCategorySummary}
+                                                    monthlySummary={monthlySummary}
+                                                    activeMonth={activeMonth}
+                                                    currencyFn={currency}
+                                                    getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                                />
+                                            </div>
+                                        </ResizablePanel>
+                                        <ResizableHandle withHandle />
+                                        <ResizablePanel defaultSize={50} minSize={25}>
+                                            <div className="flex h-full items-center justify-center p-4">
+                                                <RecentTransactions
+                                                    transactions={recentTransactions}
+                                                    cardMap={cardMap}
+                                                    currencyFn={currency}
+                                                />
+                                            </div>
+                                        </ResizablePanel>
+                                    </ResizablePanelGroup>
                                 </ResizablePanel>
                             </ResizablePanelGroup>
                         ) : (
