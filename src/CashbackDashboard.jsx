@@ -11,6 +11,11 @@ import { getMetricSparkline } from './lib/stats';
 import { getTodaysMonth, getPreviousMonth, getCurrentCashbackMonthForCard } from './lib/date';
 
 // Import UI components
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "./components/ui/resizable";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
@@ -60,9 +65,9 @@ import useIOSKeyboardGapFix from "./hooks/useIOSKeyboardGapFix";
 import useCashbackData from "./hooks/useCashbackData";
 
 // Import constants and utilities
-import { COLORS, cardThemes } from './lib/constants'; 
+import { COLORS, cardThemes } from './lib/constants';
 import { calculateDaysLeft } from './lib/date';
-import { currency, fmtYMShort } from './lib/formatters'; 
+import { currency, fmtYMShort } from './lib/formatters';
 
 const API_BASE_URL = '/api';
 
@@ -81,13 +86,13 @@ export default function CashbackDashboard() {
 
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
-    const isDesktop = useMediaQuery("(min-width: 768px)");
+    const isDesktop = useMediaQuery("(min-width: 1024px)");
     const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
     const {
         cards, rules, monthlySummary, mccMap, monthlyCategorySummary,
         recentTransactions, allCategories, commonVendors, reviewTransactions,
-        loading, error, refreshData, 
+        loading, error, refreshData,
         setRecentTransactions, setReviewTransactions,
         cashbackRules, monthlyCashbackCategories, liveSummary
     } = useCashbackData(isAuthenticated);
@@ -115,17 +120,17 @@ export default function CashbackDashboard() {
         setRecentTransactions(prevRecent => [newTransaction, ...prevRecent].slice(0, 20));
 
         // 3. Trigger a full refresh in the background to update all aggregate data (charts, stats, etc.) without a loading screen.
-        refreshData(true); 
+        refreshData(true);
     };
 
     // Create the handler for a successful approval
     const handleTransactionApproved = (approvedTransaction) => {
         // Instantly remove the approved transaction from the review list
-        setReviewTransactions(prevReview => 
+        setReviewTransactions(prevReview =>
             prevReview.filter(tx => tx.id !== approvedTransaction.id)
         );
-        
-        setMonthlyTransactions(prevTxs => 
+
+        setMonthlyTransactions(prevTxs =>
             prevTxs.map(tx => tx.id === approvedTransaction.id ? approvedTransaction : tx)
         );
         setRecentTransactions(prevRecent =>
@@ -159,12 +164,12 @@ export default function CashbackDashboard() {
     const handleTransactionDeleted = (deletedTxId) => {
         // Remove the transaction from the main list to update the UI instantly
         setMonthlyTransactions(prevTxs => prevTxs.filter(tx => tx.id !== deletedTxId));
-        
+
         // Also remove it from the recent transactions carousel for consistency
         setRecentTransactions(prevRecent => prevRecent.filter(tx => tx.id !== deletedTxId));
 
         // Optionally, trigger a silent refresh to ensure all aggregate data is up-to-date
-        refreshData(true); 
+        refreshData(true);
     };
 
     const handleEditClick = (transaction) => {
@@ -173,24 +178,24 @@ export default function CashbackDashboard() {
 
     const handleTransactionUpdated = (updatedTransaction) => {
         // Find and replace the transaction in the list for an instant UI update
-        setMonthlyTransactions(prevTxs => 
+        setMonthlyTransactions(prevTxs =>
             prevTxs.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
         );
-        
+
         // Also update the recent transactions carousel
         setRecentTransactions(prevRecent =>
             prevRecent.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
         );
 
-        setReviewTransactions(prevReview => 
+        setReviewTransactions(prevReview =>
             prevReview.filter(tx => tx.id !== updatedTransaction.id)
         );
 
         setEditingTransaction(null); // Close the edit form
-        refreshData(true); 
+        refreshData(true);
     };
 
-    
+
 
     // Dynamic list of available months from transactions
     const statementMonths = useMemo(() => {
@@ -221,7 +226,7 @@ export default function CashbackDashboard() {
         checkAuthStatus();
     }, []); // Empty dependency array means this runs only once on component mount.
 
-    
+
 
     useEffect(() => {
         // Determine which month to fetch transactions for.
@@ -256,7 +261,7 @@ export default function CashbackDashboard() {
     // --------------------------
 
     // --- UTILITIES ---
-    const mccName = (code) => mccMap[code]?.vn || "Unknown";    
+    const mccName = (code) => mccMap[code]?.vn || "Unknown";
 
     const sortedCards = useMemo(() => {
         const statusOrder = {
@@ -272,7 +277,7 @@ export default function CashbackDashboard() {
             return a.name.localeCompare(b.name);
         });
     }, [cards]);
-    
+
     // --- MEMOIZED DATA PROCESSING ---
 
     const cardColorMap = useMemo(() => {
@@ -306,7 +311,7 @@ export default function CashbackDashboard() {
             const effectiveRate = totalSpend > 0 ? totalCashback / totalSpend : 0;
             return { totalSpend, totalCashback, effectiveRate };
         };
-        
+
         // --- Calculate sparkline data (last 6 completed months) ---
         const sparklineBaseMonth = activeMonth === 'live' ? lastCompletedMonth : activeMonth;
         const spendSparkline = getMetricSparkline(monthlySummary, sparklineBaseMonth, 6, 'spend');
@@ -321,7 +326,7 @@ export default function CashbackDashboard() {
         // --- CASE 1: LIVE VIEW ---
         if (activeMonth === 'live') {
             const { totalSpend: prevMonthSpend, totalCashback: prevMonthCashback, effectiveRate: prevMonthRate } = getMonthStats(lastCompletedMonth);
-            
+
             // Assuming liveSummary is passed from useCashbackData
             const totalSpend = liveSummary?.liveSpend || 0;
             const totalCashback = liveSummary?.liveCashback || 0;
@@ -372,7 +377,7 @@ export default function CashbackDashboard() {
             name: cardMap.get(item.cardId)?.name || "Unknown Card",
             value: item.spend || 0,
         })).sort((a, b) => b.value - a.value);
-        
+
         const cashbackByCard = monthData.map(item => ({
             name: cardMap.get(item.cardId)?.name || "Unknown Card",
             value: item.cashback || 0,
@@ -386,7 +391,7 @@ export default function CashbackDashboard() {
     const cardsTabStats = useMemo(() => {
         // This now gets the total spending directly from the cards data
         const totalYtdSpending = cards.reduce((acc, card) => acc + (card.totalSpendingYtd || 0), 0);
-        
+
         const totalYtdCashback = cards.reduce((acc, card) => acc + (card.estYtdCashback || 0), 0);
         const totalAnnualFee = cards.reduce((acc, card) => acc + (card.annualFee || 0), 0);
         const overallEffectiveRate = totalYtdSpending > 0 ? (totalYtdCashback / totalYtdSpending) * 100 : 0;
@@ -400,7 +405,7 @@ export default function CashbackDashboard() {
             numberOfCards
         };
     // The dependency on 'monthlySummary' is no longer needed here
-    }, [cards]); 
+    }, [cards]);
 
     const cardPerformanceData = useMemo(() => {
         const allMonths = [...new Set(monthlySummary.map(s => s.month))].sort();
@@ -415,7 +420,7 @@ export default function CashbackDashboard() {
             cards.forEach(card => {
                 const key = `${month}-${card.id}`;
                 const summary = summaryMap.get(key);
-                
+
                 // THIS IS THE FIX: Default to null instead of 0
                 monthData[`${card.name} Spend`] = summary ? summary.spend : null;
                 monthData[`${card.name} Cashback`] = summary ? summary.cashback : null;
@@ -426,7 +431,7 @@ export default function CashbackDashboard() {
 
     const monthlyChartData = useMemo(() => {
         const aggregated = new Map(); // Use a Map to aggregate and preserve order
-        
+
         // Ensure monthlySummary is sorted by month before aggregating
         const sortedSummary = [...monthlySummary].sort((a, b) => a.month.localeCompare(b.month));
 
@@ -450,7 +455,7 @@ export default function CashbackDashboard() {
 
     const calculateFeeCycleProgress = (openDateStr, nextFeeDateStr) => {
         if (!openDateStr || !nextFeeDateStr) return { daysPast: 0, progressPercent: 0 };
-        
+
         const openDate = new Date(openDateStr);
         const nextFeeDate = new Date(nextFeeDateStr);
         const today = new Date();
@@ -484,7 +489,7 @@ export default function CashbackDashboard() {
     if (loading) {
         return <AppSkeleton />;
     }
-    
+
     if (error) {
         return (
             <div className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
@@ -496,7 +501,7 @@ export default function CashbackDashboard() {
             </div>
         );
     }
-    
+
     return (
         <TooltipProvider>
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -504,10 +509,10 @@ export default function CashbackDashboard() {
             {/* --- RESPONSIVE HEADER --- */}
             <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 shadow-sm sm:px-6">
                 <h1 className="text-xl font-semibold flex items-center gap-2 shrink-0 dark:text-white">
-                    <img 
-                        src="/favicon.svg" 
-                        alt="Cardifier icon" 
-                        className="h-10 w-10" 
+                    <img
+                        src="/favicon.svg"
+                        alt="Cardifier icon"
+                        className="h-10 w-10"
                     />
                     <span className="hidden md:inline">Cardifier | Cashback Optimizer</span>
                 </h1>
@@ -545,8 +550,8 @@ export default function CashbackDashboard() {
                                     New Transaction
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent 
-                                side={addTxSheetSide} 
+                            <SheetContent
+                                side={addTxSheetSide}
                                 className={cn(
                                     "flex flex-col p-0",
                                     "w-full sm:max-w-2xl",
@@ -573,8 +578,8 @@ export default function CashbackDashboard() {
                             </SheetContent>
                         </Sheet>
                         <Sheet open={!!editingTransaction} onOpenChange={(isOpen) => !isOpen && setEditingTransaction(null)}>
-                            <SheetContent 
-                                side={addTxSheetSide} 
+                            <SheetContent
+                                side={addTxSheetSide}
                                 className={cn("flex flex-col p-0", "w-full sm:max-w-2xl", !isDesktop && "h-[90dvh]")}
                             >
                                 <SheetHeader className="px-6 pt-6">
@@ -650,46 +655,81 @@ export default function CashbackDashboard() {
                     </div>
 
                     <TabsContent value="overview" className="space-y-4 pt-4">
-                        
+
                         {/* --- 1. UNIFIED DYNAMIC COMPONENTS --- */}
-                        <div className="flex flex-col lg:flex-row gap-4">
-                            {/* LEFT COLUMN */}
-                            <div className="lg:w-7/12 flex flex-col gap-4">
-                                <StatCards stats={displayStats} currencyFn={currency} />
-
-                                <CardSpendsCap
-                                    cards={cards}
-                                    rules={rules}
-                                    activeMonth={activeMonth}
-                                    monthlySummary={monthlySummary}
-                                    monthlyCategorySummary={monthlyCategorySummary}
-                                    currencyFn={currency}
-                                    getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                />
+                        {isDesktop ? (
+                            <ResizablePanelGroup
+                                direction="horizontal"
+                                className="min-h-[800px] rounded-lg border"
+                            >
+                                <ResizablePanel defaultSize={58}>
+                                    <div className="flex flex-col gap-4 p-4 h-full">
+                                        <StatCards stats={displayStats} currencyFn={currency} />
+                                        <CardSpendsCap
+                                            cards={cards}
+                                            rules={rules}
+                                            activeMonth={activeMonth}
+                                            monthlySummary={monthlySummary}
+                                            monthlyCategorySummary={monthlyCategorySummary}
+                                            currencyFn={currency}
+                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                        />
+                                    </div>
+                                </ResizablePanel>
+                                <ResizableHandle withHandle />
+                                <ResizablePanel defaultSize={42}>
+                                    <div className="flex flex-col gap-4 p-4 h-full">
+                                        <EnhancedSuggestions
+                                            rules={rules}
+                                            cards={cards}
+                                            monthlyCategorySummary={monthlyCategorySummary}
+                                            monthlySummary={monthlySummary}
+                                            activeMonth={activeMonth}
+                                            currencyFn={currency}
+                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                        />
+                                        <RecentTransactions
+                                            transactions={recentTransactions}
+                                            cardMap={cardMap}
+                                            currencyFn={currency}
+                                        />
+                                    </div>
+                                </ResizablePanel>
+                            </ResizablePanelGroup>
+                        ) : (
+                            <div className="flex flex-col gap-4">
+                                {/* Mobile view: Stacked layout */}
+                                <div className="flex flex-col gap-4">
+                                    <StatCards stats={displayStats} currencyFn={currency} />
+                                    <CardSpendsCap
+                                        cards={cards}
+                                        rules={rules}
+                                        activeMonth={activeMonth}
+                                        monthlySummary={monthlySummary}
+                                        monthlyCategorySummary={monthlyCategorySummary}
+                                        currencyFn={currency}
+                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-4">
+                                    <EnhancedSuggestions
+                                        rules={rules}
+                                        cards={cards}
+                                        monthlyCategorySummary={monthlyCategorySummary}
+                                        monthlySummary={monthlySummary}
+                                        activeMonth={activeMonth}
+                                        currencyFn={currency}
+                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                    />
+                                    <RecentTransactions
+                                        transactions={recentTransactions}
+                                        cardMap={cardMap}
+                                        currencyFn={currency}
+                                    />
+                                </div>
                             </div>
+                        )}
 
-                            {/* --- RIGHT COLUMN (REVISED LAYOUT) --- */}
-                            <div className="lg:w-5/12 flex flex-col gap-4">
-                                {/* EnhancedSuggestions is first, with a max-height on desktop */}
-                                <EnhancedSuggestions
-                                    rules={rules}
-                                    cards={cards}
-                                    monthlyCategorySummary={monthlyCategorySummary}
-                                    monthlySummary={monthlySummary}
-                                    activeMonth={activeMonth}
-                                    currencyFn={currency}
-                                    getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                    className="lg:max-h-[800px]"
-                                />
-                                
-                                {/* RecentTransactions is second, and will fill remaining space */}
-                                <RecentTransactions 
-                                    transactions={recentTransactions}
-                                    cardMap={cardMap}
-                                    currencyFn={currency}
-                                />
-                            </div>
-                        </div>
 
                         {/* --- 3. UNIFIED CONTEXTUAL COMPONENTS --- */}
 
@@ -698,14 +738,14 @@ export default function CashbackDashboard() {
                         </div>
 
                         <div className="mt-4">
-                            <CardPerformanceLineChart 
+                            <CardPerformanceLineChart
                                 data={cardPerformanceData}
                                 cards={cards}
                                 currencyFn={currency}
-                                cardColorMap={cardColorMap} 
+                                cardColorMap={cardColorMap}
                             />
                         </div>
-                            
+
                         {/* --- 4. CONDITIONAL HISTORICAL CHARTS --- */}
                         {/* These charts only render for historical months */}
                         {activeMonth !== 'live' && (
@@ -725,7 +765,7 @@ export default function CashbackDashboard() {
                     </TabsContent>
 
                     <TabsContent value="transactions" className="pt-4 space-y-4">
-                        <TransactionReviewCenter 
+                        <TransactionReviewCenter
                             transactions={reviewTransactions}
                             onReview={handleEditClick}
                             onApprove={handleTransactionApproved}
@@ -751,7 +791,7 @@ export default function CashbackDashboard() {
                             onEditTransaction={handleEditClick}
                             fmtYMShortFn={fmtYMShort}
                         />
-                    </TabsContent>  
+                    </TabsContent>
 
                     <TabsContent value="cards" className="space-y-4 pt-4">
                         <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
@@ -770,7 +810,7 @@ export default function CashbackDashboard() {
                                 </TabsTrigger>
                             </TabsList>
                         </Tabs>
-                        
+
                         {(() => {
                             const isLiveView = activeMonth === 'live';
                             const activeAndFrozenCards = sortedCards.filter(c => c.status !== 'Closed');
@@ -822,7 +862,7 @@ export default function CashbackDashboard() {
                         })()}
                     </TabsContent>
                     <TabsContent value="payments" className="space-y-4 pt-4">
-                        <PaymentsTabV2 
+                        <PaymentsTabV2
                             cards={cards}
                             monthlySummary={monthlySummary}
                             currencyFn={currency}
@@ -832,16 +872,16 @@ export default function CashbackDashboard() {
                         />
                     </TabsContent>
                 </Tabs>
-            </main>  
+            </main>
 
             {/* 4. RENDER THE DIALOG COMPONENT */}
 
-            <BestCardFinderDialog 
+            <BestCardFinderDialog
                 isOpen={isFinderOpen}
                 onOpenChange={setIsFinderOpen}
-                allCards={cards} 
-                allRules={rules} 
-                mccMap={mccMap} 
+                allCards={cards}
+                allRules={rules}
+                mccMap={mccMap}
                 monthlySummary={monthlySummary}
                 monthlyCategorySummary={monthlyCategorySummary}
                 activeMonth={activeMonth}
@@ -915,12 +955,12 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                     return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
                 }
                 if (sortConfig.key === 'Transaction Date') {
-                    return sortConfig.direction === 'ascending' 
-                        ? new Date(aValue) - new Date(bValue) 
+                    return sortConfig.direction === 'ascending'
+                        ? new Date(aValue) - new Date(bValue)
                         : new Date(bValue) - new Date(aValue);
                 }
-                return sortConfig.direction === 'ascending' 
-                    ? String(aValue).localeCompare(String(bValue)) 
+                return sortConfig.direction === 'ascending'
+                    ? String(aValue).localeCompare(String(bValue))
                     : String(bValue).localeCompare(String(aValue));
             });
         }
@@ -990,7 +1030,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
         if (ratePercent > 0) return "bg-slate-100 text-slate-700 border-slate-200";
         return "bg-gray-100 text-gray-500 border-gray-200";
     };
-    
+
     const renderContent = () => {
         if (isLoading) {
             // If it's not desktop (i.e., mobile view)
@@ -1055,7 +1095,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                 </div>
             );
         }
-        
+
         if (transactionsToShow.length === 0) {
             return <div className="text-center h-24 flex items-center justify-center text-muted-foreground"><p>No transactions found.</p></div>;
         }
@@ -1109,7 +1149,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                                                 {tx.otherFees > 0 && <p><span className="font-medium">Fees:</span> +{currency(tx.otherFees)}</p>}
                                                 {(tx.foreignCurrencyAmount > 0 || tx.conversionFee > 0) && (
                                                     <p>
-                                                        <span className="font-medium">Foreign Spend: </span> 
+                                                        <span className="font-medium">Foreign Spend: </span>
                                                         {tx.foreignCurrencyAmount} (+{currency(tx.conversionFee)})
                                                     </p>
                                                 )}
@@ -1147,7 +1187,7 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                             const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
                             const isExpanded = expandedTxId === tx.id;
                             const hasOptionalFields = tx.notes || tx.otherDiscounts || tx.otherFees || tx.subCategory || tx.paidFor || tx.foreignCurrencyAmount || tx.billingDate;
-                            
+
                             return (
                                 <React.Fragment key={tx.id}>
                                     <TableRow onClick={() => hasOptionalFields && handleToggleExpand(tx.id)} className={cn(hasOptionalFields && "cursor-pointer")}>
@@ -1287,37 +1327,37 @@ function CashbackByCardChart({ cashbackData, currencyFn, cardColorMap }) {
 
 function CardsOverviewMetrics({ stats, currencyFn }) {
     if (!stats) {
-        return null; 
+        return null;
     }
 
     const isFeeCovered = stats.totalYtdCashback >= stats.totalAnnualFee;
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-6">
-            <StatCard 
-                title="Total Spending" 
-                value={currencyFn(stats.totalYtdSpending)} 
-                icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
+            <StatCard
+                title="Total Spending"
+                value={currencyFn(stats.totalYtdSpending)}
+                icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
             />
-            <StatCard 
-                title="Total Cashback" 
-                value={currencyFn(stats.totalYtdCashback)} 
-                icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} 
+            <StatCard
+                title="Total Cashback"
+                value={currencyFn(stats.totalYtdCashback)}
+                icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
             />
-            <StatCard 
-                title="% Rate" 
+            <StatCard
+                title="% Rate"
                 value={`${stats.overallEffectiveRate.toFixed(2)}%`}
-                icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} 
+                icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
             />
-            <StatCard 
-                title="Est. Annual Fee" 
-                value={currencyFn(stats.totalAnnualFee)} 
-                icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />} 
+            <StatCard
+                title="Est. Annual Fee"
+                value={currencyFn(stats.totalAnnualFee)}
+                icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
                 valueClassName={isFeeCovered ? 'text-emerald-600' : 'text-orange-500'}
             />
-            <StatCard 
-                title="No. of Cards" 
-                value={stats.numberOfCards} 
-                icon={<CreditCard className="h-4 w-4 text-muted-foreground" />} 
+            <StatCard
+                title="No. of Cards"
+                value={stats.numberOfCards}
+                icon={<CreditCard className="h-4 w-4 text-muted-foreground" />}
             />
         </div>
     );
@@ -1334,7 +1374,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
     const handleLoadMore = useCallback(async (cardId) => {
         setIsLoadingMore(prev => ({ ...prev, [cardId]: true }));
         const cardData = paymentData.find(p => p.mainStatement.card.id === cardId);
-        
+
         if (!cardData || !cardData.remainingPastSummaries || cardData.remainingPastSummaries.length === 0) {
             setIsLoadingMore(prev => ({ ...prev, [cardId]: false }));
             return;
@@ -1377,7 +1417,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
 
     const partitionStatements = (allStatements) => {
         const today = new Date();
-        today.setHours(0, 0, 0, 0); 
+        today.setHours(0, 0, 0, 0);
 
         const activeWindowStatements = allStatements
             .filter(s => s.statementDateObj && s.paymentDateObj && today >= s.statementDateObj && today <= s.paymentDateObj)
@@ -1386,10 +1426,10 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
         if (activeWindowStatements.length > 0) {
             const mainStatement = activeWindowStatements[0];
             const otherStatements = allStatements.filter(s => s.id !== mainStatement.id);
-            
+
             const upcomingStatements = otherStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
             const pastStatements = otherStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
-            
+
             return {
                 mainStatement,
                 upcomingStatements,
@@ -1420,10 +1460,10 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                 mainStatement = finalPast.shift();
             }
         }
-        
-        return { 
-            mainStatement: mainStatement, 
-            upcomingStatements: finalUpcoming, 
+
+        return {
+            mainStatement: mainStatement,
+            upcomingStatements: finalUpcoming,
             pastStatements: finalPast
         };
     };
@@ -1445,35 +1485,35 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                 const createStatementObject = (stmt) => {
                     const year = parseInt(stmt.month.slice(0, 4), 10);
                     const month = parseInt(stmt.month.slice(4, 6), 10);
-                    
+
                     const statementDateObj = new Date(year, month - 1, card.statementDay);
                     statementDateObj.setHours(0, 0, 0, 0);
-                    
+
                     const calculatedStatementDate = `${statementDateObj.getFullYear()}-${String(statementDateObj.getMonth() + 1).padStart(2, '0')}-${String(statementDateObj.getDate()).padStart(2, '0')}`;
-                    
+
                     let paymentMonth = month;
                     if (card.paymentDueDay < card.statementDay) paymentMonth += 1;
-                    
+
                     const dueDate = new Date(year, paymentMonth - 1, card.paymentDueDay);
                     dueDate.setHours(0, 0, 0, 0);
 
                     const paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
-                    
+
                     return { ...stmt, statementDateObj, statementDate: calculatedStatementDate, paymentDateObj: dueDate, daysLeft: daysLeftFn(paymentDate), paymentDate, card };
                 };
-                
+
                 const processAndFinalize = (processedStatements, remainingPastSummaries = []) => {
                     const { mainStatement, upcomingStatements, pastStatements } = partitionStatements(processedStatements);
                     const pastDueStatements = pastStatements.filter(s => (s.statementAmount - (s.paidAmount || 0)) > 0);
                     const nextUpcomingStatement = upcomingStatements.length > 0 ? upcomingStatements[0] : null;
 
-                    return { 
-                        mainStatement, 
-                        upcomingStatements, 
-                        pastStatements, 
+                    return {
+                        mainStatement,
+                        upcomingStatements,
+                        pastStatements,
                         pastDueStatements,
                         nextUpcomingStatement,
-                        remainingPastSummaries 
+                        remainingPastSummaries
                     };
                 };
 
@@ -1484,7 +1524,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                     const initialPastToProcess = allPastSummaries.slice(0, 3);
                     const remainingPastSummaries = allPastSummaries.slice(3);
                     const summariesToProcess = [...upcomingSummaries, ...initialPastToProcess];
-                    
+
                     const statementPromises = summariesToProcess.map(async (stmt) => {
                         try {
                             const res = await fetch(`${API_BASE_URL}/transactions?month=${stmt.month}&filterBy=statementMonth&cardId=${card.id}`);
@@ -1507,7 +1547,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
             });
 
             const resolvedData = (await Promise.all(dataPromises)).filter(Boolean);
-            
+
             resolvedData.sort((a, b) => {
                 const aDays = a.mainStatement?.daysLeft;
                 const bDays = b.mainStatement?.daysLeft;
@@ -1516,7 +1556,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                 if (aDays !== null && bDays !== null) return aDays - bDays;
                 return b.mainStatement?.paymentDateObj - a.mainStatement?.paymentDateObj;
             });
-            
+
             setPaymentData(resolvedData);
             setIsLoading(false);
         };
@@ -1544,12 +1584,12 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
 
         paymentData.forEach(p => {
             if (!p.mainStatement) {
-                return; 
+                return;
             }
 
-            const { 
-                daysLeft, 
-                statementAmount: rawStatementAmount = 0, 
+            const {
+                daysLeft,
+                statementAmount: rawStatementAmount = 0,
                 paidAmount = 0,
                 spend = 0,
                 cashback = 0
@@ -1560,7 +1600,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
 
             if (daysLeft === null && remaining > 0) {
                 pastDue.push(p);
-            } 
+            }
             else if (daysLeft !== null && remaining > 0) {
                 upcoming.push(p);
             }
@@ -1568,7 +1608,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                 completed.push(p);
             }
         });
-        
+
         return { pastDue, upcoming, completed };
     }, [paymentData]);
 
@@ -1586,7 +1626,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                 throw new Error('Failed to save payment to Notion.');
             }
 
-            setPaymentData(currentData => 
+            setPaymentData(currentData =>
                 currentData.map(group => {
                     if (group.mainStatement.id === statementId) {
                         const updatedStatement = { ...group.mainStatement, paidAmount: newPaidAmount };
@@ -1631,10 +1671,10 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
             toast.error("Could not update statement amount. Please try again.");
         }
     };
-    
+
     const summaryStats = useMemo(() => {
         const upcomingBills = paymentData.filter(p => p.mainStatement.daysLeft !== null && (p.mainStatement.statementAmount - (p.mainStatement.paidAmount || 0) > 0));
-        
+
         const totalDue = upcomingBills.reduce((acc, curr) => acc + (curr.mainStatement.statementAmount - (curr.mainStatement.paidAmount || 0)), 0);
         const nextPayment = upcomingBills.length > 0 ? upcomingBills[0] : null;
 
@@ -1667,7 +1707,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                     <div className="space-y-4">
                         <h2 className="text-xl font-bold text-red-600">Past Due</h2>
                         {paymentGroups.pastDue.map(({ mainStatement, ...rest }) => (
-                            <PaymentCard 
+                            <PaymentCard
                                 key={mainStatement.id}
                                 statement={mainStatement}
                                 {...rest}
@@ -1676,7 +1716,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                                 onViewTransactions={onViewTransactions}
                                 currencyFn={currencyFn}
                                 fmtYMShortFn={fmtYMShortFn}
-                                onLoadMore={handleLoadMore} 
+                                onLoadMore={handleLoadMore}
                                 isLoadingMore={isLoadingMore}
                             />
                         ))}
@@ -1687,7 +1727,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                     <div className="space-y-4">
                         <h2 className="text-xl font-bold text-slate-700">Upcoming</h2>
                         {paymentGroups.upcoming.map(({ mainStatement, ...rest }) => (
-                            <PaymentCard 
+                            <PaymentCard
                                 key={mainStatement.id}
                                 statement={mainStatement}
                                 {...rest}
@@ -1696,7 +1736,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                                 onViewTransactions={onViewTransactions}
                                 currencyFn={currencyFn}
                                 fmtYMShortFn={fmtYMShortFn}
-                                onLoadMore={handleLoadMore} 
+                                onLoadMore={handleLoadMore}
                                 isLoadingMore={isLoadingMore}
                             />
                         ))}
@@ -1707,7 +1747,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                     <div className="space-y-4">
                         <h2 className="text-xl font-bold text-slate-700">Completed</h2>
                         {paymentGroups.completed.map(({ mainStatement, ...rest }) => (
-                            <PaymentCard 
+                            <PaymentCard
                                 key={mainStatement.id}
                                 statement={mainStatement}
                                 {...rest}
@@ -1716,7 +1756,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                                 onViewTransactions={onViewTransactions}
                                 currencyFn={currencyFn}
                                 fmtYMShortFn={fmtYMShortFn}
-                                onLoadMore={handleLoadMore} 
+                                onLoadMore={handleLoadMore}
                                 isLoadingMore={isLoadingMore}
                             />
                         ))}
@@ -1749,11 +1789,11 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
 
 function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement, onLogPayment, onLogStatement, onViewTransactions, currencyFn, fmtYMShortFn, onLoadMore, isLoadingMore }) {
     const [historyOpen, setHistoryOpen] = useState(false);
-    
+
     // --- UPDATED: Balance Calculation Logic ---
-    const { 
-        card, 
-        daysLeft, 
+    const {
+        card,
+        daysLeft,
         statementAmount: rawStatementAmount = 0, // Get the raw amount
         paidAmount = 0,
         spend = 0,
@@ -1778,38 +1818,38 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
     const isPartiallyPaid = paidAmount > 0 && !isPaid;
 
     const getStatus = () => {
-        if (noPaymentNeeded) return { 
-            text: 'No Payment Needed', 
+        if (noPaymentNeeded) return {
+            text: 'No Payment Needed',
             className: 'bg-slate-100 text-slate-600',
-            icon: <Check className="h-3 w-3 mr-1.5" /> 
-        };
-        if (isPaid) return { 
-            text: 'Fully Paid', 
-            className: 'bg-emerald-100 text-emerald-800', 
             icon: <Check className="h-3 w-3 mr-1.5" />
         };
-        if (isPartiallyPaid) return { 
-            text: 'Partially Paid', 
-            className: 'bg-yellow-100 text-yellow-800' 
+        if (isPaid) return {
+            text: 'Fully Paid',
+            className: 'bg-emerald-100 text-emerald-800',
+            icon: <Check className="h-3 w-3 mr-1.5" />
+        };
+        if (isPartiallyPaid) return {
+            text: 'Partially Paid',
+            className: 'bg-yellow-100 text-yellow-800'
         };
         if (daysLeft === null) return {
             text: 'Completed',
             className: 'bg-slate-100 text-slate-600'
         };
-         if (daysLeft <= 3) return { 
-            text: `${daysLeft} days left`, 
-            className: 'bg-red-100 text-red-800' 
+         if (daysLeft <= 3) return {
+            text: `${daysLeft} days left`,
+            className: 'bg-red-100 text-red-800'
         };
-        if (daysLeft <= 7) return { 
-            text: `${daysLeft} days left`, 
-            className: 'bg-yellow-100 text-yellow-800' 
+        if (daysLeft <= 7) return {
+            text: `${daysLeft} days left`,
+            className: 'bg-yellow-100 text-yellow-800'
         };
-        return { 
-            text: `${daysLeft} days left`, 
-            className: 'bg-slate-100 text-slate-800' 
+        return {
+            text: `${daysLeft} days left`,
+            className: 'bg-slate-100 text-slate-800'
         };
     };
-    
+
     const status = getStatus();
 
     return (
@@ -1840,7 +1880,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                     </div>
                 </div>
             )}
-            
+
             <div className="p-4">
                 <div className="flex justify-between items-start mb-4">
                     <div>
@@ -1938,10 +1978,10 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button 
-                                    onClick={() => setHistoryOpen(!historyOpen)} 
-                                    variant="outline" 
-                                    size="icon" 
+                                <Button
+                                    onClick={() => setHistoryOpen(!historyOpen)}
+                                    variant="outline"
+                                    size="icon"
                                     className="sm:w-auto sm:px-3"
                                 >
                                     <List className="h-4 w-4" />
@@ -1974,7 +2014,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                             <CalendarClock className="h-5 w-5 text-sky-600" />
                             <h4 className="font-bold text-sm text-sky-800">Next Statement Preview</h4>
                         </div>
-                        
+
                         {/* Horizontally Aligned Content */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center md:text-left">
                             {/* --- Statement Month --- */}
@@ -1988,7 +2028,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                 <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Est. Statement Due</p>
                                 <p className="text-lg font-bold text-sky-900">{nextUpcomingStatement.statementDate}</p>
                             </div>
-                            
+
                             {/* --- Est. Payment Due --- */}
                             <div>
                                 <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Est. Payment Due</p>
@@ -2049,7 +2089,7 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                             } else {
                                 statusBadge = <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2 py-0.5 rounded-full">Upcoming</span>;
                             }
-                            
+
                             return (
                                 <tr key={stmt.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                                     <td className="sticky left-0 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 p-2"><span className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium px-2 py-1 rounded-md text-xs">{fmtYMShortFn(stmt.month)}</span></td>
@@ -2061,7 +2101,7 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                                     <td className="p-2 text-right font-bold text-slate-700 dark:text-slate-300">{currencyFn(stmt.statementAmount)}</td>
                                     <td className="p-2 text-right">{currencyFn(stmt.paidAmount)}</td>
                                     <td className="p-2 text-center">
-                                        <button 
+                                        <button
                                             onClick={() => onViewTransactions(stmt.card.id, stmt.card.name, stmt.month, fmtYMShortFn(stmt.month))}
                                             className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                                         >
@@ -2118,7 +2158,7 @@ function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = fals
 }
 
 function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn, view, mccMap, isDesktop }) {
-    
+
     // --- Data Calculations (no changes here) ---
     const totalSpendMonth = cardMonthSummary?.spend || 0;
     const estCashbackMonth = cardMonthSummary?.cashback || 0;
@@ -2136,7 +2176,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
             default: return 'bg-slate-100 text-slate-800';
         }
     };
-    
+
     const formattedOpenDate = card.cardOpenDate ? new Date(card.cardOpenDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
     const formattedNextFeeDate = card.nextAnnualFeeDate ? new Date(card.nextAnnualFeeDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
@@ -2153,8 +2193,8 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                 theme.textColor
             )}>
                 {card.status === 'Frozen' && (
-                    <Snowflake 
-                        className="absolute -right-4 -top-4 h-24 w-24 text-white/20" 
+                    <Snowflake
+                        className="absolute -right-4 -top-4 h-24 w-24 text-white/20"
                         strokeWidth={1.5}
                     />
                 )}
@@ -2171,13 +2211,13 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                     </div>
                 </div>
             </div>
-            
+
             <div className="p-4 flex-grow flex flex-col">
                 <div className="text-xs text-slate-500 dark:text-slate-400 grid grid-cols-2 gap-x-4">
                     <p>Statement: <span className="font-medium text-slate-600 dark:text-slate-300">Day {card.statementDay}</span></p>
                     <p>Payment Due: <span className="font-medium text-slate-600 dark:text-slate-300">Day {card.paymentDueDay}</span></p>
                 </div>
-                
+
                 <div className="flex-grow flex flex-col justify-center mt-4">
                     {view === 'month' && (
                         <div className="grid grid-cols-2 gap-3">
@@ -2187,9 +2227,9 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                                 valueClassName={monthlyEffectiveRate >= 2 ? 'text-emerald-600' : 'text-slate-800'}
                             />
                             {progressPercent > 0 && (
-                                <MetricItem 
+                                <MetricItem
                                     label={`Card Progress`}
-                                    value={`${progressPercent}%`} 
+                                    value={`${progressPercent}%`}
                                 />
                             )}
                             <MetricItem label="Spend" value={currencyFn(totalSpendMonth)} />
@@ -2216,9 +2256,9 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
                         <div className="space-y-2.5">
                             <div className="grid grid-cols-2 gap-3">
                                 <MetricItem label="Annual Fee" value={currencyFn(card.annualFee)} />
-                                <MetricItem 
-                                    label="Net Value" 
-                                    value={currencyFn(totalValue)} 
+                                <MetricItem
+                                    label="Net Value"
+                                    value={currencyFn(totalValue)}
                                     valueClassName={totalValue >= 0 ? 'text-emerald-600' : 'text-red-500'}
                                 />
                             </div>
@@ -2241,10 +2281,10 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
 
                 <div className="mt-auto pt-4 flex justify-end">
                     <CardInfoSheet
-                        card={card} 
-                        rules={rules} 
-                        mccMap={mccMap} 
-                        isDesktop={isDesktop} 
+                        card={card}
+                        rules={rules}
+                        mccMap={mccMap}
+                        isDesktop={isDesktop}
                     />
                 </div>
             </div>
