@@ -329,6 +329,28 @@ app.delete('/api/transactions/:id', async (req, res) => {
     }
 });
 
+app.post('/api/transactions/bulk-delete', async (req, res) => {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'An array of transaction IDs is required.' });
+    }
+
+    try {
+        await Promise.all(ids.map(id =>
+            notion.pages.update({
+                page_id: id,
+                archived: true,
+            })
+        ));
+
+        res.status(200).json({ success: true, message: 'Transactions deleted successfully.' });
+    } catch (error) {
+        console.error('Error bulk deleting transactions in Notion:', error.body || error);
+        res.status(500).json({ error: 'Failed to delete transactions.' });
+    }
+});
+
 // PATCH /api/transactions/:id - Update an existing transaction
 app.patch('/api/transactions/:id', async (req, res) => {
     const { id } = req.params;

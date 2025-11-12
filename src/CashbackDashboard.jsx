@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Loader2, Plus, History, Check, Snowflake, LogOut, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2 } from "lucide-react";
+import { ResponsiveContainer, Tooltip as RechartsTooltip, PieChart, Pie, Cell, Legend } from "recharts";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
@@ -37,7 +38,6 @@ import AddTransactionForm from './components/dashboard/forms/AddTransactionForm'
 import CardSpendsCap from "./components/dashboard/tabs/overview/CardSpendsCap";
 import EnhancedSuggestions from "./components/dashboard/tabs/overview/EnhancedSuggestions";
 import SpendByCardChart from "./components/dashboard/tabs/overview/SpendByCardChart";
-import CashbackByCardChart from "./components/dashboard/tabs/overview/CashbackByCardChart";
 import CardPerformanceLineChart from "./components/dashboard/tabs/overview/CardPerformanceLineChart";
 import RecentTransactions from './components/dashboard/tabs/overview/RecentTransactions';
 import CummulativeResultsChart from "./components/dashboard/tabs/overview/CummulativeResultsChart";
@@ -156,19 +156,84 @@ export default function CashbackDashboard() {
         }
     }, []);
 
-    const handleTransactionDeleted = (deletedTxId) => {
-        // Remove the transaction from the main list to update the UI instantly
-        setMonthlyTransactions(prevTxs => prevTxs.filter(tx => tx.id !== deletedTxId));
+    const handleTransactionDeleted = async (deletedTxId, txName) => {
+        // 1. Ask for confirmation to prevent accidental deletion
+        const confirmationMessage = txName
+            ? `Are you sure you want to delete the transaction for "${txName}"? This action cannot be undone.`
+            : `Are you sure you want to delete this transaction? This action cannot be undone.`;
 
-        // Also remove it from the recent transactions carousel for consistency
-        setRecentTransactions(prevRecent => prevRecent.filter(tx => tx.id !== deletedTxId));
+        if (!window.confirm(confirmationMessage)) {
+            return;
+        }
 
-        // Optionally, trigger a silent refresh to ensure all aggregate data is up-to-date
-        refreshData(true);
+        try {
+            // 2. Call the backend API to archive the page in Notion
+            const response = await fetch(`${API_BASE_URL}/transactions/${deletedTxId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                // Handle server-side errors
+                throw new Error('Failed to delete the transaction on the server.');
+            }
+
+            // 3. If successful, update the UI
+            // Remove the transaction from the main list to update the UI instantly
+            setMonthlyTransactions(prevTxs => prevTxs.filter(tx => tx.id !== deletedTxId));
+
+            // Also remove it from the recent transactions carousel for consistency
+            setRecentTransactions(prevRecent => prevRecent.filter(tx => tx.id !== deletedTxId));
+
+            // Also remove it from the review transactions list
+            setReviewTransactions(prevReview => prevReview.filter(tx => tx.id !== deletedTxId));
+
+            toast.success('Transaction deleted successfully!');
+
+            // Optionally, trigger a silent refresh to ensure all aggregate data is up-to-date
+            refreshData(true);
+
+        } catch (error) {
+            console.error("Delete failed:", error);
+            toast.error("Could not delete the transaction. Please try again.");
+        }
     };
 
     const handleEditClick = (transaction) => {
         setEditingTransaction(transaction);
+    };
+
+    const handleViewTransactionDetails = async (transaction) => {
+        // For now, we'll just log the transaction to the console.
+        // In the future, this could open a dialog with more detailed information.
+        console.log("Viewing details for transaction:", transaction);
+        toast.info(`Viewing details for ${transaction['Transaction Name']}`);
+    };
+
+    const handleBulkDelete = async (transactionIds) => {
+        if (!window.confirm(`Are you sure you want to delete ${transactionIds.length} transactions? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/transactions/bulk-delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: transactionIds }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete transactions on the server.');
+            }
+
+            setMonthlyTransactions(prevTxs => prevTxs.filter(tx => !transactionIds.includes(tx.id)));
+            setRecentTransactions(prevRecent => prevRecent.filter(tx => !transactionIds.includes(tx.id)));
+            setReviewTransactions(prevReview => prevReview.filter(tx => !transactionIds.includes(tx.id)));
+            toast.success(`${transactionIds.length} transactions deleted successfully!`);
+            refreshData(true);
+        } catch (error) {
+            console.error("Bulk delete failed:", error);
+            toast.error("Could not delete transactions. Please try again.");
+        }
     };
 
     const handleTransactionUpdated = (updatedTransaction) => {
@@ -677,6 +742,10 @@ export default function CashbackDashboard() {
                                     monthlyCategorySummary={monthlyCategorySummary}
                                     currencyFn={currency}
                                     getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                    onEditTransaction={handleEditClick}
+                                    onTransactionDeleted={handleTransactionDeleted}
+                                    onBulkDelete={handleBulkDelete}
+                                    onViewTransactionDetails={handleViewTransactionDetails}
                                 />
                             </div>
 
@@ -739,6 +808,7 @@ export default function CashbackDashboard() {
                     <TabsContent value="transactions" className="pt-4 space-y-4">
                         <TransactionReviewCenter
                             transactions={reviewTransactions}
+                            allTransactions={monthlyTransactions}
                             onReview={handleEditClick}
                             onApprove={handleTransactionApproved}
                             currencyFn={currency}
@@ -746,6 +816,8 @@ export default function CashbackDashboard() {
                             rulesMap={rulesMap}
                             mccMap={mccMap}
                             summaryMap={summaryMap}
+                            onDelete={handleTransactionDeleted}
+                            onBulkDelete={handleBulkDelete}
                         />
                         <TransactionsTab
                             isDesktop={isDesktop}
@@ -963,31 +1035,8 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
         onEditTransaction(tx); // <-- Call the handler from the parent
     };
 
-    const handleDelete = async (txId, txName) => {
-        // 1. Ask for confirmation to prevent accidental deletion
-        if (!window.confirm(`Are you sure you want to delete the transaction for "${txName}"? This action cannot be undone.`)) {
-            return;
-        }
-
-        try {
-            // 2. Call the backend API to archive the page in Notion
-            const response = await fetch(`${API_BASE_URL}/transactions/${txId}`, {
-                method: 'DELETE',
-            });
-
-            if (!response.ok) {
-                // Handle server-side errors
-                throw new Error('Failed to delete the transaction on the server.');
-            }
-
-            // 3. If successful, call the parent handler to update the UI
-            onTransactionDeleted(txId);
-            toast.success('Transaction deleted successfully!');
-
-        } catch (error) {
-            console.error("Delete failed:", error);
-            toast.error("Could not delete the transaction. Please try again.");
-        }
+    const handleDelete = (txId, txName) => {
+        onTransactionDeleted(txId, txName);
     };
 
     const SortIcon = ({ columnKey }) => {
@@ -1258,6 +1307,40 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                         <Button onClick={handleLoadMore} variant="outline">Load More</Button>
                     )}
                 </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function CashbackByCardChart({ cashbackData, currencyFn, cardColorMap }) {
+    const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+        const RADIAN = Math.PI / 180;
+        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+        if (percent < 0.05) return null;
+        return (
+            <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-xs font-semibold">
+                {`${(percent * 100).toFixed(0)}%`}
+            </text>
+        );
+    };
+
+    return (
+        <Card>
+            <CardHeader><CardTitle>Cashback by Card</CardTitle></CardHeader>
+            <CardContent>
+                <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                        <Pie data={cashbackData} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} innerRadius={60} outerRadius={90} dataKey="value" nameKey="name" paddingAngle={3}>
+                            {cashbackData.map((entry) => (
+                                <Cell key={`cell-${entry.name}`} fill={cardColorMap.get(entry.name) || '#cccccc'} />
+                            ))}
+                        </Pie>
+                        <RechartsTooltip formatter={(value) => currencyFn(value)} />
+                        <Legend wrapperStyle={{ marginTop: '24px' }} />
+                    </PieChart>
+                </ResponsiveContainer>
             </CardContent>
         </Card>
     );
