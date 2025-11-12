@@ -171,6 +171,39 @@ export default function CashbackDashboard() {
         setEditingTransaction(transaction);
     };
 
+    const handleViewTransactionDetails = async (transaction) => {
+        // For now, we'll just log the transaction to the console.
+        // In the future, this could open a dialog with more detailed information.
+        console.log("Viewing details for transaction:", transaction);
+        toast.info(`Viewing details for ${transaction['Transaction Name']}`);
+    };
+
+    const handleBulkDelete = async (transactionIds) => {
+        if (!window.confirm(`Are you sure you want to delete ${transactionIds.length} transactions? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/transactions/bulk-delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: transactionIds }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete transactions on the server.');
+            }
+
+            setMonthlyTransactions(prevTxs => prevTxs.filter(tx => !transactionIds.includes(tx.id)));
+            setRecentTransactions(prevRecent => prevRecent.filter(tx => !transactionIds.includes(tx.id)));
+            toast.success(`${transactionIds.length} transactions deleted successfully!`);
+            refreshData(true);
+        } catch (error) {
+            console.error("Bulk delete failed:", error);
+            toast.error("Could not delete transactions. Please try again.");
+        }
+    };
+
     const handleTransactionUpdated = (updatedTransaction) => {
         // Find and replace the transaction in the list for an instant UI update
         setMonthlyTransactions(prevTxs => 
@@ -665,6 +698,10 @@ export default function CashbackDashboard() {
                                     monthlyCategorySummary={monthlyCategorySummary}
                                     currencyFn={currency}
                                     getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                    onEditTransaction={handleEditClick}
+                                    onTransactionDeleted={handleTransactionDeleted}
+                                    onBulkDelete={handleBulkDelete}
+                                    onViewTransactionDetails={handleViewTransactionDetails}
                                 />
                             </div>
 
@@ -727,6 +764,7 @@ export default function CashbackDashboard() {
                     <TabsContent value="transactions" className="pt-4 space-y-4">
                         <TransactionReviewCenter 
                             transactions={reviewTransactions}
+                            allTransactions={monthlyTransactions}
                             onReview={handleEditClick}
                             onApprove={handleTransactionApproved}
                             currencyFn={currency}
@@ -734,6 +772,8 @@ export default function CashbackDashboard() {
                             rulesMap={rulesMap}
                             mccMap={mccMap}
                             summaryMap={summaryMap}
+                            onDelete={handleTransactionDeleted}
+                            onBulkDelete={handleBulkDelete}
                         />
                         <TransactionsTab
                             isDesktop={isDesktop}
