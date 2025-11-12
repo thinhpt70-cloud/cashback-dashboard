@@ -426,7 +426,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                     <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
                                 </div>
                                 
-                                <Accordion type="single" collapsible className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2">
+                                <Accordion type="single" collapsible className="w-full pr-1 space-y-2">
                                     {otherSuggestions.map((s, index) => {
                                         return (
                                             <AccordionItem 
