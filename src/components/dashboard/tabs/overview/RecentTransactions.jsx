@@ -107,7 +107,7 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
                     <div className="w-28 text-left px-2 flex-shrink-0 hidden sm:block">Date</div>
                     <div className="w-28 text-right flex-shrink-0">Amount</div>
                 </div>
-                <div className="space-y-2 flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto space-y-2">
                     {filteredTransactions.length === 0 ? (
                         <div className="text-center text-sm text-slate-500 dark:text-slate-400 py-8">
                             No activity for this period.
