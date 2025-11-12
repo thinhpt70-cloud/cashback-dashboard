@@ -61,7 +61,7 @@ export default function SharedTransactionsDialog({
     const totals = useMemo(() => {
         return transactions.reduce((acc, t) => {
             acc.amount += t['Amount'] || 0;
-            acc.cashback += t['Cashback Amount'] || 0;
+            acc.cashback += t.estCashback || 0;
             return acc;
         }, { amount: 0, cashback: 0 });
     }, [transactions]);
@@ -129,7 +129,7 @@ export default function SharedTransactionsDialog({
                                         <td className="p-2">{t['Transaction Date']}</td>
                                         <td className="p-2">{t['Transaction Name']}</td>
                                         <td className="text-right p-2">{currencyFn(t['Amount'])}</td>
-                                        <td className="text-right p-2">{currencyFn(t['Cashback Amount'])}</td>
+                                        <td className="text-right p-2">{currencyFn(t.estCashback)}</td>
                                         <td className="text-center p-2">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
