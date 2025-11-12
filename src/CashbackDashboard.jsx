@@ -38,6 +38,7 @@ import AddTransactionForm from '@/components/dashboard/forms/AddTransactionForm'
 import CardSpendsCap from "@/components/dashboard/tabs/overview/CardSpendsCap";
 import EnhancedSuggestions from "@/components/dashboard/tabs/overview/EnhancedSuggestions";
 import SpendByCardChart from "@/components/dashboard/tabs/overview/SpendByCardChart";
+import CashbackByCardChart from "./components/dashboard/tabs/overview/CashbackByCardChart";
 import CardPerformanceLineChart from "@/components/dashboard/tabs/overview/CardPerformanceLineChart";
 import RecentTransactions from '@/components/dashboard/tabs/overview/RecentTransactions';
 import SpendVsCashbackTrendChart from "@/components/dashboard/tabs/overview/SpendVsCashbackTrendChart";
