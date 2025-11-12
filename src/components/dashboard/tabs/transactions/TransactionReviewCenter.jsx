@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
 import { Button } from '../../../ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../../ui/accordion';
-import { AlertTriangle, FilePenLine, CalendarClock, Wallet, CheckCircle } from 'lucide-react';
+import { AlertTriangle, FilePenLine, CalendarClock, Wallet, CheckCircle, Eye, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '../../../ui/badge';
+import SharedTransactionsDialog from '../../../shared/SharedTransactionsDialog';
 
 /**
  * A component that displays a list of automated transactions that require user review.
  * It provides a "Quick Approve" option and a full "Review" option.
  *
  * @param {object[]} transactions - Array of transaction objects needing review.
+ * @param {object[]} allTransactions - Array of all transaction objects.
  * @param {function} onReview - Callback function to open the full edit form for a transaction.
  * @param {function} onApprove - Callback function invoked after a transaction is successfully quick-approved.
  * @param {function} currencyFn - A function to format numbers as currency.
@@ -19,9 +21,42 @@ import { Badge } from '../../../ui/badge';
  * @param {object} mccMap - Object mapping MCC codes to descriptions.
  * @param {Map} summaryMap - Map of summary IDs to summary objects.
  */
-export default function TransactionReviewCenter({ transactions, onReview, onApprove, currencyFn, cardMap, rulesMap, mccMap, summaryMap }) {
+export default function TransactionReviewCenter({
+    transactions,
+    allTransactions,
+    onReview,
+    onApprove,
+    currencyFn,
+    cardMap,
+    rulesMap,
+    mccMap,
+    summaryMap,
+    onDelete,
+    onBulkDelete
+}) {
+    const [isDialogOpen, setDialogOpen] = useState(false);
+
     if (!transactions || transactions.length === 0) {
-        return null; // Don't render anything if there are no items to review
+        return (
+            <div className="text-center py-4">
+                <p className="text-muted-foreground">No transactions to review.</p>
+                <Button onClick={() => setDialogOpen(true)} className="mt-2">
+                    <Eye className="mr-2 h-4 w-4" />
+                    View All Transactions
+                </Button>
+                <SharedTransactionsDialog
+                    isOpen={isDialogOpen}
+                    onClose={() => setDialogOpen(false)}
+                    transactions={allTransactions}
+                    title="All Transactions"
+                    description="Browse and manage all recorded transactions."
+                    currencyFn={currencyFn}
+                    onEdit={onReview}
+                    onDelete={onDelete}
+                    onBulkDelete={onBulkDelete}
+                />
+            </div>
+        );
     }
 
     /**
@@ -69,9 +104,24 @@ export default function TransactionReviewCenter({ transactions, onReview, onAppr
                             </p>
                         </div>
                     </div>
+                    <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View All
+                    </Button>
                 </div>
             </CardHeader>
             <CardContent>
+                <SharedTransactionsDialog
+                    isOpen={isDialogOpen}
+                    onClose={() => setDialogOpen(false)}
+                    transactions={allTransactions}
+                    title="All Transactions"
+                    description="Browse and manage all recorded transactions."
+                    currencyFn={currencyFn}
+                    onEdit={onReview}
+                    onDelete={onDelete}
+                    onBulkDelete={onBulkDelete}
+                />
                 <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="review-list">
                         <AccordionTrigger>Show Items for Review</AccordionTrigger>
@@ -141,6 +191,10 @@ export default function TransactionReviewCenter({ transactions, onReview, onAppr
                                                 <Button size="sm" onClick={() => onReview(tx)}>
                                                     <FilePenLine className="mr-2 h-4 w-4" />
                                                     Review
+                                                </Button>
+                                                <Button size="sm" variant="destructive" onClick={() => onDelete(tx.id, tx['Transaction Name'])}>
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    Delete
                                                 </Button>
                                             </div>
                                         </div>

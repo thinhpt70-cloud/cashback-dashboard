@@ -161,19 +161,84 @@ export default function CashbackDashboard() {
         }
     }, []);
 
-    const handleTransactionDeleted = (deletedTxId) => {
-        // Remove the transaction from the main list to update the UI instantly
-        setMonthlyTransactions(prevTxs => prevTxs.filter(tx => tx.id !== deletedTxId));
+    const handleTransactionDeleted = async (deletedTxId, txName) => {
+        // 1. Ask for confirmation to prevent accidental deletion
+        const confirmationMessage = txName
+            ? `Are you sure you want to delete the transaction for "${txName}"? This action cannot be undone.`
+            : `Are you sure you want to delete this transaction? This action cannot be undone.`;
 
-        // Also remove it from the recent transactions carousel for consistency
-        setRecentTransactions(prevRecent => prevRecent.filter(tx => tx.id !== deletedTxId));
+        if (!window.confirm(confirmationMessage)) {
+            return;
+        }
 
-        // Optionally, trigger a silent refresh to ensure all aggregate data is up-to-date
-        refreshData(true);
+        try {
+            // 2. Call the backend API to archive the page in Notion
+            const response = await fetch(`${API_BASE_URL}/transactions/${deletedTxId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                // Handle server-side errors
+                throw new Error('Failed to delete the transaction on the server.');
+            }
+
+            // 3. If successful, update the UI
+            // Remove the transaction from the main list to update the UI instantly
+            setMonthlyTransactions(prevTxs => prevTxs.filter(tx => tx.id !== deletedTxId));
+
+            // Also remove it from the recent transactions carousel for consistency
+            setRecentTransactions(prevRecent => prevRecent.filter(tx => tx.id !== deletedTxId));
+
+            // Also remove it from the review transactions list
+            setReviewTransactions(prevReview => prevReview.filter(tx => tx.id !== deletedTxId));
+
+            toast.success('Transaction deleted successfully!');
+
+            // Optionally, trigger a silent refresh to ensure all aggregate data is up-to-date
+            refreshData(true);
+
+        } catch (error) {
+            console.error("Delete failed:", error);
+            toast.error("Could not delete the transaction. Please try again.");
+        }
     };
 
     const handleEditClick = (transaction) => {
         setEditingTransaction(transaction);
+    };
+
+    const handleViewTransactionDetails = async (transaction) => {
+        // For now, we'll just log the transaction to the console.
+        // In the future, this could open a dialog with more detailed information.
+        console.log("Viewing details for transaction:", transaction);
+        toast.info(`Viewing details for ${transaction['Transaction Name']}`);
+    };
+
+    const handleBulkDelete = async (transactionIds) => {
+        if (!window.confirm(`Are you sure you want to delete ${transactionIds.length} transactions? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/transactions/bulk-delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: transactionIds }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete transactions on the server.');
+            }
+
+            setMonthlyTransactions(prevTxs => prevTxs.filter(tx => !transactionIds.includes(tx.id)));
+            setRecentTransactions(prevRecent => prevRecent.filter(tx => !transactionIds.includes(tx.id)));
+            setReviewTransactions(prevReview => prevReview.filter(tx => !transactionIds.includes(tx.id)));
+            toast.success(`${transactionIds.length} transactions deleted successfully!`);
+            refreshData(true);
+        } catch (error) {
+            console.error("Bulk delete failed:", error);
+            toast.error("Could not delete transactions. Please try again.");
+        }
     };
 
     const handleTransactionUpdated = (updatedTransaction) => {
@@ -776,6 +841,7 @@ export default function CashbackDashboard() {
                     <TabsContent value="transactions" className="pt-4 space-y-4">
                         <TransactionReviewCenter
                             transactions={reviewTransactions}
+                            allTransactions={monthlyTransactions}
                             onReview={handleEditClick}
                             onApprove={handleTransactionApproved}
                             currencyFn={currency}
@@ -783,6 +849,8 @@ export default function CashbackDashboard() {
                             rulesMap={rulesMap}
                             mccMap={mccMap}
                             summaryMap={summaryMap}
+                            onDelete={handleTransactionDeleted}
+                            onBulkDelete={handleBulkDelete}
                         />
                         <TransactionsTab
                             isDesktop={isDesktop}
@@ -1000,31 +1068,8 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
         onEditTransaction(tx); // <-- Call the handler from the parent
     };
 
-    const handleDelete = async (txId, txName) => {
-        // 1. Ask for confirmation to prevent accidental deletion
-        if (!window.confirm(`Are you sure you want to delete the transaction for "${txName}"? This action cannot be undone.`)) {
-            return;
-        }
-
-        try {
-            // 2. Call the backend API to archive the page in Notion
-            const response = await fetch(`${API_BASE_URL}/transactions/${txId}`, {
-                method: 'DELETE',
-            });
-
-            if (!response.ok) {
-                // Handle server-side errors
-                throw new Error('Failed to delete the transaction on the server.');
-            }
-
-            // 3. If successful, call the parent handler to update the UI
-            onTransactionDeleted(txId);
-            toast.success('Transaction deleted successfully!');
-
-        } catch (error) {
-            console.error("Delete failed:", error);
-            toast.error("Could not delete the transaction. Please try again.");
-        }
+    const handleDelete = (txId, txName) => {
+        onTransactionDeleted(txId, txName);
     };
 
     const SortIcon = ({ columnKey }) => {
