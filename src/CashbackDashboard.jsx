@@ -1,7 +1,7 @@
 // CashbackDashboard.jsx
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Loader2, Plus, History, Check, Snowflake, LogOut, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2 } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, Search, Loader2, Plus, History, Check, Snowflake, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2 } from "lucide-react";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
@@ -14,13 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
 import { Progress } from "./components/ui/progress";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
-import { Input } from "./components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./components/ui/sheet";
 import { Skeleton } from "./components/ui/skeleton";
 
 // Import dialog components
@@ -31,7 +28,6 @@ import StatementLogDialog from './components/dashboard/dialogs/StatementLogDialo
 import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
 
 // Import form components
-import AddTransactionForm from './components/dashboard/forms/AddTransactionForm';
 
 // Import overview tab components
 import CardSpendsCap from "./components/dashboard/tabs/overview/CardSpendsCap";
@@ -50,9 +46,10 @@ import TransactionReviewCenter from './components/dashboard/tabs/transactions/Tr
 import LoginScreen from './components/auth/LoginScreen';
 
 // Import shared components
+import { AppSidebar } from "./components/shared/AppSidebar";
+import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";
 import AppSkeleton from "./components/shared/AppSkeleton";
 import StatCard from "./components/shared/StatCard";
-import { ModeToggle } from "./components/ui/ThemeToggle";
 
 // Import custom hooks
 import useMediaQuery from "./hooks/useMediaQuery";
@@ -71,18 +68,16 @@ export default function CashbackDashboard() {
     const [activeMonth, setActiveMonth] = useState("live");
     const [monthlyTransactions, setMonthlyTransactions] = useState([]);
     const [isMonthlyTxLoading, setIsMonthlyTxLoading] = useState(true);
-    const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
-    const [editingTransaction, setEditingTransaction] = useState(null);
     const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
     const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
     const [dialogTransactions, setDialogTransactions] = useState([]);
     const [isDialogLoading, setIsDialogLoading] = useState(false);
     const [cardView, setCardView] = useState('month'); // 'month', 'ytd', or 'roi'
+    const [activeView, setActiveView] = useState("overview");
 
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
     const isDesktop = useMediaQuery("(min-width: 768px)");
-    const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
     const {
         cards, rules, monthlySummary, mccMap, monthlyCategorySummary,
@@ -499,157 +494,41 @@ export default function CashbackDashboard() {
 
     return (
         <TooltipProvider>
-        <div className="flex min-h-screen w-full flex-col bg-muted/40">
-            <Toaster richColors position="top-center" />
-            {/* --- RESPONSIVE HEADER --- */}
-            <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 shadow-sm sm:px-6">
-                <h1 className="text-xl font-semibold flex items-center gap-2 shrink-0 dark:text-white">
-                    <img
-                        src="/favicon.svg"
-                        alt="Cardifier icon"
-                        className="h-10 w-10"
+            <SidebarProvider>
+                <div className="flex min-h-screen w-full flex-col bg-muted/40">
+                    <Toaster richColors position="top-center" />
+
+                    <AppSidebar
+                        activeView={activeView}
+                        setActiveView={setActiveView}
+                        onFinderOpen={() => setIsFinderOpen(true)}
+                        onRefresh={() => refreshData(false)}
+                        onNewTransaction={() => setIsAddTxDialogOpen(true)}
+                        onLogout={handleLogout}
+                        monthSelector={
+                            statementMonths.length > 0 && (
+                                <select
+                                    value={activeMonth}
+                                    onChange={(e) => setActiveMonth(e.target.value)}
+                                    className="h-10 w-full text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                >
+                                    <option value="live">Live View</option>
+                                    {statementMonths.map(m => (
+                                        <option key={m} value={m}>{fmtYMShort(m)}</option>
+                                    ))}
+                                </select>
+                            )
+                        }
                     />
-                    <span className="hidden md:inline">Cardifier | Cashback Optimizer</span>
-                </h1>
 
-                {/* Right-aligned container for all controls */}
-                <div className="ml-auto flex items-center gap-2">
-                    {/* Month Selector - visible on all screen sizes */}
-                    {statementMonths.length > 0 && (
-                        <select
-                            value={activeMonth}
-                            onChange={(e) => setActiveMonth(e.target.value)}
-                            className="h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                        >
-                            <option value="live">Live View</option>
-                            {statementMonths.map(m => (
-                                <option key={m} value={m}>{fmtYMShort(m)}</option>
-                            ))}
-                        </select>
-                    )}
+                    <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 lg:ml-[--sidebar-width]">
+                        <div className="flex items-center gap-4">
+                            <SidebarTrigger />
+                            <h1 className="text-xl font-semibold md:text-2xl capitalize">{activeView}</h1>
+                        </div>
 
-                    {/* --- Desktop Controls (hidden on mobile) --- */}
-                    <div className="hidden md:flex items-center gap-2">
-                        <Button variant="outline" className="h-10" onClick={() => setIsFinderOpen(true)}>
-                            <Search className="mr-2 h-4 w-4" />
-                            Card Finder
-                        </Button>
-                        <Button variant="outline" className="h-10" onClick={() => refreshData(false)}>
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Refresh
-                        </Button>
-                        <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
-                            <SheetTrigger asChild>
-                                <Button variant="default" className="h-10">
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    New Transaction
-                                </Button>
-                            </SheetTrigger>
-                            <SheetContent
-                                side={addTxSheetSide}
-                                className={cn(
-                                    "flex flex-col p-0",
-                                    "w-full sm:max-w-2xl",
-                                    !isDesktop && "h-[90dvh]"
-                                )}
-                            >
-                                <SheetHeader className="px-6 pt-6">
-                                    <SheetTitle>Add a New Transaction</SheetTitle>
-                                </SheetHeader>
-                                <div className="flex-grow overflow-y-auto px-6 pb-6">
-                                    <AddTransactionForm
-                                        cards={cards}
-                                        categories={allCategories}
-                                        rules={cashbackRules}
-                                        monthlyCategories={monthlyCashbackCategories}
-                                        mccMap={mccMap}
-                                        onTransactionAdded={handleTransactionAdded}
-                                        commonVendors={commonVendors}
-                                        monthlySummary={monthlySummary}
-                                        monthlyCategorySummary={monthlyCategorySummary}
-                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                    />
-                                </div>
-                            </SheetContent>
-                        </Sheet>
-                        <Sheet open={!!editingTransaction} onOpenChange={(isOpen) => !isOpen && setEditingTransaction(null)}>
-                            <SheetContent
-                                side={addTxSheetSide}
-                                className={cn("flex flex-col p-0", "w-full sm:max-w-2xl", !isDesktop && "h-[90dvh]")}
-                            >
-                                <SheetHeader className="px-6 pt-6">
-                                    <SheetTitle>Edit Transaction</SheetTitle>
-                                </SheetHeader>
-                                <div className="flex-grow overflow-y-auto px-6 pb-6">
-                                    <AddTransactionForm
-                                        cards={cards}
-                                        categories={allCategories}
-                                        rules={cashbackRules}
-                                        monthlyCategories={monthlyCashbackCategories}
-                                        mccMap={mccMap}
-                                        commonVendors={commonVendors}
-                                        monthlySummary={monthlySummary}
-                                        monthlyCategorySummary={monthlyCategorySummary}
-                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                        initialData={editingTransaction}
-                                        onTransactionUpdated={handleTransactionUpdated}
-                                        onClose={() => setEditingTransaction(null)}
-                                    />
-                                </div>
-                            </SheetContent>
-                        </Sheet>
-                        <Button variant="outline" className="h-10" onClick={handleLogout}>
-                            <LogOut className="mr-2 h-4 w-4" />
-                        </Button>
-                        <ModeToggle />
-                    </div>
-
-                    {/* --- Mobile Controls (hidden on desktop) --- */}
-                    <div className="flex items-center gap-2 md:hidden">
-                        <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
-                            <SheetTrigger asChild>
-                                <Button variant="default" size="icon" className="h-10 w-10">
-                                    <Plus className="h-4 w-4" />
-                                </Button>
-                            </SheetTrigger>
-                        </Sheet>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon" className="h-10 w-10">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => setIsFinderOpen(true)}>
-                                    <Search className="mr-2 h-4 w-4" />
-                                    <span>Card Finder</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => refreshData(false)}>
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    <span>Refresh Data</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={handleLogout}>
-                                    <LogOut className="mr-2 h-4 w-4" />
-                                    <span>Logout</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        <ModeToggle />
-                    </div>
-                </div>
-            </header>
-            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-                <Tabs defaultValue="overview">
-                    <div className="flex items-center">
-                        <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                            <TabsTrigger value="overview">Overview</TabsTrigger>
-                            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-                            <TabsTrigger value="cards">My Cards</TabsTrigger>
-                            <TabsTrigger value="payments">Payments</TabsTrigger>
-                        </TabsList>
-                    </div>
-
-                    <TabsContent value="overview" className="space-y-4 pt-4">
+                        {activeView === 'overview' && (
+                            <div className="space-y-4 pt-4">
 
                         {/* --- 1. UNIFIED DYNAMIC COMPONENTS --- */}
                         <div className="flex flex-col lg:flex-row gap-4">
@@ -722,9 +601,11 @@ export default function CashbackDashboard() {
                                 />
                             </div>
                         )}
-                    </TabsContent>
+                    </div>
+                        )}
 
-                    <TabsContent value="transactions" className="pt-4 space-y-4">
+                        {activeView === 'transactions' && (
+                            <div className="pt-4 space-y-4">
                         <TransactionReviewCenter
                             transactions={reviewTransactions}
                             onReview={handleEditClick}
@@ -751,25 +632,27 @@ export default function CashbackDashboard() {
                             onEditTransaction={handleEditClick}
                             fmtYMShortFn={fmtYMShort}
                         />
-                    </TabsContent>
+                    </div>
+                        )}
 
-                    <TabsContent value="cards" className="space-y-4 pt-4">
+                        {activeView === 'cards' && (
+                            <div className="space-y-4 pt-4">
                         <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
-                        <Tabs defaultValue="month" value={cardView} onValueChange={(value) => setCardView(value)}>
+                        <div>
                             {/* The container for the tabs, styled as a light grey rounded box */}
-                            <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 p-1 text-muted-foreground">
+                            <div className="inline-flex h-10 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 p-1 text-muted-foreground">
                                 {/* The individual tab buttons */}
-                                <TabsTrigger value="month" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                                <button onClick={() => setCardView('month')} className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${cardView === 'month' ? 'bg-background text-primary shadow-sm' : ''}`}>
                                     This Month
-                                </TabsTrigger>
-                                <TabsTrigger value="ytd" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                                </button>
+                                <button onClick={() => setCardView('ytd')} className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${cardView === 'ytd' ? 'bg-background text-primary shadow-sm' : ''}`}>
                                     Year to Date
-                                </TabsTrigger>
-                                <TabsTrigger value="roi" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                                </button>
+                                <button onClick={() => setCardView('roi')} className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${cardView === 'roi' ? 'bg-background text-primary shadow-sm' : ''}`}>
                                     ROI & Fees
-                                </TabsTrigger>
-                            </TabsList>
-                        </Tabs>
+                                </button>
+                            </div>
+                        </div>
 
                         {(() => {
                             const isLiveView = activeMonth === 'live';
@@ -820,8 +703,11 @@ export default function CashbackDashboard() {
                                 </>
                             );
                         })()}
-                    </TabsContent>
-                    <TabsContent value="payments" className="space-y-4 pt-4">
+                    </div>
+                        )}
+
+                        {activeView === 'payments' && (
+                            <div className="space-y-4 pt-4">
                         <PaymentsTabV2
                             cards={cards}
                             monthlySummary={monthlySummary}
@@ -830,8 +716,8 @@ export default function CashbackDashboard() {
                             daysLeftFn={calculateDaysLeft}
                             onViewTransactions={handleViewTransactions}
                         />
-                    </TabsContent>
-                </Tabs>
+                    </div>
+                        )}
             </main>
 
             {/* 4. RENDER THE DIALOG COMPONENT */}
@@ -858,6 +744,7 @@ export default function CashbackDashboard() {
                 currencyFn={currency}
             />
         </div>
+        </SidebarProvider>
         </TooltipProvider>
     );
 }
@@ -1213,18 +1100,18 @@ function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNam
                             }
                         </CardTitle>
                         {activeMonth !== 'live' && (
-                            <Tabs defaultValue="date" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
-                                <TabsList className="bg-slate-100 p-1 rounded-lg">
-                                    <TabsTrigger value="date">Transaction Date</TabsTrigger>
-                                    <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
-                                </TabsList>
-                            </Tabs>
+                            <div className="flex items-center">
+                                <div className="bg-slate-100 p-1 rounded-lg">
+                                    <button onClick={() => onFilterTypeChange('date')} className={`px-3 py-1 rounded-md text-sm ${filterType === 'date' ? 'bg-background shadow' : ''}`}>Transaction Date</button>
+                                    <button onClick={() => onFilterTypeChange('cashbackMonth')} className={`px-3 py-1 rounded-md text-sm ${filterType === 'cashbackMonth' ? 'bg-background shadow' : ''}`}>Cashback Month</button>
+                                </div>
+                            </div>
                         )}
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
                         <div className="relative w-full sm:w-64">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input type="search" placeholder="Search..." className="w-full pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                            <input type="search" placeholder="Search..." className="w-full pl-8 h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                         </div>
                         <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
                             <option value="all">All Cards</option>
