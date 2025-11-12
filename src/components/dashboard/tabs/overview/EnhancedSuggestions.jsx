@@ -1,12 +1,28 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "../../../ui/card";
 import { Badge } from "../../../ui/badge";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../../../ui/accordion";
-import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem } from "../../../ui/accordion";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
+import { ChevronDown, Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award } from 'lucide-react';
 import { cn } from '../../../../lib/utils'; // Import cn utility
-
 // --- ADDED: Date calculation utilities ---
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '../../../../lib/date';
+
+// --- CUSTOM ACCORDION TRIGGER ---
+const CustomAccordionTrigger = React.forwardRef(({ className, children, ...props }, ref) => (
+    <AccordionPrimitive.Header className="flex">
+      <AccordionPrimitive.Trigger
+        ref={ref}
+        className={cn(
+          "group flex flex-1 items-start text-left text-sm font-medium transition-all hover:no-underline", // Added group
+          className
+        )}
+        {...props}>
+        {children}
+      </AccordionPrimitive.Trigger>
+    </AccordionPrimitive.Header>
+));
+CustomAccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName;
 
 // --- NEW SUB-COMPONENT: RateStatusBadge ---
 function RateStatusBadge({ suggestion }) {
@@ -343,7 +359,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                 value="top-pick"
                                 className="border-2 border-sky-500 bg-sky-50 dark:bg-sky-900/40 dark:border-sky-700 shadow-md rounded-lg overflow-hidden"
                             >
-                                <AccordionTrigger className="p-4 hover:no-underline hover:bg-sky-100/50 dark:hover:bg-sky-900/60 data-[state=open]:border-b border-sky-200 dark:border-sky-800 items-start">
+                                <CustomAccordionTrigger className="p-4 hover:bg-sky-100/50 dark:hover:bg-sky-900/60 data-[state=open]:border-b border-sky-200 dark:border-sky-800">
                                     <div className="w-full space-y-3">
                                         {/* Header: Top Pick Badge + Card Name */}
                                         <div className="flex items-center justify-between gap-2">
@@ -377,10 +393,11 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                 </div>
                                             </div>
                                             {/* Right Column: Rate */}
-                                            <div className="flex-shrink-0 sm:text-right">
+                                            <div className="flex items-center gap-2 flex-shrink-0 sm:text-right">
                                                 <p className="text-4xl font-bold text-sky-700 dark:text-sky-400">
                                                     {(topSuggestion.rate * 100).toFixed(1)}%
                                                 </p>
+                                                <ChevronDown className="h-6 w-6 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
                                             </div>
                                         </div>
 
@@ -390,7 +407,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                             <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800 dark:text-slate-200">{topSuggestion.spendingNeeded === Infinity ? 'N/A' : currencyFn(topSuggestion.spendingNeeded)}</span></span>
                                         </div>
                                     </div>
-                                </AccordionTrigger>
+                                </CustomAccordionTrigger>
                                 <AccordionContent className="p-4 pt-3 bg-white dark:bg-slate-900 max-h-[400px] overflow-y-auto">
                                     <SuggestionDetails 
                                         suggestion={topSuggestion}
@@ -409,7 +426,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                     <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
                                 </div>
                                 
-                                <Accordion type="single" collapsible className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2">
+                                <Accordion type="single" collapsible className="w-full pr-1 space-y-2">
                                     {otherSuggestions.map((s, index) => {
                                         return (
                                             <AccordionItem 
@@ -417,7 +434,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                 value={s.suggestionFor}
                                                 className="rounded-lg border bg-card shadow-sm overflow-hidden" // Item is styled as a card
                                             >
-                                                <AccordionTrigger className="p-3 hover:no-underline hover:bg-slate-50 dark:hover:bg-slate-800/60 w-full text-left data-[state=open]:border-b border-slate-200 dark:border-slate-700 items-start">
+                                                <CustomAccordionTrigger className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 w-full data-[state=open]:border-b border-slate-200 dark:border-slate-700">
                                                     <div className="w-full space-y-2">
                                                         {/* --- MODIFIED: Main Info Row --- */}
                                                         <div className="flex justify-between items-center gap-3">
@@ -439,9 +456,12 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                             {/* Right side: Card Name, Rate */}
                                                             <div className="flex items-center gap-2 flex-shrink-0">
                                                                 <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">{s.cardName}</span>
-                                                                <Badge variant="outline" className="text-base font-bold text-sky-700 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/50 border-sky-200 dark:border-sky-800">
-                                                                    {(s.rate * 100).toFixed(1)}%
-                                                                </Badge>
+                                                                <div className="flex items-center gap-1">
+                                                                    <Badge variant="outline" className="text-base font-bold text-sky-700 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/50 border-sky-200 dark:border-sky-800">
+                                                                        {(s.rate * 100).toFixed(1)}%
+                                                                    </Badge>
+                                                                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                                                </div>
                                                             </div>
                                                         </div>
                                                         <span className="text-xs text-slate-500 dark:text-slate-400 sm:hidden ml-7 -mt-1 block">{s.cardName}</span>
@@ -452,7 +472,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                             <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800 dark:text-slate-200">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
                                                         </div>
                                                     </div>
-                                                </AccordionTrigger>
+                                                </CustomAccordionTrigger>
                                                 
                                                 <AccordionContent className="p-4 pt-3 bg-white dark:bg-slate-900 max-h-[400px] overflow-y-auto">
                                                     <SuggestionDetails 
