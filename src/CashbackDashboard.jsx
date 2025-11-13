@@ -53,6 +53,7 @@ import LoginScreen from './components/auth/LoginScreen';
 import AppSkeleton from "./components/shared/AppSkeleton";
 import StatCard from "./components/shared/StatCard";
 import { ModeToggle } from "./components/ui/ThemeToggle";
+import AppSidebar from "./components/shared/AppSidebar";
 
 // Import custom hooks
 import useMediaQuery from "./hooks/useMediaQuery";
@@ -78,6 +79,7 @@ export default function CashbackDashboard() {
     const [dialogTransactions, setDialogTransactions] = useState([]);
     const [isDialogLoading, setIsDialogLoading] = useState(false);
     const [cardView, setCardView] = useState('month'); // 'month', 'ytd', or 'roi'
+    const [activeView, setActiveView] = useState('overview');
 
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
@@ -564,346 +566,208 @@ export default function CashbackDashboard() {
 
     return (
         <TooltipProvider>
-        <div className="flex min-h-screen w-full flex-col bg-muted/40">
+        <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
             <Toaster richColors position="top-center" />
-            {/* --- RESPONSIVE HEADER --- */}
-            <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 shadow-sm sm:px-6">
-                <h1 className="text-xl font-semibold flex items-center gap-2 shrink-0 dark:text-white">
-                    <img
-                        src="/favicon.svg"
-                        alt="Cardifier icon"
-                        className="h-10 w-10"
-                    />
-                    <span className="hidden md:inline">Cardifier | Cashback Optimizer</span>
-                </h1>
+            <AppSidebar activeView={activeView} setActiveView={setActiveView} />
+            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+                <div className="space-y-4 pt-4">
+                    {activeView === 'overview' && (
+                        <>
+                            {/* --- 1. UNIFIED DYNAMIC COMPONENTS --- */}
+                            <div className="flex flex-col lg:flex-row gap-4">
+                                {/* LEFT COLUMN */}
+                                <div className="lg:w-7/12 flex flex-col gap-4">
+                                    <StatCards stats={displayStats} currencyFn={currency} />
 
-                {/* Right-aligned container for all controls */}
-                <div className="ml-auto flex items-center gap-2">
-                    {/* Month Selector - visible on all screen sizes */}
-                    {statementMonths.length > 0 && (
-                        <select
-                            value={activeMonth}
-                            onChange={(e) => setActiveMonth(e.target.value)}
-                            className="h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                        >
-                            <option value="live">Live View</option>
-                            {statementMonths.map(m => (
-                                <option key={m} value={m}>{fmtYMShort(m)}</option>
-                            ))}
-                        </select>
+                                    <CardSpendsCap
+                                        cards={cards}
+                                        rules={rules}
+                                        activeMonth={activeMonth}
+                                        monthlySummary={monthlySummary}
+                                        monthlyCategorySummary={monthlyCategorySummary}
+                                        currencyFn={currency}
+                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                        onEditTransaction={handleEditClick}
+                                        onTransactionDeleted={handleTransactionDeleted}
+                                        onBulkDelete={handleBulkDelete}
+                                        onViewTransactionDetails={handleViewTransactionDetails}
+                                    />
+                                </div>
+
+                                {/* --- RIGHT COLUMN (REVISED LAYOUT) --- */}
+                                <div className="lg:w-5/12 flex flex-col gap-4">
+                                    {/* EnhancedSuggestions is first, with a max-height on desktop */}
+                                    <EnhancedSuggestions
+                                        rules={rules}
+                                        cards={cards}
+                                        monthlyCategorySummary={monthlyCategorySummary}
+                                        monthlySummary={monthlySummary}
+                                        activeMonth={activeMonth}
+                                        currencyFn={currency}
+                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                        className="lg:max-h-[800px]"
+                                    />
+
+                                    {/* RecentTransactions is second, and will fill remaining space */}
+                                    <RecentTransactions
+                                        transactions={recentTransactions}
+                                        cardMap={cardMap}
+                                        currencyFn={currency}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* --- 3. UNIFIED CONTEXTUAL COMPONENTS --- */}
+
+                            <div className="grid gap-4">
+                                <SpendVsCashbackTrendChart data={monthlyChartData} />
+                            </div>
+
+                            <div className="mt-4">
+                                <CardPerformanceLineChart
+                                    data={cardPerformanceData}
+                                    cards={cards}
+                                    currencyFn={currency}
+                                    cardColorMap={cardColorMap}
+                                />
+                            </div>
+
+                            {/* --- 4. CONDITIONAL HISTORICAL CHARTS --- */}
+                            {/* These charts only render for historical months */}
+                            {activeMonth !== 'live' && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <SpendByCardChart
+                                        spendData={overviewChartStats.spendByCard}
+                                        currencyFn={currency}
+                                        cardColorMap={cardColorMap}
+                                    />
+                                    <CashbackByCardChart
+                                        cashbackData={overviewChartStats.cashbackByCard}
+                                        currencyFn={currency}
+                                        cardColorMap={cardColorMap}
+                                    />
+                                </div>
+                            )}
+                        </>
                     )}
 
-                    {/* --- Desktop Controls (hidden on mobile) --- */}
-                    <div className="hidden md:flex items-center gap-2">
-                        <Button variant="outline" className="h-10" onClick={() => setIsFinderOpen(true)}>
-                            <Search className="mr-2 h-4 w-4" />
-                            Card Finder
-                        </Button>
-                        <Button variant="outline" className="h-10" onClick={() => refreshData(false)}>
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Refresh
-                        </Button>
-                        <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
-                            <SheetTrigger asChild>
-                                <Button variant="default" className="h-10">
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    New Transaction
-                                </Button>
-                            </SheetTrigger>
-                            <SheetContent
-                                side={addTxSheetSide}
-                                className={cn(
-                                    "flex flex-col p-0",
-                                    "w-full sm:max-w-2xl",
-                                    !isDesktop && "h-[90dvh]"
-                                )}
-                            >
-                                <SheetHeader className="px-6 pt-6">
-                                    <SheetTitle>Add a New Transaction</SheetTitle>
-                                </SheetHeader>
-                                <div className="flex-grow overflow-y-auto px-6 pb-6">
-                                    <AddTransactionForm
-                                        cards={cards}
-                                        categories={allCategories}
-                                        rules={cashbackRules}
-                                        monthlyCategories={monthlyCashbackCategories}
-                                        mccMap={mccMap}
-                                        onTransactionAdded={handleTransactionAdded}
-                                        commonVendors={commonVendors}
-                                        monthlySummary={monthlySummary}
-                                        monthlyCategorySummary={monthlyCategorySummary}
-                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                    />
-                                </div>
-                            </SheetContent>
-                        </Sheet>
-                        <Sheet open={!!editingTransaction} onOpenChange={(isOpen) => !isOpen && setEditingTransaction(null)}>
-                            <SheetContent
-                                side={addTxSheetSide}
-                                className={cn("flex flex-col p-0", "w-full sm:max-w-2xl", !isDesktop && "h-[90dvh]")}
-                            >
-                                <SheetHeader className="px-6 pt-6">
-                                    <SheetTitle>Edit Transaction</SheetTitle>
-                                </SheetHeader>
-                                <div className="flex-grow overflow-y-auto px-6 pb-6">
-                                    <AddTransactionForm
-                                        cards={cards}
-                                        categories={allCategories}
-                                        rules={cashbackRules}
-                                        monthlyCategories={monthlyCashbackCategories}
-                                        mccMap={mccMap}
-                                        commonVendors={commonVendors}
-                                        monthlySummary={monthlySummary}
-                                        monthlyCategorySummary={monthlyCategorySummary}
-                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                        initialData={editingTransaction}
-                                        onTransactionUpdated={handleTransactionUpdated}
-                                        onClose={() => setEditingTransaction(null)}
-                                    />
-                                </div>
-                            </SheetContent>
-                        </Sheet>
-                        <Button variant="outline" className="h-10" onClick={handleLogout}>
-                            <LogOut className="mr-2 h-4 w-4" />
-                        </Button>
-                        <ModeToggle />
-                    </div>
-
-                    {/* --- Mobile Controls (hidden on desktop) --- */}
-                    <div className="flex items-center gap-2 md:hidden">
-                        <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
-                            <SheetTrigger asChild>
-                                <Button variant="default" size="icon" className="h-10 w-10">
-                                    <Plus className="h-4 w-4" />
-                                </Button>
-                            </SheetTrigger>
-                        </Sheet>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon" className="h-10 w-10">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => setIsFinderOpen(true)}>
-                                    <Search className="mr-2 h-4 w-4" />
-                                    <span>Card Finder</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => refreshData(false)}>
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    <span>Refresh Data</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={handleLogout}>
-                                    <LogOut className="mr-2 h-4 w-4" />
-                                    <span>Logout</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        <ModeToggle />
-                    </div>
-                </div>
-            </header>
-            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-                <Tabs defaultValue="overview">
-                    <div className="flex items-center">
-                        <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                            <TabsTrigger value="overview">Overview</TabsTrigger>
-                            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-                            <TabsTrigger value="cards">My Cards</TabsTrigger>
-                            <TabsTrigger value="payments">Payments</TabsTrigger>
-                        </TabsList>
-                    </div>
-
-                    <TabsContent value="overview" className="space-y-4 pt-4">
-
-                        {/* --- 1. UNIFIED DYNAMIC COMPONENTS --- */}
-                        <div className="flex flex-col lg:flex-row gap-4">
-                            {/* LEFT COLUMN */}
-                            <div className="lg:w-7/12 flex flex-col gap-4">
-                                <StatCards stats={displayStats} currencyFn={currency} />
-
-                                <CardSpendsCap
-                                    cards={cards}
-                                    rules={rules}
-                                    activeMonth={activeMonth}
-                                    monthlySummary={monthlySummary}
-                                    monthlyCategorySummary={monthlyCategorySummary}
-                                    currencyFn={currency}
-                                    getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                    onEditTransaction={handleEditClick}
-                                    onTransactionDeleted={handleTransactionDeleted}
-                                    onBulkDelete={handleBulkDelete}
-                                    onViewTransactionDetails={handleViewTransactionDetails}
-                                />
-                            </div>
-
-                            {/* --- RIGHT COLUMN (REVISED LAYOUT) --- */}
-                            <div className="lg:w-5/12 flex flex-col gap-4">
-                                {/* EnhancedSuggestions is first, with a max-height on desktop */}
-                                <EnhancedSuggestions
-                                    rules={rules}
-                                    cards={cards}
-                                    monthlyCategorySummary={monthlyCategorySummary}
-                                    monthlySummary={monthlySummary}
-                                    activeMonth={activeMonth}
-                                    currencyFn={currency}
-                                    getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                    className="lg:max-h-[800px]"
-                                />
-
-                                {/* RecentTransactions is second, and will fill remaining space */}
-                                <RecentTransactions
-                                    transactions={recentTransactions}
-                                    cardMap={cardMap}
-                                    currencyFn={currency}
-                                />
-                            </div>
-                        </div>
-
-                        {/* --- 3. UNIFIED CONTEXTUAL COMPONENTS --- */}
-
-                        <div className="grid gap-4">
-                            <SpendVsCashbackTrendChart data={monthlyChartData} />
-                        </div>
-
-                        <div className="mt-4">
-                            <CardPerformanceLineChart
-                                data={cardPerformanceData}
-                                cards={cards}
+                    {activeView === 'transactions' && (
+                        <div className="pt-4 space-y-4">
+                            <TransactionReviewCenter
+                                transactions={reviewTransactions}
+                                allTransactions={monthlyTransactions}
+                                onReview={handleEditClick}
+                                onApprove={handleTransactionApproved}
                                 currencyFn={currency}
-                                cardColorMap={cardColorMap}
+                                cardMap={cardMap}
+                                rulesMap={rulesMap}
+                                mccMap={mccMap}
+                                summaryMap={summaryMap}
+                                onDelete={handleTransactionDeleted}
+                                onBulkDelete={handleBulkDelete}
+                            />
+                            <TransactionsTab
+                                isDesktop={isDesktop}
+                                // Use recentTransactions in live view, otherwise use monthlyTransactions
+                                transactions={activeMonth === 'live' ? recentTransactions : monthlyTransactions}
+                                isLoading={activeMonth === 'live' ? loading : isMonthlyTxLoading}
+                                activeMonth={activeMonth}
+                                cardMap={cardMap}
+                                mccNameFn={mccName}
+                                allCards={cards}
+                                filterType={transactionFilterType}
+                                onFilterTypeChange={setTransactionFilterType}
+                                statementMonths={statementMonths}
+                                onTransactionDeleted={handleTransactionDeleted}
+                                onEditTransaction={handleEditClick}
+                                fmtYMShortFn={fmtYMShort}
                             />
                         </div>
+                    )}
 
-                        {/* --- 4. CONDITIONAL HISTORICAL CHARTS --- */}
-                        {/* These charts only render for historical months */}
-                        {activeMonth !== 'live' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <SpendByCardChart
-                                    spendData={overviewChartStats.spendByCard}
-                                    currencyFn={currency}
-                                    cardColorMap={cardColorMap}
-                                />
-                                <CashbackByCardChart
-                                    cashbackData={overviewChartStats.cashbackByCard}
-                                    currencyFn={currency}
-                                    cardColorMap={cardColorMap}
-                                />
-                            </div>
-                        )}
-                    </TabsContent>
+                    {activeView === 'cards' && (
+                        <div className="space-y-4 pt-4">
+                            <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
+                            <Tabs defaultValue="month" value={cardView} onValueChange={(value) => setCardView(value)}>
+                                {/* The container for the tabs, styled as a light grey rounded box */}
+                                <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 p-1 text-muted-foreground">
+                                    {/* The individual tab buttons */}
+                                    <TabsTrigger value="month" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                                        This Month
+                                    </TabsTrigger>
+                                    <TabsTrigger value="ytd" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                                        Year to Date
+                                    </TabsTrigger>
+                                    <TabsTrigger value="roi" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+                                        ROI & Fees
+                                    </TabsTrigger>
+                                </TabsList>
+                            </Tabs>
 
-                    <TabsContent value="transactions" className="pt-4 space-y-4">
-                        <TransactionReviewCenter
-                            transactions={reviewTransactions}
-                            allTransactions={monthlyTransactions}
-                            onReview={handleEditClick}
-                            onApprove={handleTransactionApproved}
-                            currencyFn={currency}
-                            cardMap={cardMap}
-                            rulesMap={rulesMap}
-                            mccMap={mccMap}
-                            summaryMap={summaryMap}
-                            onDelete={handleTransactionDeleted}
-                            onBulkDelete={handleBulkDelete}
-                        />
-                        <TransactionsTab
-                            isDesktop={isDesktop}
-                            // Use recentTransactions in live view, otherwise use monthlyTransactions
-                            transactions={activeMonth === 'live' ? recentTransactions : monthlyTransactions}
-                            isLoading={activeMonth === 'live' ? loading : isMonthlyTxLoading}
-                            activeMonth={activeMonth}
-                            cardMap={cardMap}
-                            mccNameFn={mccName}
-                            allCards={cards}
-                            filterType={transactionFilterType}
-                            onFilterTypeChange={setTransactionFilterType}
-                            statementMonths={statementMonths}
-                            onTransactionDeleted={handleTransactionDeleted}
-                            onEditTransaction={handleEditClick}
-                            fmtYMShortFn={fmtYMShort}
-                        />
-                    </TabsContent>
+                            {(() => {
+                                const isLiveView = activeMonth === 'live';
+                                const activeAndFrozenCards = sortedCards.filter(c => c.status !== 'Closed');
+                                const closedCards = sortedCards.filter(c => c.status === 'Closed');
 
-                    <TabsContent value="cards" className="space-y-4 pt-4">
-                        <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
-                        <Tabs defaultValue="month" value={cardView} onValueChange={(value) => setCardView(value)}>
-                            {/* The container for the tabs, styled as a light grey rounded box */}
-                            <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 p-1 text-muted-foreground">
-                                {/* The individual tab buttons */}
-                                <TabsTrigger value="month" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
-                                    This Month
-                                </TabsTrigger>
-                                <TabsTrigger value="ytd" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
-                                    Year to Date
-                                </TabsTrigger>
-                                <TabsTrigger value="roi" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
-                                    ROI & Fees
-                                </TabsTrigger>
-                            </TabsList>
-                        </Tabs>
+                                const renderCard = (card) => {
+                                    const monthForCard = isLiveView ? getCurrentCashbackMonthForCard(card) : activeMonth;
+                                    const summaryForCard = monthlySummary.find(s => s.cardId === card.id && s.month === monthForCard);
 
-                        {(() => {
-                            const isLiveView = activeMonth === 'live';
-                            const activeAndFrozenCards = sortedCards.filter(c => c.status !== 'Closed');
-                            const closedCards = sortedCards.filter(c => c.status === 'Closed');
-
-                            const renderCard = (card) => {
-                                const monthForCard = isLiveView ? getCurrentCashbackMonthForCard(card) : activeMonth;
-                                const summaryForCard = monthlySummary.find(s => s.cardId === card.id && s.month === monthForCard);
+                                    return (
+                                        <EnhancedCard
+                                            key={card.id}
+                                            card={card}
+                                            activeMonth={monthForCard}
+                                            cardMonthSummary={summaryForCard}
+                                            rules={rules.filter(r => r.cardId === card.id)}
+                                            currencyFn={currency}
+                                            fmtYMShortFn={fmtYMShort}
+                                            calculateFeeCycleProgressFn={calculateFeeCycleProgress}
+                                            view={cardView}
+                                            mccMap={mccMap}
+                                            isDesktop={isDesktop}
+                                        />
+                                    );
+                                };
 
                                 return (
-                                    <EnhancedCard
-                                        key={card.id}
-                                        card={card}
-                                        activeMonth={monthForCard}
-                                        cardMonthSummary={summaryForCard}
-                                        rules={rules.filter(r => r.cardId === card.id)}
-                                        currencyFn={currency}
-                                        fmtYMShortFn={fmtYMShort}
-                                        calculateFeeCycleProgressFn={calculateFeeCycleProgress}
-                                        view={cardView}
-                                        mccMap={mccMap}
-                                        isDesktop={isDesktop}
-                                    />
+                                    <>
+                                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                            {activeAndFrozenCards.map(renderCard)}
+                                        </div>
+
+                                        {closedCards.length > 0 && (
+                                            <Accordion type="single" collapsible className="w-full pt-4">
+                                                <AccordionItem value="closed-cards">
+                                                    <AccordionTrigger className="text-base font-semibold text-muted-foreground">
+                                                        Show Closed Cards ({closedCards.length})
+                                                    </AccordionTrigger>
+                                                    <AccordionContent>
+                                                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pt-4">
+                                                            {closedCards.map(renderCard)}
+                                                        </div>
+                                                    </AccordionContent>
+                                                </AccordionItem>
+                                            </Accordion>
+                                        )}
+                                    </>
                                 );
-                            };
-
-                            return (
-                                <>
-                                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                        {activeAndFrozenCards.map(renderCard)}
-                                    </div>
-
-                                    {closedCards.length > 0 && (
-                                        <Accordion type="single" collapsible className="w-full pt-4">
-                                            <AccordionItem value="closed-cards">
-                                                <AccordionTrigger className="text-base font-semibold text-muted-foreground">
-                                                    Show Closed Cards ({closedCards.length})
-                                                </AccordionTrigger>
-                                                <AccordionContent>
-                                                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pt-4">
-                                                        {closedCards.map(renderCard)}
-                                                    </div>
-                                                </AccordionContent>
-                                            </AccordionItem>
-                                        </Accordion>
-                                    )}
-                                </>
-                            );
-                        })()}
-                    </TabsContent>
-                    <TabsContent value="payments" className="space-y-4 pt-4">
-                        <PaymentsTabV2
-                            cards={cards}
-                            monthlySummary={monthlySummary}
-                            currencyFn={currency}
-                            fmtYMShortFn={fmtYMShort}
-                            daysLeftFn={calculateDaysLeft}
-                            onViewTransactions={handleViewTransactions}
-                        />
-                    </TabsContent>
-                </Tabs>
+                            })()}
+                        </div>
+                    )}
+                    {activeView === 'payments' && (
+                        <div className="space-y-4 pt-4">
+                            <PaymentsTabV2
+                                cards={cards}
+                                monthlySummary={monthlySummary}
+                                currencyFn={currency}
+                                fmtYMShortFn={fmtYMShort}
+                                daysLeftFn={calculateDaysLeft}
+                                onViewTransactions={handleViewTransactions}
+                            />
+                        </div>
+                    )}
+                </div>
             </main>
 
             {/* 4. RENDER THE DIALOG COMPONENT */}
