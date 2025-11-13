@@ -1,7 +1,7 @@
 // CashbackDashboard.jsx
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Loader2, Plus, History, Check, Snowflake, LogOut, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2 } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, Search, Loader2, Plus, History, Check, Snowflake, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2 } from "lucide-react";
 import { ResponsiveContainer, Tooltip as RechartsTooltip, PieChart, Pie, Cell, Legend } from "recharts";
 import { Toaster, toast } from 'sonner';
 
@@ -15,13 +15,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
 import { Progress } from "./components/ui/progress";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Input } from "./components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./components/ui/sheet";
 import { Skeleton } from "./components/ui/skeleton";
 
 // Import dialog components
@@ -30,9 +29,6 @@ import TransactionDetailsDialog from './components/dashboard/dialogs/Transaction
 import PaymentLogDialog from './components/dashboard/dialogs/PaymentLogDialog';
 import StatementLogDialog from './components/dashboard/dialogs/StatementLogDialog';
 import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
-
-// Import form components
-import AddTransactionForm from './components/dashboard/forms/AddTransactionForm';
 
 // Import overview tab components
 import CardSpendsCap from "./components/dashboard/tabs/overview/CardSpendsCap";
@@ -52,7 +48,6 @@ import LoginScreen from './components/auth/LoginScreen';
 // Import shared components
 import AppSkeleton from "./components/shared/AppSkeleton";
 import StatCard from "./components/shared/StatCard";
-import { ModeToggle } from "./components/ui/ThemeToggle";
 import AppSidebar from "./components/shared/AppSidebar";
 
 // Import custom hooks
@@ -69,11 +64,10 @@ const API_BASE_URL = '/api';
 
 export default function CashbackDashboard() {
 
-    const [activeMonth, setActiveMonth] = useState("live");
+    const [activeMonth] = useState("live");
     const [monthlyTransactions, setMonthlyTransactions] = useState([]);
     const [isMonthlyTxLoading, setIsMonthlyTxLoading] = useState(true);
-    const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
-    const [editingTransaction, setEditingTransaction] = useState(null);
+    const [, setEditingTransaction] = useState(null);
     const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
     const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
     const [dialogTransactions, setDialogTransactions] = useState([]);
@@ -84,41 +78,14 @@ export default function CashbackDashboard() {
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
     const isDesktop = useMediaQuery("(min-width: 768px)");
-    const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
     const {
         cards, rules, monthlySummary, mccMap, monthlyCategorySummary,
-        recentTransactions, allCategories, commonVendors, reviewTransactions,
+        recentTransactions, reviewTransactions,
         loading, error, refreshData,
         setRecentTransactions, setReviewTransactions,
-        cashbackRules, monthlyCashbackCategories, liveSummary
+        liveSummary
     } = useCashbackData(isAuthenticated);
-
-    const handleLogout = async () => {
-        try {
-            await fetch('/api/logout', {
-                method: 'POST',
-                credentials: 'include'
-            });
-            setIsAuthenticated(false);
-        } catch (error) {
-            console.error("Logout failed:", error);
-            toast.error("Logout failed. Please try again.");
-        }
-    };
-
-    const handleTransactionAdded = (newTransaction) => {
-        // 1. Instantly update the list for the current month
-        if (newTransaction['Transaction Date'].startsWith(activeMonth.replace('-', ''))) {
-                setMonthlyTransactions(prevTxs => [newTransaction, ...prevTxs]);
-        }
-
-        // 2. Update the recent transactions carousel
-        setRecentTransactions(prevRecent => [newTransaction, ...prevRecent].slice(0, 20));
-
-        // 3. Trigger a full refresh in the background to update all aggregate data (charts, stats, etc.) without a loading screen.
-        refreshData(true);
-    };
 
     // Create the handler for a successful approval
     const handleTransactionApproved = (approvedTransaction) => {
@@ -236,25 +203,6 @@ export default function CashbackDashboard() {
             console.error("Bulk delete failed:", error);
             toast.error("Could not delete transactions. Please try again.");
         }
-    };
-
-    const handleTransactionUpdated = (updatedTransaction) => {
-        // Find and replace the transaction in the list for an instant UI update
-        setMonthlyTransactions(prevTxs =>
-            prevTxs.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
-        );
-
-        // Also update the recent transactions carousel
-        setRecentTransactions(prevRecent =>
-            prevRecent.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
-        );
-
-        setReviewTransactions(prevReview =>
-            prevReview.filter(tx => tx.id !== updatedTransaction.id)
-        );
-
-        setEditingTransaction(null); // Close the edit form
-        refreshData(true);
     };
 
 
