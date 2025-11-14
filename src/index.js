@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css'; // You may need to create this file for styling
+import './styles/globals.css';
 import CashbackDashboard from './CashbackDashboard'; // Imports your main component
 import { ThemeProvider } from "./components/ui/theme-provider"
 

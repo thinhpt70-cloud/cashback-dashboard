@@ -558,7 +558,7 @@ export default function CashbackDashboard() {
     return (
         <SidebarProvider>
             <TooltipProvider>
-            <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+            <div className="flex min-h-screen w-full">
                 <Toaster richColors position="top-center" />
                 <AppSidebar activeView={activeView} setActiveView={setActiveView} />
                 <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
