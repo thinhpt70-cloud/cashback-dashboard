@@ -34,17 +34,17 @@ import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
 import AddTransactionForm from './components/dashboard/forms/AddTransactionForm';
 
 // Import overview tab components
-import CardSpendsCap from "./components/dashboard/tabs/overview/CardSpendsCap";
-import EnhancedSuggestions from "./components/dashboard/tabs/overview/EnhancedSuggestions";
-import SpendByCardChart from "./components/dashboard/tabs/overview/SpendByCardChart";
-import CashbackByCardChart from "./components/dashboard/tabs/overview/CashbackByCardChart";
-import CummulativeResultsChart from "./components/dashboard/tabs/overview/CummulativeResultsChart";
-import RecentTransactions from './components/dashboard/tabs/overview/RecentTransactions';
-import CurrentCashflowChart from "./components/dashboard/tabs/overview/CurrentCashflowChart";
-import StatCards from './components/dashboard/tabs/overview/OverviewStatCards';
+import CardSpendsCap from "./components/dashboard/overview/CardSpendsCap";
+import EnhancedSuggestions from "./components/dashboard/dashboard/overview/EnhancedSuggestions";
+import SpendByCardChart from "./components/dashboard/dashboard/overview/SpendByCardChart";
+import CashbackByCardChart from "./components/dashboard/dashboard/overview/CashbackByCardChart";
+import CummulativeResultsChart from "./components/dashboard/dashboard/overview/CummulativeResultsChart";
+import RecentTransactions from './components/dashboard/dashboard/overview/RecentTransactions';
+import CurrentCashflowChart from "./components/dashboard/dashboard/overview/CurrentCashflowChart";
+import StatCards from './components/dashboard/dashboard/overview/OverviewStatCards';
 
 // Import transactions tab components
-import TransactionReviewCenter from './components/dashboard/tabs/transactions/TransactionReviewCenter';
+import TransactionReviewCenter from './components/dashboard/transactions/TransactionReviewCenter';
 
 // Import authentication component
 import LoginScreen from './components/auth/LoginScreen';
