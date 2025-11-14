@@ -1,5 +1,3 @@
-// src/components/dashboard/tabs/overview/SpendVsCashbackTrendChart.jsx
-
 import React, { useState, useMemo } from 'react';
 import {
     ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip,
@@ -7,12 +5,12 @@ import {
 } from 'recharts';
 import {
     Card, CardContent, CardHeader, CardTitle
-} from "../../../ui/card";
-import { Button } from "../../../ui/button";
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup,
     DropdownMenuRadioItem, DropdownMenuTrigger
-} from "../../../ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import { ChevronsUpDown } from 'lucide-react'; // For the dropdown button
 
 /**
@@ -82,7 +80,7 @@ const CustomRechartsTooltip = ({ active, payload, label, isRateView, isAllView }
 /**
  * Main Chart Component
  */
-export default function SpendVsCashbackTrendChart({ data }) {
+export default function CurrentCashflowChart({ data }) {
     const [chartView, setChartView] = useState("all"); // "all", "spend", "cashback", "rate"
     
     // 1. Calculate effective rate for the chart data

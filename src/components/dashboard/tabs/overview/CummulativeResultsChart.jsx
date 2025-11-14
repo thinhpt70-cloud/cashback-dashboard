@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -8,7 +7,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
 import {
   ResponsiveContainer,
   AreaChart, // [Updated]
@@ -45,17 +43,17 @@ function CustomLineChartTooltip({ active, payload, label, currencyFn, selectedCa
     }
 
     return (
-      <div className="rounded-lg border bg-white/90 backdrop-blur-sm p-3 text-xs shadow-lg">
-        <p className="font-bold mb-2 text-sm">{label}</p>
+      <div className="rounded-lg bg-gray-900 p-3 text-sm shadow-xl transition-all">
+        <p className="font-bold text-white mb-2">{label}</p>
         <div className="space-y-2">
           <div>
-            <p className="font-semibold mb-1">
+            <p className="font-semibold mb-1 text-white">
               {cardName}
             </p>
             <div className="grid grid-cols-[1fr_auto] gap-x-4">
               {spend !== null && spend !== undefined && (
                 <>
-                  <span className="text-muted-foreground">Spend:</span>
+                  <span className="text-white flex justify-between items-center">Spend:</span>
                   <span className="font-medium text-right" style={{ color: spendColor }}>
                     {currencyFn(spend)}
                   </span>
@@ -79,7 +77,7 @@ function CustomLineChartTooltip({ active, payload, label, currencyFn, selectedCa
 }
 
 // [Updated] Main component - removed cardColorMap
-export default function CardPerformanceLineChart({ data, cards, currencyFn }) {
+export default function CummulativeResultsChart({ data, cards, currencyFn }) {
   const [view, setView] = useState('All');
   const [selectedCardId, setSelectedCardId] = useState('all'); // 'all' or a card.id
 
@@ -154,7 +152,7 @@ export default function CardPerformanceLineChart({ data, cards, currencyFn }) {
   const chartData = selectedCardId === 'all' ? cumulativeAggregatedData : cumulativeData;
 
   return (
-    <Card className="flex flex-col min-h-[350px]">
+    <Card>
       <CardHeader className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle>Cummulative Results</CardTitle>
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
@@ -174,45 +172,20 @@ export default function CardPerformanceLineChart({ data, cards, currencyFn }) {
           </Select>
 
           {/* View Toggle (All / Spending / Cashback) */}
-          <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 w-full sm:w-auto">
-            <Button
-              onClick={() => setView('All')}
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'h-7 px-3 flex-1',
-                view === 'All' && 'bg-white text-primary shadow-sm hover:bg-white',
-              )}
-            >
-              All
-            </Button>
-            <Button
-              onClick={() => setView('Spending')}
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'h-7 px-3 flex-1',
-                view === 'Spending' && 'bg-white text-primary shadow-sm hover:bg-white',
-              )}
-            >
-              Spending
-            </Button>
-            <Button
-              onClick={() => setView('Cashback')}
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'h-7 px-3 flex-1',
-                view === 'Cashback' && 'bg-white text-primary shadow-sm hover:bg-white',
-              )}
-            >
-              Cashback
-            </Button>
-          </div>
+          <Select value={view} onValueChange={setView}>
+            <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectValue placeholder="Select a view" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All</SelectItem>
+              <SelectItem value="Spending">Spending</SelectItem>
+              <SelectItem value="Cashback">Cashback</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </CardHeader>
       <CardContent className="pl-2">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
             {/* [New] Gradient definitions */}
             <defs>
