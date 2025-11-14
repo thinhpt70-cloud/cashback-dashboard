@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "../../../ui/card";
-import { Badge } from "../../../ui/badge";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../../../ui/accordion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award } from 'lucide-react';
-import { cn } from '../../../../lib/utils'; // Import cn utility
+import { cn } from '@/lib/utils'; // Import cn utility
 
 // --- ADDED: Date calculation utilities ---
-import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '../../../../lib/date';
+import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '@/lib/date';
 
 // --- NEW SUB-COMPONENT: RateStatusBadge ---
 function RateStatusBadge({ suggestion }) {

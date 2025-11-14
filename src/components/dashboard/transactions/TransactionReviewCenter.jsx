@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
-import { Button } from '../../../ui/button';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../../ui/accordion';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertTriangle, FilePenLine, CalendarClock, Wallet, CheckCircle, Eye, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Badge } from '../../../ui/badge';
-import SharedTransactionsDialog from '../../../shared/SharedTransactionsDialog';
+import { Badge } from '@/components/ui/badge';
+import SharedTransactionsDialog from '@/components/shared/SharedTransactionsDialog';
 
 /**
  * A component that displays a list of automated transactions that require user review.

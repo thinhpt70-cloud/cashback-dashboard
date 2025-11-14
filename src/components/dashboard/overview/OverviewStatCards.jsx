@@ -1,6 +1,6 @@
 // src/components/dashboard/tabs/overview/StatCards.jsx
 import React from 'react';
-import StatCard from "../../../shared/StatCard";
+import StatCard from "@/components/shared/StatCard";
 import { Wallet, DollarSign, TrendingUp } from "lucide-react";
 
 export default function StatCards({ stats, currencyFn }) {

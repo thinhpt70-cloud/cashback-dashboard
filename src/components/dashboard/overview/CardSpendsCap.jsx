@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronDown, CheckCircle2, Circle, Unlock, Lock, Infinity, Eye } from 'lucide-react';
-import { cn } from '../../../../lib/utils';
-import { Card, CardContent } from '../../../ui/card';
-import { Badge } from '../../../ui/badge';
-import { Progress } from '../../../ui/progress';
-import { Button } from '../../../ui/button';
-import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '../../../../lib/date';
+import { cn } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '@/lib/date';
 
 import { toast } from 'sonner';
-import SharedTransactionsDialog from '../../../shared/SharedTransactionsDialog';
+import SharedTransactionsDialog from '@/components/shared/SharedTransactionsDialog';
 
 const API_BASE_URL = '/api';
 

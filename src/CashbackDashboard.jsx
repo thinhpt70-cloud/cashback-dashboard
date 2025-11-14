@@ -1,7 +1,7 @@
 // CashbackDashboard.jsx
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Loader2, Plus, History, Check, Snowflake, LogOut, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2 } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Loader2, Plus, History, Check, Snowflake, LogOut, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2, LayoutDashboard, ArrowLeftRight, Banknote, Menu } from "lucide-react";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
 import { Progress } from "./components/ui/progress";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Input } from "./components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
@@ -35,13 +35,13 @@ import AddTransactionForm from './components/dashboard/forms/AddTransactionForm'
 
 // Import overview tab components
 import CardSpendsCap from "./components/dashboard/overview/CardSpendsCap";
-import EnhancedSuggestions from "./components/dashboard/dashboard/overview/EnhancedSuggestions";
-import SpendByCardChart from "./components/dashboard/dashboard/overview/SpendByCardChart";
-import CashbackByCardChart from "./components/dashboard/dashboard/overview/CashbackByCardChart";
-import CummulativeResultsChart from "./components/dashboard/dashboard/overview/CummulativeResultsChart";
-import RecentTransactions from './components/dashboard/dashboard/overview/RecentTransactions';
-import CurrentCashflowChart from "./components/dashboard/dashboard/overview/CurrentCashflowChart";
-import StatCards from './components/dashboard/dashboard/overview/OverviewStatCards';
+import EnhancedSuggestions from "./components/dashboard/overview/EnhancedSuggestions";
+import SpendByCardChart from "./components/dashboard/overview/SpendByCardChart";
+import CashbackByCardChart from "./components/dashboard/overview/CashbackByCardChart";
+import CummulativeResultsChart from "./components/dashboard/overview/CummulativeResultsChart";
+import RecentTransactions from './components/dashboard/overview/RecentTransactions';
+import CurrentCashflowChart from "./components/dashboard/overview/CurrentCashflowChart";
+import StatCards from './components/dashboard/overview/OverviewStatCards';
 
 // Import transactions tab components
 import TransactionReviewCenter from './components/dashboard/transactions/TransactionReviewCenter';
@@ -53,6 +53,7 @@ import LoginScreen from './components/auth/LoginScreen';
 import AppSkeleton from "./components/shared/AppSkeleton";
 import StatCard from "./components/shared/StatCard";
 import { ModeToggle } from "./components/dashboard/header/ThemeToggle";
+import AppSidebar from "./components/shared/AppSidebar";
 
 // Import custom hooks
 import useMediaQuery from "./hooks/useMediaQuery";
@@ -66,6 +67,13 @@ import { currency, fmtYMShort } from './lib/formatters';
 
 const API_BASE_URL = '/api';
 
+const navItems = [
+    { view: 'overview', icon: LayoutDashboard, label: 'Overview' },
+    { view: 'transactions', icon: ArrowLeftRight, label: 'Transactions' },
+    { view: 'cards', icon: CreditCard, label: 'My Cards' },
+    { view: 'payments', icon: Banknote, label: 'Payments' },
+];
+
 export default function CashbackDashboard() {
 
     const [activeMonth, setActiveMonth] = useState("live");
@@ -78,6 +86,8 @@ export default function CashbackDashboard() {
     const [dialogTransactions, setDialogTransactions] = useState([]);
     const [isDialogLoading, setIsDialogLoading] = useState(false);
     const [cardView, setCardView] = useState('month'); // 'month', 'ytd', or 'roi'
+    const [activeView, setActiveView] = useState('overview');
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
 
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
@@ -564,16 +574,49 @@ export default function CashbackDashboard() {
 
     return (
         <TooltipProvider>
-        <div className="flex min-h-screen w-full flex-col bg-muted/40">
+        <div className="flex min-h-screen w-full bg-muted/40">
             <Toaster richColors position="top-center" />
+            <AppSidebar 
+                activeView={activeView} 
+                setActiveView={setActiveView} 
+                isCollapsed={isSidebarCollapsed}
+                setIsCollapsed={setIsSidebarCollapsed}
+            />
+            <div className={cn(
+                "flex flex-col w-full transition-all duration-300 ease-in-out",
+                isSidebarCollapsed ? "md:pl-16" : "md:pl-56"
+            )}>
             {/* --- RESPONSIVE HEADER --- */}
-            <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 shadow-sm sm:px-6">
+            <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 shadow-sm sm:px-6 md:px-6">
+                <div className="md:hidden">
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <Menu className="h-6 w-6" />
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="w-56 p-2">
+                            <div className="flex items-center justify-center h-16 border-b mb-2">
+                                <img src="/favicon.svg" alt="Cardifier" className="h-8 w-8" />
+                            </div>
+                            <nav className="flex-1 space-y-2">
+                                {navItems.map((item) => (
+                                    <SheetTrigger asChild key={item.view}>
+                                        <Button
+                                            variant={activeView === item.view ? 'default' : 'ghost'}
+                                            className="w-full justify-start h-10"
+                                            onClick={() => setActiveView(item.view)}
+                                        >
+                                            <item.icon className="h-5 w-5 mr-3" />
+                                            <span>{item.label}</span>
+                                        </Button>
+                                    </SheetTrigger>
+                                ))}
+                            </nav>
+                        </SheetContent>
+                    </Sheet>
+                </div>
                 <h1 className="text-xl font-semibold flex items-center gap-2 shrink-0 dark:text-white">
-                    <img
-                        src="/favicon.svg"
-                        alt="Cardifier icon"
-                        className="h-10 w-10"
-                    />
                     <span className="hidden md:inline">Cardifier | Cashback Optimizer</span>
                 </h1>
 
@@ -704,18 +747,9 @@ export default function CashbackDashboard() {
                 </div>
             </header>
             <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-                <Tabs defaultValue="overview">
-                    <div className="flex items-center">
-                        <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                            <TabsTrigger value="overview">Overview</TabsTrigger>
-                            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-                            <TabsTrigger value="cards">My Cards</TabsTrigger>
-                            <TabsTrigger value="payments">Payments</TabsTrigger>
-                        </TabsList>
-                    </div>
 
-                    <TabsContent value="overview" className="space-y-4 pt-4">
-
+                {activeView === 'overview' && (
+                    <div className="space-y-4 pt-4">
                         {/* --- 1. UNIFIED DYNAMIC COMPONENTS --- */}
                         <div className="flex flex-col lg:flex-row gap-4">
                             {/* LEFT COLUMN */}
@@ -791,9 +825,11 @@ export default function CashbackDashboard() {
                                 />
                             </div>
                         )}
-                    </TabsContent>
+                    </div>
+                )}
 
-                    <TabsContent value="transactions" className="pt-4 space-y-4">
+                {activeView === 'transactions' && (
+                    <div className="pt-4 space-y-4">
                         <TransactionReviewCenter
                             transactions={reviewTransactions}
                             allTransactions={monthlyTransactions}
@@ -823,9 +859,11 @@ export default function CashbackDashboard() {
                             onEditTransaction={handleEditClick}
                             fmtYMShortFn={fmtYMShort}
                         />
-                    </TabsContent>
+                    </div>
+                )}
 
-                    <TabsContent value="cards" className="space-y-4 pt-4">
+                {activeView === 'cards' && (
+                    <div className="space-y-4 pt-4">
                         <CardsOverviewMetrics stats={cardsTabStats} currencyFn={currency} />
                         <Tabs defaultValue="month" value={cardView} onValueChange={(value) => setCardView(value)}>
                             {/* The container for the tabs, styled as a light grey rounded box */}
@@ -892,8 +930,11 @@ export default function CashbackDashboard() {
                                 </>
                             );
                         })()}
-                    </TabsContent>
-                    <TabsContent value="payments" className="space-y-4 pt-4">
+                    </div>
+                )}
+
+                {activeView === 'payments' && (
+                    <div className="space-y-4 pt-4">
                         <PaymentsTabV2
                             cards={cards}
                             monthlySummary={monthlySummary}
@@ -902,8 +943,8 @@ export default function CashbackDashboard() {
                             daysLeftFn={calculateDaysLeft}
                             onViewTransactions={handleViewTransactions}
                         />
-                    </TabsContent>
-                </Tabs>
+                    </div>
+                )}
             </main>
 
             {/* 4. RENDER THE DIALOG COMPONENT */}
@@ -929,6 +970,7 @@ export default function CashbackDashboard() {
                 isLoading={isDialogLoading}
                 currencyFn={currency}
             />
+        </div>
         </div>
         </TooltipProvider>
     );
