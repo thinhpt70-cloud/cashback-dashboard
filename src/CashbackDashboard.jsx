@@ -6,68 +6,73 @@ import { ResponsiveContainer, Tooltip as RechartsTooltip, PieChart, Pie, Cell, L
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
-import { cn } from "./lib/utils";
-import { getMetricSparkline } from './lib/stats';
-import { getTodaysMonth, getPreviousMonth, getCurrentCashbackMonthForCard } from './lib/date';
+import { cn } from "@/lib/utils";
+import { getMetricSparkline } from '@/lib/stats';
+import { getTodaysMonth, getPreviousMonth, getCurrentCashbackMonthForCard } from '@/lib/date';
 
 // Import UI components
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { Button } from "./components/ui/button";
-import { Badge } from "./components/ui/badge";
-import { Progress } from "./components/ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { Input } from "./components/ui/input";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
-import { Skeleton } from "./components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Import dialog components
-import BestCardFinderDialog from './components/dashboard/dialogs/BestCardFinderDialog';
-import TransactionDetailsDialog from './components/dashboard/dialogs/TransactionDetailsDialog';
-import PaymentLogDialog from './components/dashboard/dialogs/PaymentLogDialog';
-import StatementLogDialog from './components/dashboard/dialogs/StatementLogDialog';
-import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
+import BestCardFinderDialog from '@/components/dashboard/dialogs/BestCardFinderDialog';
+import AddTransactionSheet from '@/components/dashboard/dialogs/AddTransactionSheet';
+import TransactionDetailsDialog from '@/components/dashboard/dialogs/TransactionDetailsDialog';
+import PaymentLogDialog from '@/components/dashboard/dialogs/PaymentLogDialog';
+import StatementLogDialog from '@/components/dashboard/dialogs/StatementLogDialog';
+import CardInfoSheet from '@/components/dashboard/dialogs/CardInfoSheet';
 
 // Import overview tab components
-import CardSpendsCap from "./components/dashboard/tabs/overview/CardSpendsCap";
-import EnhancedSuggestions from "./components/dashboard/tabs/overview/EnhancedSuggestions";
-import SpendByCardChart from "./components/dashboard/tabs/overview/SpendByCardChart";
-import CardPerformanceLineChart from "./components/dashboard/tabs/overview/CardPerformanceLineChart";
-import RecentTransactions from './components/dashboard/tabs/overview/RecentTransactions';
-import SpendVsCashbackTrendChart from "./components/dashboard/tabs/overview/SpendVsCashbackTrendChart";
-import StatCards from './components/dashboard/tabs/overview/OverviewStatCards';
+import CardSpendsCap from "@/components/dashboard/tabs/overview/CardSpendsCap";
+import EnhancedSuggestions from "@/components/dashboard/tabs/overview/EnhancedSuggestions";
+import SpendByCardChart from "@/components/dashboard/tabs/overview/SpendByCardChart";
+import CardPerformanceLineChart from "@/components/dashboard/tabs/overview/CardPerformanceLineChart";
+import RecentTransactions from '@/components/dashboard/tabs/overview/RecentTransactions';
+import SpendVsCashbackTrendChart from "@/components/dashboard/tabs/overview/SpendVsCashbackTrendChart";
+import StatCards from '@/components/dashboard/tabs/overview/OverviewStatCards';
 
 // Import transactions tab components
-import TransactionReviewCenter from './components/dashboard/tabs/transactions/TransactionReviewCenter';
+import TransactionReviewCenter from '@/components/dashboard/tabs/transactions/TransactionReviewCenter';
 
 // Import authentication component
-import LoginScreen from './components/auth/LoginScreen';
+import LoginScreen from '@/components/auth/LoginScreen';
 
 // Import shared components
-import AppSkeleton from "./components/shared/AppSkeleton";
-import StatCard from "./components/shared/StatCard";
-import AppSidebar from "./components/shared/AppSidebar";
+import AppSkeleton from "@/components/shared/AppSkeleton";
+import StatCard from "@/components/shared/StatCard";
+import AppSidebar from "@/components/shared/AppSidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { ModeToggle } from "@/components/ui/ThemeToggle";
+import { LogOut, RefreshCw } from "lucide-react";
 
 // Import custom hooks
-import useMediaQuery from "./hooks/useMediaQuery";
-import useIOSKeyboardGapFix from "./hooks/useIOSKeyboardGapFix";
-import useCashbackData from "./hooks/useCashbackData";
+import useMediaQuery from "@/hooks/useMediaQuery";
+import useIOSKeyboardGapFix from "@/hooks/useIOSKeyboardGapFix";
+import useCashbackData from "@/hooks/useCashbackData";
 
 // Import constants and utilities
-import { COLORS, cardThemes } from './lib/constants';
-import { calculateDaysLeft } from './lib/date';
-import { currency, fmtYMShort } from './lib/formatters';
+import { COLORS, cardThemes } from '@/lib/constants';
+import { calculateDaysLeft } from '@/lib/date';
+import { currency, fmtYMShort } from '@/lib/formatters';
 
 const API_BASE_URL = '/api';
 
 export default function CashbackDashboard() {
 
-    const [activeMonth] = useState("live");
+    const [activeMonth, setActiveMonth] = useState("live");
     const [monthlyTransactions, setMonthlyTransactions] = useState([]);
     const [isMonthlyTxLoading, setIsMonthlyTxLoading] = useState(true);
-    const [, setEditingTransaction] = useState(null);
+    const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
+    const [editingTransaction, setEditingTransaction] = useState(null);
     const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
     const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
     const [dialogTransactions, setDialogTransactions] = useState([]);
@@ -81,7 +86,7 @@ export default function CashbackDashboard() {
 
     const {
         cards, rules, monthlySummary, mccMap, monthlyCategorySummary,
-        recentTransactions, reviewTransactions,
+        recentTransactions, allCategories, commonVendors, reviewTransactions,
         loading, error, refreshData,
         setRecentTransactions, setReviewTransactions,
         liveSummary
@@ -100,6 +105,32 @@ export default function CashbackDashboard() {
         setRecentTransactions(prevRecent =>
             prevRecent.map(tx => tx.id === approvedTransaction.id ? approvedTransaction : tx)
         );
+    };
+
+    const handleTransactionAdded = (newTransaction) => {
+        // Add to the main list
+        setMonthlyTransactions(prevTxs => [newTransaction, ...prevTxs]);
+        // Also add to the recent transactions list to keep it updated
+        setRecentTransactions(prevRecent => [newTransaction, ...prevRecent]);
+        // Trigger a silent refresh in the background
+        refreshData(true);
+    };
+
+    const handleTransactionUpdated = (updatedTransaction) => {
+        // Update the main list
+        setMonthlyTransactions(prevTxs =>
+            prevTxs.map(tx => (tx.id === updatedTransaction.id ? updatedTransaction : tx))
+        );
+        // Also update the recent transactions list
+        setRecentTransactions(prevRecent =>
+            prevRecent.map(tx => (tx.id === updatedTransaction.id ? updatedTransaction : tx))
+        );
+        // Also update the review transactions list
+        setReviewTransactions(prevReview =>
+            prevReview.map(tx => (tx.id === updatedTransaction.id ? updatedTransaction : tx))
+        );
+        // Trigger a silent refresh
+        refreshData(true);
     };
 
     const handleViewTransactions = useCallback(async (cardId, cardName, month, monthLabel) => {
@@ -169,6 +200,7 @@ export default function CashbackDashboard() {
 
     const handleEditClick = (transaction) => {
         setEditingTransaction(transaction);
+        setIsAddTxDialogOpen(true); // Open the sheet for editing
     };
 
     const handleViewTransactionDetails = async (transaction) => {
@@ -176,6 +208,17 @@ export default function CashbackDashboard() {
         // In the future, this could open a dialog with more detailed information.
         console.log("Viewing details for transaction:", transaction);
         toast.info(`Viewing details for ${transaction['Transaction Name']}`);
+    };
+
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+            setIsAuthenticated(false);
+            toast.success("You've been logged out.");
+        } catch (error) {
+            console.error("Logout failed:", error);
+            toast.error("Logout failed. Please try again.");
+        }
     };
 
     const handleBulkDelete = async (transactionIds) => {
@@ -513,14 +556,45 @@ export default function CashbackDashboard() {
     }
 
     return (
-        <TooltipProvider>
-        <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-            <Toaster richColors position="top-center" />
-            <AppSidebar activeView={activeView} setActiveView={setActiveView} />
-            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-                <div className="space-y-4 pt-4">
-                    {activeView === 'overview' && (
-                        <>
+        <SidebarProvider>
+            <TooltipProvider>
+            <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+                <Toaster richColors position="top-center" />
+                <AppSidebar activeView={activeView} setActiveView={setActiveView} />
+                <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+                    <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
+                        <div className="flex-1">
+                            <h1 className="text-lg font-semibold md:text-2xl">Dashboard</h1>
+                        </div>
+                        <div className="flex flex-1 items-center justify-end gap-4">
+                            <select
+                                value={activeMonth}
+                                onChange={(e) => setActiveMonth(e.target.value)}
+                                className="h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                            >
+                                <option value="live">Live View</option>
+                                {statementMonths.map(month => (
+                                    <option key={month} value={month}>{fmtYMShort(month)}</option>
+                                ))}
+                            </select>
+                            <Button variant="outline" size="sm" onClick={() => refreshData(true)}>
+                                <RefreshCw className="h-4 w-4" />
+                            </Button>
+                            <Button onClick={() => setIsFinderOpen(true)}>
+                                <Search className="mr-2 h-4 w-4" /> Card Finder
+                            </Button>
+                            <Button onClick={() => { setEditingTransaction(null); setIsAddTxDialogOpen(true); }}>
+                                <Plus className="mr-2 h-4 w-4" /> Add Transaction
+                            </Button>
+                            <ModeToggle />
+                            <Button variant="outline" size="icon" onClick={handleLogout}>
+                                <LogOut className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </header>
+                    <div className="space-y-4 pt-4">
+                        {activeView === 'overview' && (
+                            <>
                             {/* --- 1. UNIFIED DYNAMIC COMPONENTS --- */}
                             <div className="flex flex-col lg:flex-row gap-4">
                                 {/* LEFT COLUMN */}
@@ -741,8 +815,25 @@ export default function CashbackDashboard() {
                 isLoading={isDialogLoading}
                 currencyFn={currency}
             />
+            <AddTransactionSheet
+                isOpen={isAddTxDialogOpen}
+                onOpenChange={setIsAddTxDialogOpen}
+                transaction={editingTransaction}
+                onTransactionAdded={handleTransactionAdded}
+                onTransactionUpdated={handleTransactionUpdated}
+                cards={cards}
+                allCategories={allCategories}
+                commonVendors={commonVendors}
+                cashbackRules={rules}
+                monthlyCashbackCategories={monthlyCategorySummary}
+                mccMap={mccMap}
+                monthlySummary={monthlySummary}
+                monthlyCategorySummary={monthlyCategorySummary}
+                getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+            />
         </div>
         </TooltipProvider>
+    </SidebarProvider>
     );
 }
 
