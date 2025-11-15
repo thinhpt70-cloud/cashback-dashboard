@@ -6,6 +6,7 @@ import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../ui/accordion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui/tooltip';
+import { Textarea } from '../../ui/textarea'; // <-- FIX: Import the Textarea component
 import QuickAddButtons from './QuickAddButtons';
 import CardRecommendations from './CardRecommendations';
 import useIOSKeyboardGapFix from '../../../hooks/useIOSKeyboardGapFix';
@@ -476,14 +477,14 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                 <div className="space-y-4 border-t pt-6">
                     <div className="space-y-2">
                         <label htmlFor="card">Card</label>
-                        <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); localStorage.setItem('lastUsedCardId', e.target.value); }} className="w-full p-2 border rounded cursor-pointer" required>
+                        <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); localStorage.setItem('lastUsedCardId', e.target.value); }} className="w-full p-2 border border-input bg-background rounded cursor-pointer" required> {/* <-- FIX: Added border-input and bg-background */}
                             {/* Removed default "Select Card" option, selection is handled by useEffect */}
                             {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
                         </select>
                     </div>
                     <div className="space-y-2">
                         <label htmlFor="rule">Applicable Cashback Rule</label>
-                        <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border rounded cursor-pointer" disabled={filteredRules.length === 0}>
+                        <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border border-input bg-background rounded cursor-pointer" disabled={filteredRules.length === 0}> {/* <-- FIX: Added border-input and bg-background */}
                             <option value="">{filteredRules.length === 0 ? 'No active rules for this card' : 'None'}</option>
                             {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.ruleName}</option>)}
                         </select>
@@ -518,7 +519,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                         <AccordionTrigger className="text-sm font-semibold">More Details</AccordionTrigger>
                         <AccordionContent className="pt-4 space-y-4 px-1">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-2"><label htmlFor="category">Internal Category</label><select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded cursor-pointer"><option value="">None</option>{[...categories].sort().map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div>
+                                <div className="space-y-2"><label htmlFor="category">Internal Category</label><select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border border-input bg-background rounded cursor-pointer"><option value="">None</option>{[...categories].sort().map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div> {/* <-- FIX: Added border-input and bg-background */}
                                 <div className="space-y-2"><label htmlFor="subCategory">Sub Category</label><Input id="subCategory" value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="e.g., Groceries, Utilities" /></div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -556,7 +557,14 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                             </div>
                             <div className="space-y-2">
                                 <label htmlFor="notes">Notes</label>
-                                <textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full p-2 border rounded min-h-[80px]" placeholder="Add any relevant notes here..."/>
+                                {/* <-- FIX: Replaced native textarea with shadcn/ui Textarea component --> */}
+                                <Textarea 
+                                    id="notes" 
+                                    value={notes} 
+                                    onChange={(e) => setNotes(e.target.value)} 
+                                    className="min-h-[80px]" 
+                                    placeholder="Add any relevant notes here..."
+                                />
                             </div>
                         </AccordionContent>
                     </AccordionItem>
