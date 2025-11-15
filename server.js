@@ -793,15 +793,58 @@ app.post('/api/summaries', async (req, res) => {
             return res.status(400).json({ error: 'cardId, month, and ruleId are required' });
         }
 
+        // --- Step 1: Get names needed to build the unique IDs ---
         const cardPage = await notion.pages.retrieve({ page_id: cardId });
-        const cardName = cardPage.properties['Card Name']?.title[0]?.plain_text || 'Untitled Card';
+        const bankName = cardPage.properties['Bank']?.select?.name || 'Untitled Bank';
 
         const rulePage = await notion.pages.retrieve({ page_id: ruleId });
         const ruleName = rulePage.properties['Rule Name']?.title[0]?.plain_text || 'Untitled Rule';
 
-        const summaryName = `${month} - ${ruleName}`;
-        const trackerId = `${cardName} - ${month}`;
+        const summaryName = `${month} - ${ruleName}`; // This is the unique name for the category summary
+        const trackerId = `${bankName} - ${month}`;   // This is the unique name for the *total* monthly summary
 
+        // --- Step 2: NEW LOGIC - Check if this Category Summary already exists ---
+        const existingSummaryResponse = await notion.databases.query({
+            database_id: monthlyCategoryDbId,
+            filter: {
+                and: [
+                    {
+                        property: 'Summary ID', // The 'Name' or 'Title' property
+                        title: {
+                            equals: summaryName,
+                        },
+                    },
+                    {
+                        property: 'Card',
+                        relation: {
+                            contains: cardId,
+                        },
+                    },
+                    {
+                        property: 'Month',
+                        select: {
+                            equals: month,
+                        },
+                    },
+                ],
+            },
+            page_size: 1, // We only need to know if one exists
+        });
+
+        // --- Step 3: NEW LOGIC - If it exists, return the existing one ---
+        if (existingSummaryResponse.results.length > 0) {
+            const existingSummary = existingSummaryResponse.results[0];
+            return res.status(200).json({ // Return 200 OK (not 201 Created)
+                id: existingSummary.id, 
+                name: summaryName, 
+                cardId, 
+                month 
+            });
+        }
+
+        // --- Step 4: If it does NOT exist, create it (original logic) ---
+
+        // Build the properties for the new category summary page
         const properties = {
             'Summary ID': { title: [{ text: { content: summaryName } }] },
             'Card': { relation: [{ id: cardId }] },
@@ -809,6 +852,7 @@ app.post('/api/summaries', async (req, res) => {
             'Cashback Rule': { relation: [{ id: ruleId }] },
         };
 
+        // Find-or-create logic for the *parent* tracker (Monthly Summary)
         let trackerPageId;
         const trackerResponse = await notion.databases.query({
             database_id: monthlySummaryDbId,
@@ -834,19 +878,23 @@ app.post('/api/summaries', async (req, res) => {
             trackerPageId = newTrackerPage.id;
         }
 
+        // Link the new category summary to its parent tracker
         if (trackerPageId) {
             properties['Cashback Tracker'] = { relation: [{ id: trackerPageId }] };
         }
 
+        // Create the new category summary page
         const newSummary = await notion.pages.create({
             parent: { database_id: monthlyCategoryDbId },
             properties,
         });
 
+        // Return 201 Created because we made a new one
         res.status(201).json({ id: newSummary.id, name: summaryName, cardId, month });
+
     } catch (error) {
-        console.error('Error creating summary:', error);
-        res.status(500).json({ error: 'Failed to create summary' });
+        console.error('Error in find-or-create summary:', error.body || error);
+        res.status(500).json({ error: 'Failed to find or create summary' });
     }
 });
 

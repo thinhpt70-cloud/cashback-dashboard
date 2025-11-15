@@ -78,8 +78,10 @@ export default function CashbackByCardChart({ cashbackData, currencyFn, cardColo
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              width={120}
+              width={80} 
               dx={-5}
+              tickFormatter={(label) => label.length > 10 ? `${label.substring(0, 9)}...` : label
+              }
             />
             <RechartsTooltip
               content={<CustomTooltip currencyFn={currencyFn} />}

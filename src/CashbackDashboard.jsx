@@ -1,7 +1,7 @@
 // CashbackDashboard.jsx
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Search, Loader2, Plus, History, Check, Snowflake, LogOut, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2, LayoutDashboard, ArrowLeftRight, Banknote, Menu } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, Search, Loader2, Plus, History, Check, Snowflake, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2, LayoutDashboard, ArrowLeftRight, Banknote, Menu } from "lucide-react";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
@@ -52,7 +52,6 @@ import LoginScreen from './components/auth/LoginScreen';
 // Import shared components
 import AppSkeleton from "./components/shared/AppSkeleton";
 import StatCard from "./components/shared/StatCard";
-import { ModeToggle } from "./components/dashboard/header/ThemeToggle";
 import AppSidebar from "./components/shared/AppSidebar";
 
 // Import custom hooks
@@ -581,6 +580,9 @@ export default function CashbackDashboard() {
                 setActiveView={setActiveView} 
                 isCollapsed={isSidebarCollapsed}
                 setIsCollapsed={setIsSidebarCollapsed}
+                handleLogout={handleLogout}
+                refreshData={refreshData}
+                openFinder={() => setIsFinderOpen(true)}
             />
             <div className={cn(
                 "flex flex-col w-full transition-all duration-300 ease-in-out",
@@ -616,7 +618,8 @@ export default function CashbackDashboard() {
                         </SheetContent>
                     </Sheet>
                 </div>
-                <h1 className="text-xl font-semibold flex items-center gap-2 shrink-0 dark:text-white">
+                <h1 className="text-xl font-semibold md:hidden">Cardifer</h1>
+                <h1 className="text-xl font-semibold hidden md:flex items-center gap-2 shrink-0 dark:text-white">
                     <span className="hidden md:inline">Cardifier | Cashback Optimizer</span>
                 </h1>
 
@@ -638,14 +641,6 @@ export default function CashbackDashboard() {
 
                     {/* --- Desktop Controls (hidden on mobile) --- */}
                     <div className="hidden md:flex items-center gap-2">
-                        <Button variant="outline" className="h-10" onClick={() => setIsFinderOpen(true)}>
-                            <Search className="mr-2 h-4 w-4" />
-                            Card Finder
-                        </Button>
-                        <Button variant="outline" className="h-10" onClick={() => refreshData(false)}>
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Refresh
-                        </Button>
                         <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
                             <SheetTrigger asChild>
                                 <Button variant="default" className="h-10">
@@ -706,10 +701,6 @@ export default function CashbackDashboard() {
                                 </div>
                             </SheetContent>
                         </Sheet>
-                        <Button variant="outline" className="h-10" onClick={handleLogout}>
-                            <LogOut className="mr-2 h-4 w-4" />
-                        </Button>
-                        <ModeToggle />
                     </div>
 
                     {/* --- Mobile Controls (hidden on desktop) --- */}
@@ -721,28 +712,6 @@ export default function CashbackDashboard() {
                                 </Button>
                             </SheetTrigger>
                         </Sheet>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon" className="h-10 w-10">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => setIsFinderOpen(true)}>
-                                    <Search className="mr-2 h-4 w-4" />
-                                    <span>Card Finder</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => refreshData(false)}>
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    <span>Refresh Data</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={handleLogout}>
-                                    <LogOut className="mr-2 h-4 w-4" />
-                                    <span>Logout</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        <ModeToggle />
                     </div>
                 </div>
             </header>

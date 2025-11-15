@@ -85,15 +85,16 @@ export default function SpendByCardChart({ spendData, currencyFn, cardColorMap }
             />
             <YAxis
               type="category"
-              dataKey="name" // The card name
+              dataKey="name"
               stroke="#64748b"
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              width={120} // Give ample space for long card names
+              width={80}
               dx={-5}
-              // Truncate long labels if needed (optional)
-              // tickFormatter={(label) => label.length > 15 ? `${label.substring(0, 15)}...` : label}
+              tickFormatter={(label) =>
+                label.length > 10 ? `${label.substring(0, 9)}...` : label
+              }
             />
             <RechartsTooltip
               // Pass currencyFn to the custom tooltip

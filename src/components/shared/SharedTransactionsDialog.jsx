@@ -15,6 +15,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
+import TransactionCard from './TransactionCard';
 
 
 export default function SharedTransactionsDialog({
@@ -31,11 +32,15 @@ export default function SharedTransactionsDialog({
     onViewDetails
 }) {
     const [selectedRows, setSelectedRows] = useState(new Set());
+    const [isSelectionActive, setIsSelectionActive] = useState(false);
+    const [expandedCardId, setExpandedCardId] = useState(null);
 
     // Clear selections when the dialog is closed or transactions change
     useEffect(() => {
         if (!isOpen) {
             setSelectedRows(new Set());
+            setIsSelectionActive(false);
+            setExpandedCardId(null);
         }
     }, [isOpen, transactions]);
 
@@ -43,8 +48,10 @@ export default function SharedTransactionsDialog({
         if (checked) {
             const allIds = new Set(transactions.map(t => t.id));
             setSelectedRows(allIds);
+            setIsSelectionActive(true); // Activate selection mode
         } else {
             setSelectedRows(new Set());
+            setIsSelectionActive(false); // Deactivate selection mode
         }
     };
 
@@ -56,6 +63,13 @@ export default function SharedTransactionsDialog({
             newSelectedRows.delete(id);
         }
         setSelectedRows(newSelectedRows);
+
+        // Toggle selection mode based on count
+        if (newSelectedRows.size > 0) {
+            setIsSelectionActive(true);
+        } else {
+            setIsSelectionActive(false);
+        }
     };
 
     const totals = useMemo(() => {
@@ -73,6 +87,7 @@ export default function SharedTransactionsDialog({
             onBulkDelete(Array.from(selectedRows));
         }
         setSelectedRows(new Set());
+        setIsSelectionActive(false); // Deactivate after deletion
     };
 
     return (
@@ -85,13 +100,17 @@ export default function SharedTransactionsDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                {selectedRows.size > 0 && onBulkDelete && (
+                {/* This bar now appears/disappears based on isSelectionActive */}
+                {isSelectionActive && selectedRows.size > 0 && onBulkDelete && (
                     <div className="flex items-center justify-between p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
                         <span className="text-sm font-semibold">{selectedRows.size} selected</span>
-                        <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Bulk Delete
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => handleSelectAll(false)}>Cancel</Button>
+                            <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Bulk Delete
+                            </Button>
+                        </div>
                     </div>
                 )}
 
@@ -101,61 +120,86 @@ export default function SharedTransactionsDialog({
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
                     ) : transactions.length > 0 ? (
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b">
-                                    <th className="p-2 w-10">
-                                        <Checkbox
-                                            checked={isAllSelected}
-                                            onCheckedChange={handleSelectAll}
-                                        />
-                                    </th>
-                                    <th className="text-left p-2">Date</th>
-                                    <th className="text-left p-2">Transaction</th>
-                                    <th className="text-right p-2">Amount</th>
-                                    <th className="text-right p-2">Cashback</th>
-                                    <th className="text-center p-2 w-12">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <>
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b">
+                                            <th className="p-2 w-10">
+                                                <Checkbox
+                                                    checked={isAllSelected}
+                                                    onCheckedChange={handleSelectAll}
+                                                />
+                                            </th>
+                                            <th className="text-left p-2">Date</th>
+                                            <th className="text-left p-2">Transaction</th>
+                                            <th className="text-right p-2">Amount</th>
+                                            <th className="text-right p-2">Cashback</th>
+                                            <th className="text-center p-2 w-12">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {transactions.map(t => (
+                                            <tr key={t.id} className="border-b">
+                                                <td className="p-2">
+                                                    <Checkbox
+                                                        checked={selectedRows.has(t.id)}
+                                                        onCheckedChange={(checked) => handleSelectRow(t.id, checked)}
+                                                    />
+                                                </td>
+                                                <td className="p-2">{t['Transaction Date']}</td>
+                                                <td className="p-2">{t['Transaction Name']}</td>
+                                                <td className="text-right p-2">{currencyFn(t['Amount'])}</td>
+                                                <td className="text-right p-2">{currencyFn(t.estCashback)}</td>
+                                                <td className="text-center p-2">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                <MoreVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent>
+                                                            {onEdit && <DropdownMenuItem onClick={() => onEdit(t)}>Edit</DropdownMenuItem>}
+                                                            {onViewDetails && <DropdownMenuItem onClick={() => onViewDetails(t)}>View Details</DropdownMenuItem>}
+                                                            {onDelete && <DropdownMenuItem onClick={() => onDelete(t.id, t['Transaction Name'])}>Delete</DropdownMenuItem>}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className="border-t-2 font-semibold">
+                                            <td colSpan="3" className="text-right p-2">Total</td>
+                                            <td className="text-right p-2">{currencyFn(totals.amount)}</td>
+                                            <td className="text-right p-2">{currencyFn(totals.cashback)}</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                            {/* Mobile Card View */}
+                            {/* CHANGED: Added py-1 for vertical padding */}
+                            <div className="md:hidden space-y-1 px-1 py-1">
                                 {transactions.map(t => (
-                                    <tr key={t.id} className="border-b">
-                                        <td className="p-2">
-                                             <Checkbox
-                                                checked={selectedRows.has(t.id)}
-                                                onCheckedChange={(checked) => handleSelectRow(t.id, checked)}
-                                            />
-                                        </td>
-                                        <td className="p-2">{t['Transaction Date']}</td>
-                                        <td className="p-2">{t['Transaction Name']}</td>
-                                        <td className="text-right p-2">{currencyFn(t['Amount'])}</td>
-                                        <td className="text-right p-2">{currencyFn(t.estCashback)}</td>
-                                        <td className="text-center p-2">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                        <MoreVertical className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent>
-                                                    {onEdit && <DropdownMenuItem onClick={() => onEdit(t)}>Edit</DropdownMenuItem>}
-                                                    {onViewDetails && <DropdownMenuItem onClick={() => onViewDetails(t)}>View Details</DropdownMenuItem>}
-                                                    {onDelete && <DropdownMenuItem onClick={() => onDelete(t.id, t['Transaction Name'])}>Delete</DropdownMenuItem>}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </td>
-                                    </tr>
+                                    <TransactionCard
+                                        key={t.id}
+                                        transaction={t}
+                                        currencyFn={currencyFn}
+                                        isSelected={selectedRows.has(t.id)}
+                                        onSelect={handleSelectRow} 
+                                        onClick={() => {
+                                            setExpandedCardId(expandedCardId === t.id ? null : t.id);
+                                        }}
+                                        isExpanded={expandedCardId === t.id}
+                                        onEdit={onEdit}
+                                        onDelete={onDelete}
+                                    />
                                 ))}
-                            </tbody>
-                             <tfoot>
-                                <tr className="border-t-2 font-semibold">
-                                    <td colSpan="3" className="text-right p-2">Total</td>
-                                    <td className="text-right p-2">{currencyFn(totals.amount)}</td>
-                                    <td className="text-right p-2">{currencyFn(totals.cashback)}</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                            </div>
+                        </>
                     ) : (
                         <div className="flex justify-center items-center h-48">
                             <p className="text-muted-foreground">No transactions found for this category.</p>

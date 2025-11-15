@@ -1,8 +1,9 @@
 import React from 'react';
-import { LayoutDashboard, ArrowLeftRight, CreditCard, Banknote, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, CreditCard, Banknote, ChevronsLeft, ChevronsRight, Search, RefreshCw, LogOut } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import { cn } from '../../lib/utils';
+import { ModeToggle } from '../dashboard/header/ThemeToggle';
 
 const navItems = [
   { view: 'overview', icon: LayoutDashboard, label: 'Overview' },
@@ -11,7 +12,15 @@ const navItems = [
   { view: 'payments', icon: Banknote, label: 'Payments' },
 ];
 
-const AppSidebar = ({ activeView, setActiveView, isCollapsed, setIsCollapsed }) => {
+const AppSidebar = ({ 
+  activeView, 
+  setActiveView, 
+  isCollapsed, 
+  setIsCollapsed,
+  handleLogout,
+  refreshData,
+  openFinder
+}) => {
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
@@ -62,13 +71,65 @@ const AppSidebar = ({ activeView, setActiveView, isCollapsed, setIsCollapsed }) 
                     />
                 ))}
             </nav>
-            <div className="p-2 border-t">
-                <Button variant="ghost" size="icon" className="w-full" onClick={toggleSidebar}>
-                    {isCollapsed ? <ChevronsRight className="h-5 w-5" /> : <ChevronsLeft className="h-5 w-5" />}
-                </Button>
-      </div>
+            <div className="mt-auto flex flex-col items-center gap-2 p-2 border-t">
+                <div className="w-full space-y-2">
+                    <TooltipProvider delayDuration={0}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" className={cn('w-full justify-start h-10', isCollapsed && 'justify-center')} onClick={openFinder}>
+                                    <Search className={cn('h-5 w-5', !isCollapsed && 'mr-3')} />
+                                    <span className={cn(isCollapsed && 'sr-only')}>Card Finder</span>
+                                </Button>
+                            </TooltipTrigger>
+                            {isCollapsed && (
+                                <TooltipContent side="right">
+                                    <p>Card Finder</p>
+                                </TooltipContent>
+                            )}
+                        </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider delayDuration={0}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" className={cn('w-full justify-start h-10', isCollapsed && 'justify-center')} onClick={() => refreshData(false)}>
+                                    <RefreshCw className={cn('h-5 w-5', !isCollapsed && 'mr-3')} />
+                                    <span className={cn(isCollapsed && 'sr-only')}>Refresh</span>
+                                </Button>
+                            </TooltipTrigger>
+                            {isCollapsed && (
+                                <TooltipContent side="right">
+                                    <p>Refresh</p>
+                                </TooltipContent>
+                            )}
+                        </Tooltip>
+                    </TooltipProvider>
+                    <ModeToggle isCollapsed={isCollapsed} />
+                </div>
+                <div className="w-full pt-2 mt-2 border-t">
+                    <TooltipProvider delayDuration={0}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" className={cn('w-full justify-start h-10', isCollapsed && 'justify-center')} onClick={handleLogout}>
+                                    <LogOut className={cn('h-5 w-5', !isCollapsed && 'mr-3')} />
+                                    <span className={cn(isCollapsed && 'sr-only')}>Logout</span>
+                                </Button>
+                            </TooltipTrigger>
+                            {isCollapsed && (
+                                <TooltipContent side="right">
+                                    <p>Logout</p>
+                                </TooltipContent>
+                            )}
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
+                <div className="p-2 border-t">
+                    <Button variant="ghost" size="icon" className="w-full" onClick={toggleSidebar}>
+                        {isCollapsed ? <ChevronsRight className="h-5 w-5" /> : <ChevronsLeft className="h-5 w-5" />}
+                    </Button>
+                </div>
+            </div>
         </aside>
-  );
+    );
 };
 
 export default AppSidebar;

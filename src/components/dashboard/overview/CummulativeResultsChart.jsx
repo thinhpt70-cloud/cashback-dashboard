@@ -155,10 +155,10 @@ export default function CummulativeResultsChart({ data, cards, currencyFn }) {
     <Card>
       <CardHeader className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle>Cummulative Results</CardTitle>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="flex flex-row items-center gap-2">
           {/* Card Selector Dropdown */}
           <Select value={selectedCardId} onValueChange={setSelectedCardId}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-1/2 sm:w-[180px]">
               <SelectValue placeholder="Select a card" />
             </SelectTrigger>
             <SelectContent>
@@ -173,7 +173,7 @@ export default function CummulativeResultsChart({ data, cards, currencyFn }) {
 
           {/* View Toggle (All / Spending / Cashback) */}
           <Select value={view} onValueChange={setView}>
-            <SelectTrigger className="w-full sm:w-[150px]">
+            <SelectTrigger className="w-1/2 sm:w-[150px]">
               <SelectValue placeholder="Select a view" />
             </SelectTrigger>
             <SelectContent>
@@ -185,7 +185,7 @@ export default function CummulativeResultsChart({ data, cards, currencyFn }) {
         </div>
       </CardHeader>
       <CardContent className="pl-2">
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={250}>
           <AreaChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
             {/* [New] Gradient definitions */}
             <defs>
