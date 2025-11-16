@@ -28,18 +28,19 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
 
     const filteredTransactions = useMemo(() => {
         const today = startOfDay(new Date());
+        const options = { weekStartsOn: 1 };
         let interval;
 
         if (activityFilter === 'thisWeek') {
             interval = {
-                start: startOfWeek(today),
-                end: endOfWeek(today)
+                start: startOfWeek(today, options),
+                end: endOfWeek(today, options)
             };
         } else if (activityFilter === 'lastWeek') {
             const lastWeekDay = subWeeks(today, 1);
             interval = {
-                start: startOfWeek(lastWeekDay),
-                end: endOfWeek(lastWeekDay)
+                start: startOfWeek(lastWeekDay, options),
+                end: endOfWeek(lastWeekDay, options)
             };
         } else if (activityFilter === 'thisMonth') {
             interval = {

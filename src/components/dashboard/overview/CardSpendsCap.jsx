@@ -279,7 +279,8 @@ export default function CardSpendsCap({
     onEditTransaction,
     onTransactionDeleted,
     onBulkDelete,
-    onViewTransactionDetails
+    onViewTransactionDetails,
+    cardMap
 }) {
     const [expandedCardId, setExpandedCardId] = useState(null);
     const [dialogState, setDialogState] = useState({
@@ -476,6 +477,7 @@ export default function CardSpendsCap({
                 onDelete={onTransactionDeleted}
                 onBulkDelete={onBulkDelete}
                 onViewDetails={onViewTransactionDetails}
+                cardMap={cardMap}
             />
         </div>
     );

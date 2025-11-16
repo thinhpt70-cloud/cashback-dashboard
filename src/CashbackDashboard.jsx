@@ -1,7 +1,7 @@
 // CashbackDashboard.jsx
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, Search, Loader2, Plus, History, Check, Snowflake, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2, LayoutDashboard, ArrowLeftRight, Banknote, Menu } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, Search, Loader2, Plus, History, Check, Snowflake, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2, LayoutDashboard, ArrowLeftRight, Banknote, Menu, RefreshCw, LogOut } from "lucide-react";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
@@ -24,6 +24,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./co
 import { Skeleton } from "./components/ui/skeleton";
 
 // Import dialog components
+import MobileThemeToggle from "./components/dashboard/header/MobileThemeToggle";
 import BestCardFinderDialog from './components/dashboard/dialogs/BestCardFinderDialog';
 import TransactionDetailsDialog from './components/dashboard/dialogs/TransactionDetailsDialog';
 import PaymentLogDialog from './components/dashboard/dialogs/PaymentLogDialog';
@@ -597,11 +598,12 @@ export default function CashbackDashboard() {
                                 <Menu className="h-6 w-6" />
                             </Button>
                         </SheetTrigger>
-                        <SheetContent side="left" className="w-56 p-2">
-                            <div className="flex items-center justify-center h-16 border-b mb-2">
-                                <img src="/favicon.svg" alt="Cardifier" className="h-8 w-8" />
-                            </div>
-                            <nav className="flex-1 space-y-2">
+                        <SheetContent side="left" className="w-56 p-2 flex flex-col">
+                            <div>
+                                <div className="flex items-center justify-center h-16 border-b mb-2">
+                                    <img src="/favicon.svg" alt="Cardifier" className="h-8 w-8" />
+                                </div>
+                                <nav className="space-y-2">
                                 {navItems.map((item) => (
                                     <SheetTrigger asChild key={item.view}>
                                         <Button
@@ -615,6 +617,28 @@ export default function CashbackDashboard() {
                                     </SheetTrigger>
                                 ))}
                             </nav>
+                            <div className="mt-auto flex flex-col gap-2 pt-2 border-t">
+                                <SheetTrigger asChild>
+                                    <Button variant="ghost" className="w-full justify-start h-10" onClick={() => setIsFinderOpen(true)}>
+                                        <Search className="h-5 w-5 mr-3" />
+                                        <span>Card Finder</span>
+                                    </Button>
+                                </SheetTrigger>
+                                <SheetTrigger asChild>
+                                    <Button variant="ghost" className="w-full justify-start h-10" onClick={() => refreshData(false)}>
+                                        <RefreshCw className="h-5 w-5 mr-3" />
+                                        <span>Refresh</span>
+                                    </Button>
+                                </SheetTrigger>
+                                <MobileThemeToggle />
+                                <SheetTrigger asChild>
+                                    <Button variant="ghost" className="w-full justify-start h-10" onClick={handleLogout}>
+                                        <LogOut className="h-5 w-5 mr-3" />
+                                        <span>Logout</span>
+                                    </Button>
+                                </SheetTrigger>
+                            </div>
+                            </div>
                         </SheetContent>
                     </Sheet>
                 </div>
@@ -737,6 +761,7 @@ export default function CashbackDashboard() {
                                     onTransactionDeleted={handleTransactionDeleted}
                                     onBulkDelete={handleBulkDelete}
                                     onViewTransactionDetails={handleViewTransactionDetails}
+                                    cardMap={cardMap}
                                 />
                             </div>
 

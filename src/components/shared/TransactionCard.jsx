@@ -13,17 +13,22 @@ const TransactionCard = ({
     isExpanded,
     onEdit,
     onDelete,
+    getMccDescription,
+    cardMap 
 }) => {
     const {
         'Transaction Name': name,
         'Amount': amount,
         estCashback,
         'Transaction Date': date,
-        'Card': card,
+        'Card': card, 
         'Category': category,
         'MCC Code': mcc,
         'Notes': notes
     } = transaction;
+
+    // Look up the card name using the map
+    const cardName = card ? (cardMap.get(card[0])?.name || 'N/A') : 'N/A';
 
     const cashbackRate = amount ? (estCashback / amount) * 100 : 0;
 
@@ -63,7 +68,7 @@ const TransactionCard = ({
                             <p className="font-bold text-sm text-green-600 dark:text-green-400">{currencyFn(estCashback)}</p>
                         </div>
                         <div className="text-right">
-                             <Badge variant="secondary">{cashbackRate.toFixed(2)}%</Badge>
+                             <Badge variant="secondary">{cashbackRate.toFixed(1)}%</Badge>
                         </div>
                     </div>
                 </div>
@@ -78,7 +83,9 @@ const TransactionCard = ({
                         </div>
                         <div>
                             <p className="text-muted-foreground">Card</p>
-                            <p>{card}</p>
+                            {/* --- START: MODIFICATION --- */}
+                            <p>{cardName}</p>
+                            {/* --- END: MODIFICATION --- */}
                         </div>
                         <div>
                             <p className="text-muted-foreground">Category</p>
@@ -86,7 +93,7 @@ const TransactionCard = ({
                         </div>
                         <div>
                             <p className="text-muted-foreground">MCC</p>
-                            <p>{mcc || 'N/A'}</p>
+                            <p>{mcc} - {getMccDescription(mcc)}</p>
                         </div>
                         <div className="col-span-2">
                             <p className="text-muted-foreground">Notes</p>
