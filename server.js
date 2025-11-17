@@ -124,6 +124,26 @@ const parseNotionPageProperties = (page) => {
     return result;
 };
 
+const getSelectOptions = async (propertyName) => {
+    const db = await notion.databases.retrieve({ database_id: transactionsDbId });
+    return db.properties[propertyName].select.options;
+};
+
+const addSelectOption = async (propertyName, optionName) => {
+    const currentOptions = await getSelectOptions(propertyName);
+    currentOptions.push({ name: optionName });
+    await notion.databases.update({
+        database_id: transactionsDbId,
+        properties: {
+            [propertyName]: {
+                select: {
+                    options: currentOptions,
+                },
+            },
+        },
+    });
+};
+
 app.post('/api/login', (req, res) => {
     const pin = String((req.body && req.body.pin) ?? '').trim();
     const correctPin = String(process.env.ACCESS_PASSWORD ?? '').trim();
@@ -387,7 +407,7 @@ app.patch('/api/transactions/:id', async (req, res) => {
         if (mccCode !== undefined) propertiesToUpdate['MCC Code'] = { rich_text: [{ text: { content: String(mccCode) } }] };
         if (merchantLookup !== undefined) propertiesToUpdate['Merchant'] = { rich_text: [{ text: { content: merchantLookup } }] };
         if (notes !== undefined) propertiesToUpdate['Notes'] = { rich_text: [{ text: { content: notes || "" } }] };
-        if (subCategory !== undefined) propertiesToUpdate['Sub Category'] = subCategory ? { select: { name: subCategory } } : { select: null };
+        if (subCategory !== undefined) propertiesToUpdate['Sub Category'] = { multi_select: subCategory.map(s => ({ name: s })) };
         if (paidFor !== undefined) propertiesToUpdate['Paid for'] = paidFor ? { select: { name: paidFor } } : { select: null };
         if (billingDate !== undefined) propertiesToUpdate['Billing Date'] = billingDate ? { date: { start: billingDate } } : { date: null };
         if (typeof otherDiscounts === 'number') propertiesToUpdate['Other Discounts'] = { number: otherDiscounts };
@@ -449,6 +469,7 @@ app.get('/api/cards', async (req, res) => {
                 cashbackType: parsed['Cashback Type'], // 1 Tier, 2 Tier
                 tier2MinSpend: parsed['Tier 2 Minimum Monthly Spend'],
                 tier2Limit: parsed['Tier 2 Monthly Limit'],
+                foreignFee: parsed['Foreign Fee'],
             };
         });
         res.json(results);
@@ -728,7 +749,13 @@ app.post('/api/transactions', async (req, res) => {
         };
 
         // --- CONDITIONALLY ADD ALL NEW & EXISTING OPTIONAL PROPERTIES ---
-        if (category) properties['Category'] = { select: { name: category } };
+        if (category) {
+            const categoryOptions = await getSelectOptions('Category');
+            if (!categoryOptions.find(o => o.name === category)) {
+                await addSelectOption('Category', category);
+            }
+            properties['Category'] = { select: { name: category } };
+        }
         if (mccCode) properties['MCC Code'] = { rich_text: [{ text: { content: String(mccCode) } }] };
         if (merchantLookup) properties['Merchant'] = { rich_text: [{ text: { content: String(merchantLookup) } }] };
         if (applicableRuleId) properties['Applicable Rule'] = { relation: [{ id: applicableRuleId }] };
@@ -740,8 +767,19 @@ app.post('/api/transactions', async (req, res) => {
         if (otherFees) properties['Other Fees'] = { number: Number(otherFees) };
         if (foreignCurrencyAmount) properties['Foreign Currency'] = { number: Number(foreignCurrencyAmount) };
         if (conversionFee) properties['Conversion Fee'] = { number: Number(conversionFee) };
-        if (paidFor) properties['Paid for'] = { select: { name: paidFor } };
-        if (subCategory) properties['Sub Category'] = { select: { name: subCategory } };
+        if (paidFor) {
+            const paidForOptions = await getSelectOptions('Paid for');
+            if (!paidForOptions.find(o => o.name === paidFor)) {
+                await addSelectOption('Paid for', paidFor);
+            }
+            properties['Paid for'] = { select: { name: paidFor } };
+        }
+        if (subCategory && subCategory.length > 0) {
+            properties['Sub Category'] = { multi_select: subCategory.map(s => ({ name: s })) };
+        }
+        if (subCategory && subCategory.length > 0) {
+            properties['Sub Category'] = { multi_select: subCategory.map(s => ({ name: s })) };
+        }
         if (billingDate) properties['Billing Date'] = { date: { start: billingDate } };
 
         // 3. Create the new page (transaction) in Notion

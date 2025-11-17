@@ -88,6 +88,7 @@ export default function CashbackDashboard() {
     const [cardView, setCardView] = useState('month'); // 'month', 'ytd', or 'roi'
     const [activeView, setActiveView] = useState('overview');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+    const [needsSyncing, setNeedsSyncing] = useState([]);
 
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
@@ -275,6 +276,72 @@ export default function CashbackDashboard() {
     }, [monthlySummary]);
 
     // --- NEW: AUTHENTICATION CHECK EFFECT ---
+    useEffect(() => {
+        const storedQueue = localStorage.getItem('needsSyncing');
+        if (storedQueue) {
+            setNeedsSyncing(JSON.parse(storedQueue));
+        }
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('needsSyncing', JSON.stringify(needsSyncing));
+
+        const syncTransactions = async () => {
+            for (const transaction of needsSyncing) {
+                if (transaction.status === 'pending') {
+                    try {
+                        let finalSummaryId = null;
+                        if (transaction.applicableRuleId) {
+                            const summaryResponse = await fetch('/api/summaries', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ cardId: transaction.cardId, month: getCurrentCashbackMonthForCard(cards.find(c => c.id === transaction.cardId), transaction.date), ruleId: transaction.applicableRuleId }),
+                            });
+                            if (!summaryResponse.ok) throw new Error('Failed to create new monthly summary.');
+                            const newSummary = await summaryResponse.json();
+                            finalSummaryId = newSummary.id;
+                        }
+
+                        const transactionData = { ...transaction, cardSummaryCategoryId: finalSummaryId, status: 'synced' };
+                        
+                        let response;
+                        if (transaction.id.includes('-')) { // Distinguish between new and existing transactions
+                            response = await fetch('/api/transactions', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(transactionData),
+                            });
+                        } else {
+                            response = await fetch(`/api/transactions/${transaction.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(transactionData),
+                            });
+                        }
+
+                        if (!response.ok) {
+                            throw new Error('Failed to sync transaction');
+                        }
+                        
+                        const updatedQueue = needsSyncing.map(t => t.id === transaction.id ? { ...t, status: 'synced' } : t);
+                        setNeedsSyncing(updatedQueue);
+
+                    } catch (error) {
+                        console.error('Error syncing transaction:', error);
+                        const updatedQueue = needsSyncing.map(t => t.id === transaction.id ? { ...t, status: 'error' } : t);
+                        setNeedsSyncing(updatedQueue);
+                    }
+                }
+            }
+        };
+
+        if (needsSyncing.some(t => t.status === 'pending')) {
+            syncTransactions();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [needsSyncing, cards]);
+
+
     useEffect(() => {
         const checkAuthStatus = async () => {
             try {
@@ -665,6 +732,10 @@ export default function CashbackDashboard() {
 
                     {/* --- Desktop Controls (hidden on mobile) --- */}
                     <div className="hidden md:flex items-center gap-2">
+                        <Button variant="outline" className="h-10">
+                            <History className="mr-2 h-4 w-4" />
+                            Needs Syncing ({needsSyncing.length})
+                        </Button>
                         <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
                             <SheetTrigger asChild>
                                 <Button variant="default" className="h-10">
@@ -695,6 +766,8 @@ export default function CashbackDashboard() {
                                         monthlySummary={monthlySummary}
                                         monthlyCategorySummary={monthlyCategorySummary}
                                         getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                        needsSyncing={needsSyncing}
+                                        setNeedsSyncing={setNeedsSyncing}
                                     />
                                 </div>
                             </SheetContent>
@@ -721,6 +794,8 @@ export default function CashbackDashboard() {
                                         initialData={editingTransaction}
                                         onTransactionUpdated={handleTransactionUpdated}
                                         onClose={() => setEditingTransaction(null)}
+                                        needsSyncing={needsSyncing}
+                                        setNeedsSyncing={setNeedsSyncing}
                                     />
                                 </div>
                             </SheetContent>

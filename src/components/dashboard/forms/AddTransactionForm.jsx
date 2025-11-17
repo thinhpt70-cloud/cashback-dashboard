@@ -1,20 +1,30 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Sparkles, CalendarClock, AlertTriangle } from 'lucide-react';
+import { Loader2, Sparkles, CalendarClock, AlertTriangle, Info, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../ui/accordion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui/tooltip';
 import { Textarea } from '../../ui/textarea'; // <-- FIX: Import the Textarea component
+import { Combobox } from '../../ui/combobox';
+import { TagsInputField } from '../../ui/tag-input';
+import { Switch } from '../../ui/switch';
 import QuickAddButtons from './QuickAddButtons';
 import CardRecommendations from './CardRecommendations';
 import useIOSKeyboardGapFix from '../../../hooks/useIOSKeyboardGapFix';
 import MccSearchResultsDialog from './MccSearchResultsDialog';
 import useCardRecommendations from '../../../hooks/useCardRecommendations';
+import { useForm, FormProvider } from 'react-hook-form';
 
 
-export default function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, onClose }) {
+export default function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, onClose, needsSyncing, setNeedsSyncing }) {
+    const form = useForm({
+        defaultValues: {
+            subCategory: [],
+        }
+    });
     // --- State Management ---
     const [merchant, setMerchant] = useState('');
     const [amount, setAmount] = useState('');
@@ -28,19 +38,20 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     const [isLookingUp, setIsLookingUp] = useState(false);
     const [lookupResults, setLookupResults] = useState([]);
     const [isLookupDialogOpen, setIsLookupDialogOpen] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSubmitting] = useState(false);
     const [showLookupButton, setShowLookupButton] = useState(false);
-    const [mccName, setMccName] = useState(''); 
+    const [mccName, setMccName] = useState('');
 
     // --- NEW STATE FOR THE NEW FIELDS ---
     const [notes, setNotes] = useState('');
-    const [otherDiscounts, setOtherDiscounts] = useState('');
-    const [otherFees, setOtherFees] = useState('');
-    const [foreignCurrencyAmount, setForeignCurrencyAmount] = useState('');
-    const [conversionFee, setConversionFee] = useState('');
     const [paidFor, setPaidFor] = useState('');
-    const [subCategory, setSubCategory] = useState('');
     const [billingDate, setBillingDate] = useState('');
+    const [isForeignCurrency, setIsForeignCurrency] = useState(false);
+    const [foreignCurrencyAmount, setForeignCurrencyAmount] = useState('');
+    const [foreignCurrency, setForeignCurrency] = useState('USD');
+    const [conversionFee, setConversionFee] = useState('');
+    const [discounts, setDiscounts] = useState([]);
+    const [fees, setFees] = useState([]);
 
     useIOSKeyboardGapFix();
 
@@ -71,16 +82,27 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             setCategory(initialData['Category'] || '');
             setMccCode(initialData['MCC Code'] || '');
             setMerchantLookup(initialData['merchantLookup'] || '');
-            setNotes(initialData['notes'] || '');
-            setOtherDiscounts((initialData['otherDiscounts'] || '').toLocaleString('en-US'));
-            setOtherFees((initialData['otherFees'] || '').toLocaleString('en-US'));
-            setForeignCurrencyAmount((initialData['foreignCurrencyAmount'] || '').toLocaleString('en-US'));
-            setConversionFee((initialData['conversionFee'] || '').toLocaleString('en-US'));
+            const notes = initialData['notes'] || '';
+            const discountsMatch = notes.match(/Discounts: (.*)/);
+            const feesMatch = notes.match(/Fees: (.*)/);
+            if (discountsMatch) {
+                setDiscounts(JSON.parse(discountsMatch[1]));
+            }
+            if (feesMatch) {
+                setFees(JSON.parse(feesMatch[1]));
+            }
+            setNotes(notes.split('\n\nDiscounts:')[0]);
             setPaidFor(initialData['paidFor'] || '');
-            setSubCategory(initialData['subCategory'] || '');
+            form.setValue('subCategory', initialData['subCategory'] || []);
             setBillingDate(initialData['billingDate'] || '');
+
+            if (initialData.foreignCurrencyAmount) {
+                setIsForeignCurrency(true);
+                setForeignCurrencyAmount(initialData.foreignCurrencyAmount.toLocaleString('en-US'));
+                setConversionFee(initialData.conversionFee.toLocaleString('en-US'));
+            }
         }
-    }, [initialData]);
+    }, [initialData, form]);
 
     const handleVendorSelect = (vendor) => {
         setMerchant(vendor.transactionName || '');
@@ -182,6 +204,14 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     }, [filteredSummaries]);
 
     useEffect(() => {
+        if (isForeignCurrency && selectedCard && foreignCurrencyAmount) {
+            const amount = parseFloat(String(foreignCurrencyAmount).replace(/,/g, ''));
+            const fee = amount * (selectedCard.foreignFee || 0);
+            setConversionFee(fee.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+        }
+    }, [isForeignCurrency, selectedCard, foreignCurrencyAmount]);
+
+    useEffect(() => {
         if (!initialData && cards.length > 0 && !cardId) {
             const lastUsedCardId = localStorage.getItem('lastUsedCardId');
             if (lastUsedCardId && cards.some(c => c.id === lastUsedCardId)) {
@@ -217,13 +247,15 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         setCardSummaryCategoryId('new');
         setShowLookupButton(false);
         setNotes('');
-        setOtherDiscounts('');
-        setOtherFees('');
-        setForeignCurrencyAmount('');
-        setConversionFee('');
         setPaidFor('');
-        setSubCategory('');
+        form.setValue('subCategory', []);
         setBillingDate('');
+        setIsForeignCurrency(false);
+        setForeignCurrencyAmount('');
+        setForeignCurrency('USD');
+        setConversionFee('');
+        setDiscounts([]);
+        setFees([]);
         
         // Keep the selected card
         if (cards.length > 0 && !cardId) {
@@ -304,32 +336,9 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-
-        let finalSummaryId = null;
-        if (applicableRuleId && cardSummaryCategoryId === 'new') {
-            try {
-                const summaryResponse = await fetch('/api/summaries', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cardId: cardId, month: cashbackMonth, ruleId: applicableRuleId }),
-                });
-                if (!summaryResponse.ok) throw new Error('Failed to create new monthly summary.');
-                const newSummary = await summaryResponse.json();
-                finalSummaryId = newSummary.id;
-            } catch (error) {
-                console.error('Error creating summary during submission:', error);
-                toast.error('Could not create the required category summary.');
-                setIsSubmitting(false);
-                return;
-            }
-        } else if (applicableRuleId) {
-            finalSummaryId = cardSummaryCategoryId;
-        }
-
+    const handleSubmit = async (data) => {
         const transactionData = {
+            id: initialData ? initialData.id : new Date().toISOString(),
             merchant,
             amount: parseFloat(String(amount).replace(/,/g, '')),
             date,
@@ -338,60 +347,27 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             mccCode: mccCode || null,
             merchantLookup: merchantLookup || null,
             applicableRuleId: applicableRuleId || null,
-            cardSummaryCategoryId: finalSummaryId,
-            notes: notes || null,
-            otherDiscounts: otherDiscounts ? parseFloat(String(otherDiscounts).replace(/,/g, '')) : null,
-            otherFees: otherFees ? parseFloat(String(otherFees).replace(/,/g, '')) : null,
-            foreignCurrencyAmount: foreignCurrencyAmount ? parseFloat(String(foreignCurrencyAmount).replace(/,/g, '')) : null,
-            conversionFee: conversionFee ? parseFloat(String(conversionFee).replace(/,/g, '')) : null,
+            notes: `${notes || ''}\n\nDiscounts: ${JSON.stringify(discounts)}\nFees: ${JSON.stringify(fees)}`,
+            otherDiscounts: discounts.reduce((acc, d) => acc + parseFloat(d.amount.replace(/,/g, '') || 0), 0),
+            otherFees: fees.reduce((acc, f) => acc + parseFloat(f.amount.replace(/,/g, '') || 0), 0),
+            foreignCurrencyAmount: isForeignCurrency ? parseFloat(String(foreignCurrencyAmount).replace(/,/g, '')) : null,
+            conversionFee: isForeignCurrency ? parseFloat(String(conversionFee).replace(/,/g, '')) : null,
             paidFor: paidFor || null,
-            subCategory: subCategory || null,
+            subCategory: data.subCategory || [],
             billingDate: billingDate || null,
+            status: 'pending',
         };
 
-        try {
-            let response;
-            let resultTransaction;
+        setNeedsSyncing([...needsSyncing, transactionData]);
 
-            if (initialData) {
-                // --- EDIT MODE ---
-                response = await fetch(`/api/transactions/${initialData.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(transactionData),
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to update transaction');
-                }
-
-                resultTransaction = await response.json();
-                toast.success("Transaction updated successfully!");
-                onTransactionUpdated(resultTransaction);
-
-            } else {
-                // --- ADD MODE ---
-                response = await fetch('/api/transactions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(transactionData),
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to add transaction');
-                }
-
-                resultTransaction = await response.json();
-                toast.success("Transaction added successfully!");
-                onTransactionAdded(resultTransaction);
-                resetForm();
-            }
-
-        } catch (error) {
-            console.error('Error during transaction submission:', error);
-            toast.error(`Failed to ${initialData ? 'update' : 'add'} transaction. Please try again.`);
-        } finally {
-            setIsSubmitting(false);
+        if (initialData) {
+            toast.success("Transaction update queued!");
+            onTransactionUpdated({ ...transactionData, 'Card Summary Category': [cardSummaryCategoryId] }); // Pass a mock summary for UI
+            onClose();
+        } else {
+            toast.success("Transaction queued!");
+            onTransactionAdded({ ...transactionData, 'Card Summary Category': ['new'] });
+            resetForm();
         }
     };
 
@@ -401,8 +377,8 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     };
 
     return (
-        <>
-            <form onSubmit={handleSubmit} className="space-y-6 py-4">
+        <FormProvider {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 py-4">
                 <QuickAddButtons vendors={commonVendors} onSelect={handleVendorSelect} />
                 <div className="space-y-4">
                     <div className="space-y-2">
@@ -484,10 +460,32 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                     </div>
                     <div className="space-y-2">
                         <label htmlFor="rule">Applicable Cashback Rule</label>
+                        <div className="flex items-center gap-2">
                         <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border border-input bg-background rounded cursor-pointer" disabled={filteredRules.length === 0}> {/* <-- FIX: Added border-input and bg-background */}
                             <option value="">{filteredRules.length === 0 ? 'No active rules for this card' : 'None'}</option>
-                            {filteredRules.map(rule => <option key={rule.id} value={rule.id}>{rule.ruleName}</option>)}
+                            {filteredRules.map(rule => (
+                                <option key={rule.id} value={rule.id}>
+                                    {rule.ruleName} - {(rule.rate * 100).toFixed(1)}% (up to {currencyFn(rule.categoryLimit)})
+                                </option>
+                            ))}
                         </select>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button type="button" variant="ghost" size="icon" disabled={!selectedRule}>
+                                    <Info className="h-4 w-4" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent>
+                                {selectedRule && (
+                                    <div className="space-y-2">
+                                        <p className="font-bold">{selectedRule.ruleName}</p>
+                                        <p><strong>Conditions:</strong> {selectedRule.conditions}</p>
+                                        <p><strong>Min Spend:</strong> {currencyFn(selectedRule.minSpend)}</p>
+                                    </div>
+                                )}
+                            </PopoverContent>
+                        </Popover>
+                        </div>
                         {selectedRule && (
                             <div className="flex items-center gap-2 pt-2">
                                 <Badge variant="secondary">Rate: {(selectedRule.rate * 100).toFixed(1)}%</Badge>
@@ -519,50 +517,126 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                         <AccordionTrigger className="text-sm font-semibold">More Details</AccordionTrigger>
                         <AccordionContent className="pt-4 space-y-4 px-1">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-2"><label htmlFor="category">Internal Category</label><select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border border-input bg-background rounded cursor-pointer"><option value="">None</option>{[...categories].sort().map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div> {/* <-- FIX: Added border-input and bg-background */}
-                                <div className="space-y-2"><label htmlFor="subCategory">Sub Category</label><Input id="subCategory" value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="e.g., Groceries, Utilities" /></div>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label htmlFor="category">Internal Category</label>
+                                    <Combobox
+                                        options={categories.map(c => ({ value: c, label: c }))}
+                                        value={category}
+                                        onChange={setCategory}
+                                        placeholder="Select a category"
+                                        searchPlaceholder="Search categories..."
+                                    />
+                                </div>
                                 <div className="space-y-2">
                                     <label htmlFor="paidFor">Paid For</label>
-                                    <Input id="paidFor" value={paidFor} onChange={(e) => setPaidFor(e.target.value)} placeholder="e.g., Personal, Family, Work" list="paidFor-options" />
-                                    <datalist id="paidFor-options">
-                                        <option value="Personal" />
-                                        <option value="Family" />
-                                        <option value="Work" />
-                                    </datalist>
+                                    <Combobox
+                                        options={['Personal', 'Family', 'Work'].map(c => ({ value: c, label: c }))}
+                                        value={paidFor}
+                                        onChange={setPaidFor}
+                                        placeholder="Select who this was for"
+                                        searchPlaceholder="Search..."
+                                    />
                                 </div>
-                                {/* MODIFIED: Adopted the working code structure for the billing date field */}
-                                <div className="space-y-2">
-                                    <label htmlFor="billingDate">Billing Date</label>
-                                    <div className="relative flex items-center">
-                                        <CalendarClock className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
-                                        <Input 
-                                            id="billingDate" 
-                                            type="date" 
-                                            className="w-full pl-10" 
-                                            value={billingDate} 
-                                            onChange={(e) => setBillingDate(e.target.value)} 
-                                        />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="subCategory">Sub Category</label>
+                                <TagsInputField
+                                    name="subCategory"
+                                    label="Sub Category"
+                                    placeholder="Enter sub-categories"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <div className="flex items-center space-x-2">
+                                    <Switch id="foreign-currency-switch" checked={isForeignCurrency} onCheckedChange={setIsForeignCurrency} />
+                                    <label htmlFor="foreign-currency-switch">Foreign Currency Transaction</label>
+                                </div>
+                            </div>
+
+                            {isForeignCurrency && (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div className="space-y-2">
+                                        <label htmlFor="foreignCurrencyAmount">Original Amount</label>
+                                        <Input id="foreignCurrencyAmount" type="text" inputMode="decimal" value={foreignCurrencyAmount} onChange={(e) => handleFormattedNumericInput(e.target.value, setForeignCurrencyAmount, true)} placeholder="e.g., 100.00" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label htmlFor="foreignCurrency">Currency</label>
+                                        <Input id="foreignCurrency" value={foreignCurrency} onChange={(e) => setForeignCurrency(e.target.value)} placeholder="e.g., USD" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label htmlFor="conversionFee">Conversion Fee (VND)</label>
+                                        <Input id="conversionFee" type="text" inputMode="numeric" value={conversionFee} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionFee)} />
                                     </div>
                                 </div>
+                            )}
+
+                            <div className="space-y-2">
+                                <label>Other Discounts</label>
+                                {discounts.map((discount, index) => (
+                                    <div key={index} className="flex items-center gap-2">
+                                        <Input placeholder="Description" value={discount.description} onChange={(e) => {
+                                            const newDiscounts = [...discounts];
+                                            newDiscounts[index].description = e.target.value;
+                                            setDiscounts(newDiscounts);
+                                        }} />
+                                        <Input placeholder="Amount" value={discount.amount} onChange={(e) => {
+                                            const newDiscounts = [...discounts];
+                                            newDiscounts[index].amount = e.target.value;
+                                            setDiscounts(newDiscounts);
+                                        }} />
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))}>
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Button type="button" variant="outline" size="sm" onClick={() => setDiscounts([...discounts, { description: '', amount: '' }])}>Add Discount</Button>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-2"><label htmlFor="foreignCurrency">Foreign Currency Amount</label><Input id="foreignCurrency" type="text" inputMode="decimal" value={foreignCurrencyAmount} onChange={(e) => handleFormattedNumericInput(e.target.value, setForeignCurrencyAmount, true)} placeholder="e.g., 100.00" /></div>
-                                <div className="space-y-2"><label htmlFor="conversionFee">Conversion Fee (VND)</label><Input id="conversionFee" type="text" inputMode="numeric" value={conversionFee} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionFee)} /></div>
+
+                            <div className="space-y-2">
+                                <label>Other Fees</label>
+                                {fees.map((fee, index) => (
+                                    <div key={index} className="flex items-center gap-2">
+                                        <Input placeholder="Description" value={fee.description} onChange={(e) => {
+                                            const newFees = [...fees];
+                                            newFees[index].description = e.target.value;
+                                            setFees(newFees);
+                                        }} />
+                                        <Input placeholder="Amount" value={fee.amount} onChange={(e) => {
+                                            const newFees = [...fees];
+                                            newFees[index].amount = e.target.value;
+                                            setFees(newFees);
+                                        }} />
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => setFees(fees.filter((_, i) => i !== index))}>
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Button type="button" variant="outline" size="sm" onClick={() => setFees([...fees, { description: '', amount: '' }])}>Add Fee</Button>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-2"><label htmlFor="otherDiscounts">Other Discounts (VND)</label><Input id="otherDiscounts" type="text" inputMode="numeric" value={otherDiscounts} onChange={(e) => handleFormattedNumericInput(e.target.value, setOtherDiscounts)} /></div>
-                                <div className="space-y-2"><label htmlFor="otherFees">Other Fees (VND)</label><Input id="otherFees" type="text" inputMode="numeric" value={otherFees} onChange={(e) => handleFormattedNumericInput(e.target.value, setOtherFees)} /></div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="billingDate">Billing Date</label>
+                                <div className="relative flex items-center">
+                                    <CalendarClock className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        id="billingDate"
+                                        type="date"
+                                        className="w-full pl-10"
+                                        value={billingDate}
+                                        onChange={(e) => setBillingDate(e.target.value)}
+                                    />
+                                </div>
                             </div>
+
                             <div className="space-y-2">
                                 <label htmlFor="notes">Notes</label>
-                                {/* <-- FIX: Replaced native textarea with shadcn/ui Textarea component --> */}
-                                <Textarea 
-                                    id="notes" 
-                                    value={notes} 
-                                    onChange={(e) => setNotes(e.target.value)} 
-                                    className="min-h-[80px]" 
+                                <Textarea
+                                    id="notes"
+                                    value={notes}
+                                    onChange={(e) => setNotes(e.target.value)}
+                                    className="min-h-[80px]"
                                     placeholder="Add any relevant notes here..."
                                 />
                             </div>
@@ -586,6 +660,6 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                     setIsLookupDialogOpen(false);
                 }}
             />
-        </>
+        </FormProvider>
     );
 }
