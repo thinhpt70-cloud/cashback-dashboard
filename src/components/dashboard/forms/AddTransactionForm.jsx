@@ -8,7 +8,7 @@ import { Badge } from '../../ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui/tooltip';
-import { Textarea } from '../../ui/textarea'; // <-- FIX: Import the Textarea component
+import { Textarea } from '../../ui/textarea';
 import { Combobox } from '../../ui/combobox';
 import { TagsInputField } from '../../ui/tag-input';
 import QuickAddButtons from './QuickAddButtons';
@@ -351,9 +351,6 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
 
     const handleSubmit = async (data) => {
         let finalMerchant = merchant;
-        if (initialData && initialData['Transaction Name'] && initialData['Transaction Name'].startsWith('Email_')) {
-            finalMerchant = `Email_${merchant}`;
-        }
         const transactionData = {
             id: initialData ? initialData.id : new Date().toISOString(),
             'Transaction Name': finalMerchant,

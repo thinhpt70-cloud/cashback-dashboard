@@ -1,18 +1,17 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { AlertTriangle, FilePenLine, CalendarClock, Wallet, CheckCircle, Eye, Trash2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
-import SharedTransactionsDialog from '@/components/shared/SharedTransactionsDialog';
+import ReviewControls from './ReviewControls';
+import TransactionTable from './TransactionTable';
+import TransactionCard from './TransactionCard';
+import BulkActionBar from './BulkActionBar';
+import BulkEditModal from './BulkEditModal';
 
 /**
  * A component that displays a list of automated transactions that require user review.
- * It provides a "Quick Approve" option and a full "Review" option.
+ * It provides bulk actions, sorting, filtering, and inline editing capabilities.
  *
  * @param {object[]} transactions - Array of transaction objects needing review.
- * @param {object[]} allTransactions - Array of all transaction objects.
  * @param {function} onReview - Callback function to open the full edit form for a transaction.
  * @param {function} onApprove - Callback function invoked after a transaction is successfully quick-approved.
  * @param {function} currencyFn - A function to format numbers as currency.
@@ -20,10 +19,13 @@ import SharedTransactionsDialog from '@/components/shared/SharedTransactionsDial
  * @param {Map} rulesMap - Map of rule IDs to rule objects.
  * @param {object} mccMap - Object mapping MCC codes to descriptions.
  * @param {Map} summaryMap - Map of summary IDs to summary objects.
+ * @param {function} onDelete - Callback function for deleting a transaction.
+ * @param {function} onBulkDelete - Callback function for bulk deleting transactions.
+ * @param {function} onInlineEdit - Callback function for handling inline edits.
+ * @param {function} onBulkEdit - Callback function for handling bulk edits.
  */
 export default function TransactionReviewCenter({
     transactions,
-    allTransactions,
     onReview,
     onApprove,
     currencyFn,
@@ -32,37 +34,57 @@ export default function TransactionReviewCenter({
     mccMap,
     summaryMap,
     onDelete,
-    onBulkDelete
+    onBulkDelete,
+    onInlineEdit,
+    onBulkEdit
 }) {
-    const [isDialogOpen, setDialogOpen] = useState(false);
+    const [selected, setSelected] = useState([]);
+    const [sort, setSort] = useState({ key: 'Transaction Date', order: 'desc' });
+    const [filter, setFilter] = useState('');
+    const [group, setGroup] = useState(null);
+    const [isBulkEditOpen, setBulkEditOpen] = useState(false);
+
+    const displayedTransactions = useMemo(() => {
+        let filtered = transactions.filter(tx => tx['Transaction Name'].toLowerCase().includes(filter.toLowerCase()));
+
+        filtered.sort((a, b) => {
+            if (sort.order === 'asc') {
+                return a[sort.key] > b[sort.key] ? 1 : -1;
+            }
+            return a[sort.key] < b[sort.key] ? 1 : -1;
+        });
+        
+        if (group && group !== 'None') {
+            const grouped = filtered.reduce((acc, tx) => {
+                const key = tx[group] ? (Array.isArray(tx[group]) ? tx[group][0] : tx[group]) : 'Uncategorized';
+                if (!acc[key]) {
+                    acc[key] = [];
+                }
+                acc[key].push(tx);
+                return acc;
+            }, {});
+            return grouped;
+        }
+        
+        return filtered;
+    }, [transactions, sort, filter, group]);
 
     if (!transactions || transactions.length === 0) {
         return (
             <div className="text-center py-4">
                 <p className="text-muted-foreground">No transactions to review.</p>
-                <Button onClick={() => setDialogOpen(true)} className="mt-2">
-                    <Eye className="mr-2 h-4 w-4" />
-                    View All Transactions
-                </Button>
-                <SharedTransactionsDialog
-                    isOpen={isDialogOpen}
-                    onClose={() => setDialogOpen(false)}
-                    transactions={allTransactions}
-                    title="All Transactions"
-                    description="Browse and manage all recorded transactions."
-                    currencyFn={currencyFn}
-                    onEdit={onReview}
-                    onDelete={onDelete}
-                    onBulkDelete={onBulkDelete}
-                />
             </div>
         );
     }
+    
+    const handleSelect = (id, isSelected) => {
+        setSelected(prev => isSelected ? [...prev, id] : prev.filter(txId => txId !== id));
+    };
 
-    /**
-     * Handles the "Quick Approve" action.
-     * @param {object} tx - The transaction object to be approved.
-     */
+    const handleSelectAll = (isSelected) => {
+        setSelected(isSelected ? displayedTransactions.map(tx => tx.id) : []);
+    };
+    
     const handleApproveClick = async (tx) => {
         const newName = tx.merchantLookup || tx['Transaction Name'].substring(6);
         
@@ -89,122 +111,155 @@ export default function TransactionReviewCenter({
         }
     };
 
+    const handleBulkApprove = async () => {
+        try {
+            const response = await fetch('/api/transactions/bulk-approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selected }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Server responded with an error.');
+            }
+
+            const updatedTransactions = await response.json();
+            updatedTransactions.forEach(tx => onApprove(tx));
+            toast.success(`${selected.length} transactions have been approved.`);
+            setSelected([]);
+        } catch (error) {
+            console.error('Bulk Approve failed:', error);
+            toast.error(`Could not approve transactions: ${error.message}`);
+        }
+    };
+    
+    const handleBulkEdit = async (field, value) => {
+        try {
+            const response = await fetch('/api/transactions/bulk-edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selected, field, value }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Server responded with an error.');
+            }
+
+            const updatedTransactions = await response.json();
+            updatedTransactions.forEach(tx => onApprove(tx));
+            toast.success(`${selected.length} transactions have been updated.`);
+            setSelected([]);
+        } catch (error) {
+            console.error('Bulk Edit failed:', error);
+            toast.error(`Could not edit transactions: ${error.message}`);
+        }
+    };
+
     return (
-        <Card className="border-orange-500/50 bg-orange-50/30">
-            <CardHeader>
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <AlertTriangle className="h-6 w-6 text-orange-500" />
-                        <div>
-                            <CardTitle className="text-lg text-orange-800">
-                                Transaction Review Needed
-                            </CardTitle>
-                            <p className="text-sm text-muted-foreground">
-                                You have <span className="font-bold">{transactions.length}</span> automated transaction(s) with missing details.
-                            </p>
-                        </div>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        View All
-                    </Button>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <SharedTransactionsDialog
-                    isOpen={isDialogOpen}
-                    onClose={() => setDialogOpen(false)}
-                    transactions={allTransactions}
-                    title="All Transactions"
-                    description="Browse and manage all recorded transactions."
-                    currencyFn={currencyFn}
-                    onEdit={onReview}
-                    onDelete={onDelete}
-                    onBulkDelete={onBulkDelete}
-                />
-                <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="review-list">
-                        <AccordionTrigger>Show Items for Review</AccordionTrigger>
-                        <AccordionContent>
-                            <div className="space-y-4 pt-2">
-                                {transactions.map(tx => {
-                                    const isApprovable = tx['MCC Code'] && tx['Applicable Rule'] && tx['Card Summary Category'] && tx.Match;
-                                    
-                                    // Get additional details using the provided maps
-                                    const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
-                                    const rule = tx['Applicable Rule'] ? rulesMap.get(tx['Applicable Rule'][0]) : null;
-                                    const mccDescription = tx['MCC Code'] ? mccMap[tx['MCC Code']]?.vn || 'Unknown' : 'N/A';
-                                    
-                                    // Look up the summary name using the summaryMap
-                                    const summaryRelationId = tx['Card Summary Category'] ? tx['Card Summary Category'][0] : null;
-                                    const summary = summaryRelationId ? summaryMap.get(summaryRelationId) : null;
-                                    const summaryName = summary ? summary.summaryId : 'N/A'; // Note: 'summaryId' from your API contains the name
-
-                                    return (
-                                        <div key={tx.id} className="p-3 border rounded-md bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                            {/* Main Info Section */}
-                                            <div className="flex-1 space-y-2 w-full">
-                                                <p className="font-semibold">{tx['Transaction Name']}</p>
-                                                <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-                                                    <span className="flex items-center gap-1.5"><CalendarClock className="h-3 w-3" /> {tx['Transaction Date']}</span>
-                                                    <span className="flex items-center gap-1.5"><Wallet className="h-3 w-3" /> {currencyFn(tx['Amount'])}</span>
-                                                    {tx.estCashback > 0 && (
-                                                         <span className="flex items-center gap-1.5 font-medium text-emerald-600"><CheckCircle className="h-3 w-3" /> {currencyFn(tx.estCashback)}</span>
-                                                    )}
-                                                </div>
-
-                                                {/* Additional Details Section */}
-                                                <div className="text-xs text-slate-600 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 pt-2 border-t mt-2">
-                                                    <div>
-                                                        <p className="font-semibold text-slate-400">Card</p>
-                                                        <p>{card ? card.name : 'N/A'}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-semibold text-slate-400">MCC</p>
-                                                        <p className="truncate" title={`${tx['MCC Code']} - ${mccDescription}`}>{tx['MCC Code'] ? `${tx['MCC Code']} - ${mccDescription}` : 'N/A'}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-semibold text-slate-400">Rule</p>
-                                                        <p>{rule ? rule.ruleName : 'N/A'}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-semibold text-slate-400">Summary ID</p>
-                                                        <p className="truncate" title={summaryName}>{summaryName}</p>
-                                                    </div>
-                                                </div>
-
-                                                {/* Highlight what's still missing */}
-                                                <div className="pt-1">
-                                                    {!tx['MCC Code'] && <Badge variant="destructive">Missing MCC</Badge>}
-                                                    {!tx['Applicable Rule'] && <Badge variant="destructive" className="ml-1">Missing Rule</Badge>}
-                                                </div>
-                                            </div>
-                                            
-                                            {/* Buttons Section */}
-                                            <div className="flex items-center gap-2 self-end md:self-center flex-shrink-0">
-                                                {isApprovable && (
-                                                    <Button size="sm" variant="outline" onClick={() => handleApproveClick(tx)} className="text-emerald-600 border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700">
-                                                        <CheckCircle className="mr-2 h-4 w-4" />
-                                                        Quick Approve
-                                                    </Button>
-                                                )}
-                                                <Button size="sm" onClick={() => onReview(tx)}>
-                                                    <FilePenLine className="mr-2 h-4 w-4" />
-                                                    Review
-                                                </Button>
-                                                <Button size="sm" variant="destructive" onClick={() => onDelete(tx.id, tx['Transaction Name'])}>
-                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                    Delete
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+        <>
+            <BulkEditModal 
+                isOpen={isBulkEditOpen}
+                onClose={() => setBulkEditOpen(false)}
+                onBulkEdit={handleBulkEdit}
+            />
+            <Card className="shadow-none border-none">
+                <ReviewControls 
+                    sort={sort}
+                setSort={setSort}
+                filter={filter}
+                setFilter={setFilter}
+                group={group}
+                setGroup={setGroup}
+            />
+            <CardContent className="p-0">
+                {group && group !== 'None' ? (
+                    Object.entries(displayedTransactions).map(([groupKey, groupTransactions]) => (
+                        <div key={groupKey} className="mb-8">
+                            <h3 className="text-lg font-semibold p-4 bg-slate-50 dark:bg-slate-800 border-b border-t">{cardMap.get(groupKey)?.name || mccMap[groupKey]?.vn || groupKey}</h3>
+                            <TransactionTable 
+                                transactions={groupTransactions} 
+                                selected={selected}
+                                onSelect={handleSelect}
+                                onSelectAll={(isSelected) => handleSelectAll(isSelected, groupTransactions)}
+                                currencyFn={currencyFn}
+                                cardMap={cardMap}
+                                rulesMap={rulesMap}
+                                mccMap={mccMap}
+                                summaryMap={summaryMap}
+                                onReview={onReview}
+                                onApprove={handleApproveClick}
+                                onDelete={onDelete}
+                                onInlineEdit={onInlineEdit}
+                            />
+                             <div className="md:hidden space-y-2 p-4">
+                                {groupTransactions.map(tx => (
+                                    <TransactionCard 
+                                        key={tx.id}
+                                        transaction={tx}
+                                        selected={selected.includes(tx.id)}
+                                        onSelect={handleSelect}
+                                        currencyFn={currencyFn}
+                                        cardMap={cardMap}
+                                        rulesMap={rulesMap}
+                                        mccMap={mccMap}
+                                        summaryMap={summaryMap}
+                                        onReview={onReview}
+                                        onApprove={handleApproveClick}
+                                        onDelete={onDelete}
+                                        onInlineEdit={onInlineEdit}
+                                    />
+                                ))}
                             </div>
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
+                        </div>
+                    ))
+                ) : (
+                    <>
+                        <TransactionTable 
+                            transactions={displayedTransactions} 
+                            selected={selected}
+                            onSelect={handleSelect}
+                            onSelectAll={handleSelectAll}
+                            currencyFn={currencyFn}
+                            cardMap={cardMap}
+                            rulesMap={rulesMap}
+                            mccMap={mccMap}
+                            summaryMap={summaryMap}
+                            onReview={onReview}
+                            onApprove={handleApproveClick}
+                            onDelete={onDelete}
+                            onInlineEdit={onInlineEdit}
+                        />
+                        <div className="md:hidden space-y-2 p-4">
+                            {displayedTransactions.map(tx => (
+                                <TransactionCard 
+                                    key={tx.id}
+                                    transaction={tx}
+                                    selected={selected.includes(tx.id)}
+                                    onSelect={handleSelect}
+                                    currencyFn={currencyFn}
+                                    cardMap={cardMap}
+                                    rulesMap={rulesMap}
+                                    mccMap={mccMap}
+                                    summaryMap={summaryMap}
+                                    onReview={onReview}
+                                    onApprove={handleApproveClick}
+                                    onDelete={onDelete}
+                                    onInlineEdit={onInlineEdit}
+                                />
+                            ))}
+                        </div>
+                    </>
+                )}
             </CardContent>
+            <BulkActionBar
+                selectedCount={selected.length}
+                onBulkApprove={handleBulkApprove}
+                onBulkDelete={() => onBulkDelete(selected)}
+                onBulkEdit={() => setBulkEditOpen(true)}
+            />
         </Card>
+        </>
     );
 }

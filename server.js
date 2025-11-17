@@ -327,6 +327,71 @@ app.get('/api/transactions', async (req, res) => {
     }
 });
 
+app.post('/api/transactions/bulk-approve', async (req, res) => {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'An array of transaction IDs is required.' });
+    }
+
+    try {
+        const approvedTransactions = await Promise.all(ids.map(async (id) => {
+            const page = await notion.pages.retrieve({ page_id: id });
+            const newName = page.properties.Merchant.rich_text[0].plain_text || page.properties['Transaction Name'].title[0].plain_text.substring(6);
+            await notion.pages.update({
+                page_id: id,
+                properties: {
+                    'Transaction Name': {
+                        title: [{
+                            text: {
+                                content: newName
+                            }
+                        }]
+                    },
+                    'Automated': { checkbox: false },
+                }
+            });
+            const updatedPage = await notion.pages.retrieve({ page_id: id });
+            return mapTransaction(updatedPage);
+        }));
+
+        res.status(200).json(approvedTransactions);
+    } catch (error) {
+        console.error('Error bulk approving transactions in Notion:', error.body || error);
+        res.status(500).json({ error: 'Failed to approve transactions.' });
+    }
+});
+
+app.post('/api/transactions/bulk-edit', async (req, res) => {
+    const { ids, field, value } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'An array of transaction IDs is required.' });
+    }
+
+    if (!field || !value) {
+        return res.status(400).json({ error: 'A field and value are required.' });
+    }
+
+    try {
+        const updatedTransactions = await Promise.all(ids.map(async (id) => {
+            const propertiesToUpdate = {};
+            propertiesToUpdate[field] = { rich_text: [{ text: { content: String(value) } }] };
+            await notion.pages.update({
+                page_id: id,
+                properties: propertiesToUpdate,
+            });
+            const updatedPage = await notion.pages.retrieve({ page_id: id });
+            return mapTransaction(updatedPage);
+        }));
+
+        res.status(200).json(updatedTransactions);
+    } catch (error) {
+        console.error('Error bulk editing transactions in Notion:', error.body || error);
+        res.status(500).json({ error: 'Failed to edit transactions.' });
+    }
+});
+
 // DELETE /api/transactions/:id - Delete (archive) a transaction
 app.delete('/api/transactions/:id', async (req, res) => {
     const { id } = req.params;
@@ -396,9 +461,58 @@ app.patch('/api/transactions/:id', async (req, res) => {
             billingDate,
         } = req.body;
 
+        // --- START: NEW "Find-or-Create" Logic ---
+
+        // 1. Check for new 'Category' (select)
+        if (category) {
+            const categoryOptions = await getSelectOptions('Category');
+            if (!categoryOptions.find(o => o.name === category)) {
+                await addSelectOption('Category', category);
+            }
+        }
+
+        // 2. Check for new 'Paid for' (select)
+        if (paidFor) {
+            const paidForOptions = await getSelectOptions('Paid for');
+            if (!paidForOptions.find(o => o.name === paidFor)) {
+                await addSelectOption('Paid for', paidFor);
+            }
+        }
+
+        // 3. Check for new 'Sub Category' (multi-select)
+        if (subCategory && subCategory.length > 0) {
+            // Get the database's current sub-category properties
+            const db = await notion.databases.retrieve({ database_id: transactionsDbId });
+            const subCategoryProperty = db.properties['Sub Category'];
+            const existingOptions = subCategoryProperty.multi_select.options;
+            const existingOptionNames = new Set(existingOptions.map(o => o.name));
+
+            // Find which new tags don't exist yet
+            const newOptionNames = subCategory.filter(s => !existingOptionNames.has(s));
+
+            if (newOptionNames.length > 0) {
+                // If we have new tags, update the database definition
+                await notion.databases.update({
+                    database_id: transactionsDbId,
+                    properties: {
+                        'Sub Category': {
+                            multi_select: {
+                                options: [
+                                    ...existingOptions,
+                                    ...newOptionNames.map(name => ({ name }))
+                                ]
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        // --- END: NEW "Find-or-Create" Logic ---
+
+
+        // --- Now, build the update object (same as before) ---
         const propertiesToUpdate = {};
 
-        // Dynamically build the properties object based on what was provided
         if (merchant) propertiesToUpdate['Transaction Name'] = { title: [{ text: { content: merchant } }] };
         if (typeof amount === 'number') propertiesToUpdate['Amount'] = { number: amount };
         if (date) propertiesToUpdate['Transaction Date'] = { date: { start: date } };
@@ -773,9 +887,6 @@ app.post('/api/transactions', async (req, res) => {
                 await addSelectOption('Paid for', paidFor);
             }
             properties['Paid for'] = { select: { name: paidFor } };
-        }
-        if (subCategory && subCategory.length > 0) {
-            properties['Sub Category'] = { multi_select: subCategory.map(s => ({ name: s })) };
         }
         if (subCategory && subCategory.length > 0) {
             properties['Sub Category'] = { multi_select: subCategory.map(s => ({ name: s })) };
