@@ -1,4 +1,4 @@
-
+// src/setupTests.js
 import '@testing-library/jest-dom';
 
 Object.defineProperty(window, 'matchMedia', {

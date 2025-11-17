@@ -6,6 +6,7 @@ import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../ui/accordion';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui/tooltip';
 import { Textarea } from '../../ui/textarea'; // <-- FIX: Import the Textarea component
 import { Combobox } from '../../ui/combobox';
@@ -41,15 +42,16 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     const [isSubmitting] = useState(false);
     const [showLookupButton, setShowLookupButton] = useState(false);
     const [mccName, setMccName] = useState('');
+    const [method, setMethod] = useState('POS');
 
     // --- NEW STATE FOR THE NEW FIELDS ---
     const [notes, setNotes] = useState('');
     const [paidFor, setPaidFor] = useState('');
     const [billingDate, setBillingDate] = useState('');
-    const [isForeignCurrency, setIsForeignCurrency] = useState(false);
     const [foreignCurrencyAmount, setForeignCurrencyAmount] = useState('');
     const [foreignCurrency, setForeignCurrency] = useState('USD');
     const [conversionFee, setConversionFee] = useState('');
+    const [conversionRate, setConversionRate] = useState('');
     const [discounts, setDiscounts] = useState([]);
     const [fees, setFees] = useState([]);
 
@@ -97,7 +99,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             setBillingDate(initialData['billingDate'] || '');
 
             if (initialData.foreignCurrencyAmount) {
-                setIsForeignCurrency(true);
+                setMethod('International');
                 setForeignCurrencyAmount(initialData.foreignCurrencyAmount.toLocaleString('en-US'));
                 setConversionFee(initialData.conversionFee.toLocaleString('en-US'));
             }
@@ -204,12 +206,25 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     }, [filteredSummaries]);
 
     useEffect(() => {
-        if (isForeignCurrency && selectedCard && foreignCurrencyAmount) {
-            const amount = parseFloat(String(foreignCurrencyAmount).replace(/,/g, ''));
-            const fee = amount * (selectedCard.foreignFee || 0);
-            setConversionFee(fee.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+        if (method === 'International' && selectedCard) {
+            const foreignAmount = parseFloat(String(foreignCurrencyAmount).replace(/,/g, ''));
+            const vndAmount = parseFloat(String(amount).replace(/,/g, ''));
+            const rate = parseFloat(String(conversionRate).replace(/,/g, ''));
+
+            if (foreignAmount > 0) {
+                const fee = foreignAmount * (selectedCard.foreignFee || 0);
+                setConversionFee(fee.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+
+                if (vndAmount > 0) {
+                    const calculatedRate = vndAmount / (foreignAmount * (1 + (selectedCard.foreignFee || 0)));
+                    setConversionRate(calculatedRate.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+                } else if (rate > 0) {
+                    const calculatedAmount = (foreignAmount * (1 + (selectedCard.foreignFee || 0))) * rate;
+                    setAmount(calculatedAmount.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+                }
+            }
         }
-    }, [isForeignCurrency, selectedCard, foreignCurrencyAmount]);
+    }, [method, selectedCard, foreignCurrencyAmount, amount, conversionRate]);
 
     useEffect(() => {
         if (!initialData && cards.length > 0 && !cardId) {
@@ -250,7 +265,6 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         setPaidFor('');
         form.setValue('subCategory', []);
         setBillingDate('');
-        setIsForeignCurrency(false);
         setForeignCurrencyAmount('');
         setForeignCurrency('USD');
         setConversionFee('');
@@ -337,25 +351,31 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     };
 
     const handleSubmit = async (data) => {
+        let finalMerchant = merchant;
+        if (initialData && initialData['Transaction Name'] && initialData['Transaction Name'].startsWith('Email_')) {
+            finalMerchant = `Email_${merchant}`;
+        }
         const transactionData = {
             id: initialData ? initialData.id : new Date().toISOString(),
-            merchant,
-            amount: parseFloat(String(amount).replace(/,/g, '')),
-            date,
-            cardId,
-            category: category || null,
-            mccCode: mccCode || null,
-            merchantLookup: merchantLookup || null,
-            applicableRuleId: applicableRuleId || null,
-            notes: `${notes || ''}\n\nDiscounts: ${JSON.stringify(discounts)}\nFees: ${JSON.stringify(fees)}`,
-            otherDiscounts: discounts.reduce((acc, d) => acc + parseFloat(d.amount.replace(/,/g, '') || 0), 0),
-            otherFees: fees.reduce((acc, f) => acc + parseFloat(f.amount.replace(/,/g, '') || 0), 0),
-            foreignCurrencyAmount: isForeignCurrency ? parseFloat(String(foreignCurrencyAmount).replace(/,/g, '')) : null,
-            conversionFee: isForeignCurrency ? parseFloat(String(conversionFee).replace(/,/g, '')) : null,
-            paidFor: paidFor || null,
-            subCategory: data.subCategory || [],
-            billingDate: billingDate || null,
-            status: 'pending',
+            'Transaction Name': finalMerchant,
+            'Amount': parseFloat(String(amount).replace(/,/g, '')),
+            'Transaction Date': date,
+            'Card': cardId ? [cardId] : [],
+            'Category': category || null,
+            'MCC Code': mccCode || null,
+            'merchantLookup': merchantLookup || null,
+            'Applicable Rule': applicableRuleId ? [applicableRuleId] : [],
+            'notes': `${notes || ''}${discounts.length > 0 ? `\n\nDiscounts: ${JSON.stringify(discounts)}` : ''}${fees.length > 0 ? `\nFees: ${JSON.stringify(fees)}` : ''}`,
+            'otherDiscounts': discounts.reduce((acc, d) => acc + parseFloat(String(d.amount || '0').replace(/,/g, '')), 0),
+            'otherFees': fees.reduce((acc, f) => acc + parseFloat(String(f.amount || '0').replace(/,/g, '')), 0),
+            'foreignCurrencyAmount': method === 'International' ? parseFloat(String(foreignCurrencyAmount).replace(/,/g, '')) : null,
+            'conversionFee': method === 'International' ? parseFloat(String(conversionFee).replace(/,/g, '')) : null,
+            'paidFor': paidFor || null,
+            'subCategory': data.subCategory || [],
+            'billingDate': billingDate || null,
+            'status': 'pending', // This status is for local queueing
+            'estCashback': estimatedCashbackAndWarnings.cashback,
+            'Method': method,
         };
 
         setNeedsSyncing([...needsSyncing, transactionData]);
@@ -425,6 +445,19 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                             <label htmlFor="amount">Amount</label>
                             <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
                         </div>
+                        <div className="space-y-2">
+                            <label htmlFor="method">Method</label>
+                            <Select value={method} onValueChange={setMethod}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select method..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="POS">POS</SelectItem>
+                                    <SelectItem value="eCom">eCommerce</SelectItem>
+                                    <SelectItem value="International">International</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                         {/* MODIFIED: Adopted the working code structure for the date field */}
                         <div className="space-y-2">
                             <label htmlFor="date">Date</label>
@@ -453,22 +486,32 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                 <div className="space-y-4 border-t pt-6">
                     <div className="space-y-2">
                         <label htmlFor="card">Card</label>
-                        <select id="card" value={cardId} onChange={(e) => { setCardId(e.target.value); setApplicableRuleId(''); localStorage.setItem('lastUsedCardId', e.target.value); }} className="w-full p-2 border border-input bg-background rounded cursor-pointer" required> {/* <-- FIX: Added border-input and bg-background */}
-                            {/* Removed default "Select Card" option, selection is handled by useEffect */}
-                            {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
-                        </select>
+                        <Select value={cardId} onValueChange={(value) => { setCardId(value); setApplicableRuleId(''); localStorage.setItem('lastUsedCardId', value); }} required>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a card..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(card => (
+                                    <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="space-y-2">
                         <label htmlFor="rule">Applicable Cashback Rule</label>
                         <div className="flex items-center gap-2">
-                        <select id="rule" value={applicableRuleId} onChange={(e) => setApplicableRuleId(e.target.value)} className="w-full p-2 border border-input bg-background rounded cursor-pointer" disabled={filteredRules.length === 0}> {/* <-- FIX: Added border-input and bg-background */}
-                            <option value="">{filteredRules.length === 0 ? 'No active rules for this card' : 'None'}</option>
-                            {filteredRules.map(rule => (
-                                <option key={rule.id} value={rule.id}>
-                                    {rule.ruleName} - {(rule.rate * 100).toFixed(1)}% (up to {currencyFn(rule.categoryLimit)})
-                                </option>
-                            ))}
-                        </select>
+                        <Select value={applicableRuleId} onValueChange={setApplicableRuleId} disabled={filteredRules.length === 0}>
+                            <SelectTrigger>
+                                <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules for this card' : 'None'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {filteredRules.map(rule => (
+                                    <SelectItem key={rule.id} value={rule.id}>
+                                        {rule.ruleName} - {(rule.rate * 100).toFixed(1)}% (up to {currencyFn(rule.categoryLimit)})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button type="button" variant="ghost" size="icon" disabled={!selectedRule}>
@@ -485,6 +528,10 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                 )}
                             </PopoverContent>
                         </Popover>
+                        </div>
+                        <div className="space-y-2">
+                            <label htmlFor="finalAmount">Final Amount</label>
+                            <Input id="finalAmount" type="text" value={currencyFn(parseFloat(String(amount || '0').replace(/,/g, '')) - discounts.reduce((acc, d) => acc + parseFloat(String(d.amount || '0').replace(/,/g, '')), 0) + fees.reduce((acc, f) => acc + parseFloat(String(f.amount || '0').replace(/,/g, '')), 0) + parseFloat(String(conversionFee || '0').replace(/,/g, '')))} readOnly />
                         </div>
                         {selectedRule && (
                             <div className="flex items-center gap-2 pt-2">
@@ -540,7 +587,6 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                             </div>
 
                             <div className="space-y-2">
-                                <label htmlFor="subCategory">Sub Category</label>
                                 <TagsInputField
                                     name="subCategory"
                                     label="Sub Category"
@@ -548,14 +594,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <div className="flex items-center space-x-2">
-                                    <Switch id="foreign-currency-switch" checked={isForeignCurrency} onCheckedChange={setIsForeignCurrency} />
-                                    <label htmlFor="foreign-currency-switch">Foreign Currency Transaction</label>
-                                </div>
-                            </div>
-
-                            {isForeignCurrency && (
+                            {method === 'International' && (
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     <div className="space-y-2">
                                         <label htmlFor="foreignCurrencyAmount">Original Amount</label>
@@ -566,8 +605,15 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                         <Input id="foreignCurrency" value={foreignCurrency} onChange={(e) => setForeignCurrency(e.target.value)} placeholder="e.g., USD" />
                                     </div>
                                     <div className="space-y-2">
+                                        <label htmlFor="conversionRate">Conversion Rate</label>
+                                        <Input id="conversionRate" type="text" inputMode="decimal" value={conversionRate} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionRate, true)} placeholder="e.g., 23000" />
+                                    </div>
+                                    <div className="space-y-2">
                                         <label htmlFor="conversionFee">Conversion Fee (VND)</label>
                                         <Input id="conversionFee" type="text" inputMode="numeric" value={conversionFee} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionFee)} />
+                                        {selectedCard && selectedCard.foreignFee > 0 && (
+                                            <p className="text-xs text-muted-foreground pt-1">Foreign Fee: {selectedCard.foreignFee * 100}%</p>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -578,20 +624,28 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                     <div key={index} className="flex items-center gap-2">
                                         <Input placeholder="Description" value={discount.description} onChange={(e) => {
                                             const newDiscounts = [...discounts];
-                                            newDiscounts[index].description = e.target.value;
-                                            setDiscounts(newDiscounts);
+                                            const { value } = e.target;
+                                            handleFormattedNumericInput(value, (formattedValue) => {
+                                                newDiscounts[index].amount = formattedValue;
+                                                setDiscounts(newDiscounts);
+                                            });
                                         }} />
                                         <Input placeholder="Amount" value={discount.amount} onChange={(e) => {
                                             const newDiscounts = [...discounts];
-                                            newDiscounts[index].amount = e.target.value;
-                                            setDiscounts(newDiscounts);
+                                            const { value } = e.target;
+                                            handleFormattedNumericInput(value, (formattedValue) => {
+                                                newDiscounts[index].amount = formattedValue;
+                                                setDiscounts([...newDiscounts]);
+                                            });
                                         }} />
                                         <Button type="button" variant="ghost" size="icon" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))}>
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
                                 ))}
-                                <Button type="button" variant="outline" size="sm" onClick={() => setDiscounts([...discounts, { description: '', amount: '' }])}>Add Discount</Button>
+                                <div className="pt-2">
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setDiscounts([...discounts, { description: '', amount: '' }])}>Add Discount</Button>
+                                </div>
                             </div>
 
                             <div className="space-y-2">
@@ -605,15 +659,20 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                         }} />
                                         <Input placeholder="Amount" value={fee.amount} onChange={(e) => {
                                             const newFees = [...fees];
-                                            newFees[index].amount = e.target.value;
-                                            setFees(newFees);
+                                            const { value } = e.target;
+                                            handleFormattedNumericInput(value, (formattedValue) => {
+                                                newFees[index].amount = formattedValue;
+                                                setFees([...newFees]);
+                                            });
                                         }} />
                                         <Button type="button" variant="ghost" size="icon" onClick={() => setFees(fees.filter((_, i) => i !== index))}>
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
                                 ))}
-                                <Button type="button" variant="outline" size="sm" onClick={() => setFees([...fees, { description: '', amount: '' }])}>Add Fee</Button>
+                                <div className="pt-2">
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setFees([...fees, { description: '', amount: '' }])}>Add Fee</Button>
+                                </div>
                             </div>
 
                             <div className="space-y-2">

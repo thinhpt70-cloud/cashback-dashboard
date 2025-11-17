@@ -30,6 +30,7 @@ import TransactionDetailsDialog from './components/dashboard/dialogs/Transaction
 import PaymentLogDialog from './components/dashboard/dialogs/PaymentLogDialog';
 import StatementLogDialog from './components/dashboard/dialogs/StatementLogDialog';
 import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
+import NeedsSyncingDialog from './components/dashboard/dialogs/NeedsSyncingDialog';
 
 // Import form components
 import AddTransactionForm from './components/dashboard/forms/AddTransactionForm';
@@ -89,6 +90,7 @@ export default function CashbackDashboard() {
     const [activeView, setActiveView] = useState('overview');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
     const [needsSyncing, setNeedsSyncing] = useState([]);
+    const [isSyncingDialogOpen, setIsSyncingDialogOpen] = useState(false);
 
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
@@ -323,7 +325,7 @@ export default function CashbackDashboard() {
                             throw new Error('Failed to sync transaction');
                         }
                         
-                        const updatedQueue = needsSyncing.map(t => t.id === transaction.id ? { ...t, status: 'synced' } : t);
+                        const updatedQueue = needsSyncing.filter(t => t.id !== transaction.id);
                         setNeedsSyncing(updatedQueue);
 
                     } catch (error) {
@@ -623,6 +625,18 @@ export default function CashbackDashboard() {
         return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
     }
 
+    const handleRetrySync = (txId) => {
+        const updatedQueue = needsSyncing.map(tx =>
+            tx.id === txId ? { ...tx, status: 'pending' } : tx
+        );
+        setNeedsSyncing(updatedQueue);
+    };
+
+    const handleRemoveFromSync = (txId) => {
+        const updatedQueue = needsSyncing.filter(tx => tx.id !== txId);
+        setNeedsSyncing(updatedQueue);
+    };
+
     if (loading) {
         return <AppSkeleton />;
     }
@@ -732,7 +746,7 @@ export default function CashbackDashboard() {
 
                     {/* --- Desktop Controls (hidden on mobile) --- */}
                     <div className="hidden md:flex items-center gap-2">
-                        <Button variant="outline" className="h-10">
+                        <Button variant="outline" className="h-10" onClick={() => setIsSyncingDialogOpen(true)}>
                             <History className="mr-2 h-4 w-4" />
                             Needs Syncing ({needsSyncing.length})
                         </Button>
@@ -1038,6 +1052,13 @@ export default function CashbackDashboard() {
                 transactions={dialogTransactions}
                 isLoading={isDialogLoading}
                 currencyFn={currency}
+            />
+            <NeedsSyncingDialog
+                isOpen={isSyncingDialogOpen}
+                onClose={() => setIsSyncingDialogOpen(false)}
+                needsSyncing={needsSyncing}
+                onRetry={handleRetrySync}
+                onRemove={handleRemoveFromSync}
             />
         </div>
         </div>

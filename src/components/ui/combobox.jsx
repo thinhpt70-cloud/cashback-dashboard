@@ -38,16 +38,40 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) 
       </PopoverTrigger>
       <PopoverContent className="w-full p-0">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
-          <CommandEmpty>No option found.</CommandEmpty>
+          <CommandInput
+            placeholder={searchPlaceholder}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.target.value) {
+                const newValue = e.target.value;
+                if (!options.some(opt => opt.value.toLowerCase() === newValue.toLowerCase())) {
+                  onChange(newValue);
+                  setOpen(false);
+                }
+              }
+            }}
+          />
+          <CommandEmpty>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => {
+                // This assumes the input's value can be accessed; a more robust solution might need state.
+                const inputValue = document.querySelector('[cmdk-input]').value;
+                onChange(inputValue);
+                setOpen(false);
+              }}
+            >
+              Create "{document.querySelector('[cmdk-input]')?.value}"
+            </Button>
+          </CommandEmpty>
           <CommandGroup>
             {options.map((option) => (
               <CommandItem
                 key={option.value}
                 value={option.value}
                 onSelect={(currentValue) => {
-                  onChange(currentValue === value ? "" : currentValue)
-                  setOpen(false)
+                  onChange(currentValue === value ? "" : currentValue);
+                  setOpen(false);
                 }}
               >
                 <Check

@@ -41,9 +41,7 @@ const RecommendationItem = ({ item, rank, onSelectCard, selectedCardId, currency
             onClick={() => onSelectCard(card.id, rule.id)}
             className={cn(
                 "w-full text-left border rounded-lg p-2.5 transition-all space-y-2",
-                // 'isSelected && !isCappedOrIneligible' will now work for Inactive cards
-                isSelected && !isCappedOrIneligible ? "bg-sky-50 border-sky-400 dark:bg-sky-950 dark:border-sky-700 shadow-sm" : "bg-background hover:bg-muted/50",
-                // An inactive card (isFrozen=true, isCappedOrIneligible=false) will no longer get this style
+                isSelected ? "bg-sky-50 border-sky-400 dark:bg-sky-950 dark:border-sky-700 shadow-sm" : "bg-background hover:bg-muted/50",
                 isCappedOrIneligible && "bg-muted opacity-60 grayscale"
             )}
         >
@@ -106,9 +104,15 @@ export default function CardRecommendations({ recommendations, onSelectCard, cur
     }
 
     // Separate cards into eligible and ineligible groups
-    // <-- FIX: Update filters to account for rule.status === 'Frozen' -->
-    const eligible = recommendations.filter(r => !r.isCategoryCapReached && !r.isMonthlyCapReached && r.isMinSpendMet && r.rule.status !== 'Frozen');
-    const ineligible = recommendations.filter(r => r.isCategoryCapReached || r.isMonthlyCapReached || !r.isMinSpendMet || r.rule.status === 'Frozen');
+    const eligible = recommendations.filter(r => !r.isCategoryCapReached && !r.isMonthlyCapReached && r.isMinSpendMet && r.rule.status !== 'Inactive');
+    const ineligible = recommendations.filter(r => r.isCategoryCapReached || r.isMonthlyCapReached || !r.isMinSpendMet || r.rule.status === 'Inactive');
+
+    // Deprioritize inactive rules within the eligible list
+    eligible.sort((a, b) => {
+        if (a.rule.status === 'Inactive' && b.rule.status !== 'Inactive') return 1;
+        if (a.rule.status !== 'Inactive' && b.rule.status === 'Inactive') return -1;
+        return 0;
+    });
 
     return (
         <div className="space-y-3 pt-4">
