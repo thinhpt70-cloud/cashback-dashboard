@@ -11,7 +11,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../
 import { Textarea } from '../../ui/textarea'; // <-- FIX: Import the Textarea component
 import { Combobox } from '../../ui/combobox';
 import { TagsInputField } from '../../ui/tag-input';
-import { Switch } from '../../ui/switch';
 import QuickAddButtons from './QuickAddButtons';
 import CardRecommendations from './CardRecommendations';
 import useIOSKeyboardGapFix from '../../../hooks/useIOSKeyboardGapFix';
