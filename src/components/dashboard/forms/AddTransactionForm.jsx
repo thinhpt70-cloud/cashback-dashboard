@@ -8,7 +8,6 @@ import { Badge } from '../../ui/badge';
 import { Switch } from '../../ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui/tooltip';
 import { Textarea } from '../../ui/textarea';
 import { Combobox } from '../../ui/combobox';
 import { TagsInputField } from '../../ui/tag-input';
@@ -208,13 +207,24 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     }, [filteredSummaries]);
 
     useEffect(() => {
-        if (applicableRuleId && filteredRules.length > 0) {
-            const ruleExists = filteredRules.some(rule => rule.id === applicableRuleId);
+        // This effect validates that the selected rule is valid for the selected card.
+        // This is necessary for when the card is changed manually, but it
+        // was causing a bug when selecting a recommendation.
+        
+        if (applicableRuleId) {
+            // By re-filtering the rules *inside* the effect instead of using the
+            // memoized `filteredRules`, we guarantee we are checking against the
+            // rules for the *current* `cardId` and avoid a stale state.
+            const currentCardRules = rules.filter(rule => rule.cardId === cardId && rule.status === 'Active');
+            
+            const ruleExists = currentCardRules.some(rule => rule.id === applicableRuleId);
+            
             if (!ruleExists) {
+                // The selected rule is not valid for this card, so reset it.
                 setApplicableRuleId('');
             }
         }
-    }, [cardId, filteredRules, applicableRuleId]);
+    }, [cardId, applicableRuleId, rules]); // We depend on the raw state values.
 
     useEffect(() => {
         if (method !== 'International' || !selectedCard) return;
@@ -518,13 +528,19 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            {foreignInputMode === 'vnd_unknown' && (
-                                <div className="space-y-2">
-                                    <label htmlFor="conversionRate">Conversion Rate</label>
-                                    <Input id="conversionRate" type="text" inputMode="decimal" value={conversionRate} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionRate, true)} placeholder="e.g., 23000" />
-                                </div>
-                            )}
-                             {foreignInputMode === 'vnd_known' && <div />}
+                            <div className="space-y-2">
+                                <label htmlFor="conversionRate">Conversion Rate</label>
+                                <Input 
+                                    id="conversionRate" 
+                                    type="text" 
+                                    inputMode="decimal" 
+                                    value={conversionRate} 
+                                    onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionRate, true)} 
+                                    placeholder={foreignInputMode === 'vnd_known' ? 'Auto-calculated' : 'e.g., 23000'}
+                                    readOnly={foreignInputMode === 'vnd_known'}
+                                    className={foreignInputMode === 'vnd_known' ? 'bg-muted/50 focus-visible:ring-offset-0 focus-visible:ring-0' : ''}
+                                />
+                            </div>
                             <div className="space-y-2">
                                 <label htmlFor="conversionFee">Conversion Fee (VND)</label>
                                 <Input id="conversionFee" type="text" inputMode="numeric" value={conversionFee} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionFee)} />
@@ -568,11 +584,19 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                             <SelectContent>
                                 {filteredRules.map(rule => (
                                     <SelectItem key={rule.id} value={rule.id}>
-                                        <div className="flex justify-between w-full items-center">
-                                            <span>{rule.ruleName}</span>
-                                            <div className="flex items-center gap-2 ml-auto">
-                                                <Badge variant="outline" className="text-emerald-600">{(rule.rate * 100).toFixed(1)}%</Badge>
-                                                <Badge variant="secondary">{currencyFn(rule.categoryLimit)}</Badge>
+                                        {/* WRAPPER DIV: Forces row layout for everything inside ItemText */}
+                                        <div className="flex w-full items-center gap-2">
+                                            {/* Name: Takes available space */}
+                                            <span className="truncate flex-1 text-left">{rule.ruleName}</span>
+                                            
+                                            {/* Badges: Stays on the same line, doesn't shrink */}
+                                            <div className="flex shrink-0 items-center gap-2">
+                                                <Badge variant="outline" className="text-emerald-600">
+                                                    {(rule.rate * 100).toFixed(1)}%
+                                                </Badge>
+                                                <Badge variant="secondary">
+                                                    {currencyFn(rule.categoryLimit)}
+                                                </Badge>
                                             </div>
                                         </div>
                                     </SelectItem>
@@ -592,7 +616,6 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                         <p><strong>Rate:</strong> {(selectedRule.rate * 100).toFixed(1)}% {selectedRule.tier2Rate ? `(Tier 2: ${(selectedRule.tier2Rate * 100).toFixed(1)}%)` : ''}</p>
                                         <p><strong>Category Cap:</strong> {currencyFn(selectedRule.categoryLimit)}</p>
                                         {selectedRule.transactionLimit > 0 && <p><strong>Transaction Cap:</strong> {currencyFn(selectedRule.transactionLimit)}</p>}
-                                        <p><strong>Conditions:</strong> {selectedRule.conditions}</p>
                                     </div>
                                 )}
                             </PopoverContent>
@@ -608,16 +631,23 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                     </Badge>
                                 )}
                                 {estimatedCashbackAndWarnings.warnings.length > 0 && (
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild><button type="button"><AlertTriangle className="h-4 w-4 text-orange-500" /></button></TooltipTrigger>
-                                            <TooltipContent>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <button type="button" className="focus:outline-none">
+                                                <AlertTriangle className="h-4 w-4 text-orange-500" />
+                                            </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent>
+                                            <div className="space-y-2 text-sm">
+                                                <p className="font-bold text-orange-600">Warnings</p>
                                                 <ul className="list-disc pl-4 space-y-1">
-                                                    {estimatedCashbackAndWarnings.warnings.map((warning, i) => (<li key={i}>{warning}</li>))}
+                                                    {estimatedCashbackAndWarnings.warnings.map((warning, i) => (
+                                                        <li key={i}>{warning}</li>
+                                                    ))}
                                                 </ul>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
                                 )}
                             </div>
                         )}

@@ -31,8 +31,9 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) 
           aria-expanded={open}
           className="w-full justify-between h-10"
         >
+          {/* --- FIX 1: Added fallback to 'value' --- */}
           {value
-            ? options.find((option) => option.value === value)?.label
+            ? (options.find((option) => option.value === value)?.label || value)
             : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -72,9 +73,11 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) 
             {options.map((option) => (
               <CommandItem
                 key={option.value}
-                value={option.value}
-                onSelect={(currentValue) => {
-                  onChange(currentValue === value ? "" : currentValue);
+                // --- FIX 2: Use label for searching ---
+                value={option.label}
+                // --- FIX 3: Use value for selecting ---
+                onSelect={() => {
+                  onChange(option.value);
                   setOpen(false);
                 }}
               >
