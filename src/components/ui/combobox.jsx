@@ -20,6 +20,7 @@ import {
 
 const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) => {
   const [open, setOpen] = React.useState(false)
+  const [inputValue, setInputValue] = React.useState('');
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -28,7 +29,7 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) 
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className="w-full justify-between h-10"
         >
           {value
             ? options.find((option) => option.value === value)?.label
@@ -40,29 +41,32 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) 
         <Command>
           <CommandInput
             placeholder={searchPlaceholder}
+            value={inputValue}
+            onValueChange={setInputValue}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && e.target.value) {
-                const newValue = e.target.value;
-                if (!options.some(opt => opt.value.toLowerCase() === newValue.toLowerCase())) {
-                  onChange(newValue);
+              if (e.key === 'Enter' && inputValue) {
+                if (!options.some(opt => opt.value.toLowerCase() === inputValue.toLowerCase())) {
+                  onChange(inputValue);
+                  setInputValue('');
                   setOpen(false);
                 }
               }
             }}
           />
           <CommandEmpty>
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={() => {
-                // This assumes the input's value can be accessed; a more robust solution might need state.
-                const inputValue = document.querySelector('[cmdk-input]').value;
-                onChange(inputValue);
-                setOpen(false);
-              }}
-            >
-              Create "{document.querySelector('[cmdk-input]')?.value}"
-            </Button>
+            {inputValue && (
+                <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                        onChange(inputValue);
+                        setInputValue('');
+                        setOpen(false);
+                    }}
+                >
+                    Create "{inputValue}"
+                </Button>
+            )}
           </CommandEmpty>
           <CommandGroup>
             {options.map((option) => (

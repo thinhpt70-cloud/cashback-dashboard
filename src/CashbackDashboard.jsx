@@ -296,7 +296,7 @@ export default function CashbackDashboard() {
                     if (transaction.status === 'pending') {
                         try {
                             let finalSummaryId = null;
-                            
+
                             // --- START: Summary Logic ---
                             const cardId = transaction['Card'] ? transaction['Card'][0] : null;
                             const ruleId = transaction['ApplicCble Rule'] ? transaction['Applicable Rule'][0] : null;
@@ -345,15 +345,15 @@ export default function CashbackDashboard() {
                             // --- START: FIX 2 (POST vs. PATCH) ---
                             const isNewTransaction = transaction.id.includes('T') && transaction.id.includes('Z');
                             // --- END: FIX 2 ---
-                            
+
                             let response;
-                            if (isNewTransaction) { 
+                            if (isNewTransaction) {
                                 response = await fetch('/api/transactions', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify(apiPayload),
                                 });
-                            } else { 
+                            } else {
                                 response = await fetch(`/api/transactions/${transaction.id}`, {
                                     method: 'PATCH',
                                     headers: { 'Content-Type': 'application/json' },
@@ -366,8 +366,8 @@ export default function CashbackDashboard() {
                                 console.error("Server responded with error:", response.status, errorBody);
                                 throw new Error(`Failed to sync transaction. Server said: ${errorBody.error || 'Bad Request'}`);
                             }
-                            
-                            const syncedTransaction = await response.json(); 
+
+                            const syncedTransaction = await response.json();
 
                             // Remove from queue *after* successful sync
                             setNeedsSyncing(prevQueue => prevQueue.filter(t => t.id !== transaction.id));
@@ -377,7 +377,7 @@ export default function CashbackDashboard() {
 
                         } catch (error) {
                             console.error('Error syncing transaction:', error);
-                            setNeedsSyncing(prevQueue => 
+                            setNeedsSyncing(prevQueue =>
                                 prevQueue.map(t => t.id === transaction.id ? { ...t, status: 'error' } : t)
                             );
                         }

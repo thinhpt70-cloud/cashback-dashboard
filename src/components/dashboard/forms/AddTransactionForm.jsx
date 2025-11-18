@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
+import { Switch } from '../../ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui/tooltip';
@@ -53,6 +54,8 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     const [conversionRate, setConversionRate] = useState('');
     const [discounts, setDiscounts] = useState([]);
     const [fees, setFees] = useState([]);
+    const [foreignInputMode, setForeignInputMode] = useState('vnd_known');
+
 
     useIOSKeyboardGapFix();
 
@@ -214,31 +217,39 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     }, [cardId, filteredRules, applicableRuleId]);
 
     useEffect(() => {
-        if (method === 'International' && selectedCard) {
-            const foreignAmount = parseFloat(String(foreignCurrencyAmount).replace(/,/g, ''));
-            const vndAmount = parseFloat(String(amount).replace(/,/g, ''));
-            const rate = parseFloat(String(conversionRate).replace(/,/g, ''));
-            let rateForFee = rate;
+        if (method !== 'International' || !selectedCard) return;
 
-            if (foreignAmount > 0) {
-                if (vndAmount > 0) {
-                    const calculatedRate = vndAmount / (foreignAmount * (1 + (selectedCard.foreignFee || 0)));
-                    setConversionRate(calculatedRate.toLocaleString('en-US', { maximumFractionDigits: 2 }));
-                    rateForFee = calculatedRate; // use this for the fee
-                } else if (rate > 0) {
-                    const calculatedAmount = (foreignAmount * (1 + (selectedCard.foreignFee || 0))) * rate;
-                    setAmount(calculatedAmount.toLocaleString('en-US', { maximumFractionDigits: 2 }));
-                }
+        const foreignAmount = parseFloat(String(foreignCurrencyAmount).replace(/,/g, '')) || 0;
+        const feePercentage = selectedCard.foreignFee || 0;
 
-                if (rateForFee > 0) {
-                    const fee = foreignAmount * (selectedCard.foreignFee || 0) * rateForFee;
-                    setConversionFee(fee.toLocaleString('en-US', { maximumFractionDigits: 2 }));
-                } else {
-                    setConversionFee('');
-                }
+        if (foreignInputMode === 'vnd_known') {
+            const vndAmount = parseFloat(String(amount).replace(/,/g, '')) || 0;
+            if (foreignAmount > 0 && vndAmount > 0) {
+                const totalForeignCost = foreignAmount * (1 + feePercentage);
+                const calculatedRate = vndAmount / totalForeignCost;
+                const feeInVnd = (vndAmount / (1 + feePercentage)) * feePercentage;
+
+                setConversionRate(calculatedRate.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+                setConversionFee(feeInVnd.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+            } else {
+                setConversionRate('');
+                setConversionFee('');
+            }
+        } else { // vnd_unknown
+            const rate = parseFloat(String(conversionRate).replace(/,/g, '')) || 0;
+            if (foreignAmount > 0 && rate > 0) {
+                const totalForeignCost = foreignAmount * (1 + feePercentage);
+                const calculatedVndAmount = totalForeignCost * rate;
+                const feeInVnd = (foreignAmount * rate) * feePercentage;
+
+                setAmount(calculatedVndAmount.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+                setConversionFee(feeInVnd.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+            } else {
+                setAmount('');
+                setConversionFee('');
             }
         }
-    }, [method, selectedCard, foreignCurrencyAmount, amount, conversionRate]);
+    }, [method, selectedCard, foreignCurrencyAmount, amount, conversionRate, foreignInputMode]);
 
     useEffect(() => {
         if (!initialData && cards.length > 0 && !cardId) {
@@ -485,25 +496,40 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                 </div>
 
                 {method === 'International' && (
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-muted/50 p-4 rounded-lg space-y-4">
+                        <div className="flex items-center space-x-2">
+                            <label htmlFor="foreign-input-mode" className="text-sm font-medium">VND Amount Known</label>
+                            <Switch
+                                id="foreign-input-mode"
+                                checked={foreignInputMode === 'vnd_unknown'}
+                                onCheckedChange={(checked) => setForeignInputMode(checked ? 'vnd_unknown' : 'vnd_known')}
+                            />
+                            <label htmlFor="foreign-input-mode" className="text-sm font-medium">VND Amount Unknown</label>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label htmlFor="foreignCurrencyAmount">Original Amount</label>
                                 <Input id="foreignCurrencyAmount" type="text" inputMode="decimal" value={foreignCurrencyAmount} onChange={(e) => handleFormattedNumericInput(e.target.value, setForeignCurrencyAmount, true)} placeholder="e.g., 100.00" />
                             </div>
                             <div className="space-y-2">
                                 <label htmlFor="foreignCurrency">Currency</label>
-                                <Input id="foreignCurrency" value={foreignCurrency} onChange={(e) => setForeignCurrency(e.target.value)} placeholder="e.g., USD" className="w-24" />
+                                <Input id="foreignCurrency" value={foreignCurrency} onChange={(e) => setForeignCurrency(e.target.value)} placeholder="e.g., USD" />
                             </div>
-                            <div className="space-y-2">
-                                <label htmlFor="conversionRate">Conversion Rate</label>
-                                <Input id="conversionRate" type="text" inputMode="decimal" value={conversionRate} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionRate, true)} placeholder="e.g., 23000" />
-                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            {foreignInputMode === 'vnd_unknown' && (
+                                <div className="space-y-2">
+                                    <label htmlFor="conversionRate">Conversion Rate</label>
+                                    <Input id="conversionRate" type="text" inputMode="decimal" value={conversionRate} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionRate, true)} placeholder="e.g., 23000" />
+                                </div>
+                            )}
+                             {foreignInputMode === 'vnd_known' && <div />}
                             <div className="space-y-2">
                                 <label htmlFor="conversionFee">Conversion Fee (VND)</label>
                                 <Input id="conversionFee" type="text" inputMode="numeric" value={conversionFee} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionFee)} />
                                 {selectedCard && selectedCard.foreignFee > 0 && (
-                                    <p className="text-xs text-muted-foreground pt-1">Foreign Fee: {selectedCard.foreignFee * 100}%</p>
+                                    <p className="text-xs text-muted-foreground pt-1">Foreign Fee: {(selectedCard.foreignFee * 100).toFixed(1)}%</p>
                                 )}
                             </div>
                         </div>
@@ -520,7 +546,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                 <div className="space-y-4 border-t pt-6">
                     <div className="space-y-2">
                         <label htmlFor="card">Card</label>
-                        <Select value={cardId} onValueChange={(value) => { setCardId(value); localStorage.setItem('lastUsedCardId', value); }} required>
+                        <Select value={cardId} onValueChange={(value) => { handleCardSelect(value); localStorage.setItem('lastUsedCardId', value); }} required>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a card..." />
                             </SelectTrigger>
@@ -542,9 +568,9 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                             <SelectContent>
                                 {filteredRules.map(rule => (
                                     <SelectItem key={rule.id} value={rule.id}>
-                                        <div className="flex justify-between w-full">
+                                        <div className="flex justify-between w-full items-center">
                                             <span>{rule.ruleName}</span>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 ml-auto">
                                                 <Badge variant="outline" className="text-emerald-600">{(rule.rate * 100).toFixed(1)}%</Badge>
                                                 <Badge variant="secondary">{currencyFn(rule.categoryLimit)}</Badge>
                                             </div>
@@ -561,10 +587,12 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                             </PopoverTrigger>
                             <PopoverContent>
                                 {selectedRule && (
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 text-sm">
                                         <p className="font-bold">{selectedRule.ruleName}</p>
+                                        <p><strong>Rate:</strong> {(selectedRule.rate * 100).toFixed(1)}% {selectedRule.tier2Rate ? `(Tier 2: ${(selectedRule.tier2Rate * 100).toFixed(1)}%)` : ''}</p>
+                                        <p><strong>Category Cap:</strong> {currencyFn(selectedRule.categoryLimit)}</p>
+                                        {selectedRule.transactionLimit > 0 && <p><strong>Transaction Cap:</strong> {currencyFn(selectedRule.transactionLimit)}</p>}
                                         <p><strong>Conditions:</strong> {selectedRule.conditions}</p>
-                                        <p><strong>Min Spend:</strong> {currencyFn(selectedRule.minSpend)}</p>
                                     </div>
                                 )}
                             </PopoverContent>
@@ -642,7 +670,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
 
                     <div className="space-y-2">
                         <label>Final Amount</label>
-                        <div className="text-2xl font-bold p-2 border-b">
+                        <div className="text-xl font-bold p-4 rounded-lg bg-muted">
                             {currencyFn(parseFloat(String(amount || '0').replace(/,/g, '')) - discounts.reduce((acc, d) => acc + parseFloat(String(d.amount || '0').replace(/,/g, '')), 0) + fees.reduce((acc, f) => acc + parseFloat(String(f.amount || '0').replace(/,/g, '')), 0) + parseFloat(String(conversionFee || '0').replace(/,/g, '')))}
                         </div>
                     </div>
