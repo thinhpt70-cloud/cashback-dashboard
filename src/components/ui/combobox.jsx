@@ -20,6 +20,7 @@ import {
 
 const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) => {
   const [open, setOpen] = React.useState(false)
+  const [inputValue, setInputValue] = React.useState('');
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -28,7 +29,7 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) 
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className="w-full justify-between h-10 min-h-[2.5rem]"
         >
           {value
             ? options.find((option) => option.value === value)?.label
@@ -40,29 +41,23 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) 
         <Command>
           <CommandInput
             placeholder={searchPlaceholder}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && e.target.value) {
-                const newValue = e.target.value;
-                if (!options.some(opt => opt.value.toLowerCase() === newValue.toLowerCase())) {
-                  onChange(newValue);
-                  setOpen(false);
-                }
-              }
-            }}
+            value={inputValue}
+            onValueChange={setInputValue}
           />
           <CommandEmpty>
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={() => {
-                // This assumes the input's value can be accessed; a more robust solution might need state.
-                const inputValue = document.querySelector('[cmdk-input]').value;
-                onChange(inputValue);
-                setOpen(false);
-              }}
-            >
-              Create "{document.querySelector('[cmdk-input]')?.value}"
-            </Button>
+            {inputValue && (
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => {
+                  onChange(inputValue);
+                  setOpen(false);
+                  setInputValue('');
+                }}
+              >
+                Create "{inputValue}"
+              </Button>
+            )}
           </CommandEmpty>
           <CommandGroup>
             {options.map((option) => (
