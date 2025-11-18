@@ -29,7 +29,7 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) 
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between h-10 min-h-[2.5rem]"
+          className="w-full justify-between h-10"
         >
           {value
             ? options.find((option) => option.value === value)?.label
@@ -43,20 +43,29 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) 
             placeholder={searchPlaceholder}
             value={inputValue}
             onValueChange={setInputValue}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && inputValue) {
+                if (!options.some(opt => opt.value.toLowerCase() === inputValue.toLowerCase())) {
+                  onChange(inputValue);
+                  setInputValue('');
+                  setOpen(false);
+                }
+              }
+            }}
           />
           <CommandEmpty>
             {inputValue && (
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => {
-                  onChange(inputValue);
-                  setOpen(false);
-                  setInputValue('');
-                }}
-              >
-                Create "{inputValue}"
-              </Button>
+                <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                        onChange(inputValue);
+                        setInputValue('');
+                        setOpen(false);
+                    }}
+                >
+                    Create "{inputValue}"
+                </Button>
             )}
           </CommandEmpty>
           <CommandGroup>

@@ -91,7 +91,7 @@ export default function CashbackDashboard() {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
     const [needsSyncing, setNeedsSyncing] = useState([]);
     const [isSyncingDialogOpen, setIsSyncingDialogOpen] = useState(false);
-
+    const [isSyncing, setIsSyncing] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
     const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -289,113 +289,111 @@ export default function CashbackDashboard() {
         localStorage.setItem('needsSyncing', JSON.stringify(needsSyncing));
 
         const syncTransactions = async () => {
-            for (const transaction of needsSyncing) {
-                if (transaction.status === 'pending') {
-                    try {
-                        let finalSummaryId = null;
-                        
-                        // --- START: Summary Logic ---
-                        // Ensure all required fields exist before trying to create a summary
-                        const cardId = transaction['Card'] ? transaction['Card'][0] : null;
-                        const ruleId = transaction['Applicable Rule'] ? transaction['Applicable Rule'][0] : null;
-                        const cardForTx = cardId ? cards.find(c => c.id === cardId) : null;
+            setIsSyncing(true); // <-- 1. SET THE LOCK
 
-                        if (ruleId && cardForTx) {
-                            const cbMonth = getCurrentCashbackMonthForCard(cardForTx, transaction['Transaction Date']);
-                            const summaryResponse = await fetch('/api/summaries', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    cardId: cardId,
-                                    month: cbMonth,
-                                    ruleId: ruleId
-                                }),
-                            });
-                            if (!summaryResponse.ok) throw new Error('Failed to create new monthly summary.');
-                            const newSummary = await summaryResponse.json();
-                            finalSummaryId = newSummary.id;
+            try { // <-- 2. Wrap in try/finally to ensure lock is released
+                for (const transaction of needsSyncing) {
+                    if (transaction.status === 'pending') {
+                        try {
+                            let finalSummaryId = null;
+
+                            // --- START: Summary Logic ---
+                            const cardId = transaction['Card'] ? transaction['Card'][0] : null;
+                            const ruleId = transaction['ApplicCble Rule'] ? transaction['Applicable Rule'][0] : null;
+                            const cardForTx = cardId ? cards.find(c => c.id === cardId) : null;
+
+                            if (ruleId && cardForTx) {
+                                const cbMonth = getCurrentCashbackMonthForCard(cardForTx, transaction['Transaction Date']);
+                                const summaryResponse = await fetch('/api/summaries', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        cardId: cardId,
+                                        month: cbMonth,
+                                        ruleId: ruleId
+                                    }),
+                                });
+                                if (!summaryResponse.ok) throw new Error('Failed to create new monthly summary.');
+                                const newSummary = await summaryResponse.json();
+                                finalSummaryId = newSummary.id;
+                            }
+                            // --- END: Summary Logic ---
+
+
+                            // --- START: FIX 1 (Key Mapping) ---
+                            const apiPayload = {
+                                merchant: transaction['Transaction Name'],
+                                amount: transaction['Amount'],
+                                date: transaction['Transaction Date'],
+                                cardId: cardId,
+                                category: transaction['Category'],
+                                mccCode: transaction['MCC Code'],
+                                merchantLookup: transaction['merchantLookup'],
+                                applicableRuleId: ruleId,
+                                cardSummaryCategoryId: finalSummaryId,
+                                notes: transaction['notes'],
+                                otherDiscounts: transaction['otherDiscounts'],
+                                otherFees: transaction['otherFees'],
+                                foreignCurrencyAmount: transaction['foreignCurrencyAmount'],
+                                conversionFee: transaction['conversionFee'],
+                                paidFor: transaction['paidFor'],
+                                subCategory: transaction['subCategory'],
+                                billingDate: transaction['billingDate'],
+                            };
+                            // --- END: FIX 1 ---
+
+                            // --- START: FIX 2 (POST vs. PATCH) ---
+                            const isNewTransaction = transaction.id.includes('T') && transaction.id.includes('Z');
+                            // --- END: FIX 2 ---
+
+                            let response;
+                            if (isNewTransaction) {
+                                response = await fetch('/api/transactions', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(apiPayload),
+                                });
+                            } else {
+                                response = await fetch(`/api/transactions/${transaction.id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(apiPayload),
+                                });
+                            }
+
+                            if (!response.ok) {
+                                const errorBody = await response.json().catch(() => ({}));
+                                console.error("Server responded with error:", response.status, errorBody);
+                                throw new Error(`Failed to sync transaction. Server said: ${errorBody.error || 'Bad Request'}`);
+                            }
+
+                            const syncedTransaction = await response.json();
+
+                            // Remove from queue *after* successful sync
+                            setNeedsSyncing(prevQueue => prevQueue.filter(t => t.id !== transaction.id));
+
+                            handleTransactionUpdated(syncedTransaction);
+                            toast.success(`Synced "${syncedTransaction['Transaction Name']}"`);
+
+                        } catch (error) {
+                            console.error('Error syncing transaction:', error);
+                            setNeedsSyncing(prevQueue =>
+                                prevQueue.map(t => t.id === transaction.id ? { ...t, status: 'error' } : t)
+                            );
                         }
-                        // --- END: Summary Logic ---
-
-
-                        // --- START: FIX 1 (Key Mapping) ---
-                        // 1. Create the API-compatible payload with camelCase keys
-                        const apiPayload = {
-                            merchant: transaction['Transaction Name'],
-                            amount: transaction['Amount'],
-                            date: transaction['Transaction Date'],
-                            cardId: cardId,
-                            category: transaction['Category'],
-                            mccCode: transaction['MCC Code'],
-                            merchantLookup: transaction['merchantLookup'],
-                            applicableRuleId: ruleId,
-                            cardSummaryCategoryId: finalSummaryId, // Pass the newly created summary ID
-                            notes: transaction['notes'],
-                            otherDiscounts: transaction['otherDiscounts'],
-                            otherFees: transaction['otherFees'],
-                            foreignCurrencyAmount: transaction['foreignCurrencyAmount'],
-                            conversionFee: transaction['conversionFee'],
-                            paidFor: transaction['paidFor'],
-                            subCategory: transaction['subCategory'],
-                            billingDate: transaction['billingDate'],
-                        };
-                        // --- END: FIX 1 ---
-
-                        // --- START: FIX 2 (POST vs. PATCH) ---
-                        // A new transaction has an ISO String (timestamp) as an ID.
-                        // An existing transaction has its original Notion UUID.
-                        // We check for the 'T' and 'Z' which only exist in the new timestamp ID.
-                        const isNewTransaction = transaction.id.includes('T') && transaction.id.includes('Z');
-                        // --- END: FIX 2 ---
-                        
-                        let response;
-                        if (isNewTransaction) { 
-                            // This is a NEW transaction, so we POST
-                            response = await fetch('/api/transactions', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(apiPayload), // Use apiPayload
-                            });
-                        } else { 
-                            // This is an EXISTING transaction, so we PATCH
-                            response = await fetch(`/api/transactions/${transaction.id}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(apiPayload), // Use apiPayload
-                            });
-                        }
-
-                        if (!response.ok) {
-                            const errorBody = await response.json().catch(() => ({})); // Get server error
-                            console.error("Server responded with error:", response.status, errorBody);
-                            throw new Error(`Failed to sync transaction. Server said: ${errorBody.error || 'Bad Request'}`);
-                        }
-                        
-                        const syncedTransaction = await response.json(); // Get the final tx from server
-
-                        // Remove from queue *after* successful sync
-                        setNeedsSyncing(prevQueue => prevQueue.filter(t => t.id !== transaction.id));
-
-                        // IMPORTANT: Update the UI with the *synced* transaction
-                        // This ensures all formula fields, etc., are correct
-                        handleTransactionUpdated(syncedTransaction); // Use the function to update state
-                        toast.success(`Synced "${syncedTransaction['Transaction Name']}"`);
-
-                    } catch (error) {
-                        console.error('Error syncing transaction:', error); // This is the log you saw
-                        setNeedsSyncing(prevQueue => 
-                            prevQueue.map(t => t.id === transaction.id ? { ...t, status: 'error' } : t)
-                        );
                     }
                 }
+            } finally {
+                setIsSyncing(false); // <-- 3. RELEASE THE LOCK
             }
         };
 
-        if (needsSyncing.some(t => t.status === 'pending')) {
+        // 4. CHECK THE LOCK before starting
+        if (needsSyncing.some(t => t.status === 'pending') && !isSyncing) {
             syncTransactions();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [needsSyncing, cards, monthlySummary, monthlyCategorySummary]); // Added dependencies
+    }, [needsSyncing, cards, monthlySummary, monthlyCategorySummary, isSyncing]); // <-- 5. ADD isSyncing to dependency array
 
 
     useEffect(() => {

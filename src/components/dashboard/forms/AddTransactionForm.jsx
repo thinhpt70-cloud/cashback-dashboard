@@ -5,13 +5,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
+import { Switch } from '../../ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui/tooltip';
 import { Textarea } from '../../ui/textarea';
 import { Combobox } from '../../ui/combobox';
-import { Switch } from '../../ui/switch';
-import { Label } from '../../ui/label';
 import { TagsInputField } from '../../ui/tag-input';
 import QuickAddButtons from './QuickAddButtons';
 import CardRecommendations from './CardRecommendations';
@@ -55,7 +54,8 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     const [conversionRate, setConversionRate] = useState('');
     const [discounts, setDiscounts] = useState([]);
     const [fees, setFees] = useState([]);
-    const [foreignInputMode, setForeignInputMode] = useState('vnd'); // 'vnd' or 'rate'
+    const [foreignInputMode, setForeignInputMode] = useState('vnd_known');
+
 
     useIOSKeyboardGapFix();
 
@@ -208,48 +208,46 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     }, [filteredSummaries]);
 
     useEffect(() => {
-        if (method === 'International' && selectedCard && selectedCard.foreignFee !== undefined) {
-            const foreignAmount = parseFloat(String(foreignCurrencyAmount).replace(/,/g, ''));
-            const vndAmount = parseFloat(String(amount).replace(/,/g, ''));
-            const inputRate = parseFloat(String(conversionRate).replace(/,/g, ''));
-
-            if (isNaN(foreignAmount) || foreignAmount <= 0) {
-                setConversionFee('');
-                // If in rate mode, also clear the VND amount
-                if (foreignInputMode === 'rate') {
-                    setAmount('');
-                }
-                return;
-            };
-
-            // Always calculate the fee based on the foreign amount and card's fee rate
-            const fee = foreignAmount * selectedCard.foreignFee;
-            setConversionFee(fee.toLocaleString('en-US', { maximumFractionDigits: 0 }));
-
-            if (foreignInputMode === 'vnd') {
-                // Scenario 1: VND Amount is known, calculate the rate
-                if (!isNaN(vndAmount) && vndAmount > 0) {
-                    const totalForeignCost = foreignAmount + (foreignAmount * selectedCard.foreignFee);
-                    const calculatedRate = vndAmount / totalForeignCost;
-                    setConversionRate(calculatedRate.toLocaleString('en-US', { maximumFractionDigits: 2 }));
-                } else {
-                    setConversionRate('');
-                }
-            } else {
-                // Scenario 2: Rate is known, calculate the VND amount
-                if (!isNaN(inputRate) && inputRate > 0) {
-                    const totalForeignCost = foreignAmount + (foreignAmount * selectedCard.foreignFee);
-                    const calculatedAmount = totalForeignCost * inputRate;
-                    setAmount(calculatedAmount.toLocaleString('en-US', { maximumFractionDigits: 0 }));
-                } else {
-                    setAmount('');
-                }
+        if (applicableRuleId && filteredRules.length > 0) {
+            const ruleExists = filteredRules.some(rule => rule.id === applicableRuleId);
+            if (!ruleExists) {
+                setApplicableRuleId('');
             }
-        } else if (method !== 'International') {
-            // Clear foreign fields if method is not international
-            setForeignCurrencyAmount('');
-            setConversionFee('');
-            setConversionRate('');
+        }
+    }, [cardId, filteredRules, applicableRuleId]);
+
+    useEffect(() => {
+        if (method !== 'International' || !selectedCard) return;
+
+        const foreignAmount = parseFloat(String(foreignCurrencyAmount).replace(/,/g, '')) || 0;
+        const feePercentage = selectedCard.foreignFee || 0;
+
+        if (foreignInputMode === 'vnd_known') {
+            const vndAmount = parseFloat(String(amount).replace(/,/g, '')) || 0;
+            if (foreignAmount > 0 && vndAmount > 0) {
+                const totalForeignCost = foreignAmount * (1 + feePercentage);
+                const calculatedRate = vndAmount / totalForeignCost;
+                const feeInVnd = (vndAmount / (1 + feePercentage)) * feePercentage;
+
+                setConversionRate(calculatedRate.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+                setConversionFee(feeInVnd.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+            } else {
+                setConversionRate('');
+                setConversionFee('');
+            }
+        } else { // vnd_unknown
+            const rate = parseFloat(String(conversionRate).replace(/,/g, '')) || 0;
+            if (foreignAmount > 0 && rate > 0) {
+                const totalForeignCost = foreignAmount * (1 + feePercentage);
+                const calculatedVndAmount = totalForeignCost * rate;
+                const feeInVnd = (foreignAmount * rate) * feePercentage;
+
+                setAmount(calculatedVndAmount.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+                setConversionFee(feeInVnd.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+            } else {
+                setAmount('');
+                setConversionFee('');
+            }
         }
     }, [method, selectedCard, foreignCurrencyAmount, amount, conversionRate, foreignInputMode]);
 
@@ -415,7 +413,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         }
     };
 
-    const onSelectCard = (selectedCardId, selectedRuleId) => {
+    const handleCardSelect = (selectedCardId, selectedRuleId) => {
         setCardId(selectedCardId);
         setApplicableRuleId(selectedRuleId || ''); 
     };
@@ -424,93 +422,131 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 py-4">
                 <QuickAddButtons vendors={commonVendors} onSelect={handleVendorSelect} />
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <label htmlFor="merchant">Transaction Name</label>
-                        <div className="relative flex items-center">
-                            <Input id="merchant" value={merchant} onChange={(e) => { setMerchant(e.target.value); setShowLookupButton(false); }} required className="pr-12" />
-                            <div className="absolute right-2 flex items-center gap-2">
-                                <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={handleMerchantLookup} disabled={!merchant || isLookingUp}>
-                                    {isLookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                                </Button>
-                            </div>
-                        </div>
-                        {showLookupButton && (
-                            <div className="pt-2">
-                                <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setIsLookupDialogOpen(true)}>
-                                    View Other Suggestions
-                                </Button>
-                            </div>
-                        )}
-                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label htmlFor="merchantLookup">Merchant Name</label>
-                            <Input 
-                                id="merchantLookup" 
-                                value={merchantLookup} 
-                                onChange={(e) => setMerchantLookup(e.target.value)} 
-                                placeholder="e.g., GRAB, SHOPEE" 
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label htmlFor="mcc">MCC Code</label>
-                            <Input 
-                                id="mcc" 
-                                value={mccCode} 
-                                onChange={(e) => setMccCode(e.target.value)} 
-                                placeholder="e.g., 5411" 
-                                type="number"
-                            />
-                            {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <label htmlFor="amount">Amount</label>
-                            <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
-                        </div>
-                        <div className="space-y-2">
-                            <label htmlFor="method">Method</label>
-                            <Select value={method} onValueChange={setMethod}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select method..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="POS">POS</SelectItem>
-                                    <SelectItem value="eCom">eCommerce</SelectItem>
-                                    <SelectItem value="International">International</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        {/* MODIFIED: Adopted the working code structure for the date field */}
-                        <div className="space-y-2">
-                            <label htmlFor="date">Date</label>
-                            <div className="relative flex items-center">
-                                <CalendarClock className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                    id="date" 
-                                    type="date" 
-                                    className="w-full pl-10" 
-                                    value={date} 
-                                    onChange={(e) => setDate(e.target.value)} 
-                                    required 
-                                />
-                            </div>
+                <div className="space-y-2">
+                    <label htmlFor="merchant">Transaction Name</label>
+                    <div className="relative flex items-center">
+                        <Input id="merchant" value={merchant} onChange={(e) => { setMerchant(e.target.value); setShowLookupButton(false); }} required className="pr-12" />
+                        <div className="absolute right-2 flex items-center gap-2">
+                            <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={handleMerchantLookup} disabled={!merchant || isLookingUp}>
+                                {isLookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                            </Button>
                         </div>
                     </div>
-
-                    <CardRecommendations 
-                        recommendations={rankedCards} 
-                        onSelectCard={onSelectCard}
-                        currencyFn={currencyFn}
-                        selectedCardId={cardId}
-                    />
+                    {showLookupButton && (
+                        <div className="pt-2">
+                            <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setIsLookupDialogOpen(true)}>
+                                View Other Suggestions
+                            </Button>
+                        </div>
+                    )}
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label htmlFor="merchantLookup">Merchant Name</label>
+                        <Input
+                            id="merchantLookup"
+                            value={merchantLookup}
+                            onChange={(e) => setMerchantLookup(e.target.value)}
+                            placeholder="e.g., GRAB, SHOPEE"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label htmlFor="mcc">MCC Code</label>
+                        <Input
+                            id="mcc"
+                            value={mccCode}
+                            onChange={(e) => setMccCode(e.target.value)}
+                            placeholder="e.g., 5411"
+                            type="number"
+                        />
+                        {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label htmlFor="amount">Amount</label>
+                        <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
+                    </div>
+                    <div className="space-y-2">
+                        <label htmlFor="date">Date</label>
+                        <div className="relative flex items-center">
+                            <CalendarClock className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                id="date"
+                                type="date"
+                                className="w-full pl-10"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                                required
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label>Method</label>
+                    <div className="flex space-x-2">
+                        <Button type="button" variant={method === 'POS' ? 'secondary' : 'outline'} onClick={() => setMethod('POS')}>POS</Button>
+                        <Button type="button" variant={method === 'eCom' ? 'secondary' : 'outline'} onClick={() => setMethod('eCom')}>eCommerce</Button>
+                        <Button type="button" variant={method === 'International' ? 'secondary' : 'outline'} onClick={() => setMethod('International')}>International</Button>
+                    </div>
+                </div>
+
+                {method === 'International' && (
+                    <div className="bg-muted/50 p-4 rounded-lg space-y-4">
+                        <div className="flex items-center space-x-2">
+                            <label htmlFor="foreign-input-mode" className="text-sm font-medium">VND Amount Known</label>
+                            <Switch
+                                id="foreign-input-mode"
+                                checked={foreignInputMode === 'vnd_unknown'}
+                                onCheckedChange={(checked) => setForeignInputMode(checked ? 'vnd_unknown' : 'vnd_known')}
+                            />
+                            <label htmlFor="foreign-input-mode" className="text-sm font-medium">VND Amount Unknown</label>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label htmlFor="foreignCurrencyAmount">Original Amount</label>
+                                <Input id="foreignCurrencyAmount" type="text" inputMode="decimal" value={foreignCurrencyAmount} onChange={(e) => handleFormattedNumericInput(e.target.value, setForeignCurrencyAmount, true)} placeholder="e.g., 100.00" />
+                            </div>
+                            <div className="space-y-2">
+                                <label htmlFor="foreignCurrency">Currency</label>
+                                <Input id="foreignCurrency" value={foreignCurrency} onChange={(e) => setForeignCurrency(e.target.value)} placeholder="e.g., USD" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            {foreignInputMode === 'vnd_unknown' && (
+                                <div className="space-y-2">
+                                    <label htmlFor="conversionRate">Conversion Rate</label>
+                                    <Input id="conversionRate" type="text" inputMode="decimal" value={conversionRate} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionRate, true)} placeholder="e.g., 23000" />
+                                </div>
+                            )}
+                             {foreignInputMode === 'vnd_known' && <div />}
+                            <div className="space-y-2">
+                                <label htmlFor="conversionFee">Conversion Fee (VND)</label>
+                                <Input id="conversionFee" type="text" inputMode="numeric" value={conversionFee} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionFee)} />
+                                {selectedCard && selectedCard.foreignFee > 0 && (
+                                    <p className="text-xs text-muted-foreground pt-1">Foreign Fee: {(selectedCard.foreignFee * 100).toFixed(1)}%</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <CardRecommendations
+                    recommendations={rankedCards}
+                    onSelectCard={handleCardSelect}
+                    currencyFn={currencyFn}
+                    selectedCardId={cardId}
+                />
 
                 <div className="space-y-4 border-t pt-6">
                     <div className="space-y-2">
                         <label htmlFor="card">Card</label>
-                        <Select value={cardId} onValueChange={(value) => { setCardId(value); setApplicableRuleId(''); localStorage.setItem('lastUsedCardId', value); }} required>
+                        <Select value={cardId} onValueChange={(value) => { handleCardSelect(value); localStorage.setItem('lastUsedCardId', value); }} required>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a card..." />
                             </SelectTrigger>
@@ -521,6 +557,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                             </SelectContent>
                         </Select>
                     </div>
+
                     <div className="space-y-2">
                         <label htmlFor="rule">Applicable Cashback Rule</label>
                         <div className="flex items-center gap-2">
@@ -531,10 +568,10 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                             <SelectContent>
                                 {filteredRules.map(rule => (
                                     <SelectItem key={rule.id} value={rule.id}>
-                                        <div className="flex justify-between items-center w-full">
+                                        <div className="flex justify-between w-full items-center">
                                             <span>{rule.ruleName}</span>
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline">{(rule.rate * 100).toFixed(1)}%</Badge>
+                                            <div className="flex items-center gap-2 ml-auto">
+                                                <Badge variant="outline" className="text-emerald-600">{(rule.rate * 100).toFixed(1)}%</Badge>
                                                 <Badge variant="secondary">{currencyFn(rule.categoryLimit)}</Badge>
                                             </div>
                                         </div>
@@ -544,26 +581,22 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                         </Select>
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={!selectedRule}>
-                                    <Info className="h-3.5 w-3.5" />
+                                <Button type="button" variant="ghost" size="icon" disabled={!selectedRule}>
+                                    <Info className="h-4 w-4" />
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-64 text-xs">
+                            <PopoverContent>
                                 {selectedRule && (
-                                    <div className="space-y-1.5">
-                                        <p className="font-bold text-sm">{selectedRule.name}</p>
-                                        <p><strong className="font-medium">Conditions:</strong> {selectedRule.conditions}</p>
-                                        <p><strong className="font-medium">Min Spend:</strong> {currencyFn(selectedRule.minSpend)}</p>
+                                    <div className="space-y-2 text-sm">
+                                        <p className="font-bold">{selectedRule.ruleName}</p>
+                                        <p><strong>Rate:</strong> {(selectedRule.rate * 100).toFixed(1)}% {selectedRule.tier2Rate ? `(Tier 2: ${(selectedRule.tier2Rate * 100).toFixed(1)}%)` : ''}</p>
+                                        <p><strong>Category Cap:</strong> {currencyFn(selectedRule.categoryLimit)}</p>
+                                        {selectedRule.transactionLimit > 0 && <p><strong>Transaction Cap:</strong> {currencyFn(selectedRule.transactionLimit)}</p>}
+                                        <p><strong>Conditions:</strong> {selectedRule.conditions}</p>
                                     </div>
                                 )}
                             </PopoverContent>
                         </Popover>
-                        </div>
-                        <div className="space-y-2">
-                            <label htmlFor="finalAmount">Final Amount</label>
-                            <div id="finalAmount" className="p-3 bg-gray-100 dark:bg-gray-800 rounded-md text-sm">
-                                <span className="font-medium text-lg">{currencyFn(parseFloat(String(amount || '0').replace(/,/g, '')) - discounts.reduce((acc, d) => acc + parseFloat(String(d.amount || '0').replace(/,/g, '')), 0) + fees.reduce((acc, f) => acc + parseFloat(String(f.amount || '0').replace(/,/g, '')), 0) + parseFloat(String(conversionFee || '0').replace(/,/g, '')))}</span>
-                            </div>
                         </div>
                         {selectedRule && (
                             <div className="flex items-center gap-2 pt-2">
@@ -589,6 +622,58 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                             </div>
                         )}
                     </div>
+
+                    <div className="space-y-2">
+                        {discounts.map((discount, index) => (
+                            <div key={`d-${index}`} className="flex items-center gap-2">
+                                <Input placeholder="Discount Description" value={discount.description} onChange={(e) => {
+                                    const newDiscounts = [...discounts];
+                                    newDiscounts[index].description = e.target.value;
+                                    setDiscounts(newDiscounts);
+                                }} />
+                                <Input placeholder="Amount" value={discount.amount} onChange={(e) => {
+                                    const newDiscounts = [...discounts];
+                                    handleFormattedNumericInput(e.target.value, (val) => {
+                                        newDiscounts[index].amount = val;
+                                        setDiscounts(newDiscounts);
+                                    });
+                                }} />
+                                <Button type="button" variant="ghost" size="icon" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                        {fees.map((fee, index) => (
+                            <div key={`f-${index}`} className="flex items-center gap-2">
+                                <Input placeholder="Fee Description" value={fee.description} onChange={(e) => {
+                                    const newFees = [...fees];
+                                    newFees[index].description = e.target.value;
+                                    setFees(newFees);
+                                }} />
+                                <Input placeholder="Amount" value={fee.amount} onChange={(e) => {
+                                    const newFees = [...fees];
+                                    handleFormattedNumericInput(e.target.value, (val) => {
+                                        newFees[index].amount = val;
+                                        setFees(newFees);
+                                    });
+                                }} />
+                                <Button type="button" variant="ghost" size="icon" onClick={() => setFees(fees.filter((_, i) => i !== index))}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                        <div className="flex items-center gap-2 pt-2">
+                            <Button type="button" variant="outline" size="sm" onClick={() => setDiscounts([...discounts, { description: '', amount: '' }])}>Add Discount</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => setFees([...fees, { description: '', amount: '' }])}>Add Fee</Button>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label>Final Amount</label>
+                        <div className="text-xl font-bold p-4 rounded-lg bg-muted">
+                            {currencyFn(parseFloat(String(amount || '0').replace(/,/g, '')) - discounts.reduce((acc, d) => acc + parseFloat(String(d.amount || '0').replace(/,/g, '')), 0) + fees.reduce((acc, f) => acc + parseFloat(String(f.amount || '0').replace(/,/g, '')), 0) + parseFloat(String(conversionFee || '0').replace(/,/g, '')))}
+                        </div>
+                    </div>
                 </div>
 
                 <Accordion type="single" collapsible className="w-full">
@@ -607,6 +692,16 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                     />
                                 </div>
                                 <div className="space-y-2">
+                                    <TagsInputField
+                                        name="subCategory"
+                                        label="Sub Category"
+                                        placeholder="Enter sub-categories"
+                                    />
+                                </div>
+                            </div>
+
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
                                     <label htmlFor="paidFor">Paid For</label>
                                     <Combobox
                                         options={['Personal', 'Family', 'Work'].map(c => ({ value: c, label: c }))}
@@ -616,136 +711,18 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                         searchPlaceholder="Search..."
                                     />
                                 </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <TagsInputField
-                                    name="subCategory"
-                                    label="Sub Category"
-                                    placeholder="Enter sub-categories"
-                                />
-                            </div>
-
-                            {method === 'International' && (
-                                <div className="p-4 border rounded-lg space-y-4 bg-gray-50 dark:bg-gray-800/50">
-                                    <div className="flex items-center justify-center space-x-2">
-                                        <Label htmlFor="foreign-input-mode" className={foreignInputMode === 'vnd' ? 'font-bold' : ''}>VND Amount Available</Label>
-                                        <Switch
-                                            id="foreign-input-mode"
-                                            checked={foreignInputMode === 'rate'}
-                                            onCheckedChange={(checked) => setForeignInputMode(checked ? 'rate' : 'vnd')}
+                                <div className="space-y-2">
+                                    <label htmlFor="billingDate">Billing Date</label>
+                                    <div className="relative flex items-center">
+                                        <CalendarClock className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            id="billingDate"
+                                            type="date"
+                                            className="w-full pl-10"
+                                            value={billingDate}
+                                            onChange={(e) => setBillingDate(e.target.value)}
                                         />
-                                        <Label htmlFor="foreign-input-mode" className={foreignInputMode === 'rate' ? 'font-bold' : ''}>Input Conversion Rate</Label>
                                     </div>
-
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-start">
-                                        <div className="space-y-2 col-span-1">
-                                            <label htmlFor="foreignCurrencyAmount">Original Amt</label>
-                                            <Input id="foreignCurrencyAmount" type="text" inputMode="decimal" value={foreignCurrencyAmount} onChange={(e) => handleFormattedNumericInput(e.target.value, setForeignCurrencyAmount, true)} placeholder="e.g., 100.00" />
-                                        </div>
-                                        <div className="space-y-2 col-span-1">
-                                            <label htmlFor="foreignCurrency">Currency</label>
-                                            <Input id="foreignCurrency" value={foreignCurrency} onChange={(e) => setForeignCurrency(e.target.value)} placeholder="e.g., USD" />
-                                        </div>
-
-                                        {foreignInputMode === 'vnd' && (
-                                            <div className="space-y-2 col-span-2">
-                                                <label htmlFor="amount">VND Amount</label>
-                                                <Input id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
-                                            </div>
-                                        )}
-
-                                        {foreignInputMode === 'rate' ? (
-                                            <div className="space-y-2 col-span-2">
-                                                <label htmlFor="conversionRate">Conversion Rate</label>
-                                                <Input id="conversionRate" type="text" inputMode="decimal" value={conversionRate} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionRate, true)} placeholder="e.g., 23000" />
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-2 col-span-2">
-                                                <label htmlFor="conversionRate">Conversion Rate</label>
-                                                <Input id="conversionRate" type="text" value={conversionRate} readOnly disabled />
-                                            </div>
-                                        )}
-
-                                        <div className="space-y-2 col-span-2">
-                                            <label htmlFor="conversionFee">Conversion Fee (VND)</label>
-                                            <Input id="conversionFee" type="text" value={conversionFee} readOnly disabled />
-                                            {selectedCard && selectedCard.foreignFee > 0 && (
-                                                <p className="text-xs text-muted-foreground pt-1">Auto-calculated based on card's fee: {(selectedCard.foreignFee * 100).toFixed(1)}%</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="space-y-2">
-                                <label>Other Discounts</label>
-                                {discounts.map((discount, index) => (
-                                    <div key={index} className="flex items-center gap-2">
-                                        <Input placeholder="Description" value={discount.description} onChange={(e) => {
-                                            const newDiscounts = [...discounts];
-                                            const { value } = e.target;
-                                            handleFormattedNumericInput(value, (formattedValue) => {
-                                                newDiscounts[index].amount = formattedValue;
-                                                setDiscounts(newDiscounts);
-                                            });
-                                        }} />
-                                        <Input placeholder="Amount" value={discount.amount} onChange={(e) => {
-                                            const newDiscounts = [...discounts];
-                                            const { value } = e.target;
-                                            handleFormattedNumericInput(value, (formattedValue) => {
-                                                newDiscounts[index].amount = formattedValue;
-                                                setDiscounts([...newDiscounts]);
-                                            });
-                                        }} />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))}>
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                ))}
-                                <div className="pt-2">
-                                    <Button type="button" variant="outline" size="sm" onClick={() => setDiscounts([...discounts, { description: '', amount: '' }])}>Add Discount</Button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label>Other Fees</label>
-                                {fees.map((fee, index) => (
-                                    <div key={index} className="flex items-center gap-2">
-                                        <Input placeholder="Description" value={fee.description} onChange={(e) => {
-                                            const newFees = [...fees];
-                                            newFees[index].description = e.target.value;
-                                            setFees(newFees);
-                                        }} />
-                                        <Input placeholder="Amount" value={fee.amount} onChange={(e) => {
-                                            const newFees = [...fees];
-                                            const { value } = e.target;
-                                            handleFormattedNumericInput(value, (formattedValue) => {
-                                                newFees[index].amount = formattedValue;
-                                                setFees([...newFees]);
-                                            });
-                                        }} />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => setFees(fees.filter((_, i) => i !== index))}>
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                ))}
-                                <div className="pt-2">
-                                    <Button type="button" variant="outline" size="sm" onClick={() => setFees([...fees, { description: '', amount: '' }])}>Add Fee</Button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label htmlFor="billingDate">Billing Date</label>
-                                <div className="relative flex items-center">
-                                    <CalendarClock className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        id="billingDate"
-                                        type="date"
-                                        className="w-full pl-10"
-                                        value={billingDate}
-                                        onChange={(e) => setBillingDate(e.target.value)}
-                                    />
                                 </div>
                             </div>
 
