@@ -123,8 +123,11 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cardId, cards]);
     const filteredRules = useMemo(() => {
         if (!cardId) return [];
-        return rules.filter(rule => rule.cardId === cardId && rule.status === 'Active').sort((a, b) => a.name.localeCompare(b.name));
+        // FIX: Changed `a.name` to `a.ruleName` to match API and prevent sorting crash
+        return rules.filter(rule => rule.cardId === cardId && rule.status === 'Active')
+            .sort((a, b) => (a.ruleName || '').localeCompare(b.ruleName || ''));
     }, [cardId, rules]);
+
     const selectedRule = useMemo(() => rules.find(r => r.id === applicableRuleId), [applicableRuleId, rules]);
     
     // --- UPDATED: Use the passed-in function ---
@@ -135,7 +138,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     
     const filteredSummaries = useMemo(() => {
         if (!selectedRule || !cardId || !cashbackMonth) return [];
-        const targetSummaryId = `${cashbackMonth} - ${selectedRule.name}`;
+        const targetSummaryId = `${cashbackMonth} - ${selectedRule.ruleName || selectedRule.name}`; // Handle potential naming diff
         return monthlyCategories.filter(summary => summary.cardId === cardId && summary.summaryId === targetSummaryId);
     }, [cardId, monthlyCategories, selectedRule, cashbackMonth]);
 
@@ -150,7 +153,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         const categoryMonthSummary = monthlyCategorySummary.find(s => 
             s.cardId === cardId && 
             s.month === cashbackMonth && 
-            s.summaryId.endsWith(selectedRule.name)
+            s.summaryId.endsWith(selectedRule.ruleName || selectedRule.name)
         );
 
         // --- NEW TIERED LOGIC ---
@@ -206,25 +209,9 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         else setCardSummaryCategoryId('new');
     }, [filteredSummaries]);
 
-    useEffect(() => {
-        // This effect validates that the selected rule is valid for the selected card.
-        // This is necessary for when the card is changed manually, but it
-        // was causing a bug when selecting a recommendation.
-        
-        if (applicableRuleId) {
-            // By re-filtering the rules *inside* the effect instead of using the
-            // memoized `filteredRules`, we guarantee we are checking against the
-            // rules for the *current* `cardId` and avoid a stale state.
-            const currentCardRules = rules.filter(rule => rule.cardId === cardId && rule.status === 'Active');
-            
-            const ruleExists = currentCardRules.some(rule => rule.id === applicableRuleId);
-            
-            if (!ruleExists) {
-                // The selected rule is not valid for this card, so reset it.
-                setApplicableRuleId('');
-            }
-        }
-    }, [cardId, applicableRuleId, rules]); // We depend on the raw state values.
+    // FIX: The validation useEffect was deleted here.
+    // The handleCardSelect function below correctly handles resetting logic, 
+    // so the useEffect was redundant and causing the double-click race condition.
 
     useEffect(() => {
         if (method !== 'International' || !selectedCard) return;
@@ -425,6 +412,8 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
 
     const handleCardSelect = (selectedCardId, selectedRuleId) => {
         setCardId(selectedCardId);
+        // If a rule is provided (Recommendation click), set it.
+        // If not (Manual Card change), reset it to empty.
         setApplicableRuleId(selectedRuleId || ''); 
     };
 
