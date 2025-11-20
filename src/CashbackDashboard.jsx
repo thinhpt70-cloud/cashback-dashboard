@@ -44,6 +44,7 @@ import CummulativeResultsChart from "./components/dashboard/overview/Cummulative
 import RecentTransactions from './components/dashboard/overview/RecentTransactions';
 import CurrentCashflowChart from "./components/dashboard/overview/CurrentCashflowChart";
 import StatCards from './components/dashboard/overview/OverviewStatCards';
+import TransactionReview from './components/dashboard/transactions/TransactionReview';
 
 // Import authentication component
 import LoginScreen from './components/auth/LoginScreen';
@@ -99,8 +100,16 @@ export default function CashbackDashboard() {
         recentTransactions, allCategories, commonVendors, reviewTransactions,
         loading, error, refreshData,
         setRecentTransactions, setReviewTransactions,
-        cashbackRules, monthlyCashbackCategories, liveSummary
+        cashbackRules, monthlyCashbackCategories, liveSummary,
+        fetchReviewTransactions, reviewLoading
     } = useCashbackData(isAuthenticated);
+
+    // Fetch review transactions when tab is active
+    useEffect(() => {
+        if (activeView === 'transactions') {
+            fetchReviewTransactions();
+        }
+    }, [activeView, fetchReviewTransactions]);
 
     const handleLogout = async () => {
         try {
@@ -961,7 +970,17 @@ export default function CashbackDashboard() {
                 )}
 
                 {activeView === 'transactions' && (
-                    <div className="pt-4 space-y-4">x
+                    <div className="pt-4 space-y-4">
+                        <TransactionReview
+                            transactions={reviewTransactions}
+                            isLoading={reviewLoading}
+                            onRefresh={fetchReviewTransactions}
+                            cards={cards}
+                            categories={allCategories}
+                            rules={cashbackRules}
+                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                            onEditTransaction={handleEditClick}
+                        />
                         <TransactionsTab
                             isDesktop={isDesktop}
                             transactions={activeMonth === 'live' ? recentTransactions : monthlyTransactions}

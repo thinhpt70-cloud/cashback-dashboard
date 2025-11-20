@@ -16,6 +16,7 @@ export default function useCashbackData(isAuthenticated) {
     const [allCategories, setAllCategories] = useState([]);
     const [commonVendors, setCommonVendors] = useState([]);
     const [reviewTransactions, setReviewTransactions] = useState([]);
+    const [reviewLoading, setReviewLoading] = useState(false); // Separate loading state
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -37,7 +38,6 @@ export default function useCashbackData(isAuthenticated) {
                 recentTxRes,
                 categoriesRes,
                 commonVendorsRes,
-                reviewTxRes
             ] = await Promise.all([
                 fetch(`${API_BASE_URL}/cards`),
                 fetch(`${API_BASE_URL}/rules`),
@@ -47,11 +47,10 @@ export default function useCashbackData(isAuthenticated) {
                 fetch(`${API_BASE_URL}/recent-transactions`),
                 fetch(`${API_BASE_URL}/categories`),
                 fetch(`${API_BASE_URL}/common-vendors`),
-                fetch(`${API_BASE_URL}/transactions/needs-review`) // New endpoint for transactions needing review
             ]);
 
             // Check if all network responses are successful
-            if (!cardsRes.ok || !rulesRes.ok || !monthlyRes.ok || !mccRes.ok || !monthlyCatRes.ok || !recentTxRes.ok || !categoriesRes.ok || !commonVendorsRes.ok || !reviewTxRes.ok) {
+            if (!cardsRes.ok || !rulesRes.ok || !monthlyRes.ok || !mccRes.ok || !monthlyCatRes.ok || !recentTxRes.ok || !categoriesRes.ok || !commonVendorsRes.ok) {
                 throw new Error('A network response was not ok. Please check the server.');
             }
 
@@ -64,7 +63,6 @@ export default function useCashbackData(isAuthenticated) {
             const recentTxData = await recentTxRes.json(); 
             const categoriesData = await categoriesRes.json(); 
             const commonVendorsData = await commonVendorsRes.json();
-            const reviewTxData = await reviewTxRes.json(); // New data for transactions needing review
 
             // Set all the state variables for the application
             setCards(cardsData);
@@ -75,7 +73,6 @@ export default function useCashbackData(isAuthenticated) {
             setRecentTransactions(recentTxData); // Set the new state
             setAllCategories(categoriesData); // Set the new state for all categories
             setCommonVendors(commonVendorsData);
-            setReviewTransactions(reviewTxData); // Set the new state for review transactions
 
         } catch (err)
  {
@@ -88,6 +85,22 @@ export default function useCashbackData(isAuthenticated) {
             if (!isSilent) {
                 setLoading(false);
             }
+        }
+    }, []);
+
+    // New dedicated function for lazy-loading review transactions
+    const fetchReviewTransactions = useCallback(async () => {
+        setReviewLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/transactions/needs-review`);
+            if (!res.ok) throw new Error('Failed to fetch review transactions');
+            const data = await res.json();
+            setReviewTransactions(data);
+        } catch (err) {
+            console.error("Failed to fetch review transactions:", err);
+            toast.error("Could not load transactions for review.");
+        } finally {
+            setReviewLoading(false);
         }
     }, []);
 
@@ -167,8 +180,10 @@ export default function useCashbackData(isAuthenticated) {
         // Status states
         loading,
         error,
+        reviewLoading,
         
         // Action
         refreshData: fetchData, // Provide the fetch function under a clearer name
+        fetchReviewTransactions,
     };
 }
