@@ -290,7 +290,7 @@ export default function CashbackDashboard() {
 
                             // --- START: Summary Logic ---
                             const cardId = transaction['Card'] ? transaction['Card'][0] : null;
-                            const ruleId = transaction['ApplicCble Rule'] ? transaction['Applicable Rule'][0] : null;
+                            const ruleId = transaction['Applicable Rule'] ? transaction['Applicable Rule'][0] : null;
                             const cardForTx = cardId ? cards.find(c => c.id === cardId) : null;
 
                             if (ruleId && cardForTx) {

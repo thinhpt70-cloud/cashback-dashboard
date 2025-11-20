@@ -124,7 +124,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     const filteredRules = useMemo(() => {
         if (!cardId) return [];
         // FIX: Changed `a.name` to `a.ruleName` to match API and prevent sorting crash
-        return rules.filter(rule => rule.cardId === cardId && rule.status === 'Active')
+        return rules.filter(rule => rule.cardId === cardId)
             .sort((a, b) => (a.ruleName || '').localeCompare(b.ruleName || ''));
     }, [cardId, rules]);
 
@@ -572,11 +572,13 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                             </SelectTrigger>
                             <SelectContent>
                                 {filteredRules.map(rule => (
-                                    <SelectItem key={rule.id} value={rule.id}>
+                                    <SelectItem key={rule.id} value={rule.id} disabled={rule.status === 'Inactive'}>
                                         {/* WRAPPER DIV: Forces row layout for everything inside ItemText */}
                                         <div className="flex w-full items-center gap-2">
                                             {/* Name: Takes available space */}
-                                            <span className="truncate flex-1 text-left">{rule.ruleName}</span>
+                                            <span className="truncate flex-1 text-left">
+                                                {rule.ruleName} {rule.status === 'Inactive' && '(Inactive)'}
+                                            </span>
                                             
                                             {/* Badges: Stays on the same line, doesn't shrink */}
                                             <div className="flex shrink-0 items-center gap-2">
