@@ -45,9 +45,6 @@ import RecentTransactions from './components/dashboard/overview/RecentTransactio
 import CurrentCashflowChart from "./components/dashboard/overview/CurrentCashflowChart";
 import StatCards from './components/dashboard/overview/OverviewStatCards';
 
-// Import transactions tab components
-import TransactionReviewCenter from './components/dashboard/transactions/TransactionReviewCenter';
-
 // Import authentication component
 import LoginScreen from './components/auth/LoginScreen';
 
@@ -964,23 +961,9 @@ export default function CashbackDashboard() {
                 )}
 
                 {activeView === 'transactions' && (
-                    <div className="pt-4 space-y-4">
-                        <TransactionReviewCenter
-                            transactions={reviewTransactions}
-                            allTransactions={monthlyTransactions}
-                            onReview={handleEditClick}
-                            onApprove={handleTransactionApproved}
-                            currencyFn={currency}
-                            cardMap={cardMap}
-                            rulesMap={rulesMap}
-                            mccMap={mccMap}
-                            summaryMap={summaryMap}
-                            onDelete={handleTransactionDeleted}
-                            onBulkDelete={handleBulkDelete}
-                        />
+                    <div className="pt-4 space-y-4">x
                         <TransactionsTab
                             isDesktop={isDesktop}
-                            // Use recentTransactions in live view, otherwise use monthlyTransactions
                             transactions={activeMonth === 'live' ? recentTransactions : monthlyTransactions}
                             isLoading={activeMonth === 'live' ? loading : isMonthlyTxLoading}
                             activeMonth={activeMonth}
