@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow
@@ -148,10 +147,6 @@ export default function TransactionReview({
     };
 
     const handleQuickApprove = async (txsToApprove) => {
-        // Only allow approving items that are technically ready
-        // Logic: They must have MCC, Summary, Match=true.
-        // Ideally, Quick Approve is mostly for "Automated" ones, but user can force it.
-
         if (txsToApprove.length === 0) return;
 
         setIsProcessing(true);
@@ -166,12 +161,8 @@ export default function TransactionReview({
             if (!res.ok) throw new Error("Approval failed");
 
             const updatedTxs = await res.json();
-
-            // Remove approved items from the list immediately
-            // We do this by calling onRefresh to reload the data from source,
-            // OR we can locally optimistically update, but a refresh is safer for sync.
             onRefresh();
-            setSelectedIds(new Set()); // Clear selection
+            setSelectedIds(new Set()); 
             toast.success(`Approved ${updatedTxs.length} transactions.`);
 
         } catch (error) {
@@ -214,22 +205,22 @@ export default function TransactionReview({
     if (!isLoading && transactions.length === 0) return null;
 
     return (
-        <div className="border rounded-lg bg-white shadow-sm mb-6 overflow-hidden">
+        <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 overflow-hidden transition-colors">
             {/* Header */}
             <div
-                className="p-4 bg-orange-50 border-b border-orange-100 flex justify-between items-center cursor-pointer select-none"
+                className="p-4 bg-orange-50 dark:bg-orange-950/30 border-b border-orange-100 dark:border-orange-900/50 flex justify-between items-center cursor-pointer select-none transition-colors"
                 onClick={() => setIsOpen(!isOpen)}
             >
                 <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-orange-600" />
-                    <h3 className="font-semibold text-orange-900">
+                    <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-500" />
+                    <h3 className="font-semibold text-orange-900 dark:text-orange-100">
                         Review Needed
-                        <Badge variant="secondary" className="ml-2 bg-orange-200 text-orange-800 hover:bg-orange-300">
+                        <Badge variant="secondary" className="ml-2 bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-100 hover:bg-orange-300 dark:hover:bg-orange-800">
                             {transactions.length}
                         </Badge>
                     </h3>
                 </div>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-orange-100 dark:hover:bg-orange-900/50">
                     {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </Button>
             </div>
@@ -238,14 +229,14 @@ export default function TransactionReview({
             {isOpen && (
                 <div className="p-0">
                     {/* Toolbar */}
-                    <div className="p-4 border-b bg-white flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                    <div className="p-4 border-b dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center transition-colors">
                         <div className="flex flex-wrap gap-2 items-center w-full md:w-auto">
                             {/* Search */}
                             <div className="relative w-full md:w-48">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Search..."
-                                    className="pl-8 h-9"
+                                    className="pl-8 h-9 bg-white dark:bg-slate-900"
                                     value={filters.search}
                                     onChange={(e) => setFilters({...filters, search: e.target.value})}
                                 />
@@ -253,7 +244,7 @@ export default function TransactionReview({
 
                             {/* Filters */}
                             <Select value={filters.status} onValueChange={(v) => setFilters({...filters, status: v})}>
-                                <SelectTrigger className="w-[140px] h-9">
+                                <SelectTrigger className="w-[140px] h-9 bg-white dark:bg-slate-900">
                                     <SelectValue placeholder="Status" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -277,8 +268,9 @@ export default function TransactionReview({
                                         variant="outline"
                                         onClick={() => handleQuickApprove(filteredData.filter(tx => selectedIds.has(tx.id)))}
                                         disabled={isProcessing}
+                                        className="bg-white dark:bg-slate-900"
                                     >
-                                        <Check className="mr-2 h-3.5 w-3.5 text-emerald-600" />
+                                        <Check className="mr-2 h-3.5 w-3.5 text-emerald-600 dark:text-emerald-500" />
                                         Approve
                                     </Button>
                                     <Button
@@ -286,6 +278,7 @@ export default function TransactionReview({
                                         variant="outline"
                                         onClick={() => setIsBulkEditDialogOpen(true)}
                                         disabled={isProcessing}
+                                        className="bg-white dark:bg-slate-900"
                                     >
                                         <FilePenLine className="mr-2 h-3.5 w-3.5" />
                                         Edit
@@ -293,7 +286,7 @@ export default function TransactionReview({
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        className="text-destructive hover:text-destructive"
+                                        className="text-destructive hover:text-destructive bg-white dark:bg-slate-900"
                                         onClick={handleBulkDelete}
                                         disabled={isProcessing}
                                     >
@@ -308,24 +301,24 @@ export default function TransactionReview({
                     {/* Table */}
                     <div className="overflow-x-auto max-h-[500px]">
                         <Table>
-                            <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
-                                <TableRow>
+                            <TableHeader className="bg-slate-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm transition-colors">
+                                <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-900 border-b-slate-200 dark:border-b-slate-800">
                                     <TableHead className="w-[40px] text-center">
                                         <input
                                             type="checkbox"
-                                            className="rounded border-gray-300"
+                                            className="rounded border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:checked:bg-primary"
                                             checked={filteredData.length > 0 && selectedIds.size === filteredData.length}
                                             onChange={handleSelectAll}
                                         />
                                     </TableHead>
-                                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('Transaction Date')}>
+                                    <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Transaction Date')}>
                                         Date {sortConfig.key === 'Transaction Date' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
                                     </TableHead>
-                                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('Transaction Name')}>
+                                    <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Transaction Name')}>
                                         Transaction {sortConfig.key === 'Transaction Name' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
                                     </TableHead>
                                     <TableHead>Details</TableHead>
-                                    <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('Amount')}>
+                                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Amount')}>
                                         Amount {sortConfig.key === 'Amount' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
                                     </TableHead>
                                     <TableHead>Status</TableHead>
@@ -351,11 +344,11 @@ export default function TransactionReview({
                                         const isSelected = selectedIds.has(tx.id);
 
                                         return (
-                                            <TableRow key={tx.id} className={cn("group", isSelected && "bg-slate-50")}>
+                                            <TableRow key={tx.id} className={cn("group transition-colors dark:border-slate-800", isSelected && "bg-slate-50 dark:bg-slate-900")}>
                                                 <TableCell className="text-center">
                                                     <input
                                                         type="checkbox"
-                                                        className="rounded border-gray-300"
+                                                        className="rounded border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:checked:bg-primary"
                                                         checked={isSelected}
                                                         onChange={() => handleSelectOne(tx.id)}
                                                     />
@@ -364,23 +357,27 @@ export default function TransactionReview({
                                                     {tx['Transaction Date']}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="font-medium text-sm">{tx['Transaction Name']}</div>
+                                                    <div className="font-medium text-sm dark:text-slate-200">{tx['Transaction Name']}</div>
                                                 </TableCell>
                                                 <TableCell className="text-xs space-y-1">
-                                                    {cardName && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500">Card:</span> {cardName}</div>}
-                                                    {tx['MCC Code'] && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500">MCC:</span> {tx['MCC Code']}</div>}
-                                                    {tx['Category'] && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500">Cat:</span> {tx['Category']}</div>}
+                                                    {cardName && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500 dark:text-slate-400">Card:</span> <span className="dark:text-slate-300">{cardName}</span></div>}
+                                                    {tx['MCC Code'] && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500 dark:text-slate-400">MCC:</span> <span className="dark:text-slate-300">{tx['MCC Code']}</span></div>}
+                                                    {tx['Category'] && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500 dark:text-slate-400">Cat:</span> <span className="dark:text-slate-300">{tx['Category']}</span></div>}
                                                 </TableCell>
-                                                <TableCell className="text-right font-medium">
+                                                <TableCell className="text-right font-medium dark:text-slate-200">
                                                     {currency(tx['Amount'])}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant="outline" className={cn(
                                                         "whitespace-nowrap",
-                                                        tx.statusType === 'success' && "bg-emerald-100 text-emerald-800 border-emerald-200",
-                                                        tx.statusType === 'warning' && "bg-amber-100 text-amber-800 border-amber-200",
-                                                        tx.statusType === 'error' && "bg-red-100 text-red-800 border-red-200",
-                                                        tx.statusType === 'info' && "bg-blue-50 text-blue-700 border-blue-200"
+                                                        // Success (Automated/Quick Approve)
+                                                        tx.statusType === 'success' && "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900",
+                                                        // Warning (Missing Info)
+                                                        tx.statusType === 'warning' && "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900",
+                                                        // Error (Mismatch)
+                                                        tx.statusType === 'error' && "bg-red-100 text-red-800 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-900",
+                                                        // Info (Review Needed)
+                                                        tx.statusType === 'info' && "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-900"
                                                     )}>
                                                         {tx.status}
                                                     </Badge>
@@ -394,7 +391,7 @@ export default function TransactionReview({
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuItem onClick={() => handleQuickApprove([tx])}>
-                                                                <Check className="mr-2 h-4 w-4 text-emerald-600" /> Approve
+                                                                <Check className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-500" /> Approve
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => onEditTransaction(tx)}>
                                                                 <FilePenLine className="mr-2 h-4 w-4" /> Edit
