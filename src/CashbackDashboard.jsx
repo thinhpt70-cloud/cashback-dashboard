@@ -30,7 +30,6 @@ import TransactionDetailsDialog from './components/dashboard/dialogs/Transaction
 import PaymentLogDialog from './components/dashboard/dialogs/PaymentLogDialog';
 import StatementLogDialog from './components/dashboard/dialogs/StatementLogDialog';
 import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
-import NeedsSyncingDialog from './components/dashboard/dialogs/NeedsSyncingDialog';
 
 // Import form components
 import AddTransactionForm from './components/dashboard/forms/AddTransactionForm';
@@ -46,7 +45,7 @@ import CurrentCashflowChart from "./components/dashboard/overview/CurrentCashflo
 import StatCards from './components/dashboard/overview/OverviewStatCards';
 
 // Import transactions tab components
-import TransactionReviewCenter from './components/dashboard/transactions/TransactionReviewCenter';
+import TransactionManager from './components/dashboard/transactions/TransactionManager';
 
 // Import authentication component
 import LoginScreen from './components/auth/LoginScreen';
@@ -965,7 +964,7 @@ export default function CashbackDashboard() {
 
                 {activeView === 'transactions' && (
                     <div className="pt-4 space-y-4">
-                        <TransactionReviewCenter
+                        <TransactionManager
                             transactions={reviewTransactions}
                             allTransactions={monthlyTransactions}
                             onReview={handleEditClick}
@@ -977,6 +976,12 @@ export default function CashbackDashboard() {
                             summaryMap={summaryMap}
                             onDelete={handleTransactionDeleted}
                             onBulkDelete={handleBulkDelete}
+                            onInlineEdit={handleTransactionUpdated}
+                            onBulkEdit={(updatedTransactions) => updatedTransactions.forEach(tx => handleTransactionApproved(tx))}
+                            needsSyncing={needsSyncing}
+                            onRetrySync={handleRetrySync}
+                            onRemoveSync={handleRemoveFromSync}
+                            categories={allCategories}
                         />
                         <TransactionsTab
                             isDesktop={isDesktop}
@@ -1104,13 +1109,6 @@ export default function CashbackDashboard() {
                 transactions={dialogTransactions}
                 isLoading={isDialogLoading}
                 currencyFn={currency}
-            />
-            <NeedsSyncingDialog
-                isOpen={isSyncingDialogOpen}
-                onClose={() => setIsSyncingDialogOpen(false)}
-                needsSyncing={needsSyncing}
-                onRetry={handleRetrySync}
-                onRemove={handleRemoveFromSync}
             />
         </div>
         </div>

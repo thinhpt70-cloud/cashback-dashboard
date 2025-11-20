@@ -4,9 +4,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { FilePenLine, CheckCircle, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Combobox } from '@/components/ui/combobox';
 import InlineEdit from './InlineEdit';
 
-const TransactionTableRow = ({ transaction, isSelected, onSelect, currencyFn, cardMap, rulesMap, mccMap, summaryMap, onReview, onApprove, onDelete, onInlineEdit }) => {
+const TransactionTableRow = ({ transaction, isSelected, onSelect, currencyFn, cardMap, rulesMap, mccMap, summaryMap, onReview, onApprove, onDelete, onInlineEdit, categories }) => {
     const {
         'Transaction Name': name,
         'Transaction Date': date,
@@ -43,6 +45,15 @@ const TransactionTableRow = ({ transaction, isSelected, onSelect, currencyFn, ca
                     onSave={(newValue) => onInlineEdit(transaction.id, { 'MCC Code': newValue })}
                 />
             </TableCell>
+            <TableCell>
+                <Combobox
+                    options={categories.map(c => ({ value: c, label: c }))}
+                    value={transaction.Category || ''}
+                    onChange={(newValue) => onInlineEdit(transaction.id, { 'Category': newValue })}
+                    placeholder="Select a category"
+                    searchPlaceholder="Search categories..."
+                />
+            </TableCell>
             <TableCell className={!rule ? 'bg-red-50 dark:bg-red-900/50' : ''}>
                 <InlineEdit
                     value={rule ? rule.ruleName : ''}
@@ -50,12 +61,15 @@ const TransactionTableRow = ({ transaction, isSelected, onSelect, currencyFn, ca
                 />
             </TableCell>
             <TableCell>
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger><p className="truncate max-w-[150px]">{summaryName}</p></TooltipTrigger>
-                        <TooltipContent>{summaryName}</TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
+                <Badge variant={isApprovable ? 'default' : 'destructive'}>
+                    {isApprovable ? 'Quick Approve' : 'Missing Info'}
+                </Badge>
+            </TableCell>
+            <TableCell>
+                Automated
+            </TableCell>
+            <TableCell className="text-right">
+                {currencyFn(amount)}
             </TableCell>
             <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2">
@@ -90,8 +104,11 @@ export default function TransactionTable({ transactions, selected, onSelect, onS
                         <TableHead>Transaction</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead>MCC</TableHead>
-                        <TableHead>Rule</TableHead>
-                        <TableHead>Summary ID</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Cashback Rule</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Method</TableHead>
+                        <TableHead>Final Amount</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>

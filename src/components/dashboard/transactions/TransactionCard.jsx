@@ -64,13 +64,23 @@ export default function TransactionCard({ transaction, isSelected, onSelect, cur
                     />
                 </div>
                 <div>
-                    <p className="font-semibold text-slate-400">Summary ID</p>
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger><p className="truncate" title={summaryName}>{summaryName}</p></TooltipTrigger>
-                            <TooltipContent>{summaryName}</TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                    <p className="font-semibold text-slate-400 dark:text-slate-500">Category</p>
+                    <InlineEdit
+                        value={transaction.Category || ''}
+                        onSave={(newValue) => onInlineEdit(transaction.id, { 'Category': newValue })}
+                    />
+                </div>
+                <div>
+                    <p className="font-semibold text-slate-400 dark:text-slate-500">Status</p>
+                    <p>{isApprovable ? 'Quick Approve' : 'Missing Info'}</p>
+                </div>
+                <div>
+                    <p className="font-semibold text-slate-400 dark:text-slate-500">Method</p>
+                    <p>Automated</p>
+                </div>
+                <div>
+                    <p className="font-semibold text-slate-400 dark:text-slate-500">Final Amount</p>
+                    <p>{currencyFn(amount)}</p>
                 </div>
             </div>
 
