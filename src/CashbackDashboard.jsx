@@ -137,21 +137,6 @@ export default function CashbackDashboard() {
         refreshData(true);
     };
 
-    // Create the handler for a successful approval
-    const handleTransactionApproved = (approvedTransaction) => {
-        // Instantly remove the approved transaction from the review list
-        setReviewTransactions(prevReview =>
-            prevReview.filter(tx => tx.id !== approvedTransaction.id)
-        );
-
-        setMonthlyTransactions(prevTxs =>
-            prevTxs.map(tx => tx.id === approvedTransaction.id ? approvedTransaction : tx)
-        );
-        setRecentTransactions(prevRecent =>
-            prevRecent.map(tx => tx.id === approvedTransaction.id ? approvedTransaction : tx)
-        );
-    };
-
     const handleViewTransactions = useCallback(async (cardId, cardName, month, monthLabel) => {
         setDialogDetails({ cardId, cardName, month, monthLabel });
         setIsDialogLoading(true);
@@ -488,8 +473,6 @@ export default function CashbackDashboard() {
     }, [cards]);
 
     const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
-    const rulesMap = useMemo(() => new Map(rules.map(r => [r.id, r])), [rules]);
-    const summaryMap = useMemo(() => new Map(monthlyCategorySummary.map(s => [s.id, s])), [monthlyCategorySummary]);
 
 
     // --- NEW: CONSOLIDATED STATS LOGIC ---
