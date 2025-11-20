@@ -51,15 +51,16 @@ export default function TransactionReview({
 
             // Check conditions
             const hasMcc = !!tx['MCC Code'];
-            const hasSummary = !!tx['Card Summary Category'] && tx['Card Summary Category'].length > 0;
+            // Logic prioritizes Missing Rule over Missing Summary
+            const hasRule = !!tx['Applicable Rule'] && tx['Applicable Rule'].length > 0;
             const isMatch = tx['Match']; // Boolean from Notion
             const isAutomated = tx['Automated']; // Boolean from Notion
 
             if (!hasMcc) {
                 status = 'Missing MCC';
                 statusType = 'warning';
-            } else if (!hasSummary) {
-                status = 'Missing Summary';
+            } else if (!hasRule) {
+                status = 'Missing Rule';
                 statusType = 'warning';
             } else if (!isMatch) {
                 status = 'Mismatch';
@@ -161,8 +162,9 @@ export default function TransactionReview({
             if (!res.ok) throw new Error("Approval failed");
 
             const updatedTxs = await res.json();
+
             onRefresh();
-            setSelectedIds(new Set()); 
+            setSelectedIds(new Set()); // Clear selection
             toast.success(`Approved ${updatedTxs.length} transactions.`);
 
         } catch (error) {
@@ -317,7 +319,13 @@ export default function TransactionReview({
                                     <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Transaction Name')}>
                                         Transaction {sortConfig.key === 'Transaction Name' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
                                     </TableHead>
+                                    {/* CHANGED: Details now only contains Card and MCC */}
                                     <TableHead>Details</TableHead>
+                                    {/* CHANGED: Added separate Category column */}
+                                    <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Category')}>
+                                        Category {sortConfig.key === 'Category' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
+                                    </TableHead>
+                                    <TableHead>Cashback Rule</TableHead>
                                     <TableHead className="text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Amount')}>
                                         Amount {sortConfig.key === 'Amount' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
                                     </TableHead>
@@ -328,19 +336,21 @@ export default function TransactionReview({
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center">
+                                        {/* Adjusted colSpan to 9 to account for extra column */}
+                                        <TableCell colSpan={9} className="h-24 text-center">
                                             <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                                         </TableCell>
                                     </TableRow>
                                 ) : filteredData.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                                        <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                                             No transactions match the filters.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     filteredData.map(tx => {
                                         const cardName = tx['Card'] && cards.find(c => c.id === tx['Card'][0])?.name;
+                                        const ruleName = tx['Applicable Rule'] && rules.find(r => r.id === tx['Applicable Rule'][0])?.ruleName;
                                         const isSelected = selectedIds.has(tx.id);
 
                                         return (
@@ -359,10 +369,29 @@ export default function TransactionReview({
                                                 <TableCell>
                                                     <div className="font-medium text-sm dark:text-slate-200">{tx['Transaction Name']}</div>
                                                 </TableCell>
+                                                {/* CHANGED: Details column only shows Card and MCC */}
                                                 <TableCell className="text-xs space-y-1">
                                                     {cardName && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500 dark:text-slate-400">Card:</span> <span className="dark:text-slate-300">{cardName}</span></div>}
                                                     {tx['MCC Code'] && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500 dark:text-slate-400">MCC:</span> <span className="dark:text-slate-300">{tx['MCC Code']}</span></div>}
-                                                    {tx['Category'] && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500 dark:text-slate-400">Cat:</span> <span className="dark:text-slate-300">{tx['Category']}</span></div>}
+                                                </TableCell>
+                                                {/* CHANGED: New Category Column */}
+                                                <TableCell className="text-sm">
+                                                    {tx['Category'] ? (
+                                                        <Badge variant="secondary" className="font-normal bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200">
+                                                            {tx['Category']}
+                                                        </Badge>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground italic">Uncategorized</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-sm">
+                                                    {ruleName ? (
+                                                        <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-slate-100 text-slate-900 hover:bg-slate-200/80 dark:bg-slate-800 dark:text-slate-50">
+                                                            {ruleName}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground italic">None</span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="text-right font-medium dark:text-slate-200">
                                                     {currency(tx['Amount'])}
@@ -370,13 +399,9 @@ export default function TransactionReview({
                                                 <TableCell>
                                                     <Badge variant="outline" className={cn(
                                                         "whitespace-nowrap",
-                                                        // Success (Automated/Quick Approve)
                                                         tx.statusType === 'success' && "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900",
-                                                        // Warning (Missing Info)
                                                         tx.statusType === 'warning' && "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900",
-                                                        // Error (Mismatch)
                                                         tx.statusType === 'error' && "bg-red-100 text-red-800 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-900",
-                                                        // Info (Review Needed)
                                                         tx.statusType === 'info' && "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-900"
                                                     )}>
                                                         {tx.status}
