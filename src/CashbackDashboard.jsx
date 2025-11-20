@@ -44,6 +44,7 @@ import CummulativeResultsChart from "./components/dashboard/overview/Cummulative
 import RecentTransactions from './components/dashboard/overview/RecentTransactions';
 import CurrentCashflowChart from "./components/dashboard/overview/CurrentCashflowChart";
 import StatCards from './components/dashboard/overview/OverviewStatCards';
+import TransactionReview from './components/dashboard/transactions/TransactionReview';
 
 // Import authentication component
 import LoginScreen from './components/auth/LoginScreen';
@@ -99,8 +100,16 @@ export default function CashbackDashboard() {
         recentTransactions, allCategories, commonVendors, reviewTransactions,
         loading, error, refreshData,
         setRecentTransactions, setReviewTransactions,
-        cashbackRules, monthlyCashbackCategories, liveSummary
+        cashbackRules, monthlyCashbackCategories, liveSummary,
+        fetchReviewTransactions, reviewLoading
     } = useCashbackData(isAuthenticated);
+
+    // Fetch review transactions when tab is active
+    useEffect(() => {
+        if (activeView === 'transactions') {
+            fetchReviewTransactions();
+        }
+    }, [activeView, fetchReviewTransactions]);
 
     const handleLogout = async () => {
         try {
@@ -126,21 +135,6 @@ export default function CashbackDashboard() {
 
         // 3. Trigger a full refresh in the background to update all aggregate data (charts, stats, etc.) without a loading screen.
         refreshData(true);
-    };
-
-    // Create the handler for a successful approval
-    const handleTransactionApproved = (approvedTransaction) => {
-        // Instantly remove the approved transaction from the review list
-        setReviewTransactions(prevReview =>
-            prevReview.filter(tx => tx.id !== approvedTransaction.id)
-        );
-
-        setMonthlyTransactions(prevTxs =>
-            prevTxs.map(tx => tx.id === approvedTransaction.id ? approvedTransaction : tx)
-        );
-        setRecentTransactions(prevRecent =>
-            prevRecent.map(tx => tx.id === approvedTransaction.id ? approvedTransaction : tx)
-        );
     };
 
     const handleViewTransactions = useCallback(async (cardId, cardName, month, monthLabel) => {
@@ -479,8 +473,6 @@ export default function CashbackDashboard() {
     }, [cards]);
 
     const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
-    const rulesMap = useMemo(() => new Map(rules.map(r => [r.id, r])), [rules]);
-    const summaryMap = useMemo(() => new Map(monthlyCategorySummary.map(s => [s.id, s])), [monthlyCategorySummary]);
 
 
     // --- NEW: CONSOLIDATED STATS LOGIC ---
@@ -961,7 +953,17 @@ export default function CashbackDashboard() {
                 )}
 
                 {activeView === 'transactions' && (
-                    <div className="pt-4 space-y-4">x
+                    <div className="pt-4 space-y-4">
+                        <TransactionReview
+                            transactions={reviewTransactions}
+                            isLoading={reviewLoading}
+                            onRefresh={fetchReviewTransactions}
+                            cards={cards}
+                            categories={allCategories}
+                            rules={cashbackRules}
+                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                            onEditTransaction={handleEditClick}
+                        />
                         <TransactionsTab
                             isDesktop={isDesktop}
                             transactions={activeMonth === 'live' ? recentTransactions : monthlyTransactions}

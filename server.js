@@ -58,6 +58,7 @@ const mapTransaction = (tx) => {
         'Applicable Rule': props['Applicable Rule'],
         'Card Summary Category': props['Card Summary Category'],
         'Match': props['Match'],
+        'Automated': props['Automated'],
     };
 };
 
@@ -327,6 +328,45 @@ app.get('/api/transactions', async (req, res) => {
     }
 });
 
+app.post('/api/transactions/batch-update', async (req, res) => {
+    const { updates } = req.body; // Expecting [{ id, properties }]
+
+    if (!updates || !Array.isArray(updates) || updates.length === 0) {
+        return res.status(400).json({ error: 'An array of updates is required.' });
+    }
+
+    try {
+        const results = await Promise.all(updates.map(async (update) => {
+            const { id, properties } = update;
+
+            // Construct Notion properties object
+            const propertiesToUpdate = {};
+
+            // Map fields supported by bulk edit
+            if (properties.mccCode !== undefined) propertiesToUpdate['MCC Code'] = { rich_text: [{ text: { content: String(properties.mccCode) } }] };
+            if (properties.category !== undefined) propertiesToUpdate['Category'] = { select: { name: properties.category } };
+            if (properties.cardId !== undefined) propertiesToUpdate['Card'] = { relation: [{ id: properties.cardId }] };
+            if (properties.applicableRuleId !== undefined) propertiesToUpdate['Applicable Rule'] = properties.applicableRuleId ? { relation: [{ id: properties.applicableRuleId }] } : { relation: [] };
+            if (properties.cardSummaryCategoryId !== undefined) propertiesToUpdate['Card Summary Category'] = properties.cardSummaryCategoryId ? { relation: [{ id: properties.cardSummaryCategoryId }] } : { relation: [] };
+
+            // Perform Update
+            await notion.pages.update({
+                page_id: id,
+                properties: propertiesToUpdate,
+            });
+
+            const updatedPage = await notion.pages.retrieve({ page_id: id });
+            return mapTransaction(updatedPage);
+        }));
+
+        res.status(200).json(results);
+
+    } catch (error) {
+        console.error('Error batch updating transactions:', error.body || error);
+        res.status(500).json({ error: 'Failed to batch update transactions.' });
+    }
+});
+
 app.post('/api/transactions/bulk-approve', async (req, res) => {
     const { ids } = req.body;
 
@@ -337,7 +377,22 @@ app.post('/api/transactions/bulk-approve', async (req, res) => {
     try {
         const approvedTransactions = await Promise.all(ids.map(async (id) => {
             const page = await notion.pages.retrieve({ page_id: id });
-            const newName = page.properties.Merchant.rich_text[0].plain_text || page.properties['Transaction Name'].title[0].plain_text.substring(6);
+
+            // Safer logic to determine new name
+            let newName = null;
+            if (page.properties.Merchant && page.properties.Merchant.rich_text && page.properties.Merchant.rich_text.length > 0) {
+                 newName = page.properties.Merchant.rich_text[0].plain_text;
+            }
+
+            if (!newName) {
+                const oldName = page.properties['Transaction Name'].title[0]?.plain_text || "";
+                if (oldName.startsWith("Email_")) {
+                    newName = oldName.substring(6);
+                } else {
+                    newName = oldName; // If not Email_, keep it as is but uncheck Automated
+                }
+            }
+
             await notion.pages.update({
                 page_id: id,
                 properties: {
