@@ -79,8 +79,8 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             setMerchant(initialMerchant || '');
             setAmount((initialData['Amount'] || '').toLocaleString('en-US'));
             setDate(initialData['Transaction Date'] || new Date().toISOString().slice(0, 10));
-            setCardId(initialData['Card'] ? initialData['Card'][0] : '');
-            setApplicableRuleId(initialData['Applicable Rule'] ? initialData['Applicable Rule'][0] : '');
+            setCardId(initialData['Card'] ? String(initialData['Card'][0]) : '');
+            setApplicableRuleId(initialData['Applicable Rule'] ? String(initialData['Applicable Rule'][0]) : '');
             setCardSummaryCategoryId(initialData['Card Summary Category'] ? initialData['Card Summary Category'][0] : 'new'); // <-- ADDED THIS
             setCategory(initialData['Category'] || '');
             setMccCode(initialData['MCC Code'] || '');
@@ -123,9 +123,15 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cardId, cards]);
     const filteredRules = useMemo(() => {
         if (!cardId) return [];
-        // FIX: Changed `a.name` to `a.ruleName` to match API and prevent sorting crash
-        return rules.filter(rule => rule.cardId === cardId)
-            .sort((a, b) => (a.ruleName || '').localeCompare(b.ruleName || ''));
+        return rules.filter(rule => {
+            // 1. Handle if cardId is an Array (from Airtable/DB) or String
+            const rCardId = Array.isArray(rule.cardId) ? rule.cardId[0] : rule.cardId;
+            
+            // 2. FORCE STRING comparison to avoid "123" !== 123 mismatch
+            return String(rCardId) === String(cardId);
+        })
+        // Fallback to rule.name if rule.ruleName is missing
+        .sort((a, b) => (a.ruleName || a.name || '').localeCompare(b.ruleName || b.name || ''));
     }, [cardId, rules]);
 
     const selectedRule = useMemo(() => rules.find(r => r.id === applicableRuleId), [applicableRuleId, rules]);
