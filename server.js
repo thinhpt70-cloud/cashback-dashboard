@@ -245,6 +245,8 @@ const findBestMatchTransaction = async (cleanName, currentId) => {
 const calculateSmartUpdates = async (transaction, match, cleanName) => {
     const updates = {};
     const log = [];
+    let status = 'skipped';
+    let reason = 'No matching history found';
 
     // 1. Transaction Name
     // Use match name if available, otherwise use cleanName
@@ -269,11 +271,19 @@ const calculateSmartUpdates = async (transaction, match, cleanName) => {
             finalRuleId = match['Applicable Rule'][0];
             updates['Applicable Rule'] = { relation: [{ id: finalRuleId }] };
         }
+
+        // Mark as Approved
+        status = 'approved';
+        reason = 'Matched with history';
+        updates['Automated'] = { checkbox: false };
     } else {
         // Fallback: If no match, check if current transaction already has a rule
         if (transaction['Applicable Rule'] && transaction['Applicable Rule'].length > 0) {
             finalRuleId = transaction['Applicable Rule'][0];
         }
+
+        // Do NOT uncheck Automated if no match found
+        // However, if we just renamed it, it might be cleaner to keep it for review
     }
 
     // 3. Fix Linkage / Mismatch
@@ -289,10 +299,7 @@ const calculateSmartUpdates = async (transaction, match, cleanName) => {
         }
     }
 
-    // 4. Always Uncheck Automated
-    updates['Automated'] = { checkbox: false };
-
-    return { updates, log };
+    return { updates, log, status, reason };
 };
 
 // ----------------------------------
@@ -526,13 +533,20 @@ app.post('/api/transactions/bulk-approve', async (req, res) => {
     // The frontend sent specific updates to apply
     if (items && Array.isArray(items)) {
         try {
-            const results = await Promise.all(items.map(async (item) => {
-                await notion.pages.update({
-                    page_id: item.id,
-                    properties: item.updates
-                });
-                return item.id;
-            }));
+            const results = [];
+            // Process sequentially to allow robust error handling and rate limiting if needed
+            for (const item of items) {
+                try {
+                    await notion.pages.update({
+                        page_id: item.id,
+                        properties: item.updates
+                    });
+                    results.push(item.id);
+                } catch (innerError) {
+                    console.error(`Failed to update transaction ${item.id} in bulk-approve`, innerError);
+                    // Continue
+                }
+            }
             return res.status(200).json(results);
         } catch (error) {
             console.error('Error applying specific updates:', error.body || error);
@@ -544,7 +558,7 @@ app.post('/api/transactions/bulk-approve', async (req, res) => {
     // The frontend just sent IDs, so we calculate the standard logic here
     if (ids && Array.isArray(ids)) {
         try {
-            const approvedTransactions = [];
+            const results = [];
             // Process sequentially to avoid Notion rate limits (or use a limited concurrency queue if needed)
             // For now, standard sequential loop is safer for bulk operations involving multiple sub-queries
             for (const id of ids) {
@@ -563,7 +577,7 @@ app.post('/api/transactions/bulk-approve', async (req, res) => {
                     const match = await findBestMatchTransaction(cleanName, id);
 
                     // 4. Calculate Updates
-                    const { updates } = await calculateSmartUpdates(transaction, match, cleanName);
+                    const { updates, status, reason } = await calculateSmartUpdates(transaction, match, cleanName);
 
                     // 5. Apply Updates
                     await notion.pages.update({
@@ -571,9 +585,13 @@ app.post('/api/transactions/bulk-approve', async (req, res) => {
                         properties: updates
                     });
 
-                    // 6. Return mapped object
+                    // 6. Return result object
                     const updatedPage = await notion.pages.retrieve({ page_id: id });
-                    approvedTransactions.push(mapTransaction(updatedPage));
+                    results.push({
+                        ...mapTransaction(updatedPage),
+                        approvalStatus: status, // 'approved' or 'skipped'
+                        approvalReason: reason
+                    });
 
                 } catch (innerError) {
                     console.error(`Failed to approve transaction ${id}`, innerError);
@@ -581,7 +599,7 @@ app.post('/api/transactions/bulk-approve', async (req, res) => {
                 }
             }
 
-            return res.status(200).json(approvedTransactions);
+            return res.status(200).json(results);
 
         } catch (error) {
             console.error('Error in smart bulk approve:', error.body || error);
@@ -1452,14 +1470,16 @@ app.post('/api/transactions/analyze-approval', async (req, res) => {
             const match = await findBestMatchTransaction(cleanName, id);
 
             // 4. Calculate Updates
-            const { updates, log } = await calculateSmartUpdates(transaction, match, cleanName);
+            const { updates, log, status, reason } = await calculateSmartUpdates(transaction, match, cleanName);
 
             analysisResults.push({
                 id: transaction.id,
                 currentName: transaction['Transaction Name'],
                 newName: updates['Transaction Name']?.title[0]?.text?.content || transaction['Transaction Name'],
                 updates: updates,
-                logs: log
+                logs: log,
+                status: status,
+                reason: reason
             });
         }
 
