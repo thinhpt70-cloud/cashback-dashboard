@@ -215,6 +215,88 @@ const addSelectOption = async (propertyName, optionName) => {
     });
 };
 
+// --- SHARED SMART LOGIC HELPERS ---
+
+const findBestMatchTransaction = async (cleanName, currentId) => {
+    try {
+        // Search history for the clean name
+        const response = await notion.databases.query({
+            database_id: transactionsDbId,
+            page_size: 5, // Get a few to filter
+            filter: {
+                property: 'Transaction Name',
+                title: { contains: cleanName }
+            },
+            sorts: [{ property: 'Transaction Date', direction: 'descending' }],
+        });
+
+        // Filter out the current transaction ID and return the first match
+        const matches = response.results.filter(r => r.id !== currentId);
+        if (matches.length > 0) {
+            return mapTransaction(matches[0]); // Use our mapper for consistency
+        }
+        return null;
+    } catch (error) {
+        console.error("Error in findBestMatchTransaction:", error);
+        return null;
+    }
+};
+
+const calculateSmartUpdates = async (transaction, match, cleanName) => {
+    const updates = {};
+    const log = [];
+
+    // 1. Transaction Name
+    // Use match name if available, otherwise use cleanName
+    const newName = match ? match['Transaction Name'] : cleanName;
+    updates['Transaction Name'] = { title: [{ text: { content: newName } }] };
+    log.push(match ? `Matched history: "${match['Transaction Name']}"` : `Renamed to "${cleanName}"`);
+
+    // 2. Metadata (Copy from match if available)
+    let finalRuleId = null;
+
+    if (match) {
+        // MCC
+        if (match['MCC Code']) {
+            updates['MCC Code'] = { rich_text: [{ text: { content: String(match['MCC Code']) } }] };
+        }
+        // Category
+        if (match['Category']) {
+            updates['Category'] = { select: { name: match['Category'] } };
+        }
+        // Applicable Rule
+        if (match['Applicable Rule'] && match['Applicable Rule'].length > 0) {
+            finalRuleId = match['Applicable Rule'][0];
+            updates['Applicable Rule'] = { relation: [{ id: finalRuleId }] };
+        }
+    } else {
+        // Fallback: If no match, check if current transaction already has a rule
+        if (transaction['Applicable Rule'] && transaction['Applicable Rule'].length > 0) {
+            finalRuleId = transaction['Applicable Rule'][0];
+        }
+    }
+
+    // 3. Fix Linkage / Mismatch
+    // If we have a Rule and a Month, ensure Summary Category is correct
+    const cardId = transaction['Card'] && transaction['Card'][0];
+    const month = transaction['Cashback Month'];
+
+    if (finalRuleId && cardId && month) {
+        const summaryId = await getOrCreateSummaryId(cardId, month, finalRuleId);
+        if (summaryId) {
+            updates['Card Summary Category'] = { relation: [{ id: summaryId }] };
+            log.push("Fixed Summary Linkage");
+        }
+    }
+
+    // 4. Always Uncheck Automated
+    updates['Automated'] = { checkbox: false };
+
+    return { updates, log };
+};
+
+// ----------------------------------
+
 app.post('/api/login', (req, res) => {
     const pin = String((req.body && req.body.pin) ?? '').trim();
     const correctPin = String(process.env.ACCESS_PASSWORD ?? '').trim();
@@ -462,46 +544,47 @@ app.post('/api/transactions/bulk-approve', async (req, res) => {
     // The frontend just sent IDs, so we calculate the standard logic here
     if (ids && Array.isArray(ids)) {
         try {
-            const approvedTransactions = await Promise.all(ids.map(async (id) => {
-                const page = await notion.pages.retrieve({ page_id: id });
+            const approvedTransactions = [];
+            // Process sequentially to avoid Notion rate limits (or use a limited concurrency queue if needed)
+            // For now, standard sequential loop is safer for bulk operations involving multiple sub-queries
+            for (const id of ids) {
+                try {
+                    // 1. Fetch Transaction
+                    const page = await notion.pages.retrieve({ page_id: id });
+                    const transaction = mapTransaction(page);
 
-                // --- Logic to Determine New Name ---
-                let newName = null;
-                // Priority 1: Existing Merchant Field
-                if (page.properties.Merchant && page.properties.Merchant.rich_text && page.properties.Merchant.rich_text.length > 0) {
-                     newName = page.properties.Merchant.rich_text[0].plain_text;
-                }
-
-                // Priority 2: Strip "Email_" prefix
-                if (!newName) {
-                    const oldName = page.properties['Transaction Name'].title[0]?.plain_text || "";
-                    if (oldName.startsWith("Email_")) {
-                        newName = oldName.substring(6);
-                    } else {
-                        newName = oldName; 
+                    // 2. Clean Name (Strip "Email_")
+                    let cleanName = transaction['Transaction Name'] || "";
+                    if (cleanName.startsWith("Email_")) {
+                        cleanName = cleanName.substring(6);
                     }
-                }
 
-                // --- Perform Update ---
-                await notion.pages.update({
-                    page_id: id,
-                    properties: {
-                        'Transaction Name': {
-                            title: [{ text: { content: newName } }]
-                        },
-                        'Automated': { checkbox: false },
-                    }
-                });
-                
-                // Return mapped object
-                const updatedPage = await notion.pages.retrieve({ page_id: id });
-                return mapTransaction(updatedPage);
-            }));
+                    // 3. Find Match in History
+                    const match = await findBestMatchTransaction(cleanName, id);
+
+                    // 4. Calculate Updates
+                    const { updates } = await calculateSmartUpdates(transaction, match, cleanName);
+
+                    // 5. Apply Updates
+                    await notion.pages.update({
+                        page_id: id,
+                        properties: updates
+                    });
+
+                    // 6. Return mapped object
+                    const updatedPage = await notion.pages.retrieve({ page_id: id });
+                    approvedTransactions.push(mapTransaction(updatedPage));
+
+                } catch (innerError) {
+                    console.error(`Failed to approve transaction ${id}`, innerError);
+                    // Continue with next transaction even if one fails
+                }
+            }
 
             return res.status(200).json(approvedTransactions);
 
         } catch (error) {
-            console.error('Error in simple bulk approve:', error.body || error);
+            console.error('Error in smart bulk approve:', error.body || error);
             return res.status(500).json({ error: 'Failed to approve transactions.' });
         }
     }
@@ -1351,87 +1434,31 @@ app.post('/api/transactions/analyze-approval', async (req, res) => {
     if (!ids || !Array.isArray(ids)) return res.status(400).json({ error: 'IDs required' });
 
     try {
-        // 1. Fetch all Active Vendors for Lookup
-        const vendorsResponse = await notion.databases.query({
-            database_id: process.env.NOTION_VENDORS_DB_ID,
-            filter: { property: 'Active', checkbox: { equals: true } },
-        });
-        const vendors = vendorsResponse.results.map(p => parseNotionPageProperties(p));
-
         const analysisResults = [];
 
-        // 2. Process each transaction
+        // Process each transaction with the shared smart logic
         for (const id of ids) {
+            // 1. Fetch Transaction
             const page = await notion.pages.retrieve({ page_id: id });
-            const tx = mapTransaction(page);
-            const updates = {};
-            const log = [];
-            let matchedVendor = null;
+            const transaction = mapTransaction(page);
 
-            // --- LOGIC A: Merchant Lookup (Priority 1) ---
-            // Check if Tx Name contains a Vendor Name
-            matchedVendor = vendors.find(v => 
-                tx['Transaction Name'].toLowerCase().includes(v['Transaction Name']?.toLowerCase() || "#####") || 
-                tx['Transaction Name'].toLowerCase().includes(v['Name']?.toLowerCase() || "#####")
-            );
-
-            if (matchedVendor) {
-                log.push(`Matched Vendor: ${matchedVendor['Name']}`);
-                
-                // Update Merchant Name
-                updates['Transaction Name'] = { title: [{ text: { content: matchedVendor['Merchant'] || matchedVendor['Name'] } }] };
-                updates['Merchant'] = { rich_text: [{ text: { content: matchedVendor['Merchant'] || matchedVendor['Name'] } }] };
-                
-                // Update MCC
-                if (matchedVendor['MCC']) {
-                    updates['MCC Code'] = { rich_text: [{ text: { content: String(matchedVendor['MCC']) } }] };
-                }
-
-                // Update Rule & Category
-                if (matchedVendor['Preferred Cashback Rule'] && matchedVendor['Preferred Cashback Rule'].length > 0) {
-                    const ruleId = matchedVendor['Preferred Cashback Rule'][0];
-                    updates['Applicable Rule'] = { relation: [{ id: ruleId }] };
-                    
-                    // Also update Summary Category based on this new Rule
-                    if (tx['Cashback Month']) {
-                        const summaryId = await getOrCreateSummaryId(tx['Card'][0], tx['Cashback Month'], ruleId);
-                        if (summaryId) updates['Card Summary Category'] = { relation: [{ id: summaryId }] };
-                    }
-                }
-            } 
-            
-            // --- LOGIC B: Mismatch Fix (Priority 2 - Only if not fully handled by Vendor) ---
-            else if (!tx['Match'] && tx['Applicable Rule'] && tx['Applicable Rule'].length > 0 && tx['Cashback Month']) {
-                log.push("Fixing Mismatch (Syncing Summary Category)");
-                const ruleId = tx['Applicable Rule'][0];
-                const summaryId = await getOrCreateSummaryId(tx['Card'][0], tx['Cashback Month'], ruleId);
-                
-                if (summaryId) {
-                    updates['Card Summary Category'] = { relation: [{ id: summaryId }] };
-                }
-            }
-            
-            // --- LOGIC C: Standard Cleanup (Default) ---
-            else {
-                // Standard Name cleanup if no vendor match
-                const currentName = tx['Transaction Name'];
-                if (currentName.startsWith("Email_")) {
-                    const cleanName = currentName.substring(6);
-                    updates['Transaction Name'] = { title: [{ text: { content: cleanName } }] };
-                    log.push("Standard cleanup (Removed Email_ prefix)");
-                } else {
-                    log.push("Standard approval");
-                }
+            // 2. Clean Name (Strip "Email_")
+            let cleanName = transaction['Transaction Name'] || "";
+            if (cleanName.startsWith("Email_")) {
+                cleanName = cleanName.substring(6);
             }
 
-            // Always uncheck Automated
-            updates['Automated'] = { checkbox: false };
+            // 3. Find Match in History
+            const match = await findBestMatchTransaction(cleanName, id);
+
+            // 4. Calculate Updates
+            const { updates, log } = await calculateSmartUpdates(transaction, match, cleanName);
 
             analysisResults.push({
-                id: tx.id,
-                currentName: tx['Transaction Name'],
-                newName: updates['Transaction Name']?.title[0]?.text?.content || tx['Transaction Name'],
-                updates: updates, // Pass the constructed Notion update object back to frontend
+                id: transaction.id,
+                currentName: transaction['Transaction Name'],
+                newName: updates['Transaction Name']?.title[0]?.text?.content || transaction['Transaction Name'],
+                updates: updates,
                 logs: log
             });
         }
