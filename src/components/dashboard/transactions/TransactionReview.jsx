@@ -19,6 +19,7 @@ import {
 import { cn } from "../../../lib/utils";
 import { toast } from 'sonner';
 import BulkEditDialog from '../dialogs/BulkEditDialog';
+import BulkApproveDialog from '../../dashboard/dialogs/BulkApproveDialog';
 
 export default function TransactionReview({
     transactions,
@@ -45,6 +46,7 @@ export default function TransactionReview({
 
     // Bulk Edit State
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
+    const [isBulkApproveDialogOpen, setIsBulkApproveDialogOpen] = useState(false); // New state
     const [isProcessing, setIsProcessing] = useState(false);
 
     // --- 1. Logic to Calculate Status ---
@@ -184,31 +186,43 @@ export default function TransactionReview({
     const handleQuickApprove = async (txsToApprove) => {
         if (txsToApprove.length === 0) return;
 
-        setIsProcessing(true);
-        try {
-            const ids = txsToApprove.map(t => t.id);
-            const res = await fetch('/api/transactions/bulk-approve', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids })
-            });
+        const ids = txsToApprove.map(t => t.id);
 
-            if (!res.ok) throw new Error("Approval failed");
+        // CASE 1: Single Transaction (Automatic)
+        if (ids.length === 1) {
+            setIsProcessing(true);
+            try {
+                const res = await fetch('/api/transactions/bulk-approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids })
+                });
 
-            const updatedTxs = await res.json();
-            onRefresh();
-            // Remove approved IDs from selection
-            const newSelected = new Set(selectedIds);
-            ids.forEach(id => newSelected.delete(id));
-            setSelectedIds(newSelected);
+                if (!res.ok) throw new Error("Approval failed");
 
-            toast.success(`Approved ${updatedTxs.length} transactions.`);
+                const updatedTxs = await res.json();
+                onRefresh();
 
-        } catch (error) {
-            console.error(error);
-            toast.error("Failed to approve transactions.");
-        } finally {
-            setIsProcessing(false);
+                const newSelected = new Set(selectedIds);
+                ids.forEach(id => newSelected.delete(id));
+                setSelectedIds(newSelected);
+
+                // Check status of single item
+                if (updatedTxs && updatedTxs[0] && updatedTxs[0].approvalStatus === 'skipped') {
+                    toast.warning(`Renamed only: ${updatedTxs[0].approvalReason}`);
+                } else {
+                    toast.success(`Approved transaction.`);
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error("Failed to approve transaction.");
+            } finally {
+                setIsProcessing(false);
+            }
+        }
+        // CASE 2: Multiple Transactions (Open Dialog)
+        else {
+            setIsBulkApproveDialogOpen(true);
         }
     };
 
@@ -371,7 +385,7 @@ export default function TransactionReview({
                                         className="bg-white dark:bg-slate-900 text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:bg-emerald-50"
                                     >
                                         <Check className="mr-2 h-3.5 w-3.5" />
-                                        Approve
+                                        Auto Approve
                                     </Button>
                                     <Button
                                         size="sm"
@@ -525,7 +539,7 @@ export default function TransactionReview({
                                                                     </DropdownMenuTrigger>
                                                                     <DropdownMenuContent align="end">
                                                                         <DropdownMenuItem onClick={() => handleQuickApprove([tx])}>
-                                                                            <Check className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-500" /> Approve
+                                                                            <Check className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-500" /> Auto Approve
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuItem onClick={() => onEditTransaction(tx)}>
                                                                             <FilePenLine className="mr-2 h-4 w-4" /> Edit
@@ -548,7 +562,7 @@ export default function TransactionReview({
                                                                     size="icon" 
                                                                     className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                                                                     onClick={() => handleQuickApprove([tx])}
-                                                                    title="Approve"
+                                                                    title="Auto Approve"
                                                                     disabled={isProcessing}
                                                                 >
                                                                     <Check className="h-4 w-4" />
@@ -598,6 +612,17 @@ export default function TransactionReview({
                 rules={rules}
                 getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
                 onUpdateComplete={() => {
+                    onRefresh();
+                    setSelectedIds(new Set());
+                }}
+            />
+
+            {/* Bulk Approve Dialog */}
+            <BulkApproveDialog
+                isOpen={isBulkApproveDialogOpen}
+                onClose={() => setIsBulkApproveDialogOpen(false)}
+                selectedIds={Array.from(selectedIds)}
+                onApproveComplete={() => {
                     onRefresh();
                     setSelectedIds(new Set());
                 }}
