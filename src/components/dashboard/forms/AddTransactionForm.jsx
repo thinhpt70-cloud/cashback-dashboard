@@ -566,7 +566,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                     <div className="space-y-2">
                         <label htmlFor="rule">Applicable Cashback Rule</label>
                         <div className="flex items-center gap-2">
-                        <Select value={applicableRuleId} onValueChange={setApplicableRuleId} disabled={filteredRules.length === 0}>
+                        <Select value={applicableRuleId} onValueChange={(val) => val && setApplicableRuleId(val)} disabled={filteredRules.length === 0}>
                             <SelectTrigger>
                                 <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules for this card' : 'None'} />
                             </SelectTrigger>
