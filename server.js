@@ -62,6 +62,75 @@ const mapTransaction = (tx) => {
     };
 };
 
+// HELPER: Reusable function to find or create a Card Summary Category
+const getOrCreateSummaryId = async (cardId, month, ruleId) => {
+    try {
+        // Get names for titles
+        const cardPage = await notion.pages.retrieve({ page_id: cardId });
+        const bankName = cardPage.properties['Bank']?.select?.name || 'Untitled Bank';
+        
+        const rulePage = await notion.pages.retrieve({ page_id: ruleId });
+        const ruleName = rulePage.properties['Rule Name']?.title[0]?.plain_text || 'Untitled Rule';
+
+        const summaryName = `${month} - ${ruleName}`;
+        const trackerId = `${bankName} - ${month}`;
+
+        // 1. Check if Summary exists
+        const existingSummaryResponse = await notion.databases.query({
+            database_id: process.env.NOTION_MONTHLY_CATEGORY_DB_ID,
+            filter: {
+                and: [
+                    { property: 'Summary ID', title: { equals: summaryName } },
+                    { property: 'Card', relation: { contains: cardId } },
+                    { property: 'Month', select: { equals: month } },
+                ],
+            },
+            page_size: 1,
+        });
+
+        if (existingSummaryResponse.results.length > 0) {
+            return existingSummaryResponse.results[0].id;
+        }
+
+        // 2. If not, find/create Parent Tracker
+        let trackerPageId;
+        const trackerResponse = await notion.databases.query({
+            database_id: process.env.NOTION_MONTHLY_SUMMARY_DB_ID,
+            filter: { property: 'Tracker ID', title: { equals: trackerId } },
+        });
+
+        if (trackerResponse.results.length > 0) {
+            trackerPageId = trackerResponse.results[0].id;
+        } else {
+            const newTracker = await notion.pages.create({
+                parent: { database_id: process.env.NOTION_MONTHLY_SUMMARY_DB_ID },
+                properties: {
+                    'Tracker ID': { title: [{ text: { content: trackerId } }] },
+                    'Card': { relation: [{ id: cardId }] },
+                    'Month': { select: { name: month } },
+                },
+            });
+            trackerPageId = newTracker.id;
+        }
+
+        // 3. Create new Summary
+        const newSummary = await notion.pages.create({
+            parent: { database_id: process.env.NOTION_MONTHLY_CATEGORY_DB_ID },
+            properties: {
+                'Summary ID': { title: [{ text: { content: summaryName } }] },
+                'Card': { relation: [{ id: cardId }] },
+                'Month': { select: { name: month } },
+                'Cashback Rule': { relation: [{ id: ruleId }] },
+                'Cashback Tracker': { relation: [{ id: trackerPageId }] },
+            },
+        });
+        return newSummary.id;
+    } catch (error) {
+        console.error("Error in getOrCreateSummaryId", error);
+        return null;
+    }
+};
+
 
 // Helper function to safely extract properties from a Notion page
 const parseNotionPageProperties = (page) => {
@@ -92,6 +161,7 @@ const parseNotionPageProperties = (page) => {
                 if (prop.formula.type === 'number') result[key] = prop.formula.number;
                 else if (prop.formula.type === 'string') result[key] = prop.formula.string;
                 else if (prop.formula.type === 'date') result[key] = prop.formula.date?.start;
+                else if (prop.formula.type === 'boolean') result[key] = prop.formula.boolean; // <--- ADD THIS LINE
                 break;
             case 'relation':
                  // Return an array of related page IDs
@@ -368,53 +438,76 @@ app.post('/api/transactions/batch-update', async (req, res) => {
 });
 
 app.post('/api/transactions/bulk-approve', async (req, res) => {
-    const { ids } = req.body;
+    const { ids, items } = req.body;
 
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-        return res.status(400).json({ error: 'An array of transaction IDs is required.' });
+    // CASE 1: Specific Approval (from "Analyze" dialog)
+    // The frontend sent specific updates to apply
+    if (items && Array.isArray(items)) {
+        try {
+            const results = await Promise.all(items.map(async (item) => {
+                await notion.pages.update({
+                    page_id: item.id,
+                    properties: item.updates
+                });
+                return item.id;
+            }));
+            return res.status(200).json(results);
+        } catch (error) {
+            console.error('Error applying specific updates:', error.body || error);
+            return res.status(500).json({ error: 'Failed to apply specific updates.' });
+        }
     }
 
-    try {
-        const approvedTransactions = await Promise.all(ids.map(async (id) => {
-            const page = await notion.pages.retrieve({ page_id: id });
+    // CASE 2: Simple/Quick Approval (Direct button click)
+    // The frontend just sent IDs, so we calculate the standard logic here
+    if (ids && Array.isArray(ids)) {
+        try {
+            const approvedTransactions = await Promise.all(ids.map(async (id) => {
+                const page = await notion.pages.retrieve({ page_id: id });
 
-            // Safer logic to determine new name
-            let newName = null;
-            if (page.properties.Merchant && page.properties.Merchant.rich_text && page.properties.Merchant.rich_text.length > 0) {
-                 newName = page.properties.Merchant.rich_text[0].plain_text;
-            }
-
-            if (!newName) {
-                const oldName = page.properties['Transaction Name'].title[0]?.plain_text || "";
-                if (oldName.startsWith("Email_")) {
-                    newName = oldName.substring(6);
-                } else {
-                    newName = oldName; // If not Email_, keep it as is but uncheck Automated
+                // --- Logic to Determine New Name ---
+                let newName = null;
+                // Priority 1: Existing Merchant Field
+                if (page.properties.Merchant && page.properties.Merchant.rich_text && page.properties.Merchant.rich_text.length > 0) {
+                     newName = page.properties.Merchant.rich_text[0].plain_text;
                 }
-            }
 
-            await notion.pages.update({
-                page_id: id,
-                properties: {
-                    'Transaction Name': {
-                        title: [{
-                            text: {
-                                content: newName
-                            }
-                        }]
-                    },
-                    'Automated': { checkbox: false },
+                // Priority 2: Strip "Email_" prefix
+                if (!newName) {
+                    const oldName = page.properties['Transaction Name'].title[0]?.plain_text || "";
+                    if (oldName.startsWith("Email_")) {
+                        newName = oldName.substring(6);
+                    } else {
+                        newName = oldName; 
+                    }
                 }
-            });
-            const updatedPage = await notion.pages.retrieve({ page_id: id });
-            return mapTransaction(updatedPage);
-        }));
 
-        res.status(200).json(approvedTransactions);
-    } catch (error) {
-        console.error('Error bulk approving transactions in Notion:', error.body || error);
-        res.status(500).json({ error: 'Failed to approve transactions.' });
+                // --- Perform Update ---
+                await notion.pages.update({
+                    page_id: id,
+                    properties: {
+                        'Transaction Name': {
+                            title: [{ text: { content: newName } }]
+                        },
+                        'Automated': { checkbox: false },
+                    }
+                });
+                
+                // Return mapped object
+                const updatedPage = await notion.pages.retrieve({ page_id: id });
+                return mapTransaction(updatedPage);
+            }));
+
+            return res.status(200).json(approvedTransactions);
+
+        } catch (error) {
+            console.error('Error in simple bulk approve:', error.body || error);
+            return res.status(500).json({ error: 'Failed to approve transactions.' });
+        }
     }
+
+    // If neither 'ids' nor 'items' was provided
+    return res.status(400).json({ error: 'Invalid payload. Request must contain "ids" or "items".' });
 });
 
 app.post('/api/transactions/bulk-edit', async (req, res) => {
@@ -1249,6 +1342,105 @@ app.patch('/api/transactions/:id/approve', async (req, res) => {
     } catch (error) {
         console.error('Failed to quick approve transaction:', error);
         res.status(500).json({ message: 'Error updating transaction in Notion.' });
+    }
+});
+
+// POST /api/transactions/analyze-approval
+app.post('/api/transactions/analyze-approval', async (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids)) return res.status(400).json({ error: 'IDs required' });
+
+    try {
+        // 1. Fetch all Active Vendors for Lookup
+        const vendorsResponse = await notion.databases.query({
+            database_id: process.env.NOTION_VENDORS_DB_ID,
+            filter: { property: 'Active', checkbox: { equals: true } },
+        });
+        const vendors = vendorsResponse.results.map(p => parseNotionPageProperties(p));
+
+        const analysisResults = [];
+
+        // 2. Process each transaction
+        for (const id of ids) {
+            const page = await notion.pages.retrieve({ page_id: id });
+            const tx = mapTransaction(page);
+            const updates = {};
+            const log = [];
+            let matchedVendor = null;
+
+            // --- LOGIC A: Merchant Lookup (Priority 1) ---
+            // Check if Tx Name contains a Vendor Name
+            matchedVendor = vendors.find(v => 
+                tx['Transaction Name'].toLowerCase().includes(v['Transaction Name']?.toLowerCase() || "#####") || 
+                tx['Transaction Name'].toLowerCase().includes(v['Name']?.toLowerCase() || "#####")
+            );
+
+            if (matchedVendor) {
+                log.push(`Matched Vendor: ${matchedVendor['Name']}`);
+                
+                // Update Merchant Name
+                updates['Transaction Name'] = { title: [{ text: { content: matchedVendor['Merchant'] || matchedVendor['Name'] } }] };
+                updates['Merchant'] = { rich_text: [{ text: { content: matchedVendor['Merchant'] || matchedVendor['Name'] } }] };
+                
+                // Update MCC
+                if (matchedVendor['MCC']) {
+                    updates['MCC Code'] = { rich_text: [{ text: { content: String(matchedVendor['MCC']) } }] };
+                }
+
+                // Update Rule & Category
+                if (matchedVendor['Preferred Cashback Rule'] && matchedVendor['Preferred Cashback Rule'].length > 0) {
+                    const ruleId = matchedVendor['Preferred Cashback Rule'][0];
+                    updates['Applicable Rule'] = { relation: [{ id: ruleId }] };
+                    
+                    // Also update Summary Category based on this new Rule
+                    if (tx['Cashback Month']) {
+                        const summaryId = await getOrCreateSummaryId(tx['Card'][0], tx['Cashback Month'], ruleId);
+                        if (summaryId) updates['Card Summary Category'] = { relation: [{ id: summaryId }] };
+                    }
+                }
+            } 
+            
+            // --- LOGIC B: Mismatch Fix (Priority 2 - Only if not fully handled by Vendor) ---
+            else if (!tx['Match'] && tx['Applicable Rule'] && tx['Applicable Rule'].length > 0 && tx['Cashback Month']) {
+                log.push("Fixing Mismatch (Syncing Summary Category)");
+                const ruleId = tx['Applicable Rule'][0];
+                const summaryId = await getOrCreateSummaryId(tx['Card'][0], tx['Cashback Month'], ruleId);
+                
+                if (summaryId) {
+                    updates['Card Summary Category'] = { relation: [{ id: summaryId }] };
+                }
+            }
+            
+            // --- LOGIC C: Standard Cleanup (Default) ---
+            else {
+                // Standard Name cleanup if no vendor match
+                const currentName = tx['Transaction Name'];
+                if (currentName.startsWith("Email_")) {
+                    const cleanName = currentName.substring(6);
+                    updates['Transaction Name'] = { title: [{ text: { content: cleanName } }] };
+                    log.push("Standard cleanup (Removed Email_ prefix)");
+                } else {
+                    log.push("Standard approval");
+                }
+            }
+
+            // Always uncheck Automated
+            updates['Automated'] = { checkbox: false };
+
+            analysisResults.push({
+                id: tx.id,
+                currentName: tx['Transaction Name'],
+                newName: updates['Transaction Name']?.title[0]?.text?.content || tx['Transaction Name'],
+                updates: updates, // Pass the constructed Notion update object back to frontend
+                logs: log
+            });
+        }
+
+        res.json(analysisResults);
+
+    } catch (error) {
+        console.error("Analyze Error", error);
+        res.status(500).json({ error: "Failed to analyze" });
     }
 });
 
