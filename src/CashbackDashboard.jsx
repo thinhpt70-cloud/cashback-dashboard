@@ -96,7 +96,7 @@ export default function CashbackDashboard() {
     const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
     const {
-        cards, rules, monthlySummary, mccMap, monthlyCategorySummary,
+        cards, allCards, rules, monthlySummary, mccMap, monthlyCategorySummary,
         recentTransactions, allCategories, commonVendors, reviewTransactions,
         loading, error, refreshData,
         setRecentTransactions, setReviewTransactions,
@@ -451,28 +451,28 @@ export default function CashbackDashboard() {
             'Frozen': 2,
             'Closed': 3,
         };
-        return [...cards].sort((a, b) => {
+        return [...allCards].sort((a, b) => { // Use allCards here to include Closed ones
             const statusDiff = (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
             if (statusDiff !== 0) {
                 return statusDiff;
             }
             return a.name.localeCompare(b.name);
         });
-    }, [cards]);
+    }, [allCards]);
 
     // --- MEMOIZED DATA PROCESSING ---
 
     const cardColorMap = useMemo(() => {
         const map = new Map();
         // Sort cards by name to ensure color assignment is stable
-        const sortedCards = [...cards].sort((a, b) => a.name.localeCompare(b.name));
+        const sortedCards = [...allCards].sort((a, b) => a.name.localeCompare(b.name)); // Use allCards here
         sortedCards.forEach((card, index) => {
             map.set(card.name, COLORS[index % COLORS.length]);
         });
         return map;
-    }, [cards]);
+    }, [allCards]);
 
-    const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
+    const cardMap = useMemo(() => new Map(allCards.map(c => [c.id, c])), [allCards]); // Use allCards here
 
 
     // --- NEW: CONSOLIDATED STATS LOGIC ---
@@ -570,12 +570,12 @@ export default function CashbackDashboard() {
     // ADD THIS NEW HOOK to calculate stats for the "My Cards" tab
     const cardsTabStats = useMemo(() => {
         // This now gets the total spending directly from the cards data
-        const totalYtdSpending = cards.reduce((acc, card) => acc + (card.totalSpendingYtd || 0), 0);
+        const totalYtdSpending = allCards.reduce((acc, card) => acc + (card.totalSpendingYtd || 0), 0); // Use allCards
 
-        const totalYtdCashback = cards.reduce((acc, card) => acc + (card.estYtdCashback || 0), 0);
-        const totalAnnualFee = cards.reduce((acc, card) => acc + (card.annualFee || 0), 0);
+        const totalYtdCashback = allCards.reduce((acc, card) => acc + (card.estYtdCashback || 0), 0);
+        const totalAnnualFee = allCards.reduce((acc, card) => acc + (card.annualFee || 0), 0);
         const overallEffectiveRate = totalYtdSpending > 0 ? (totalYtdCashback / totalYtdSpending) * 100 : 0;
-        const numberOfCards = cards.length;
+        const numberOfCards = allCards.length;
 
         return {
             totalYtdSpending,
@@ -585,7 +585,7 @@ export default function CashbackDashboard() {
             numberOfCards
         };
     // The dependency on 'monthlySummary' is no longer needed here
-    }, [cards]);
+    }, [allCards]);
 
     const cardPerformanceData = useMemo(() => {
         const allMonths = [...new Set(monthlySummary.map(s => s.month))].sort();
@@ -1056,7 +1056,7 @@ export default function CashbackDashboard() {
                 {activeView === 'payments' && (
                     <div className="space-y-4 pt-4">
                         <PaymentsTabV2
-                            cards={cards}
+                            cards={allCards} // Pass allCards (including Closed) to Payments tab
                             monthlySummary={monthlySummary}
                             currencyFn={currency}
                             fmtYMShortFn={fmtYMShort}
@@ -1725,10 +1725,17 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
         const pastDue = [];
         const upcoming = [];
         const completed = [];
+        const closed = []; // NEW: Bucket for Closed cards
 
         paymentData.forEach(p => {
             if (!p.mainStatement) {
                 return;
+            }
+
+            // Check if card is closed
+            if (p.mainStatement.card && p.mainStatement.card.status === 'Closed') {
+                closed.push(p);
+                return; // Skip the rest of logic for closed cards, they go straight to their own bucket
             }
 
             const {
@@ -1753,7 +1760,7 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
             }
         });
 
-        return { pastDue, upcoming, completed };
+        return { pastDue, upcoming, completed, closed };
     }, [paymentData]);
 
     const handleSavePayment = async (statementId, newPaidAmount) => {
@@ -1905,6 +1912,34 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                             />
                         ))}
                     </div>
+                )}
+
+                {paymentGroups.closed.length > 0 && (
+                    <Accordion type="single" collapsible className="w-full pt-4">
+                        <AccordionItem value="closed-cards-payments">
+                            <AccordionTrigger className="text-base font-semibold text-muted-foreground">
+                                Show Closed Cards ({paymentGroups.closed.length})
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <div className="space-y-4 pt-4">
+                                    {paymentGroups.closed.map(({ mainStatement, ...rest }) => (
+                                        <PaymentCard
+                                            key={mainStatement.id}
+                                            statement={mainStatement}
+                                            {...rest}
+                                            onLogPayment={handleLogPaymentClick}
+                                            onLogStatement={handleLogStatementClick}
+                                            onViewTransactions={onViewTransactions}
+                                            currencyFn={currencyFn}
+                                            fmtYMShortFn={fmtYMShort}
+                                            onLoadMore={handleLoadMore}
+                                            isLoadingMore={isLoadingMore}
+                                        />
+                                    ))}
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
                 )}
             </div>
             {activeStatement && (

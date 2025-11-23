@@ -805,10 +805,11 @@ app.patch('/api/transactions/:id', async (req, res) => {
 
 // Fetch All Cards
 app.get('/api/cards', async (req, res) => {
+    const { includeClosed } = req.query;
     try {
         const response = await notion.databases.query({ database_id: cardsDbId });
         // UPDATED: Renaming properties to be more JS-friendly
-        const results = response.results.map(page => {
+        let results = response.results.map(page => {
             const parsed = parseNotionPageProperties(page);
             return {
                 id: parsed.id,
@@ -835,6 +836,12 @@ app.get('/api/cards', async (req, res) => {
                 foreignFee: parsed['Foreign Fee'],
             };
         });
+
+        // If 'includeClosed' is NOT 'true', filter out the Closed cards
+        if (includeClosed !== 'true') {
+            results = results.filter(card => card.status !== 'Closed');
+        }
+
         res.json(results);
     } catch (error) {
         console.error('Failed to fetch cards:', error);

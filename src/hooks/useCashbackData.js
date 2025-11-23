@@ -7,7 +7,8 @@ const API_BASE_URL = '/api';
 export default function useCashbackData(isAuthenticated) {
     
     // --- STATE MANAGEMENT ---
-    const [cards, setCards] = useState([]);
+    const [allCards, setAllCards] = useState([]); // NEW: Stores ALL cards, including Closed
+    const [cards, setCards] = useState([]); // Stores only Active/Frozen cards (filtered)
     const [rules, setRules] = useState([]);
     const [monthlySummary, setMonthlySummary] = useState([]);
     const [mccMap, setMccMap] = useState({});
@@ -39,7 +40,7 @@ export default function useCashbackData(isAuthenticated) {
                 categoriesRes,
                 commonVendorsRes,
             ] = await Promise.all([
-                fetch(`${API_BASE_URL}/cards`),
+                fetch(`${API_BASE_URL}/cards?includeClosed=true`), // UPDATED: Fetch all cards
                 fetch(`${API_BASE_URL}/rules`),
                 fetch(`${API_BASE_URL}/monthly-summary`),
                 fetch(`${API_BASE_URL}/mcc-codes`),
@@ -65,7 +66,10 @@ export default function useCashbackData(isAuthenticated) {
             const commonVendorsData = await commonVendorsRes.json();
 
             // Set all the state variables for the application
-            setCards(cardsData);
+            setAllCards(cardsData);
+            // Filter out 'Closed' cards for the main 'cards' state used by most of the app
+            setCards(cardsData.filter(c => c.status !== 'Closed'));
+
             setRules(rulesData);
             setMonthlySummary(monthlyData);
             setMccMap(mccData.mccDescriptionMap || {});
@@ -158,7 +162,8 @@ export default function useCashbackData(isAuthenticated) {
     // --- Return everything the component needs ---
     return {
         // Data states
-        cards,
+        cards,    // Filtered (Active/Frozen)
+        allCards, // Complete list (including Closed)
         rules,
         monthlySummary,
         liveSummary, // This is now calculated with the new logic
