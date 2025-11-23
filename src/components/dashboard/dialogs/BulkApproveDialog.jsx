@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "../../ui/dialog";
@@ -13,15 +13,7 @@ export default function BulkApproveDialog({ isOpen, onClose, selectedIds, onAppr
     const [analysis, setAnalysis] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    useEffect(() => {
-        if (isOpen && selectedIds.length > 0) {
-            analyzeTransactions();
-        } else {
-            setAnalysis([]);
-        }
-    }, [isOpen, selectedIds]);
-
-    const analyzeTransactions = async () => {
+    const analyzeTransactions = useCallback(async () => {
         setIsLoading(true);
         try {
             const res = await fetch('/api/transactions/analyze-approval', {
@@ -39,7 +31,15 @@ export default function BulkApproveDialog({ isOpen, onClose, selectedIds, onAppr
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [selectedIds, onClose]);
+
+    useEffect(() => {
+        if (isOpen && selectedIds.length > 0) {
+            analyzeTransactions();
+        } else {
+            setAnalysis([]);
+        }
+    }, [isOpen, selectedIds, analyzeTransactions]);
 
     const handleConfirm = async () => {
         setIsSubmitting(true);
