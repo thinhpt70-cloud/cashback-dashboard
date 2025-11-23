@@ -13,7 +13,7 @@ function RateStatusBadge({ suggestion }) {
     if (suggestion.isBoosted) {
         return (
             // Using green for active boost, which works well on light/dark
-            <Badge variant="default" className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white dark:text-green-100 text-xs h-5 px-2">
+            <Badge variant="default" className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white dark:text-green-100 text-xs h-5 px-2 whitespace-nowrap overflow-hidden text-ellipsis shrink-[3] min-w-[40px]">
                 ✨ Tier 2 Active
             </Badge>
         );
@@ -22,7 +22,7 @@ function RateStatusBadge({ suggestion }) {
     if (suggestion.hasTier2) {
         return (
              // Adding specific dark mode styles for the outline badge
-            <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700 text-xs h-5 px-2">
+            <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700 text-xs h-5 px-2 whitespace-nowrap overflow-hidden text-ellipsis shrink-[3] min-w-[40px]">
                 Tier 2 Available
             </Badge>
         );
@@ -334,8 +334,8 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
 
                 {/* Scenarios 2 & 3: At least one suggestion exists */}
                 {suggestions.length > 0 && (
-                    // --- MODIFIED: Added min-h-0 here ---
-                    <div className="space-y-3 flex flex-col flex-1 min-h-0"> 
+                    // --- MODIFIED: Removed min-h-0 to allow full scrolling ---
+                    <div className="space-y-3 flex flex-col flex-1">
                         
                         {/* --- MODIFIED: Top Pick is now an Accordion --- */}
                         <Accordion type="single" collapsible className="w-full">
@@ -403,13 +403,13 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
 
                         {/* Scenario 3: More than one suggestion */}
                         {otherSuggestions.length > 0 && (
-                            <div className="flex flex-col flex-1 min-h-0">
+                            <div className="flex flex-col flex-1">
                                 <div className="flex items-center gap-3 my-3">
                                     <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">Other Suggestions</h4>
                                     <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
                                 </div>
                                 
-                                <Accordion type="single" collapsible className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2">
+                                <Accordion type="single" collapsible className="flex-1 space-y-2">
                                     {otherSuggestions.map((s, index) => {
                                         return (
                                             <AccordionItem 
