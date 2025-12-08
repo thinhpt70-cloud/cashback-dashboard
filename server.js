@@ -834,6 +834,9 @@ app.get('/api/cards', async (req, res) => {
                 tier2MinSpend: parsed['Tier 2 Minimum Monthly Spend'],
                 tier2Limit: parsed['Tier 2 Monthly Limit'],
                 foreignFee: parsed['Foreign Fee'],
+                tier1PaymentType: parsed['Tier 1 Cashback Payment Type'],
+                tier2PaymentType: parsed['Tier 2 Cashback Payment Type'],
+                minPointsRedeem: parsed['Minimum Points Redeem'],
             };
         });
 
@@ -905,6 +908,9 @@ app.get('/api/monthly-summary', async (req, res) => {
                 statementAmount: parsed['Statement Amount'],
                 paidAmount: parsed['Paid Amount'],
                 monthlyCashbackLimit: parsed['Cashback Limit'],
+                adjustment: parsed['Adjustment'] || 0,
+                notes: parsed['Notes'],
+                amountRedeemed: parsed['Amount Redeemed'] || 0,
             };
         });
         res.json(results);
@@ -1305,10 +1311,10 @@ app.post('/api/summaries', async (req, res) => {
 
 app.patch('/api/monthly-summary/:id', async (req, res) => {
     const { id } = req.params;
-    const { paidAmount, statementAmount } = req.body; // <-- Destructure both possible values
+    const { paidAmount, statementAmount, adjustment, notes, amountRedeemed } = req.body;
 
     try {
-        const propertiesToUpdate = {}; // <-- Create an empty object
+        const propertiesToUpdate = {};
 
         // Conditionally add properties if they exist in the request
         if (typeof paidAmount === 'number') {
@@ -1317,15 +1323,24 @@ app.patch('/api/monthly-summary/:id', async (req, res) => {
         if (typeof statementAmount === 'number') {
             propertiesToUpdate['Statement Amount'] = { number: statementAmount };
         }
+        if (typeof adjustment === 'number') {
+            propertiesToUpdate['Adjustment'] = { number: adjustment };
+        }
+        if (typeof amountRedeemed === 'number') {
+            propertiesToUpdate['Amount Redeemed'] = { number: amountRedeemed };
+        }
+        if (notes !== undefined) {
+             propertiesToUpdate['Notes'] = { rich_text: [{ text: { content: notes || "" } }] };
+        }
 
         // Check if there's anything to update
         if (Object.keys(propertiesToUpdate).length === 0) {
-            return res.status(400).json({ error: 'No valid amount provided to update.' });
+            return res.status(400).json({ error: 'No valid fields provided to update.' });
         }
 
         await notion.pages.update({
             page_id: id,
-            properties: propertiesToUpdate, // <-- Use the dynamic object here
+            properties: propertiesToUpdate,
         });
         res.status(200).json({ success: true, message: 'Summary updated successfully.' });
     } catch (error) {

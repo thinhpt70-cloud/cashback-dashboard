@@ -45,6 +45,7 @@ import RecentTransactions from './components/dashboard/overview/RecentTransactio
 import CurrentCashflowChart from "./components/dashboard/overview/CurrentCashflowChart";
 import StatCards from './components/dashboard/overview/OverviewStatCards';
 import TransactionReview from './components/dashboard/transactions/TransactionReview';
+import CashbackTracker from './components/dashboard/cashback/CashbackTracker';
 
 // Import authentication component
 import LoginScreen from './components/auth/LoginScreen';
@@ -70,6 +71,7 @@ const navItems = [
     { view: 'overview', icon: LayoutDashboard, label: 'Overview' },
     { view: 'transactions', icon: ArrowLeftRight, label: 'Transactions' },
     { view: 'cards', icon: CreditCard, label: 'My Cards' },
+    { view: 'cashback', icon: DollarSign, label: 'Cashback' },
     { view: 'payments', icon: Banknote, label: 'Payments' },
 ];
 
@@ -1050,6 +1052,16 @@ export default function CashbackDashboard() {
                                 </>
                             );
                         })()}
+                    </div>
+                )}
+
+                {activeView === 'cashback' && (
+                    <div className="space-y-4 pt-4">
+                        <CashbackTracker
+                            cards={cards}
+                            monthlySummary={monthlySummary}
+                            onUpdate={() => refreshData(true)}
+                        />
                     </div>
                 )}
 
