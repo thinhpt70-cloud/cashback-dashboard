@@ -8,8 +8,7 @@ import { Label } from "../../ui/label";
 import { Textarea } from "../../ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
-import { DollarSign, AlertCircle, Edit2, CheckCircle, Calendar, ArrowRight } from "lucide-react";
+import { DollarSign, Edit2, CheckCircle } from "lucide-react";
 import { calculateCashbackSplit, calculatePaymentDate, getPaymentStatus } from '../../../lib/cashback-logic';
 import { toast } from "sonner";
 
