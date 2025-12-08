@@ -1,5 +1,3 @@
-import { getTodaysMonth } from './date';
-
 /**
  * Calculates the split of cashback into Tier 1 and Tier 2 based on the card's monthly limit.
  *
