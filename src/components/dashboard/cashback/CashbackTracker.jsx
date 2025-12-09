@@ -77,7 +77,7 @@ export default function CashbackTracker({
                 tier2Paid,
                 tier2Status,
                 remainingDue: Math.max(0, total - redeemed),
-                isPoints: tier1Method.toLowerCase().includes('point'),
+                isPoints: typeof tier1Method === 'string' && tier1Method.toLowerCase().includes('point'),
             };
         }).filter(Boolean).sort((a, b) => b.month.localeCompare(a.month)); // Sort by month desc
     }, [monthlySummary, cards]);
