@@ -23,7 +23,7 @@ import { calculateCashbackSplit, calculatePaymentDate, getPaymentStatus } from '
 
 const API_BASE_URL = '/api';
 
-const currency = (n) => new Intl.NumberFormat('en-US', { style: 'decimal' }).format(n);
+const currency = (n) => new Intl.NumberFormat('en-US', { style: 'decimal', maximumFractionDigits: 0 }).format(n);
 
 function CashVoucherCard({ item, onMarkReceived, onEdit }) {
     const isPaid = item.remainingDue <= 0;
@@ -211,9 +211,9 @@ export default function CashbackTracker({
             const tier2Paid = Math.max(0, redeemed - tier1);
 
             // Dates & Status
-            const tier1Date = calculatePaymentDate(summary.month, tier1Method, card.statementDay);
+            const tier1Date = calculatePaymentDate(summary.month, tier1Method, card.statementDay, card.paymentDueDay);
             const tier1Status = getPaymentStatus(tier1, tier1Paid, tier1Date);
-            const tier2Date = calculatePaymentDate(summary.month, tier2Method, card.statementDay);
+            const tier2Date = calculatePaymentDate(summary.month, tier2Method, card.statementDay, card.paymentDueDay);
             const tier2Status = getPaymentStatus(tier2, tier2Paid, tier2Date);
 
             // Note: If limit is 0, tier2 is 0. If isPoints is true, we generally assume the whole thing is points.
