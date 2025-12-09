@@ -7,7 +7,10 @@
  * @returns {{ total: number, tier1: number, tier2: number }}
  */
 export const calculateCashbackSplit = (actualCashback, adjustment, monthlyLimit) => {
-    const total = (actualCashback || 0) + (adjustment || 0);
+    // ACTUAL CASHBACK from Notion already includes the adjustment (via Formula).
+    // So we use it directly as the total.
+    const total = (actualCashback || 0);
+
     // If there is no limit, everything is Tier 1 (or treat as single tier)
     if (!monthlyLimit || monthlyLimit <= 0) {
         return { total, tier1: total, tier2: 0 };
@@ -25,36 +28,56 @@ export const calculateCashbackSplit = (actualCashback, adjustment, monthlyLimit)
  * @param {string} cashbackMonth - Format "YYYYMM" (e.g., "202310").
  * @param {string} paymentType - "M0", "M+1", "M+2", "Points", or null.
  * @param {number} statementDay - The card's statement day.
+ * @param {number} [paymentDueDay] - The card's payment due day (optional, for more accurate due date calculation).
  * @returns {Date|string|null} - Returns a Date object for definite dates, "Accumulating" for points, or null.
  */
-export const calculatePaymentDate = (cashbackMonth, paymentType, statementDay) => {
+export const calculatePaymentDate = (cashbackMonth, paymentType, statementDay, paymentDueDay) => {
     if (!cashbackMonth || !paymentType || !statementDay) return null;
 
     // Ensure paymentType is a string before checking for 'point'
     if (typeof paymentType === 'string' && paymentType.toLowerCase().includes('point')) return 'Accumulating';
 
-    const year = parseInt(cashbackMonth.substring(0, 4), 10);
-    const month = parseInt(cashbackMonth.substring(4, 6), 10); // 1-12
+    let year, month;
+    if (cashbackMonth.includes('-')) {
+        // Handle YYYY-MM
+        year = parseInt(cashbackMonth.split('-')[0], 10);
+        month = parseInt(cashbackMonth.split('-')[1], 10);
+    } else {
+        // Handle YYYYMM
+        year = parseInt(cashbackMonth.substring(0, 4), 10);
+        month = parseInt(cashbackMonth.substring(4, 6), 10);
+    }
 
     let offset = 0;
     if (paymentType === 'M0') offset = 0;
     else if (paymentType === 'M+1') offset = 1;
     else if (paymentType === 'M+2') offset = 2;
-    else return null; // Unknown type
+    // Fallback for custom strings or unknown types (treat as M+1 if not handled?)
+    // For now return null if unknown to avoid bad dates
+    else if (!['M0', 'M+1', 'M+2'].includes(paymentType)) return null;
 
-    // Calculate target month (0-indexed for Date constructor is month-1)
-    // We want the statement date of the target month.
-    // e.g. Month 202310 (Oct). Statement Day 20.
-    // M0 -> Oct 20.
-    // M+1 -> Nov 20.
+    // Base target month (1-indexed) after applying offset
+    // e.g. Month 10 (Oct), M+1 -> Target 11 (Nov)
+    let targetMonth = month + offset;
+    let targetYear = year;
 
-    // Date constructor: new Date(year, monthIndex, day)
-    // monthIndex: 0 = Jan.
-    // Our 'month' variable is 1-based. So Oct is 10.
-    // To get Oct, we use index 9.
-    // But we want (month - 1) + offset.
+    // If paymentDueDay is provided, use logic similar to Payments Tab to determine exact due date
+    if (paymentDueDay) {
+        // Rollover logic: If paymentDueDay < statementDay, the due date is in the NEXT month relative to the statement month.
+        // Also ensure we compare numbers
+        if (Number(paymentDueDay) < Number(statementDay)) {
+            targetMonth += 1;
+        }
+        // Handle year rollover logic is done by Date constructor, but passing correct 0-indexed month is key.
+        // Date(year, monthIndex, day) handles overflow (e.g. monthIndex 12 becomes Jan next year).
+        // targetMonth is 1-indexed (1..12+), so we pass targetMonth - 1.
 
-    const targetDate = new Date(year, (month - 1) + offset, statementDay);
+        const targetDate = new Date(targetYear, targetMonth - 1, paymentDueDay);
+        return targetDate;
+    }
+
+    // Fallback to Statement Day if paymentDueDay is not provided (Old behavior)
+    const targetDate = new Date(targetYear, targetMonth - 1, statementDay);
     return targetDate;
 };
 
