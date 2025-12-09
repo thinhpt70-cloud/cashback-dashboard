@@ -23,7 +23,7 @@ import { calculateCashbackSplit, calculatePaymentDate, getPaymentStatus } from '
 
 const API_BASE_URL = '/api';
 
-const currency = (n) => new Intl.NumberFormat('en-US', { style: 'decimal' }).format(n);
+const currency = (n) => new Intl.NumberFormat('en-US', { style: 'decimal', maximumFractionDigits: 0 }).format(n);
 
 function CashVoucherCard({ item, onMarkReceived, onEdit }) {
     const isPaid = item.remainingDue <= 0;
