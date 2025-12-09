@@ -28,14 +28,18 @@ export const calculateCashbackSplit = (actualCashback, adjustment, monthlyLimit)
  * @param {string} cashbackMonth - Format "YYYYMM" (e.g., "202310").
  * @param {string} paymentType - "M0", "M+1", "M+2", "Points", or null.
  * @param {number} statementDay - The card's statement day.
- * @param {number} [paymentDueDay] - The card's payment due day (optional, for more accurate due date calculation).
  * @returns {Date|string|null} - Returns a Date object for definite dates, "Accumulating" for points, or null.
  */
-export const calculatePaymentDate = (cashbackMonth, paymentType, statementDay, paymentDueDay) => {
+export const calculatePaymentDate = (cashbackMonth, paymentType, statementDay) => {
+    // We need cashbackMonth, paymentType, and statementDay to form a date.
     if (!cashbackMonth || !paymentType || !statementDay) return null;
 
-    // Ensure paymentType is a string before checking for 'point'
-    if (typeof paymentType === 'string' && paymentType.toLowerCase().includes('point')) return 'Accumulating';
+    // Ensure paymentType is a string and normalize it (Trim, Uppercase, Remove spaces)
+    // This handles inputs like "m+1", "M + 1", "Points", "points ", etc.
+    const normalizedType = String(paymentType).trim().toUpperCase().replace(/\s+/g, '');
+
+    // Check for 'POINT' in the normalized string
+    if (normalizedType.includes('POINT')) return 'Accumulating';
 
     let year, month;
     if (cashbackMonth.includes('-')) {
@@ -49,34 +53,20 @@ export const calculatePaymentDate = (cashbackMonth, paymentType, statementDay, p
     }
 
     let offset = 0;
-    if (paymentType === 'M0') offset = 0;
-    else if (paymentType === 'M+1') offset = 1;
-    else if (paymentType === 'M+2') offset = 2;
-    // Fallback for custom strings or unknown types (treat as M+1 if not handled?)
-    // For now return null if unknown to avoid bad dates
-    else if (!['M0', 'M+1', 'M+2'].includes(paymentType)) return null;
+    if (normalizedType === 'M0') offset = 0;
+    else if (normalizedType === 'M+1') offset = 1;
+    else if (normalizedType === 'M+2') offset = 2;
+    // Fallback: If unknown type, return null to avoid bad dates
+    else return null;
 
     // Base target month (1-indexed) after applying offset
     // e.g. Month 10 (Oct), M+1 -> Target 11 (Nov)
-    let targetMonth = month + offset;
-    let targetYear = year;
+    const targetMonth = month + offset;
+    const targetYear = year;
 
-    // If paymentDueDay is provided, use logic similar to Payments Tab to determine exact due date
-    if (paymentDueDay) {
-        // Rollover logic: If paymentDueDay < statementDay, the due date is in the NEXT month relative to the statement month.
-        // Also ensure we compare numbers
-        if (Number(paymentDueDay) < Number(statementDay)) {
-            targetMonth += 1;
-        }
-        // Handle year rollover logic is done by Date constructor, but passing correct 0-indexed month is key.
-        // Date(year, monthIndex, day) handles overflow (e.g. monthIndex 12 becomes Jan next year).
-        // targetMonth is 1-indexed (1..12+), so we pass targetMonth - 1.
-
-        const targetDate = new Date(targetYear, targetMonth - 1, paymentDueDay);
-        return targetDate;
-    }
-
-    // Fallback to Statement Day if paymentDueDay is not provided (Old behavior)
+    // Use Statement Day.
+    // Date(year, monthIndex, day) handles overflow (e.g. monthIndex 12 becomes Jan next year).
+    // targetMonth is 1-indexed (1..12+), so we pass targetMonth - 1.
     const targetDate = new Date(targetYear, targetMonth - 1, statementDay);
     return targetDate;
 };
