@@ -219,7 +219,7 @@ export default function CashbackTracker({
             // Note: If limit is 0, tier2 is 0. If isPoints is true, we generally assume the whole thing is points.
             // But logic supports split. For simplicity in categorization:
             // If primary tier is points, we treat as points item.
-            const isPointsItem = (tier1Method && tier1Method.toLowerCase().includes('point'));
+            const isPointsItem = (tier1Method && String(tier1Method).toLowerCase().includes('point'));
 
             const remainingDue = Math.max(0, total - redeemed);
 

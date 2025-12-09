@@ -158,4 +158,17 @@ describe('CashbackTracker', () => {
         const call2 = fetch.mock.calls.find(call => call[0].includes('s2'));
         expect(JSON.parse(call2[1].body).amountRedeemed).toBe(50);
     });
+
+    test('handles non-string tier1PaymentType gracefully', () => {
+        const BROKEN_CARDS = [
+            { id: 'c3', name: 'Broken Card', bank: 'Bank C', overallMonthlyLimit: 0, statementDay: 15, tier1PaymentType: 123, tier2PaymentType: 'M+1' },
+        ];
+        const BROKEN_SUMMARY = [
+            { id: 's4', cardId: 'c3', month: '2025-10', actualCashback: 100, adjustment: 0, amountRedeemed: 0 },
+        ];
+
+        render(<CashbackTracker cards={BROKEN_CARDS} monthlySummary={BROKEN_SUMMARY} />);
+        expect(screen.getByText('Broken Card')).toBeInTheDocument();
+        // Should not crash
+    });
 });
