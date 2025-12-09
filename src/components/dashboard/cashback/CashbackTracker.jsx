@@ -190,8 +190,8 @@ export default function CashbackTracker({
     const [redeemNotes, setRedeemNotes] = useState('');
 
     // --- DATA PROCESSING ---
-    const { cashItems, pointsItems, pointsByCard } = useMemo(() => {
-        if (!monthlySummary || !cards) return { cashItems: [], pointsItems: [], pointsByCard: [] };
+    const { cashItems, pointsByCard } = useMemo(() => {
+        if (!monthlySummary || !cards) return { cashItems: [], pointsByCard: [] };
 
         const cardMap = new Map(cards.map(c => [c.id, c]));
 
@@ -215,8 +215,6 @@ export default function CashbackTracker({
             const tier1Status = getPaymentStatus(tier1, tier1Paid, tier1Date);
             const tier2Date = calculatePaymentDate(summary.month, tier2Method, card.statementDay);
             const tier2Status = getPaymentStatus(tier2, tier2Paid, tier2Date);
-
-            const isPoints = (tier1Method && tier1Method.toLowerCase().includes('point')) || (tier2Method && tier2Method.toLowerCase().includes('point'));
 
             // Note: If limit is 0, tier2 is 0. If isPoints is true, we generally assume the whole thing is points.
             // But logic supports split. For simplicity in categorization:
