@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, ArrowLeftRight, CreditCard, Banknote, ChevronsLeft, ChevronsRight, Search, RefreshCw, LogOut } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, CreditCard, Banknote, ChevronsLeft, ChevronsRight, Search, RefreshCw, LogOut, DollarSign } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import { cn } from '../../lib/utils';
@@ -9,6 +9,7 @@ const navItems = [
   { view: 'overview', icon: LayoutDashboard, label: 'Overview' },
   { view: 'transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { view: 'cards', icon: CreditCard, label: 'My Cards' },
+  { view: 'cashback', icon: DollarSign, label: 'Cashback' },
   { view: 'payments', icon: Banknote, label: 'Payments' },
 ];
 
