@@ -187,17 +187,15 @@ describe('CashbackTracker', () => {
         expect(screen.queryByText('140')).not.toBeInTheDocument();
     });
 
-    test('calculates correct due date with rollover logic', () => {
+    test('calculates correct due date logic', () => {
         render(<CashbackTracker cards={SAMPLE_CARDS} monthlySummary={SAMPLE_SUMMARY} />);
         // Card c1 (Cash Card). Month 2025-10. M+1.
         // Target Month: 2025-11.
-        // Statement Day: 20. Payment Due Day: 15.
-        // 15 < 20 -> Rollover to next month -> 2025-12.
-        // Due Date: 15 Dec 2025.
+        // Statement Day: 20.
+        // Expected Payment Date: 20 Nov 2025.
 
-        // Check if "15 Dec" is rendered.
-        // Use getAllByText in case multiple cards show it (though s1 is the only one for Oct)
-        const dueDates = screen.getAllByText(/15 Dec/);
-        expect(dueDates.length).toBeGreaterThan(0);
+        // Check if "20 Nov 2025" is rendered.
+        const expectedDates = screen.getAllByText(/20 Nov 2025/);
+        expect(expectedDates.length).toBeGreaterThan(0);
     });
 });

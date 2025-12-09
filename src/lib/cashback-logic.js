@@ -28,14 +28,11 @@ export const calculateCashbackSplit = (actualCashback, adjustment, monthlyLimit)
  * @param {string} cashbackMonth - Format "YYYYMM" (e.g., "202310").
  * @param {string} paymentType - "M0", "M+1", "M+2", "Points", or null.
  * @param {number} statementDay - The card's statement day.
- * @param {number} [paymentDueDay] - The card's payment due day (optional, for more accurate due date calculation).
  * @returns {Date|string|null} - Returns a Date object for definite dates, "Accumulating" for points, or null.
  */
-export const calculatePaymentDate = (cashbackMonth, paymentType, statementDay, paymentDueDay) => {
-    // We need cashbackMonth and paymentType.
-    // We need at least one of statementDay OR paymentDueDay to form a date.
-    if (!cashbackMonth || !paymentType) return null;
-    if (!statementDay && !paymentDueDay) return null;
+export const calculatePaymentDate = (cashbackMonth, paymentType, statementDay) => {
+    // We need cashbackMonth, paymentType, and statementDay to form a date.
+    if (!cashbackMonth || !paymentType || !statementDay) return null;
 
     // Ensure paymentType is a string and normalize it (Trim, Uppercase, Remove spaces)
     // This handles inputs like "m+1", "M + 1", "Points", "points ", etc.
@@ -64,29 +61,12 @@ export const calculatePaymentDate = (cashbackMonth, paymentType, statementDay, p
 
     // Base target month (1-indexed) after applying offset
     // e.g. Month 10 (Oct), M+1 -> Target 11 (Nov)
-    let targetMonth = month + offset;
-    let targetYear = year;
+    const targetMonth = month + offset;
+    const targetYear = year;
 
-    // If paymentDueDay is provided, use logic similar to Payments Tab to determine exact due date
-    if (paymentDueDay) {
-        // Rollover logic: If paymentDueDay < statementDay, the due date is in the NEXT month relative to the statement month.
-        // Also ensure we compare numbers.
-        // If statementDay is missing, we treat it as 0, so the rollover condition is false (safest assumption).
-        const stmtDay = statementDay ? Number(statementDay) : 0;
-
-        if (Number(paymentDueDay) < stmtDay) {
-            targetMonth += 1;
-        }
-        // Handle year rollover logic is done by Date constructor, but passing correct 0-indexed month is key.
-        // Date(year, monthIndex, day) handles overflow (e.g. monthIndex 12 becomes Jan next year).
-        // targetMonth is 1-indexed (1..12+), so we pass targetMonth - 1.
-
-        const targetDate = new Date(targetYear, targetMonth - 1, paymentDueDay);
-        return targetDate;
-    }
-
-    // Fallback to Statement Day if paymentDueDay is not provided (Old behavior)
-    // We only reach here if statementDay is present (checked at the top: if !statementDay && !paymentDueDay return null)
+    // Use Statement Day.
+    // Date(year, monthIndex, day) handles overflow (e.g. monthIndex 12 becomes Jan next year).
+    // targetMonth is 1-indexed (1..12+), so we pass targetMonth - 1.
     const targetDate = new Date(targetYear, targetMonth - 1, statementDay);
     return targetDate;
 };

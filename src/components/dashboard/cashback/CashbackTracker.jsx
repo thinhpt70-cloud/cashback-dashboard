@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { cn } from "@/lib/utils";
 
 import { calculateCashbackSplit, calculatePaymentDate, getPaymentStatus } from '../../../lib/cashback-logic';
+import { fmtYMShort } from '../../../lib/formatters';
 
 // ==========================================
 // 1. HELPERS & SUB-COMPONENTS
@@ -32,8 +33,11 @@ function CashVoucherCard({ item, onMarkReceived, onEdit }) {
         if (!dateStr) return '';
         if (dateStr === 'Accumulating') return 'Accumulating';
         const d = new Date(dateStr);
-        return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'});
+        return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
     };
+
+    const hasTier2 = item.tier2Amount > 0;
+    const showTier2Date = hasTier2 && item.tier2Date;
 
     return (
         <div className={cn(
@@ -52,7 +56,7 @@ function CashVoucherCard({ item, onMarkReceived, onEdit }) {
                     </div>
                     <div>
                         <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 leading-tight line-clamp-1">{item.cardName}</h3>
-                        <p className="text-xs text-slate-500 font-medium">{item.month}</p>
+                        <p className="text-xs text-slate-500 font-medium">{fmtYMShort(item.month)}</p>
                     </div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onEdit(item)}>
@@ -81,12 +85,25 @@ function CashVoucherCard({ item, onMarkReceived, onEdit }) {
             {/* Footer */}
             <div className="mt-3 space-y-3">
                 {!isPaid && (
-                    <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500">Due Date:</span>
-                        <span className={cn("font-medium flex items-center gap-1", isOverdue ? "text-red-600" : "text-slate-700 dark:text-slate-300")}>
-                            {isOverdue && <AlertTriangle className="h-3 w-3" />}
-                            {formatDate(item.tier1Date)}
-                        </span>
+                    <div className="text-xs space-y-1">
+                         <div className="flex justify-between items-center">
+                            <span className="text-slate-500">Expected Payment Date:</span>
+                        </div>
+                        <div className="flex justify-between items-center pl-2">
+                             <span className="text-slate-400">Tier 1:</span>
+                             <span className={cn("font-medium flex items-center gap-1", isOverdue ? "text-red-600" : "text-slate-700 dark:text-slate-300")}>
+                                {isOverdue && <AlertTriangle className="h-3 w-3" />}
+                                {formatDate(item.tier1Date)}
+                            </span>
+                        </div>
+                        {showTier2Date && (
+                            <div className="flex justify-between items-center pl-2">
+                                <span className="text-slate-400">Tier 2:</span>
+                                <span className={cn("font-medium flex items-center gap-1", isOverdue ? "text-red-600" : "text-slate-700 dark:text-slate-300")}>
+                                    {formatDate(item.tier2Date)}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 )}
                 {isPaid ? (
@@ -210,10 +227,11 @@ export default function CashbackTracker({
             const tier1Paid = Math.min(redeemed, tier1);
             const tier2Paid = Math.max(0, redeemed - tier1);
 
-            // Dates & Status
-            const tier1Date = calculatePaymentDate(summary.month, tier1Method, card.statementDay, card.paymentDueDay);
+            // Dates & Status (Note: paymentDueDay is no longer used for calc, but kept in signature or removed based on logic)
+            // Updated to remove paymentDueDay from call as per new logic requirements
+            const tier1Date = calculatePaymentDate(summary.month, tier1Method, card.statementDay);
             const tier1Status = getPaymentStatus(tier1, tier1Paid, tier1Date);
-            const tier2Date = calculatePaymentDate(summary.month, tier2Method, card.statementDay, card.paymentDueDay);
+            const tier2Date = calculatePaymentDate(summary.month, tier2Method, card.statementDay);
             const tier2Status = getPaymentStatus(tier2, tier2Paid, tier2Date);
 
             // Note: If limit is 0, tier2 is 0. If isPoints is true, we generally assume the whole thing is points.
@@ -282,12 +300,20 @@ export default function CashbackTracker({
         const groups = {};
         if (cashViewMode === 'month') {
             filteredCashItems.forEach(item => {
-                if (!groups[item.month]) groups[item.month] = { title: item.month, items: [], due: 0, earned: 0 };
+                // Use original YYYYMM as ID for sorting, but format the title
+                if (!groups[item.month]) groups[item.month] = {
+                    id: item.month,
+                    title: fmtYMShort(item.month),
+                    items: [],
+                    due: 0,
+                    earned: 0
+                };
                 groups[item.month].items.push(item);
                 groups[item.month].due += item.remainingDue;
                 groups[item.month].earned += item.totalEarned;
             });
-            return Object.values(groups).sort((a, b) => b.title.localeCompare(a.title));
+            // Sort by ID (YYYYMM) descending
+            return Object.values(groups).sort((a, b) => b.id.localeCompare(a.id));
         } else {
             filteredCashItems.forEach(item => {
                 const key = item.cardName;
