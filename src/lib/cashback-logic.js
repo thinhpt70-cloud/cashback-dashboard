@@ -30,7 +30,8 @@ export const calculateCashbackSplit = (actualCashback, adjustment, monthlyLimit)
 export const calculatePaymentDate = (cashbackMonth, paymentType, statementDay) => {
     if (!cashbackMonth || !paymentType || !statementDay) return null;
 
-    if (paymentType.toLowerCase().includes('point')) return 'Accumulating';
+    // Ensure paymentType is a string before checking for 'point'
+    if (typeof paymentType === 'string' && paymentType.toLowerCase().includes('point')) return 'Accumulating';
 
     const year = parseInt(cashbackMonth.substring(0, 4), 10);
     const month = parseInt(cashbackMonth.substring(4, 6), 10); // 1-12
