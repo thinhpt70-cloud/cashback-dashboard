@@ -10,7 +10,6 @@ import {
 } from "../../ui/sheet";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
-import { Separator } from "../../ui/separator";
 import {
     Calendar,
     CreditCard,
@@ -63,7 +62,7 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
                     </div>
                 </SheetHeader>
 
-                <Separator className="my-6" />
+                <div className="my-6 h-[1px] w-full bg-slate-200 dark:bg-slate-800" />
 
                 <div className="space-y-6">
                     {/* Key Details Section */}
@@ -114,7 +113,7 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
                         </div>
                     </div>
 
-                    <Separator />
+                    <div className="h-[1px] w-full bg-slate-200 dark:bg-slate-800" />
 
                     {/* Cashback Section */}
                     <div className="grid gap-4">
@@ -134,7 +133,7 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
                     {/* Additional Details (Notes, Fees, etc.) */}
                     {(transaction.notes || transaction.otherFees > 0 || transaction.otherDiscounts > 0) && (
                         <>
-                            <Separator />
+                            <div className="h-[1px] w-full bg-slate-200 dark:bg-slate-800" />
                             <div className="grid gap-4">
                                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Additional Info</h4>
 
