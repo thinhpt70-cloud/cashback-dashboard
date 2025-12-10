@@ -72,6 +72,43 @@ export const calculatePaymentDate = (cashbackMonth, paymentType, statementDay) =
 };
 
 /**
+ * Checks if the statement for a given month is finalized.
+ * A statement is finalized if the current date is past the statement day of that month.
+ *
+ * @param {string} cashbackMonth - "YYYYMM" or "YYYY-MM"
+ * @param {number} statementDay
+ * @returns {boolean}
+ */
+export const isStatementFinalized = (cashbackMonth, statementDay) => {
+    if (!cashbackMonth || !statementDay) return true; // Default to true if missing info to avoid locking
+
+    let year, month;
+    if (cashbackMonth.includes('-')) {
+        // Handle YYYY-MM
+        year = parseInt(cashbackMonth.split('-')[0], 10);
+        month = parseInt(cashbackMonth.split('-')[1], 10);
+    } else {
+        // Handle YYYYMM
+        year = parseInt(cashbackMonth.substring(0, 4), 10);
+        month = parseInt(cashbackMonth.substring(4, 6), 10);
+    }
+
+    // Determine the statement date for this specific cashback month
+    // Note: statementDay is just a day number. The statement date is that day in the cashback month.
+    // e.g., Cashback Month Oct 2023, Statement Day 20 -> Statement Date is Oct 20, 2023.
+    // However, if the cashback logic relies on "M+1" for payment, the statement itself
+    // is usually generated at the end of the billing cycle.
+    // The requirement says: "if the current date is before the statement day then the amount is not finalized"
+    // This implies we are checking against the statement day OF THAT MONTH.
+
+    const statementDate = new Date(year, month - 1, statementDay);
+    statementDate.setHours(23, 59, 59, 999); // End of the statement day
+
+    const now = new Date();
+    return now > statementDate;
+};
+
+/**
  * Determines the status of a payment.
  *
  * @param {number} amountDue

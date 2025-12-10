@@ -187,14 +187,23 @@ describe('CashbackTracker', () => {
         expect(screen.queryByText('140')).not.toBeInTheDocument();
     });
 
-    test('calculates correct due date logic', () => {
+    test('calculates correct due date logic', async () => {
         render(<CashbackTracker cards={SAMPLE_CARDS} monthlySummary={SAMPLE_SUMMARY} />);
-        // Card c1 (Cash Card). Month 2025-10. M+1.
-        // Target Month: 2025-11.
-        // Statement Day: 20.
-        // Expected Payment Date: 20 Nov 2025.
 
-        // Check if "20 Nov 2025" is rendered.
+        // Default view shows the latest month group (2025-11 / s5).
+        // s5: Month 2025-11, M+1 -> Due Dec 20, 2025.
+        const visibleDates = screen.getAllByText(/20 Dec 2025/);
+        expect(visibleDates.length).toBeGreaterThan(0);
+
+        // Card c1 (Cash Card). Month 2025-10 (s1). M+1.
+        // Target Month: 2025-11. Statement Day: 20.
+        // Expected Payment Date: 20 Nov 2025.
+        // This group is initially hidden. We need to expand history.
+
+        const expandBtn = screen.getByText(/View remaining/i);
+        fireEvent.click(expandBtn);
+
+        // Check if "20 Nov 2025" is rendered after expansion.
         const expectedDates = screen.getAllByText(/20 Nov 2025/);
         expect(expectedDates.length).toBeGreaterThan(0);
     });
