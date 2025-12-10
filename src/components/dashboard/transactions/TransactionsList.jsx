@@ -1,4 +1,6 @@
-import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from "react";
+// TransactionsList.jsx
+
+import React, { useState, useMemo, useEffect } from "react";
 import {
     ChevronsUpDown,
     ArrowUp,
@@ -59,32 +61,6 @@ export default function TransactionsList({
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
     const [selectedIds, setSelectedIds] = useState([]); 
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
-
-    // Dynamic Header Height for Sticky Table
-    const headerRef = useRef(null);
-    const [headerHeight, setHeaderHeight] = useState(0);
-
-    useLayoutEffect(() => {
-        if (!headerRef.current) return;
-
-        setHeaderHeight(headerRef.current.offsetHeight);
-
-        const resizeObserver = new ResizeObserver((entries) => {
-            for (let entry of entries) {
-                if (entry.borderBoxSize) {
-                    setHeaderHeight(entry.borderBoxSize[0].blockSize);
-                } else {
-                    setHeaderHeight(entry.contentRect.height);
-                }
-            }
-        });
-
-        resizeObserver.observe(headerRef.current);
-
-        return () => {
-            resizeObserver.disconnect();
-        };
-    }, []);
 
     useEffect(() => {
         setSelectedIds([]);
@@ -326,10 +302,8 @@ export default function TransactionsList({
         return (
             <div className="border rounded-md">
                 <Table>
-                    <TableHeader
-                        className="sticky z-20 bg-background shadow-sm" // Changed z-30 to z-20 to sit BELOW the main app header (z-30)
-                        style={{ top: headerHeight ? `${headerHeight + 64}px` : '64px' }} // Added +64px to account for the Main App Header height (top-16)
-                    >
+                    {/* CHANGED: Removed sticky positioning completely, plain Header now */}
+                    <TableHeader className="bg-background">
                         <TableRow className="hover:bg-transparent">
                             <TableHead className="w-[30px] p-2">
                                 <Checkbox
@@ -399,8 +373,9 @@ export default function TransactionsList({
     return (
         <Card className="relative">
             <div
-                ref={headerRef}
-                className="sticky top-16 z-20 bg-background shadow-sm rounded-t-xl overflow-hidden" // Changed top-0 to top-16 (64px) and z-40 to z-20
+                // Sticky Header Container for Filters/Bulk Actions
+                // rounded-t-xl and overflow-hidden ensures the top corners are rounded when sticking
+                className="sticky top-16 z-30 bg-background shadow-sm rounded-t-xl overflow-hidden" 
             >
                 {selectedIds.length > 0 && (
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-slate-900 text-white animate-in fade-in slide-in-from-top-2">
@@ -458,7 +433,7 @@ export default function TransactionsList({
                 </div>
                 </CardHeader>
             </div>
-            <CardContent>
+            <CardContent className="pt-6">
                 {renderContent()}
                 <div className="mt-6 flex flex-col items-center gap-4">
                     <p className="text-sm text-muted-foreground">
