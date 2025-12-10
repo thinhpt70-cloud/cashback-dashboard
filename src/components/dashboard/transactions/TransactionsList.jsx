@@ -166,6 +166,13 @@ export default function TransactionsList({
         }
     };
 
+    const { totalAmount, totalCashback } = useMemo(() => {
+        const selectedTxs = transactions.filter(tx => selectedIds.includes(tx.id));
+        const totalAmount = selectedTxs.reduce((sum, tx) => sum + (tx['Amount'] || 0), 0);
+        const totalCashback = selectedTxs.reduce((sum, tx) => sum + (tx.estCashback || 0), 0);
+        return { totalAmount, totalCashback };
+    }, [selectedIds, transactions]);
+
     const SortIcon = ({ columnKey }) => {
         if (sortConfig.key !== columnKey) return <ChevronsUpDown className="ml-2 h-4 w-4" />;
         return sortConfig.direction === 'ascending' ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />;
@@ -187,7 +194,7 @@ export default function TransactionsList({
                     <div className="space-y-3">
                         {/* Create 5 skeleton cards for the mobile list view */}
                         {Array.from({ length: 5 }).map((_, i) => (
-                            <div key={i} className="p-3 border bg-white rounded-lg space-y-3">
+                            <div key={i} className="p-3 border bg-white dark:bg-slate-950 dark:border-slate-800 rounded-lg space-y-3">
                                 <div className="flex justify-between items-start gap-2">
                                     <div className="flex-1 space-y-2">
                                         <Skeleton className="h-5 w-3/4" />
@@ -255,27 +262,36 @@ export default function TransactionsList({
                 <div className="space-y-3">
                     {transactionsToShow.map(tx => {
                         const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
+                        const isSelected = selectedIds.includes(tx.id);
                         return (
-                            <div key={tx.id} className="border bg-white rounded-lg shadow-sm overflow-hidden" onClick={() => onViewDetails && onViewDetails(tx)}>
-                                <div className="p-3">
-                                    <div className="flex justify-between items-start gap-2">
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-semibold truncate">{tx['Transaction Name']}</p>
+                            <div key={tx.id} className={cn("border rounded-lg shadow-sm overflow-hidden transition-colors", isSelected ? "bg-slate-50 border-slate-400 dark:bg-slate-800 dark:border-slate-600" : "bg-white dark:bg-slate-950 dark:border-slate-800")} onClick={() => onViewDetails && onViewDetails(tx)}>
+                                <div className="p-3 flex gap-3">
+                                    <div onClick={(e) => e.stopPropagation()} className="pt-1">
+                                        <Checkbox
+                                            checked={isSelected}
+                                            onCheckedChange={(checked) => handleSelectOne(tx.id, checked)}
+                                        />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-start gap-2">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold truncate">{tx['Transaction Name']}</p>
                                             {tx.merchantLookup && <p className="text-xs text-muted-foreground">{tx.merchantLookup}</p>}
                                             <p className="text-sm text-muted-foreground">{tx['Transaction Date']}</p>
                                         </div>
-                                        <div className="text-right flex-shrink-0">
-                                            <p className="font-bold text-lg">{currency(tx['Amount'])}</p>
-                                            <p className="text-sm text-emerald-600 font-medium">+ {currency(tx.estCashback)}</p>
+                                            <div className="text-right flex-shrink-0">
+                                                <p className="font-bold text-lg">{currency(tx['Amount'])}</p>
+                                                <p className="text-sm text-emerald-600 font-medium">+ {currency(tx.estCashback)}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="flex justify-between items-center mt-2 pt-2 border-t">
-                                        <div className="flex items-center gap-2">
-                                            {card && <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge>}
-                                            <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>{(tx.rate * 100).toFixed(1)}%</Badge>
-                                        </div>
-                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                            Tap for details
+                                        <div className="flex justify-between items-center mt-2 pt-2 border-t dark:border-slate-800">
+                                            <div className="flex items-center gap-2">
+                                                {card && <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge>}
+                                                <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>{(tx.rate * 100).toFixed(1)}%</Badge>
+                                            </div>
+                                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                                Tap for details
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -290,8 +306,8 @@ export default function TransactionsList({
         return (
             <div className="border rounded-md">
                 <Table>
-                    <TableHeader>
-                        <TableRow>
+                    <TableHeader className="sticky top-[10rem] z-30 bg-card shadow-sm">
+                        <TableRow className="hover:bg-transparent">
                             <TableHead className="w-[30px] p-2">
                                 <Checkbox
                                     checked={selectedIds.length > 0 && selectedIds.length === filteredAndSortedTransactions.length}
@@ -362,23 +378,31 @@ export default function TransactionsList({
 
     return (
         <Card className="relative">
-             {selectedIds.length > 0 && (
-                <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between gap-4 p-2 bg-slate-900 text-white rounded-t-xl animate-in fade-in slide-in-from-top-2">
-                    <div className="flex items-center gap-4 pl-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-white" onClick={() => setSelectedIds([])}>
-                            <X className="h-4 w-4" />
-                        </Button>
-                        <span className="text-sm font-medium">{selectedIds.length} Selected</span>
+            <div className="sticky top-0 z-40 bg-background shadow-sm">
+                {selectedIds.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-slate-900 text-white animate-in fade-in slide-in-from-top-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pl-1 w-full sm:w-auto">
+                            <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-white shrink-0" onClick={() => setSelectedIds([])}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                                <span className="text-sm font-medium whitespace-nowrap">{selectedIds.length} Selected</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-300 ml-10 sm:ml-0">
+                                <span className="whitespace-nowrap">Total: <span className="text-white font-medium">{currency(totalAmount)}</span></span>
+                                <span className="hidden sm:inline">•</span>
+                                <span className="whitespace-nowrap">Cashback: <span className="text-emerald-400 font-medium">{currency(totalCashback)}</span></span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 pr-2 w-full sm:w-auto justify-end">
+                            <Button variant="destructive" size="sm" onClick={handleBulkDeleteAction} className="w-full sm:w-auto">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete ({selectedIds.length})
+                            </Button>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2 pr-2">
-                        <Button variant="destructive" size="sm" onClick={handleBulkDeleteAction}>
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete ({selectedIds.length})
-                        </Button>
-                    </div>
-                </div>
-            )}
-            <CardHeader>
-                <div className="flex flex-col gap-4">
+                )}
+                 <CardHeader className="border-b">
+                    <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <CardTitle>
                             {activeMonth === 'live'
@@ -409,7 +433,8 @@ export default function TransactionsList({
                         </select>
                     </div>
                 </div>
-            </CardHeader>
+                </CardHeader>
+            </div>
             <CardContent>
                 {renderContent()}
                 <div className="mt-6 flex flex-col items-center gap-4">
