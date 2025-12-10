@@ -63,6 +63,7 @@ export default function TransactionsList({
     onTransactionDeleted,
     onEditTransaction,
     onBulkDelete,
+    onViewDetails,
     fmtYMShortFn
 }) {
     const [searchTerm, setSearchTerm] = useState("");
