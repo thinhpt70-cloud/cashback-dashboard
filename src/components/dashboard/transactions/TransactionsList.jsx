@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from "react";
 import {
     ChevronsUpDown,
     ArrowUp,
@@ -57,19 +57,25 @@ export default function TransactionsList({
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [visibleCount, setVisibleCount] = useState(15);
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
-    const [selectedIds, setSelectedIds] = useState([]); // State for bulk selection
+    const [selectedIds, setSelectedIds] = useState([]); 
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
     // Dynamic Header Height for Sticky Table
     const headerRef = useRef(null);
     const [headerHeight, setHeaderHeight] = useState(0);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!headerRef.current) return;
+
+        setHeaderHeight(headerRef.current.offsetHeight);
 
         const resizeObserver = new ResizeObserver((entries) => {
             for (let entry of entries) {
-                setHeaderHeight(entry.contentRect.height);
+                if (entry.borderBoxSize) {
+                    setHeaderHeight(entry.borderBoxSize[0].blockSize);
+                } else {
+                    setHeaderHeight(entry.contentRect.height);
+                }
             }
         });
 
@@ -80,7 +86,6 @@ export default function TransactionsList({
         };
     }, []);
 
-    // Reset selection when month/filter changes
     useEffect(() => {
         setSelectedIds([]);
     }, [activeMonth, filterType]);
@@ -154,7 +159,7 @@ export default function TransactionsList({
     };
 
     const handleEdit = (tx) => {
-        onEditTransaction(tx); // <-- Call the handler from the parent
+        onEditTransaction(tx);
     };
 
     const handleDelete = (txId, txName) => {
@@ -163,7 +168,6 @@ export default function TransactionsList({
 
     const handleSelectAll = (checked) => {
         if (checked) {
-            // Select all currently visible/filtered transactions
             const allIds = filteredAndSortedTransactions.map(tx => tx.id);
             setSelectedIds(allIds);
         } else {
@@ -182,7 +186,7 @@ export default function TransactionsList({
     const handleBulkDeleteAction = () => {
         if (onBulkDelete) {
             onBulkDelete(selectedIds);
-            setSelectedIds([]); // Clear selection after action triggers (optimistic)
+            setSelectedIds([]);
         }
     };
 
@@ -208,11 +212,9 @@ export default function TransactionsList({
 
     const renderContent = () => {
         if (isLoading) {
-            // If it's not desktop (i.e., mobile view)
             if (!isDesktop) {
                 return (
                     <div className="space-y-3">
-                        {/* Create 5 skeleton cards for the mobile list view */}
                         {Array.from({ length: 5 }).map((_, i) => (
                             <div key={i} className="p-3 border bg-white dark:bg-slate-950 dark:border-slate-800 rounded-lg space-y-3">
                                 <div className="flex justify-between items-start gap-2">
@@ -235,7 +237,6 @@ export default function TransactionsList({
                 );
             }
 
-            // Otherwise, render the skeleton for the desktop table view
             return (
                 <div className="border rounded-md">
                     <Table>
@@ -253,7 +254,6 @@ export default function TransactionsList({
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {/* Create 7 skeleton rows for the desktop table view */}
                             {Array.from({ length: 7 }).map((_, i) => (
                                 <TableRow key={i}>
                                     <TableCell><Skeleton className="h-4 w-4" /></TableCell>
@@ -327,8 +327,8 @@ export default function TransactionsList({
             <div className="border rounded-md">
                 <Table>
                     <TableHeader
-                        className="sticky z-30 bg-card shadow-sm"
-                        style={{ top: headerHeight ? `${headerHeight}px` : '160px' }}
+                        className="sticky z-20 bg-background shadow-sm" // Changed z-30 to z-20 to sit BELOW the main app header (z-30)
+                        style={{ top: headerHeight ? `${headerHeight + 64}px` : '64px' }} // Added +64px to account for the Main App Header height (top-16)
                     >
                         <TableRow className="hover:bg-transparent">
                             <TableHead className="w-[30px] p-2">
@@ -342,7 +342,6 @@ export default function TransactionsList({
                             <TableHead className="w-[120px]"><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
                             <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
-                            {/* --- FIX: Columns reordered --- */}
                             <TableHead className="text-center"><Button variant="ghost" onClick={() => requestSort('rate')} className="px-2">Rate <SortIcon columnKey="rate" /></Button></TableHead>
                             <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
                             <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
@@ -368,7 +367,6 @@ export default function TransactionsList({
                                         />
                                     </TableCell>
                                     <TableCell className="px-2">
-                                        {/* Spacer for alignment where Chevron was */}
                                     </TableCell>
                                     <TableCell>{tx['Transaction Date']}</TableCell>
                                     <TableCell>
@@ -376,7 +374,6 @@ export default function TransactionsList({
                                         {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
                                     </TableCell>
                                     <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>
-                                    {/* --- FIX: Cells reordered --- */}
                                     <TableCell className="text-center">
                                         <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
                                             {(tx.rate * 100).toFixed(1)}%
@@ -403,7 +400,7 @@ export default function TransactionsList({
         <Card className="relative">
             <div
                 ref={headerRef}
-                className="sticky top-0 z-40 bg-background shadow-sm rounded-t-xl overflow-hidden"
+                className="sticky top-16 z-20 bg-background shadow-sm rounded-t-xl overflow-hidden" // Changed top-0 to top-16 (64px) and z-40 to z-20
             >
                 {selectedIds.length > 0 && (
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-slate-900 text-white animate-in fade-in slide-in-from-top-2">
