@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
     CheckCircle, AlertTriangle, Filter, Edit2, Clock, Calendar, Wallet,
-    Coins, Gift, DollarSign, TrendingUp, List, ArrowDown, Eye, Info
+    Coins, Gift, TrendingUp, List, ArrowDown, Eye, Info
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -653,7 +653,6 @@ export default function CashbackTracker({
                                         {group.items.map(item => {
                                             const isPaid = item.remainingDue <= 0;
                                             const tier1Paid = (item.amountRedeemed || 0) >= item.tier1Amount;
-                                            const tier2Paid = (item.amountRedeemed || 0) >= (item.tier1Amount + item.tier2Amount);
                                             const isStatementPending = !isStatementFinalized(item.month, item.statementDay);
 
                                             const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', {day: 'numeric', month: 'short'}) : '-';
