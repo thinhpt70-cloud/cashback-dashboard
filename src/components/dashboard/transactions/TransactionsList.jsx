@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
     ChevronsUpDown,
     ArrowUp,
@@ -59,6 +59,26 @@ export default function TransactionsList({
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
     const [selectedIds, setSelectedIds] = useState([]); // State for bulk selection
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+
+    // Dynamic Header Height for Sticky Table
+    const headerRef = useRef(null);
+    const [headerHeight, setHeaderHeight] = useState(0);
+
+    useEffect(() => {
+        if (!headerRef.current) return;
+
+        const resizeObserver = new ResizeObserver((entries) => {
+            for (let entry of entries) {
+                setHeaderHeight(entry.contentRect.height);
+            }
+        });
+
+        resizeObserver.observe(headerRef.current);
+
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, []);
 
     // Reset selection when month/filter changes
     useEffect(() => {
@@ -306,7 +326,10 @@ export default function TransactionsList({
         return (
             <div className="border rounded-md">
                 <Table>
-                    <TableHeader className="sticky top-[10rem] z-30 bg-card shadow-sm">
+                    <TableHeader
+                        className="sticky z-30 bg-card shadow-sm"
+                        style={{ top: headerHeight ? `${headerHeight}px` : '160px' }}
+                    >
                         <TableRow className="hover:bg-transparent">
                             <TableHead className="w-[30px] p-2">
                                 <Checkbox
@@ -378,7 +401,10 @@ export default function TransactionsList({
 
     return (
         <Card className="relative">
-            <div className="sticky top-0 z-40 bg-background shadow-sm">
+            <div
+                ref={headerRef}
+                className="sticky top-0 z-40 bg-background shadow-sm rounded-t-xl overflow-hidden"
+            >
                 {selectedIds.length > 0 && (
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-slate-900 text-white animate-in fade-in slide-in-from-top-2">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pl-1 w-full sm:w-auto">
