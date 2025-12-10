@@ -268,6 +268,7 @@ export default function CashbackTracker({
     const [redeemTarget, setRedeemTarget] = useState(null); // { cardName, balance, items: [] }
     const [redeemAmount, setRedeemAmount] = useState('');
     const [redeemNotes, setRedeemNotes] = useState('');
+    const [optimisticData, setOptimisticData] = useState({});
 
     // Shared Transaction Dialog
     const [txDialog, setTxDialog] = useState({
@@ -287,7 +288,13 @@ export default function CashbackTracker({
         const points = [];
         const pCardMap = {}; // Group points by card for the Points Tab
 
-        monthlySummary.forEach(summary => {
+        monthlySummary.forEach(originalSummary => {
+            // Apply optimistic override if exists
+            const summary = {
+                ...originalSummary,
+                ...(optimisticData[originalSummary.id] || {})
+            };
+
             const card = cMap.get(summary.cardId);
             if (!card) return;
 
@@ -370,7 +377,7 @@ export default function CashbackTracker({
         };
 
         return { cashItems: cash, pointsItems: points, pointsByCard: Object.values(pCardMap), stats, cardMap: cMap };
-    }, [monthlySummary, cards]);
+    }, [monthlySummary, cards, optimisticData]);
 
     // --- CASH FILTERING & GROUPING ---
     const filteredCashItems = useMemo(() => {
@@ -453,17 +460,55 @@ export default function CashbackTracker({
     };
 
     const handleMarkReceived = async (item, tier = 'full') => {
-        try {
-            let newAmountRedeemed = item.totalEarned; // Default full
+        // 0. Calculate values
+        const originalAmountRedeemed = item.amountRedeemed || 0;
+        let newAmountRedeemed = item.totalEarned; // Default full
 
-            // Logic for partial/sequential tiers
-            if (tier === 'tier1') {
-                newAmountRedeemed = item.tier1Amount;
-            } else if (tier === 'tier2') {
-                // Tier 2 implies Tier 1 is already paid, so total is full amount
-                newAmountRedeemed = item.tier1Amount + item.tier2Amount;
+        // Logic for partial/sequential tiers
+        if (tier === 'tier1') {
+            newAmountRedeemed = item.tier1Amount;
+        } else if (tier === 'tier2') {
+            // Tier 2 implies Tier 1 is already paid, so total is full amount
+            newAmountRedeemed = item.tier1Amount + item.tier2Amount;
+        }
+
+        // 1. Optimistic Update
+        setOptimisticData(prev => ({
+            ...prev,
+            [item.id]: { amountRedeemed: newAmountRedeemed }
+        }));
+
+        // 2. Define Revert Function (for Undo)
+        const revert = () => {
+             setOptimisticData(prev => ({
+                ...prev,
+                [item.id]: { amountRedeemed: originalAmountRedeemed }
+            }));
+
+            // We must send a request to server to ensure it rolls back
+            // (in case the previous request already succeeded)
+             fetch(`${API_BASE_URL}/monthly-summary/${item.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amountRedeemed: originalAmountRedeemed })
+            }).then(() => {
+                 if (onUpdate) onUpdate();
+            }).catch(err => {
+                 console.error("Undo failed", err);
+                 toast.error("Failed to undo");
+            });
+        };
+
+        // 3. Show Toast with Undo
+        toast.success(`Updated ${item.cardName} payment status`, {
+            action: {
+                label: 'Undo',
+                onClick: () => revert()
             }
+        });
 
+        // 4. Perform API Call
+        try {
             const res = await fetch(`${API_BASE_URL}/monthly-summary/${item.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -474,11 +519,18 @@ export default function CashbackTracker({
 
             if (!res.ok) throw new Error('Failed to mark as received');
 
-            toast.success(`Updated ${item.cardName} payment status`);
+            // Success - trigger update to eventual consistency
             if (onUpdate) onUpdate();
+
         } catch (err) {
             console.error(err);
             toast.error("Failed to update status");
+            // Revert optimistic update on error
+            setOptimisticData(prev => {
+                const newState = { ...prev };
+                delete newState[item.id];
+                return newState;
+            });
         }
     };
 
@@ -501,42 +553,102 @@ export default function CashbackTracker({
              return;
         }
 
-        try {
-            // FIFO Logic
-            let remainingToRedeem = amountToRedeem;
-            const updates = [];
+        // FIFO Logic
+        let remainingToRedeem = amountToRedeem;
+        const updates = [];
 
-            // We need to iterate over the items that have remaining balance
-            // The items are already sorted by month ASC in pointsByCard logic
-            const items = redeemTarget.items.filter(i => i.remainingDue > 0);
+        // We need to iterate over the items that have remaining balance
+        // The items are already sorted by month ASC in pointsByCard logic
+        const items = redeemTarget.items.filter(i => i.remainingDue > 0);
 
-            for (const item of items) {
-                if (remainingToRedeem <= 0) break;
+        for (const item of items) {
+            if (remainingToRedeem <= 0) break;
 
-                const availableInItem = item.remainingDue;
-                const redeemFromThis = Math.min(remainingToRedeem, availableInItem);
+            const availableInItem = item.remainingDue;
+            const redeemFromThis = Math.min(remainingToRedeem, availableInItem);
 
-                // Calculate new total redeemed for this item
-                // current redeemed + this redemption
-                const newAmountRedeemed = (item.amountRedeemed || 0) + redeemFromThis;
+            // Calculate new total redeemed for this item
+            // current redeemed + this redemption
+            const newAmountRedeemed = (item.amountRedeemed || 0) + redeemFromThis;
 
-                // Append notes if provided
-                const newNotes = redeemNotes
-                    ? (item.notes ? `${item.notes}\n[Redeemed ${redeemFromThis}: ${redeemNotes}]` : `[Redeemed ${redeemFromThis}: ${redeemNotes}]`)
-                    : item.notes;
+            // Append notes if provided
+            const newNotes = redeemNotes
+                ? (item.notes ? `${item.notes}\n[Redeemed ${redeemFromThis}: ${redeemNotes}]` : `[Redeemed ${redeemFromThis}: ${redeemNotes}]`)
+                : item.notes;
 
-                updates.push({
-                    id: item.id,
-                    amountRedeemed: newAmountRedeemed,
-                    notes: newNotes
-                });
+            updates.push({
+                id: item.id,
+                amountRedeemed: newAmountRedeemed,
+                notes: newNotes,
+                // Store original for undo
+                originalAmountRedeemed: item.amountRedeemed || 0,
+                originalNotes: item.notes
+            });
 
-                remainingToRedeem -= redeemFromThis;
+            remainingToRedeem -= redeemFromThis;
+        }
+
+        // 1. Optimistic Update
+        const optimisticUpdates = {};
+        updates.forEach(u => {
+            optimisticUpdates[u.id] = {
+                amountRedeemed: u.amountRedeemed,
+                notes: u.notes
+            };
+        });
+
+        setOptimisticData(prev => ({
+            ...prev,
+            ...optimisticUpdates
+        }));
+
+        // Close dialog immediately
+        setIsRedeemDialogOpen(false);
+
+        // 2. Define Revert Function (for Undo)
+        const revert = () => {
+             // Revert local state
+             const revertUpdates = {};
+             updates.forEach(u => {
+                 revertUpdates[u.id] = {
+                     amountRedeemed: u.originalAmountRedeemed,
+                     notes: u.originalNotes
+                 };
+             });
+
+             setOptimisticData(prev => ({
+                ...prev,
+                ...revertUpdates
+            }));
+
+            // Send requests to server to roll back
+            Promise.all(updates.map(u =>
+                 fetch(`${API_BASE_URL}/monthly-summary/${u.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amountRedeemed: u.originalAmountRedeemed,
+                        notes: u.originalNotes
+                    })
+                })
+            )).then(() => {
+                 if (onUpdate) onUpdate();
+            }).catch(err => {
+                 console.error("Undo failed", err);
+                 toast.error("Failed to undo redemption");
+            });
+        };
+
+        // 3. Show Toast
+        toast.success(`Redeemed ${amountToRedeem} points from ${redeemTarget.cardName}`, {
+            action: {
+                label: 'Undo',
+                onClick: () => revert()
             }
+        });
 
+        try {
             // Execute all updates
-            // In a real app, maybe batch this. Here we do sequential or parallel fetch.
-            // Parallel is fine.
             await Promise.all(updates.map(u =>
                  fetch(`${API_BASE_URL}/monthly-summary/${u.id}`, {
                     method: 'PATCH',
@@ -548,13 +660,17 @@ export default function CashbackTracker({
                 })
             ));
 
-            toast.success(`Redeemed ${amountToRedeem} points from ${redeemTarget.cardName}`);
-            setIsRedeemDialogOpen(false);
             if (onUpdate) onUpdate();
 
         } catch (err) {
             console.error(err);
             toast.error("Failed to process redemption");
+            // Revert optimistic update on error
+            setOptimisticData(prev => {
+                const newState = { ...prev };
+                updates.forEach(u => delete newState[u.id]);
+                return newState;
+            });
         }
     };
 
