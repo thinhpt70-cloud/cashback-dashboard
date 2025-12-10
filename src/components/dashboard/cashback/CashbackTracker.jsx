@@ -30,17 +30,19 @@ const currency = (n) => new Intl.NumberFormat('en-US', { style: 'decimal', maxim
 
 function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, statementDay }) {
     const isPaid = item.remainingDue <= 0;
-    const isOverdue = !isPaid && (item.tier1Status?.status === 'overdue' || item.tier2Status?.status === 'overdue');
-    const isStatementPending = !isStatementFinalized(item.month, statementDay);
-
-    // Calc paid status for sequential buttons
-    // If total redeemed >= tier 1 amount, tier 1 is paid.
-    // However, if logic is partial, we should check strict equality or coverage.
-    // For sequential logic:
-    // Tier 1 Paid? -> item.amountRedeemed >= item.tier1Amount
-    // Tier 2 Paid? -> item.amountRedeemed >= (item.tier1Amount + item.tier2Amount)
+    
+    // 1. Calculate paid status for specific tiers
     const tier1Paid = (item.amountRedeemed || 0) >= item.tier1Amount;
     const tier2Paid = (item.amountRedeemed || 0) >= (item.tier1Amount + item.tier2Amount);
+    const hasTier2 = item.tier2Amount > 0;
+
+    // 2. Calculate specific overdue status for each tier
+    const isTier1Overdue = !tier1Paid && item.tier1Status?.status === 'overdue';
+    const isTier2Overdue = hasTier2 && !tier2Paid && item.tier2Status?.status === 'overdue';
+
+    // 3. Global card overdue status (for the border)
+    const isCardOverdue = !isPaid && (isTier1Overdue || isTier2Overdue);
+    const isStatementPending = !isStatementFinalized(item.month, statementDay);
 
     const formatDate = (dateStr) => {
         if (!dateStr) return '';
@@ -49,14 +51,12 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, sta
         return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
     };
 
-    const hasTier2 = item.tier2Amount > 0;
-
     return (
         <div className={cn(
             "group relative flex flex-col justify-between border rounded-xl p-4 transition-all duration-200 hover:shadow-md bg-white dark:bg-slate-950",
             isPaid
                 ? "border-slate-200 dark:border-slate-800 opacity-60"
-                : isOverdue
+                : isCardOverdue
                     ? "border-red-300 dark:border-red-900 bg-red-50/10"
                     : "border-emerald-500/50 dark:border-emerald-500/50 border-dashed"
         )}>
@@ -109,28 +109,32 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, sta
             {/* Footer */}
             <div className="mt-3 space-y-3">
                 {!isPaid && (
-                    <div className="text-xs space-y-1">
-                         <div className="flex justify-between items-center">
-                            <span className="text-slate-500">Expected Payment Date:</span>
-                        </div>
-                        {/* Tier 1 Row */}
-                        <div className="flex justify-between items-center pl-2">
-                             {hasTier2 && <span className="text-slate-400">Tier 1:</span>}
-                             <span className={cn("font-medium flex items-center gap-1", isOverdue ? "text-red-600" : "text-slate-700 dark:text-slate-300")}>
-                                {isOverdue && <AlertTriangle className="h-3 w-3" />}
-                                {formatDate(item.tier1Date)}
-                                {tier1Paid && hasTier2 && <CheckCircle className="h-3 w-3 text-emerald-500" />}
-                            </span>
-                        </div>
-                        {/* Tier 2 Row */}
-                        {hasTier2 && (
-                            <div className="flex justify-between items-center pl-2">
-                                <span className="text-slate-400">Tier 2:</span>
-                                <span className={cn("font-medium flex items-center gap-1", isOverdue ? "text-red-600" : "text-slate-700 dark:text-slate-300")}>
-                                    {formatDate(item.tier2Date)}
+                    // FIX: Use Flexbox to align Label (Left) and Dates (Right)
+                    <div className="flex justify-between items-start text-xs">
+                        <span className="text-slate-500 mt-0.5">Expected Payment:</span>
+                        
+                        <div className="flex flex-col items-end gap-1">
+                            {/* Tier 1 Date */}
+                            <div className="flex items-center gap-1">
+                                 {hasTier2 && <span className="text-slate-400 mr-1">Tier 1:</span>}
+                                 <span className={cn("font-medium flex items-center gap-1", isTier1Overdue ? "text-red-600" : "text-slate-700 dark:text-slate-300")}>
+                                    {isTier1Overdue && <AlertTriangle className="h-3 w-3" />}
+                                    {formatDate(item.tier1Date)}
+                                    {tier1Paid && hasTier2 && <CheckCircle className="h-3 w-3 text-emerald-500" />}
                                 </span>
                             </div>
-                        )}
+                            
+                            {/* Tier 2 Date */}
+                            {hasTier2 && (
+                                 <div className="flex items-center gap-1">
+                                     <span className="text-slate-400 mr-1">Tier 2:</span>
+                                     <span className={cn("font-medium flex items-center gap-1", isTier2Overdue ? "text-red-600" : "text-slate-700 dark:text-slate-300")}>
+                                        {isTier2Overdue && <AlertTriangle className="h-3 w-3" />}
+                                        {formatDate(item.tier2Date)}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -156,7 +160,7 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, sta
                             </Button>
                         )}
 
-                        {/* Tier 2 Button (Only if has Tier 2 AND Tier 1 is paid) */}
+                        {/* Tier 2 Button */}
                         {hasTier2 && tier1Paid && !tier2Paid && (
                             <Button
                                 onClick={() => onMarkReceived(item, 'tier2')}

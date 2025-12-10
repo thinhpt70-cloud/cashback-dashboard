@@ -1061,6 +1061,11 @@ export default function CashbackDashboard() {
                             cards={cards}
                             monthlySummary={monthlySummary}
                             onUpdate={() => refreshData(true)}
+                            onEditTransaction={handleEditClick}
+                            onTransactionDeleted={handleTransactionDeleted}
+                            onBulkDelete={handleBulkDelete}
+                            onViewTransactionDetails={handleViewTransactionDetails}
+                            cardMap={cardMap}
                         />
                     </div>
                 )}

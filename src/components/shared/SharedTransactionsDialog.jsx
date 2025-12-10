@@ -23,7 +23,6 @@ const getMccDescription = (mcc) => {
     return mccData.mccDescriptionMap[mcc]?.vn || 'N/A';
 };
 
-
 export default function SharedTransactionsDialog({
     isOpen,
     onClose,
@@ -36,7 +35,7 @@ export default function SharedTransactionsDialog({
     onDelete,
     onBulkDelete,
     onViewDetails,
-    cardMap // <-- ADD THIS PROP
+    cardMap 
 }) {
     const [selectedRows, setSelectedRows] = useState(new Set());
     const [isSelectionActive, setIsSelectionActive] = useState(false);
@@ -66,10 +65,10 @@ export default function SharedTransactionsDialog({
         if (checked) {
             const allIds = new Set(transactions.map(t => t.id));
             setSelectedRows(allIds);
-            setIsSelectionActive(true); // Activate selection mode
+            setIsSelectionActive(true); 
         } else {
             setSelectedRows(new Set());
-            setIsSelectionActive(false); // Deactivate selection mode
+            setIsSelectionActive(false); 
         }
     };
 
@@ -82,7 +81,6 @@ export default function SharedTransactionsDialog({
         }
         setSelectedRows(newSelectedRows);
 
-        // Toggle selection mode based on count
         if (newSelectedRows.size > 0) {
             setIsSelectionActive(true);
         } else {
@@ -90,6 +88,7 @@ export default function SharedTransactionsDialog({
         }
     };
 
+    // Calculate totals for ALL transactions (for the table footer)
     const totals = useMemo(() => {
         return transactions.reduce((acc, t) => {
             acc.amount += t['Amount'] || 0;
@@ -98,14 +97,25 @@ export default function SharedTransactionsDialog({
         }, { amount: 0, cashback: 0 });
     }, [transactions]);
 
-    const isAllSelected = selectedRows.size > 0 && selectedRows.size === transactions.length;
+    // Calculate totals for SELECTED transactions (for the bulk action bar)
+    const selectedTotals = useMemo(() => {
+        return transactions
+            .filter(t => selectedRows.has(t.id))
+            .reduce((acc, t) => {
+                acc.amount += t['Amount'] || 0;
+                acc.cashback += t.estCashback || 0;
+                return acc;
+            }, { amount: 0, cashback: 0 });
+    }, [transactions, selectedRows]);
+
+    const isAllSelected = transactions.length > 0 && selectedRows.size === transactions.length;
 
     const handleDeleteSelected = () => {
         if (onBulkDelete) {
             onBulkDelete(Array.from(selectedRows));
         }
         setSelectedRows(new Set());
-        setIsSelectionActive(false); // Deactivate after deletion
+        setIsSelectionActive(false); 
     };
 
     return (
@@ -118,26 +128,40 @@ export default function SharedTransactionsDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* --- START: COMBINED ACTION BAR --- */}
+                {/* --- COMBINED ACTION BAR --- */}
                 <div className="flex items-center justify-between mb-2">
                     
-                    {/* --- Block 1: Bulk Actions (conditionally rendered) --- */}
-                    {isSelectionActive && selectedRows.size > 0 && onBulkDelete ? (
-                        <div className="flex items-center justify-between p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
-                            <span className="text-sm font-semibold">{selectedRows.size} selected</span>
-                            <div className="flex items-center gap-2 ml-4"> {/* Added ml-4 for spacing */}
+                    {/* Bulk Actions with Summaries */}
+                    {isSelectionActive && selectedRows.size > 0 ? (
+                        <div className="flex flex-1 items-center justify-between p-2 bg-slate-100 dark:bg-slate-800 rounded-md mr-2">
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm font-semibold">{selectedRows.size} selected</span>
+                                
+                                <div className="hidden sm:flex items-center gap-3 border-l border-slate-300 dark:border-slate-600 pl-3">
+                                    <span className="text-xs text-muted-foreground">
+                                        Total: <span className="font-semibold text-foreground">{currencyFn(selectedTotals.amount)}</span>
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        Cashback: <span className="font-semibold text-emerald-600">{currencyFn(selectedTotals.cashback)}</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
                                 <Button variant="ghost" size="sm" onClick={() => handleSelectAll(false)}>Cancel</Button>
-                                <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Bulk Delete
-                                </Button>
+                                {onBulkDelete && (
+                                    <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     ) : (
-                        <div /> /* Empty spacer to push columns button to the right */
+                        <div /> 
                     )}
 
-                    {/* --- Block 2: Columns Button (desktop only) --- */}
+                    {/* Columns Button */}
                     <div className="hidden md:flex">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -166,7 +190,6 @@ export default function SharedTransactionsDialog({
                         </DropdownMenu>
                     </div>
                 </div>
-                {/* --- END: COMBINED ACTION BAR --- */}
 
                 <div className="max-h-[60vh] overflow-y-auto">
                     {isLoading ? (
@@ -189,7 +212,7 @@ export default function SharedTransactionsDialog({
                                             {visibleColumns['Transaction Date'] && <th className="text-left p-2">Date</th>}
                                             {visibleColumns['Transaction Name'] && <th className="text-left p-2">Transaction</th>}
                                             {visibleColumns['Amount'] && <th className="text-right p-2">Amount</th>}
-                                            {visibleColumns['estCashback'] && <th className="text-right p-2">Cashback</th>}
+                                            {visibleColumns['Estimated Cashback'] && <th className="text-right p-2">Cashback</th>}
                                             {visibleColumns['Card Name'] && <th className="text-left p-2">Card</th>}
                                             {visibleColumns['Category'] && <th className="text-left p-2">Category</th>}
                                             {visibleColumns['MCC Code'] && <th className="text-left p-2">MCC</th>}
@@ -200,10 +223,7 @@ export default function SharedTransactionsDialog({
                                     </thead>
                                     <tbody>
                                         {transactions.map(t => {
-                                            // --- START: MODIFICATION ---
-                                            // Use the cardMap to find the card name
-                                            const card = t['Card'] ? cardMap.get(t['Card'][0]) : null;
-                                            // --- END: MODIFICATION ---
+                                            const card = t['Card'] ? cardMap?.get(t['Card'][0]) : null;
 
                                             return (
                                                 <tr key={t.id} className="border-b">
@@ -216,12 +236,15 @@ export default function SharedTransactionsDialog({
                                                     {visibleColumns['Transaction Date'] && <td className="p-2">{t['Transaction Date']}</td>}
                                                     {visibleColumns['Transaction Name'] && <td className="p-2">{t['Transaction Name']}</td>}
                                                     {visibleColumns['Amount'] && <td className="text-right p-2">{currencyFn(t['Amount'])}</td>}
-                                                    {visibleColumns['estCashback'] && <td className="text-right p-2">{currencyFn(t.estCashback)}</td>}
                                                     
-                                                    {/* --- START: MODIFICATION --- */}
+                                                    {/* --- FIX 1: ADDED COLOR CLASS HERE --- */}
+                                                    {visibleColumns['Estimated Cashback'] && (
+                                                        <td className="text-right p-2 text-emerald-600 font-medium">
+                                                            {currencyFn(t.estCashback)}
+                                                        </td>
+                                                    )}
+                                                    
                                                     {visibleColumns['Card Name'] && <td className="p-2">{card ? card.name : 'N/A'}</td>}
-                                                    {/* --- END: MODIFICATION --- */}
-                                                    
                                                     {visibleColumns['Category'] && <td className="p-2">{t['Category'] || 'N/A'}</td>}
                                                     {visibleColumns['MCC Code'] && <td className="p-2">{t['MCC Code']} - {getMccDescription(t['MCC Code'])}</td>}
                                                     {visibleColumns['Notes'] && <td className="p-2">{t['Notes'] || 'N/A'}</td>}
@@ -236,7 +259,7 @@ export default function SharedTransactionsDialog({
                                                             <DropdownMenuContent>
                                                                 {onEdit && <DropdownMenuItem onClick={() => onEdit(t)}>Edit</DropdownMenuItem>}
                                                                 {onViewDetails && <DropdownMenuItem onClick={() => onViewDetails(t)}>View Details</DropdownMenuItem>}
-                                                                {onDelete && <DropdownMenuItem onClick={() => onDelete(t.id, t['Transaction Name'])}>Delete</DropdownMenuItem>}
+                                                                {onDelete && <DropdownMenuItem onClick={() => onDelete(t.id, t['Transaction Name'])} className="text-destructive">Delete</DropdownMenuItem>}
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     </td>
@@ -244,22 +267,46 @@ export default function SharedTransactionsDialog({
                                             );
                                         })}
                                     </tbody>
+
+                                    {/* --- FIX 2: REALIGNED FOOTER --- */}
                                     <tfoot>
-                                        <tr className="border-t-2 font-semibold">
-                                            {/* --- START: MODIFICATION --- */}
-                                            {/* Updated colSpan to account for Card Name column visibility */}
-                                            <td colSpan={2 + (visibleColumns['Transaction Date'] ? 1 : 0) + (visibleColumns['Transaction Name'] ? 1 : 0)} className="text-right p-2">Total</td>
-                                            {visibleColumns['Amount'] && <td className="text-right p-2">{currencyFn(totals.amount)}</td>}
-                                            {visibleColumns['estCashback'] && <td className="text-right p-2">{currencyFn(totals.cashback)}</td>}
-                                            <td colSpan={5}></td> {/* Adjust this if more columns are visible by default */}
-                                            {/* --- END: MODIFICATION --- */}
+                                        <tr className="border-t-2 font-semibold bg-slate-50/50">
+                                            {/* 1. Checkbox Placeholder */}
+                                            <td className="p-2"></td>
+
+                                            {/* 2. Date Placeholder */}
+                                            {visibleColumns['Transaction Date'] && <td className="p-2"></td>}
+
+                                            {/* 3. Transaction Name Placeholder (Holds the "Total" label) */}
+                                            {visibleColumns['Transaction Name'] && (
+                                                <td className="p-2 text-right text-slate-500">Total</td>
+                                            )}
+
+                                            {/* 4. Amount Total */}
+                                            {visibleColumns['Amount'] && (
+                                                <td className="p-2 text-right">{currencyFn(totals.amount)}</td>
+                                            )}
+
+                                            {/* 5. Cashback Total (with Green Color) */}
+                                            {visibleColumns['Estimated Cashback'] && (
+                                                <td className="p-2 text-right text-emerald-600 font-bold">{currencyFn(totals.cashback)}</td>
+                                            )}
+
+                                            {/* 6. Other Column Placeholders */}
+                                            {visibleColumns['Card Name'] && <td className="p-2"></td>}
+                                            {visibleColumns['Category'] && <td className="p-2"></td>}
+                                            {visibleColumns['MCC Code'] && <td className="p-2"></td>}
+                                            {visibleColumns['Notes'] && <td className="p-2"></td>}
+                                            {visibleColumns['Cashback Rate'] && <td className="p-2"></td>}
+
+                                            {/* 7. Actions Placeholder */}
+                                            <td className="p-2"></td>
                                         </tr>
                                     </tfoot>
                                 </table>
                             </div>
 
                             {/* Mobile Card View */}
-                            {/* CHANGED: Added py-1 for vertical padding */}
                             <div className="md:hidden space-y-1 px-1 py-1">
                                 {transactions.map(t => (
                                     <TransactionCard
