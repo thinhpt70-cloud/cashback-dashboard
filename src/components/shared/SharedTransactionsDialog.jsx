@@ -43,10 +43,12 @@ export default function SharedTransactionsDialog({
     const [visibleColumns, setVisibleColumns] = useState({
         'Transaction Date': true,
         'Transaction Name': true,
+        'Merchant': false, 
         'Amount': true,
         'Estimated Cashback': true,
         'Card Name': false,
         'Category': false,
+        'Applicable Rule': false, 
         'MCC Code': false,
         'Notes': false,
         'Cashback Rate': false,
@@ -211,10 +213,12 @@ export default function SharedTransactionsDialog({
                                             </th>
                                             {visibleColumns['Transaction Date'] && <th className="text-left p-2">Date</th>}
                                             {visibleColumns['Transaction Name'] && <th className="text-left p-2">Transaction</th>}
+                                            {visibleColumns['Merchant'] && <th className="text-left p-2">Merchant</th>} 
                                             {visibleColumns['Amount'] && <th className="text-right p-2">Amount</th>}
                                             {visibleColumns['Estimated Cashback'] && <th className="text-right p-2">Cashback</th>}
                                             {visibleColumns['Card Name'] && <th className="text-left p-2">Card</th>}
                                             {visibleColumns['Category'] && <th className="text-left p-2">Category</th>}
+                                            {visibleColumns['Applicable Rule'] && <th className="text-left p-2">Rule</th>}
                                             {visibleColumns['MCC Code'] && <th className="text-left p-2">MCC</th>}
                                             {visibleColumns['Notes'] && <th className="text-left p-2">Notes</th>}
                                             {visibleColumns['Cashback Rate'] && <th className="text-right p-2">Rate</th>}
@@ -235,20 +239,43 @@ export default function SharedTransactionsDialog({
                                                     </td>
                                                     {visibleColumns['Transaction Date'] && <td className="p-2">{t['Transaction Date']}</td>}
                                                     {visibleColumns['Transaction Name'] && <td className="p-2">{t['Transaction Name']}</td>}
+                                                    
+                                                    {visibleColumns['Merchant'] && (
+                                                        <td className="p-2 text-slate-500">{t.merchantLookup || ''}</td>
+                                                    )}
+                                                    
                                                     {visibleColumns['Amount'] && <td className="text-right p-2">{currencyFn(t['Amount'])}</td>}
                                                     
-                                                    {/* --- FIX 1: ADDED COLOR CLASS HERE --- */}
                                                     {visibleColumns['Estimated Cashback'] && (
                                                         <td className="text-right p-2 text-emerald-600 font-medium">
                                                             {currencyFn(t.estCashback)}
                                                         </td>
                                                     )}
                                                     
-                                                    {visibleColumns['Card Name'] && <td className="p-2">{card ? card.name : 'N/A'}</td>}
-                                                    {visibleColumns['Category'] && <td className="p-2">{t['Category'] || 'N/A'}</td>}
-                                                    {visibleColumns['MCC Code'] && <td className="p-2">{t['MCC Code']} - {getMccDescription(t['MCC Code'])}</td>}
-                                                    {visibleColumns['Notes'] && <td className="p-2">{t['Notes'] || 'N/A'}</td>}
-                                                    {visibleColumns['Cashback Rate'] && <td className="text-right p-2">{(t.estCashback / t['Amount'] * 100).toFixed(1)}%</td>}
+                                                    {visibleColumns['Card Name'] && <td className="p-2">{card ? card.name : ''}</td>}
+                                                    
+                                                    {visibleColumns['Category'] && <td className="p-2">{t['Category'] || ''}</td>}
+                                                    
+                                                    {visibleColumns['Applicable Rule'] && (
+                                                        <td className="p-2 text-xs font-mono text-slate-500">
+                                                            {t['Applicable Rule']?.length > 0 ? t['Applicable Rule'][0].slice(0, 8) + '...' : ''}
+                                                        </td>
+                                                    )}
+                                                    
+                                                    {visibleColumns['MCC Code'] && (
+                                                        <td className="p-2">
+                                                            {t['MCC Code'] ? `${t['MCC Code']} - ${getMccDescription(t['MCC Code'])}` : ''}
+                                                        </td>
+                                                    )}
+                                                    
+                                                    {visibleColumns['Notes'] && <td className="p-2">{t['Notes'] || ''}</td>}
+                                                    
+                                                    {visibleColumns['Cashback Rate'] && (
+                                                        <td className="text-right p-2">
+                                                            {(t.estCashback && t['Amount']) ? (t.estCashback / t['Amount'] * 100).toFixed(1) + '%' : ''}
+                                                        </td>
+                                                    )}
+                                                    
                                                     <td className="text-center p-2">
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
@@ -268,38 +295,36 @@ export default function SharedTransactionsDialog({
                                         })}
                                     </tbody>
 
-                                    {/* --- FIX 2: REALIGNED FOOTER --- */}
                                     <tfoot>
                                         <tr className="border-t-2 font-semibold bg-slate-50/50">
-                                            {/* 1. Checkbox Placeholder */}
                                             <td className="p-2"></td>
-
-                                            {/* 2. Date Placeholder */}
                                             {visibleColumns['Transaction Date'] && <td className="p-2"></td>}
 
-                                            {/* 3. Transaction Name Placeholder (Holds the "Total" label) */}
+                                            {/* Logic to place 'Total' label correctly */}
                                             {visibleColumns['Transaction Name'] && (
                                                 <td className="p-2 text-right text-slate-500">Total</td>
                                             )}
+                                            {visibleColumns['Merchant'] && !visibleColumns['Transaction Name'] && (
+                                                <td className="p-2 text-right text-slate-500">Total</td>
+                                            )}
+                                            {visibleColumns['Merchant'] && visibleColumns['Transaction Name'] && <td className="p-2"></td>}
 
-                                            {/* 4. Amount Total */}
+
                                             {visibleColumns['Amount'] && (
                                                 <td className="p-2 text-right">{currencyFn(totals.amount)}</td>
                                             )}
 
-                                            {/* 5. Cashback Total (with Green Color) */}
                                             {visibleColumns['Estimated Cashback'] && (
                                                 <td className="p-2 text-right text-emerald-600 font-bold">{currencyFn(totals.cashback)}</td>
                                             )}
 
-                                            {/* 6. Other Column Placeholders */}
                                             {visibleColumns['Card Name'] && <td className="p-2"></td>}
                                             {visibleColumns['Category'] && <td className="p-2"></td>}
+                                            {visibleColumns['Applicable Rule'] && <td className="p-2"></td>}
                                             {visibleColumns['MCC Code'] && <td className="p-2"></td>}
                                             {visibleColumns['Notes'] && <td className="p-2"></td>}
                                             {visibleColumns['Cashback Rate'] && <td className="p-2"></td>}
 
-                                            {/* 7. Actions Placeholder */}
                                             <td className="p-2"></td>
                                         </tr>
                                     </tfoot>
