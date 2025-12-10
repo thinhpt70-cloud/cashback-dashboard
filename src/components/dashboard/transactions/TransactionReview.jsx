@@ -273,7 +273,17 @@ export default function TransactionReview({
 
     const currency = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 
-    if (!isLoading && transactions.length === 0) return null;
+    if (!isLoading && transactions.length === 0) {
+        return (
+             <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 p-6 flex flex-col items-center justify-center text-center gap-2 transition-colors animate-in fade-in zoom-in-95 duration-300">
+                <div className="h-12 w-12 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-2">
+                    <Check className="h-6 w-6" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All caught up!</h3>
+                <p className="text-sm text-muted-foreground">No transactions pending review.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 overflow-hidden transition-colors">

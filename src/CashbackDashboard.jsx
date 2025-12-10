@@ -1,7 +1,7 @@
 // CashbackDashboard.jsx
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, Search, Loader2, Plus, History, Check, Snowflake, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2, LayoutDashboard, ArrowLeftRight, Banknote, Menu, RefreshCw, LogOut } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, Search, Loader2, Plus, History, Check, Snowflake, ChevronDown, List, FilePenLine, LayoutDashboard, ArrowLeftRight, Banknote, Menu, RefreshCw, LogOut } from "lucide-react";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
@@ -10,18 +10,13 @@ import { getMetricSparkline } from './lib/stats';
 import { getTodaysMonth, getPreviousMonth, getCurrentCashbackMonthForCard } from './lib/date';
 
 // Import UI components
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
 import { Progress } from "./components/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { Input } from "./components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./components/ui/sheet";
-import { Skeleton } from "./components/ui/skeleton";
 
 // Import dialog components
 import MobileThemeToggle from "./components/dashboard/header/MobileThemeToggle";
@@ -45,6 +40,8 @@ import RecentTransactions from './components/dashboard/overview/RecentTransactio
 import CurrentCashflowChart from "./components/dashboard/overview/CurrentCashflowChart";
 import StatCards from './components/dashboard/overview/OverviewStatCards';
 import TransactionReview from './components/dashboard/transactions/TransactionReview';
+import TransactionsList from './components/dashboard/transactions/TransactionsList';
+import TransactionDetailSheet from './components/dashboard/transactions/TransactionDetailSheet';
 import CashbackTracker from './components/dashboard/cashback/CashbackTracker';
 
 // Import authentication component
@@ -82,6 +79,7 @@ export default function CashbackDashboard() {
     const [isMonthlyTxLoading, setIsMonthlyTxLoading] = useState(true);
     const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState(null);
+    const [viewingTransaction, setViewingTransaction] = useState(null);
     const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
     const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
     const [dialogTransactions, setDialogTransactions] = useState([]);
@@ -208,11 +206,9 @@ export default function CashbackDashboard() {
         setEditingTransaction(transaction);
     };
 
-    const handleViewTransactionDetails = async (transaction) => {
-        // For now, we'll just log the transaction to the console.
-        // In the future, this could open a dialog with more detailed information.
-        console.log("Viewing details for transaction:", transaction);
-        toast.info(`Viewing details for ${transaction['Transaction Name']}`);
+    const handleViewTransactionDetails = (transaction) => {
+        const cardName = transaction['Card Name'] || (transaction['Card'] && cardMap.get(transaction['Card'][0])?.name);
+        setViewingTransaction({ ...transaction, 'Card Name': cardName });
     };
 
     const handleBulkDelete = async (transactionIds) => {
@@ -966,7 +962,7 @@ export default function CashbackDashboard() {
                             getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
                             onEditTransaction={handleEditClick}
                         />
-                        <TransactionsTab
+                        <TransactionsList
                             isDesktop={isDesktop}
                             transactions={activeMonth === 'live' ? recentTransactions : monthlyTransactions}
                             isLoading={activeMonth === 'live' ? loading : isMonthlyTxLoading}
@@ -979,6 +975,8 @@ export default function CashbackDashboard() {
                             statementMonths={statementMonths}
                             onTransactionDeleted={handleTransactionDeleted}
                             onEditTransaction={handleEditClick}
+                            onBulkDelete={handleBulkDelete}
+                            onViewDetails={handleViewTransactionDetails}
                             fmtYMShortFn={fmtYMShort}
                         />
                     </div>
@@ -1107,6 +1105,20 @@ export default function CashbackDashboard() {
                 isLoading={isDialogLoading}
                 currencyFn={currency}
             />
+            <TransactionDetailSheet
+                transaction={viewingTransaction}
+                isOpen={!!viewingTransaction}
+                onClose={() => setViewingTransaction(null)}
+                onEdit={(tx) => {
+                    setViewingTransaction(null);
+                    handleEditClick(tx);
+                }}
+                onDelete={(id, name) => {
+                    setViewingTransaction(null);
+                    handleTransactionDeleted(id, name);
+                }}
+                currencyFn={currency}
+            />
             <NeedsSyncingDialog
                 isOpen={isSyncingDialogOpen}
                 onClose={() => setIsSyncingDialogOpen(false)}
@@ -1123,368 +1135,6 @@ export default function CashbackDashboard() {
 // --------------------------
 // 3) UI SUB-COMPONENTS
 // --------------------------
-
-function TransactionsTab({ transactions, isLoading, activeMonth, cardMap, mccNameFn, allCards, filterType, onFilterTypeChange, statementMonths, isDesktop, onTransactionDeleted, onEditTransaction, fmtYMShortFn }) {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [cardFilter, setCardFilter] = useState("all");
-    const [categoryFilter, setCategoryFilter] = useState("all");
-    const [visibleCount, setVisibleCount] = useState(15);
-    const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
-    const [expandedTxId, setExpandedTxId] = useState(null); // State for expandable rows
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
-
-    const handleToggleExpand = (txId) => {
-        setExpandedTxId(prevId => (prevId === txId ? null : txId));
-    };
-
-    const categories = useMemo(() => {
-        const uniqueCategories = Array.from(new Set(transactions.map(tx => tx['Category']).filter(Boolean)));
-        uniqueCategories.sort((a, b) => a.localeCompare(b));
-        return ["all", ...uniqueCategories];
-    }, [transactions]);
-
-    const filteredAndSortedTransactions = useMemo(() => {
-        let sortableItems = [...transactions].map(tx => ({
-            ...tx,
-            rate: (tx['Amount'] && tx['Amount'] > 0) ? (tx.estCashback / tx['Amount']) : 0
-        }));
-
-        sortableItems = sortableItems.filter(tx => {
-            if (!searchTerm) return true;
-            const lowerCaseSearch = searchTerm.toLowerCase();
-            return (
-            tx['Transaction Name']?.toLowerCase().includes(lowerCaseSearch) ||
-            tx['merchantLookup']?.toLowerCase().includes(lowerCaseSearch) ||
-            String(tx['Amount']).includes(lowerCaseSearch) ||
-            tx['Transaction Date']?.includes(lowerCaseSearch) ||
-            String(tx['MCC Code']).includes(lowerCaseSearch)
-            );
-        })
-        .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
-        .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter);
-
-        if (sortConfig.key !== null) {
-            sortableItems.sort((a, b) => {
-                const aValue = a[sortConfig.key];
-                const bValue = b[sortConfig.key];
-                if (aValue === null || aValue === undefined) return 1;
-                if (bValue === null || bValue === undefined) return -1;
-                if (typeof aValue === 'number' && typeof bValue === 'number') {
-                    return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-                }
-                if (sortConfig.key === 'Transaction Date') {
-                    return sortConfig.direction === 'ascending'
-                        ? new Date(aValue) - new Date(bValue)
-                        : new Date(bValue) - new Date(aValue);
-                }
-                return sortConfig.direction === 'ascending'
-                    ? String(aValue).localeCompare(String(bValue))
-                    : String(bValue).localeCompare(String(aValue));
-            });
-        }
-        return sortableItems;
-    }, [transactions, searchTerm, cardFilter, categoryFilter, sortConfig]);
-
-    useEffect(() => {
-        setVisibleCount(15);
-    }, [filteredAndSortedTransactions]);
-
-    const requestSort = (key) => {
-        let direction = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    };
-
-    const transactionsToShow = useMemo(() => {
-        return filteredAndSortedTransactions.slice(0, visibleCount);
-    }, [filteredAndSortedTransactions, visibleCount]);
-
-    const handleLoadMore = () => {
-        setVisibleCount(prevCount => prevCount + 15);
-    };
-
-    const handleEdit = (tx) => {
-        onEditTransaction(tx); // <-- Call the handler from the parent
-    };
-
-    const handleDelete = (txId, txName) => {
-        onTransactionDeleted(txId, txName);
-    };
-
-    const SortIcon = ({ columnKey }) => {
-        if (sortConfig.key !== columnKey) return <ChevronsUpDown className="ml-2 h-4 w-4" />;
-        return sortConfig.direction === 'ascending' ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />;
-    };
-
-    const getRateColor = (r) => {
-        const ratePercent = r * 100;
-        if (ratePercent >= 5) return "bg-emerald-100 text-emerald-800 border-emerald-200";
-        if (ratePercent >= 2) return "bg-sky-100 text-sky-800 border-sky-200";
-        if (ratePercent > 0) return "bg-slate-100 text-slate-700 border-slate-200";
-        return "bg-gray-100 text-gray-500 border-gray-200";
-    };
-
-    const renderContent = () => {
-        if (isLoading) {
-            // If it's not desktop (i.e., mobile view)
-            if (!isDesktop) {
-                return (
-                    <div className="space-y-3">
-                        {/* Create 5 skeleton cards for the mobile list view */}
-                        {Array.from({ length: 5 }).map((_, i) => (
-                            <div key={i} className="p-3 border bg-white rounded-lg space-y-3">
-                                <div className="flex justify-between items-start gap-2">
-                                    <div className="flex-1 space-y-2">
-                                        <Skeleton className="h-5 w-3/4" />
-                                        <Skeleton className="h-3 w-1/2" />
-                                    </div>
-                                    <div className="text-right flex-shrink-0 space-y-2">
-                                        <Skeleton className="h-6 w-24 ml-auto" />
-                                        <Skeleton className="h-4 w-16 ml-auto" />
-                                    </div>
-                                </div>
-                                <div className="flex justify-between items-center mt-2 pt-2 border-t">
-                                    <Skeleton className="h-6 w-32" />
-                                    <Skeleton className="h-8 w-8 rounded-md" />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                );
-            }
-
-            // Otherwise, render the skeleton for the desktop table view
-            return (
-                <div className="border rounded-md">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[40px]"><Skeleton className="h-5 w-5" /></TableHead>
-                                <TableHead className="w-[120px]"><Skeleton className="h-5 w-20" /></TableHead>
-                                <TableHead><Skeleton className="h-5 w-32" /></TableHead>
-                                <TableHead><Skeleton className="h-5 w-24" /></TableHead>
-                                <TableHead className="text-center"><Skeleton className="h-5 w-16 mx-auto" /></TableHead>
-                                <TableHead className="text-right"><Skeleton className="h-5 w-28 ml-auto" /></TableHead>
-                                <TableHead className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableHead>
-                                <TableHead className="w-[100px] text-center"><Skeleton className="h-5 w-20 mx-auto" /></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {/* Create 7 skeleton rows for the desktop table view */}
-                            {Array.from({ length: 7 }).map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                    <TableCell><Skeleton className="h-7 w-16 mx-auto" /></TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-            );
-        }
-
-        if (transactionsToShow.length === 0) {
-            return <div className="text-center h-24 flex items-center justify-center text-muted-foreground"><p>No transactions found.</p></div>;
-        }
-
-        if (!isDesktop) {
-            return (
-                <div className="space-y-3">
-                    {transactionsToShow.map(tx => {
-                        const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
-                        const hasOptionalFields = tx.notes || tx.otherDiscounts || tx.otherFees || tx.subCategory || tx.paidFor || tx.foreignCurrencyAmount || tx.billingDate;
-                        return (
-                            <div key={tx.id} className="border bg-white rounded-lg shadow-sm overflow-hidden">
-                                <div className="p-3">
-                                    <div className="flex justify-between items-start gap-2">
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-semibold truncate">{tx['Transaction Name']}</p>
-                                            {tx.merchantLookup && <p className="text-xs text-muted-foreground">{tx.merchantLookup}</p>}
-                                            <p className="text-sm text-muted-foreground">{tx['Transaction Date']}</p>
-                                        </div>
-                                        <div className="text-right flex-shrink-0">
-                                            <p className="font-bold text-lg">{currency(tx['Amount'])}</p>
-                                            <p className="text-sm text-emerald-600 font-medium">+ {currency(tx.estCashback)}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-between items-center mt-2 pt-2 border-t">
-                                        <div className="flex items-center gap-2">
-                                            {card && <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge>}
-                                            <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>{(tx.rate * 100).toFixed(1)}%</Badge>
-                                        </div>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onSelect={() => handleEdit(tx)}><FilePenLine className="mr-2 h-4 w-4" /><span>Edit</span></DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => handleDelete(tx.id, tx['Transaction Name'])} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /><span>Delete</span></DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                </div>
-                                {hasOptionalFields && (
-                                    <Accordion type="single" collapsible className="bg-slate-50">
-                                        <AccordionItem value="details" className="border-t">
-                                            <AccordionTrigger className="px-3 py-2 text-xs font-semibold text-muted-foreground">
-                                                More Details
-                                            </AccordionTrigger>
-                                            <AccordionContent className="px-3 pb-3 text-xs space-y-2">
-                                                {/* This block is now more robust and formats all numbers correctly */}
-                                                {tx.subCategory && <p><span className="font-medium">Sub-Category:</span> {tx.subCategory}</p>}
-                                                {tx.paidFor && <p><span className="font-medium">Paid For:</span> {tx.paidFor}</p>}
-                                                {tx.billingDate && <p><span className="font-medium">Billing Date:</span> {tx.billingDate}</p>}
-                                                {tx.otherDiscounts > 0 && <p><span className="font-medium">Discounts:</span> -{currency(tx.otherDiscounts)}</p>}
-                                                {tx.otherFees > 0 && <p><span className="font-medium">Fees:</span> +{currency(tx.otherFees)}</p>}
-                                                {(tx.foreignCurrencyAmount > 0 || tx.conversionFee > 0) && (
-                                                    <p>
-                                                        <span className="font-medium">Foreign Spend: </span>
-                                                        {tx.foreignCurrencyAmount} (+{currency(tx.conversionFee)})
-                                                    </p>
-                                                )}
-                                                {tx.notes && <p className="pt-1 border-t mt-1 whitespace-pre-wrap"><span className="font-medium">Notes:</span> {tx.notes}</p>}
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    </Accordion>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            );
-        }
-
-        // --- DESKTOP TABLE VIEW ---
-        return (
-            <div className="border rounded-md">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[40px]"></TableHead>
-                            <TableHead className="w-[120px]"><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
-                            {/* --- FIX: Columns reordered --- */}
-                            <TableHead className="text-center"><Button variant="ghost" onClick={() => requestSort('rate')} className="px-2">Rate <SortIcon columnKey="rate" /></Button></TableHead>
-                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
-                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
-                            <TableHead className="w-[100px] text-center">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {transactionsToShow.map(tx => {
-                            const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
-                            const isExpanded = expandedTxId === tx.id;
-                            const hasOptionalFields = tx.notes || tx.otherDiscounts || tx.otherFees || tx.subCategory || tx.paidFor || tx.foreignCurrencyAmount || tx.billingDate;
-
-                            return (
-                                <React.Fragment key={tx.id}>
-                                    <TableRow onClick={() => hasOptionalFields && handleToggleExpand(tx.id)} className={cn(hasOptionalFields && "cursor-pointer")}>
-                                        <TableCell className="px-2">
-                                            {hasOptionalFields && (
-                                                <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
-                                            )}
-                                        </TableCell>
-                                        <TableCell>{tx['Transaction Date']}</TableCell>
-                                        <TableCell>
-                                            <div className="font-medium">{tx['Transaction Name']}</div>
-                                            {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
-                                        </TableCell>
-                                        <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>
-                                        {/* --- FIX: Cells reordered --- */}
-                                        <TableCell className="text-center">
-                                            <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
-                                                {(tx.rate * 100).toFixed(1)}%
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>
-                                        <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>
-                                        <TableCell className="text-center">
-                                            <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                    {isExpanded && hasOptionalFields && (
-                                        <TableRow className="bg-slate-50 hover:bg-slate-50">
-                                            <TableCell colSpan={8} className="p-0">
-                                                <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4 text-xs">
-                                                    {tx.subCategory && <div><p className="font-semibold text-slate-500">Sub-Category</p><p>{tx.subCategory}</p></div>}
-                                                    {tx.paidFor && <div><p className="font-semibold text-slate-500">Paid For</p><p>{tx.paidFor}</p></div>}
-                                                    {tx.billingDate && <div><p className="font-semibold text-slate-500">Billing Date</p><p>{tx.billingDate}</p></div>}
-                                                    {(tx.foreignCurrencyAmount > 0 || tx.conversionFee > 0) && <div><p className="font-semibold text-slate-500">Foreign Spend</p><p>{tx.foreignCurrencyAmount} (+{currency(tx.conversionFee)})</p></div>}
-                                                    {tx.otherDiscounts > 0 && <div><p className="font-semibold text-slate-500">Discounts</p><p className="text-emerald-600">-{currency(tx.otherDiscounts)}</p></div>}
-                                                    {tx.otherFees > 0 && <div><p className="font-semibold text-slate-500">Fees</p><p className="text-red-600">+{currency(tx.otherFees)}</p></div>}
-                                                    {tx.notes && <div className="col-span-full"><p className="font-semibold text-slate-500">Notes</p><p className="whitespace-pre-wrap">{tx.notes}</p></div>}
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </React.Fragment>
-                            );
-                        })}
-                    </TableBody>
-                </Table>
-            </div>
-        );
-    };
-
-    return (
-        <Card>
-            <CardHeader>
-                <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <CardTitle>
-                            {activeMonth === 'live'
-                                ? 'Recent Transactions'
-                                : `Transactions for ${fmtYMShortFn(activeMonth)}`
-                            }
-                        </CardTitle>
-                        {activeMonth !== 'live' && (
-                            <Tabs defaultValue="date" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
-                                <TabsList className="bg-slate-100 p-1 rounded-lg">
-                                    <TabsTrigger value="date">Transaction Date</TabsTrigger>
-                                    <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
-                                </TabsList>
-                            </Tabs>
-                        )}
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input type="search" placeholder="Search..." className="w-full pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                        </div>
-                        <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
-                            <option value="all">All Cards</option>
-                            {[...allCards].sort((a, b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 sm:flex-initial h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
-                            {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
-                        </select>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {renderContent()}
-                <div className="mt-6 flex flex-col items-center gap-4">
-                    <p className="text-sm text-muted-foreground">
-                        Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{filteredAndSortedTransactions.length}</span> transactions
-                    </p>
-                    {visibleCount < filteredAndSortedTransactions.length && (
-                        <Button onClick={handleLoadMore} variant="outline">Load More</Button>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
 
 function CardsOverviewMetrics({ stats, currencyFn }) {
     if (!stats) {
