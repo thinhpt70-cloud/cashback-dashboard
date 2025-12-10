@@ -1,7 +1,7 @@
 // CashbackDashboard.jsx
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, Search, Loader2, Plus, History, Check, Snowflake, ArrowUp, ArrowDown, ChevronsUpDown, ChevronDown, List, MoreHorizontal, FilePenLine, Trash2, LayoutDashboard, ArrowLeftRight, Banknote, Menu, RefreshCw, LogOut } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, Search, Loader2, Plus, History, Check, Snowflake, ChevronDown, List, FilePenLine, LayoutDashboard, ArrowLeftRight, Banknote, Menu, RefreshCw, LogOut } from "lucide-react";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
@@ -10,18 +10,13 @@ import { getMetricSparkline } from './lib/stats';
 import { getTodaysMonth, getPreviousMonth, getCurrentCashbackMonthForCard } from './lib/date';
 
 // Import UI components
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
 import { Progress } from "./components/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { Input } from "./components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./components/ui/sheet";
-import { Skeleton } from "./components/ui/skeleton";
 
 // Import dialog components
 import MobileThemeToggle from "./components/dashboard/header/MobileThemeToggle";

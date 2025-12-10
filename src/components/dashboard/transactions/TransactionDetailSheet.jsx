@@ -6,20 +6,15 @@ import {
     SheetTitle,
     SheetDescription,
     SheetFooter,
-    SheetClose
 } from "../../ui/sheet";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import {
     Calendar,
     CreditCard,
-    DollarSign,
     Tag,
     Store,
     FileText,
-    Hash,
-    MapPin,
-    Clock
 } from "lucide-react";
 
 export default function TransactionDetailSheet({ transaction, isOpen, onClose, onEdit, onDelete, currencyFn, fmtDateFn }) {

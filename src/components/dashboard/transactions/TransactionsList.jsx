@@ -3,8 +3,6 @@ import {
     ChevronsUpDown,
     ArrowUp,
     ArrowDown,
-    ChevronDown,
-    MoreHorizontal,
     FilePenLine,
     Trash2,
     Search,
@@ -15,12 +13,6 @@ import { cn } from "../../../lib/utils";
 import { Checkbox } from "../../ui/checkbox";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "../../ui/dropdown-menu";
 import {
     Table,
     TableBody,
@@ -42,12 +34,6 @@ import {
     TabsList,
     TabsTrigger,
 } from "../../ui/tabs";
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "../../ui/accordion";
 
 export default function TransactionsList({
     transactions,
