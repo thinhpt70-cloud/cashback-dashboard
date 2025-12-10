@@ -37,9 +37,6 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
             <SheetContent className="w-full sm:max-w-md overflow-y-auto">
                 <SheetHeader className="mb-6">
                     <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline" className="font-mono text-xs text-muted-foreground">
-                            {transaction.id.slice(0, 8)}...
-                        </Badge>
                         <Badge className={statusColor}>{statusText}</Badge>
                     </div>
                     <SheetTitle className="text-xl font-bold leading-tight">

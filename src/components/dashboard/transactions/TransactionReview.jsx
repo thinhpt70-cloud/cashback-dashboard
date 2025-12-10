@@ -275,12 +275,17 @@ export default function TransactionReview({
 
     if (!isLoading && transactions.length === 0) {
         return (
-             <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 p-6 flex flex-col items-center justify-center text-center gap-2 transition-colors animate-in fade-in zoom-in-95 duration-300">
-                <div className="h-12 w-12 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-2">
-                    <Check className="h-6 w-6" />
+            <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 overflow-hidden transition-colors">
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/50 flex justify-between items-center select-none transition-colors">
+                    <div className="flex items-center gap-2">
+                        <div className="h-5 w-5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
+                            <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <h3 className="font-semibold text-emerald-900 dark:text-emerald-100 flex items-center">
+                            All caught up! No transactions pending review.
+                        </h3>
+                    </div>
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All caught up!</h3>
-                <p className="text-sm text-muted-foreground">No transactions pending review.</p>
             </div>
         );
     }
