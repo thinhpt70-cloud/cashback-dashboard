@@ -563,39 +563,21 @@ export default function CashbackTracker({
         });
 
         try {
-            // We need to fetch transactions for this card that match the summary logic.
-            // Using the CardSpendsCap logic:
-            // 1. Fetch by cardId and approximate month filter (or all for month)
-            // 2. Filter by Summary ID inclusion.
-
-            // The summary object (item) should have the ID we need.
-            // item.id IS the summary page ID in Notion usually?
-            // Wait, item.id from monthlySummary might be the UUID of the summary page.
-
-            const summaryId = item.id;
-
-            // Fetch transactions. We can use the 'month' param to narrow down,
-            // assuming the transactions are somewhat date-aligned with the cashback month.
-            // However, to be safe and replicate CardSpendsCap exactly:
-            // CardSpendsCap fetches: `/transactions?month=${monthForCard...}&filterBy=cashbackMonth&cardId=${cardId}`
-            // Here item.month is "YYYYMM".
-
+            // 1. Fetch transactions using the dedicated API filters
+            // The API handles the logic: matches 'Cashback Month' formula AND 'Card' relation
             const res = await fetch(`${API_BASE_URL}/transactions?month=${item.month}&filterBy=cashbackMonth&cardId=${item.cardId}`);
+            
             if (!res.ok) throw new Error('Failed to fetch transactions');
 
             const allTransactions = await res.json();
 
-            // Filter by Summary Relationship
-            const filtered = allTransactions.filter(t => {
-                const summaryCategories = t['Card Summary Category']; // Array of relation IDs
-                if (!Array.isArray(summaryCategories) || summaryCategories.length === 0) return false;
-                return summaryCategories.includes(summaryId);
-            });
-
+            // 2. FIX: Removed the incorrect client-side filtering.
+            // The API has already returned exactly what we need (transactions for this card in this month).
+            
             setTxDialog({
                 isOpen: true,
                 isLoading: false,
-                transactions: filtered,
+                transactions: allTransactions, // <--- Pass the API results directly
                 title: `Transactions - ${item.cardName} (${fmtYMShort(item.month)})`
             });
 
