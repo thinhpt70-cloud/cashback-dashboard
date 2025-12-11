@@ -14,12 +14,12 @@ import {
     CreditCard,
     Tag,
     Store,
+    Layers,
     FileText,
     Receipt,
     Globe,
     AlertCircle,
     CheckCircle2,
-    DollarSign,
     Percent
 } from "lucide-react";
 import { Checkbox } from "../../ui/checkbox";
