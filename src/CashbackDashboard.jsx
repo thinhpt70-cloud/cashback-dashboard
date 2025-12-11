@@ -1118,6 +1118,8 @@ export default function CashbackDashboard() {
                     handleTransactionDeleted(id, name);
                 }}
                 currencyFn={currency}
+                allCards={cards}
+                rules={cashbackRules}
             />
             <NeedsSyncingDialog
                 isOpen={isSyncingDialogOpen}

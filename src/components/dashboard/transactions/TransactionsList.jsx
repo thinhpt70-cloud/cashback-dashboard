@@ -8,7 +8,10 @@ import {
     FilePenLine,
     Trash2,
     Search,
-    X
+    X,
+    Filter,
+    Layers,
+    MoreHorizontal
 } from "lucide-react";
 
 import { cn } from "../../../lib/utils";
@@ -36,6 +39,20 @@ import {
     TabsList,
     TabsTrigger,
 } from "../../ui/tabs";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "../../ui/select";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuSeparator,
+} from "../../ui/dropdown-menu";
 
 export default function TransactionsList({
     transactions,
@@ -59,7 +76,9 @@ export default function TransactionsList({
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [visibleCount, setVisibleCount] = useState(15);
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
-    const [selectedIds, setSelectedIds] = useState([]); 
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [groupBy, setGroupBy] = useState("none");
+
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
     useEffect(() => {
@@ -72,28 +91,29 @@ export default function TransactionsList({
         return ["all", ...uniqueCategories];
     }, [transactions]);
 
-    const filteredAndSortedTransactions = useMemo(() => {
-        let sortableItems = [...transactions].map(tx => ({
+    const filteredData = useMemo(() => {
+        let items = [...transactions].map(tx => ({
             ...tx,
             rate: (tx['Amount'] && tx['Amount'] > 0) ? (tx.estCashback / tx['Amount']) : 0
         }));
 
-        sortableItems = sortableItems.filter(tx => {
+        items = items.filter(tx => {
             if (!searchTerm) return true;
             const lowerCaseSearch = searchTerm.toLowerCase();
             return (
-            tx['Transaction Name']?.toLowerCase().includes(lowerCaseSearch) ||
-            tx['merchantLookup']?.toLowerCase().includes(lowerCaseSearch) ||
-            String(tx['Amount']).includes(lowerCaseSearch) ||
-            tx['Transaction Date']?.includes(lowerCaseSearch) ||
-            String(tx['MCC Code']).includes(lowerCaseSearch)
+                tx['Transaction Name']?.toLowerCase().includes(lowerCaseSearch) ||
+                tx['merchantLookup']?.toLowerCase().includes(lowerCaseSearch) ||
+                String(tx['Amount']).includes(lowerCaseSearch) ||
+                tx['Transaction Date']?.includes(lowerCaseSearch) ||
+                String(tx['MCC Code']).includes(lowerCaseSearch)
             );
         })
         .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
         .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter);
 
+        // Sorting
         if (sortConfig.key !== null) {
-            sortableItems.sort((a, b) => {
+            items.sort((a, b) => {
                 const aValue = a[sortConfig.key];
                 const bValue = b[sortConfig.key];
                 if (aValue === null || aValue === undefined) return 1;
@@ -111,12 +131,58 @@ export default function TransactionsList({
                     : String(bValue).localeCompare(String(aValue));
             });
         }
-        return sortableItems;
+        return items;
     }, [transactions, searchTerm, cardFilter, categoryFilter, sortConfig]);
 
     useEffect(() => {
         setVisibleCount(15);
-    }, [filteredAndSortedTransactions]);
+    }, [filteredData]);
+
+    const groupedData = useMemo(() => {
+        if (groupBy === 'none') {
+            return { 'All Transactions': filteredData.slice(0, visibleCount) };
+        }
+
+        const groups = {};
+        // Group all filtered data, then slice logic might be tricky with grouping.
+        // For simplicity, we apply grouping to the *filtered* data, but visibleCount applies to total items?
+        // Actually, infinite scroll + grouping is complex.
+        // Let's group the *visible* items or group all and slice?
+        // Standard approach: Group all filtered items, then render. But slicing makes it hard.
+        // To simplify: We will slice the filteredData first, THEN group.
+        // This keeps the "Load More" functionality working on the flat list,
+        // but groups might appear split across "pages". This is acceptable for "Load More".
+
+        const itemsToShow = filteredData.slice(0, visibleCount);
+
+        itemsToShow.forEach(tx => {
+            let key = 'Other';
+            if (groupBy === 'card') {
+                const cardId = tx['Card'] && tx['Card'][0];
+                const card = cardMap.get(cardId);
+                key = card ? card.name : 'Unknown Card';
+            } else if (groupBy === 'category') {
+                key = tx['Category'] || 'Uncategorized';
+            } else if (groupBy === 'date') {
+                key = tx['Transaction Date'] || 'No Date';
+            }
+
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(tx);
+        });
+
+        // Sort keys
+        return Object.keys(groups).sort((a, b) => {
+             // If date, sort descending usually? But sortConfig handles item order.
+             // Let's just alphabetical sort group keys for now, or date sort if date.
+             if (groupBy === 'date') return new Date(b) - new Date(a);
+             return a.localeCompare(b);
+        }).reduce((obj, key) => {
+            obj[key] = groups[key];
+            return obj;
+        }, {});
+
+    }, [filteredData, groupBy, visibleCount, cardMap]);
 
     const requestSort = (key) => {
         let direction = 'ascending';
@@ -127,8 +193,8 @@ export default function TransactionsList({
     };
 
     const transactionsToShow = useMemo(() => {
-        return filteredAndSortedTransactions.slice(0, visibleCount);
-    }, [filteredAndSortedTransactions, visibleCount]);
+        return filteredData.slice(0, visibleCount);
+    }, [filteredData, visibleCount]);
 
     const handleLoadMore = () => {
         setVisibleCount(prevCount => prevCount + 15);
@@ -144,7 +210,7 @@ export default function TransactionsList({
 
     const handleSelectAll = (checked) => {
         if (checked) {
-            const allIds = filteredAndSortedTransactions.map(tx => tx.id);
+            const allIds = filteredData.map(tx => tx.id);
             setSelectedIds(allIds);
         } else {
             setSelectedIds([]);
@@ -188,7 +254,7 @@ export default function TransactionsList({
 
     const renderContent = () => {
         if (isLoading) {
-            if (!isDesktop) {
+             if (!isDesktop) {
                 return (
                     <div className="space-y-3">
                         {Array.from({ length: 5 }).map((_, i) => (
@@ -249,14 +315,34 @@ export default function TransactionsList({
             );
         }
 
-        if (transactionsToShow.length === 0) {
+        if (filteredData.length === 0) {
             return <div className="text-center h-24 flex items-center justify-center text-muted-foreground"><p>No transactions found.</p></div>;
         }
 
         if (!isDesktop) {
+            // Mobile View - Using card style list
+             // We flatten the groups for mobile simplicity or keep them if easy.
+             // Let's flatten for now as mobile list usually doesn't show group headers nicely unless designed.
+             // Actually, showing grouping on mobile is nice too.
+             const flatList = [];
+             Object.entries(groupedData).forEach(([key, items]) => {
+                 if (groupBy !== 'none') flatList.push({ type: 'header', title: key, count: items.length });
+                 flatList.push(...items.map(i => ({ type: 'item', ...i })));
+             });
+
             return (
                 <div className="space-y-3">
-                    {transactionsToShow.map(tx => {
+                    {flatList.map((item, index) => {
+                        if (item.type === 'header') {
+                            return (
+                                <div key={`header-${index}`} className="pt-2 pb-1 px-1">
+                                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{item.title} ({item.count})</span>
+                                </div>
+                            );
+                        }
+
+                        // Item
+                        const tx = item;
                         const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
                         const isSelected = selectedIds.includes(tx.id);
                         return (
@@ -302,12 +388,11 @@ export default function TransactionsList({
         return (
             <div className="border rounded-md">
                 <Table>
-                    {/* CHANGED: Removed sticky positioning completely, plain Header now */}
                     <TableHeader className="bg-background">
                         <TableRow className="hover:bg-transparent">
                             <TableHead className="w-[30px] p-2">
                                 <Checkbox
-                                    checked={selectedIds.length > 0 && selectedIds.length === filteredAndSortedTransactions.length}
+                                    checked={selectedIds.length > 0 && selectedIds.length === filteredData.length}
                                     onCheckedChange={handleSelectAll}
                                     aria-label="Select all"
                                 />
@@ -323,47 +408,79 @@ export default function TransactionsList({
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {transactionsToShow.map(tx => {
-                            const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
-                            const isSelected = selectedIds.includes(tx.id);
+                         {Object.entries(groupedData).map(([groupKey, groupTxs]) => (
+                            <React.Fragment key={groupKey}>
+                                {groupBy !== 'none' && (
+                                    <TableRow className="bg-slate-100/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-900">
+                                        <TableCell colSpan={9} className="py-2 px-4 font-semibold text-xs uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                                            {groupKey} <span className="ml-1 text-slate-400 font-normal">({groupTxs.length})</span>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                                {groupTxs.map(tx => {
+                                    const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
+                                    const isSelected = selectedIds.includes(tx.id);
 
-                            return (
-                                <TableRow
-                                    key={tx.id}
-                                    onClick={() => onViewDetails && onViewDetails(tx)}
-                                    className={cn("cursor-pointer", isSelected && "bg-slate-50 dark:bg-slate-800/50")}
-                                >
-                                    <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
-                                        <Checkbox
-                                            checked={isSelected}
-                                            onCheckedChange={(checked) => handleSelectOne(tx.id, checked)}
-                                            aria-label={`Select ${tx['Transaction Name']}`}
-                                        />
-                                    </TableCell>
-                                    <TableCell className="px-2">
-                                    </TableCell>
-                                    <TableCell>{tx['Transaction Date']}</TableCell>
-                                    <TableCell>
-                                        <div className="font-medium">{tx['Transaction Name']}</div>
-                                        {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
-                                    </TableCell>
-                                    <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
-                                            {(tx.rate * 100).toFixed(1)}%
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>
-                                    <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>
-                                    <TableCell className="text-center">
-                                        <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
+                                    return (
+                                        <TableRow
+                                            key={tx.id}
+                                            onClick={() => onViewDetails && onViewDetails(tx)}
+                                            className={cn("cursor-pointer", isSelected && "bg-slate-50 dark:bg-slate-800/50")}
+                                        >
+                                            <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
+                                                <Checkbox
+                                                    checked={isSelected}
+                                                    onCheckedChange={(checked) => handleSelectOne(tx.id, checked)}
+                                                    aria-label={`Select ${tx['Transaction Name']}`}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="px-2">
+                                            </TableCell>
+                                            <TableCell>{tx['Transaction Date']}</TableCell>
+                                            <TableCell>
+                                                <div className="font-medium">{tx['Transaction Name']}</div>
+                                                {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
+                                            </TableCell>
+                                            <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>
+                                            <TableCell className="text-center">
+                                                <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
+                                                    {(tx.rate * 100).toFixed(1)}%
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>
+                                            <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>
+                                            <TableCell className="text-center">
+                                                 <div className="md:hidden">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => onEditTransaction(tx)}>
+                                                                <FilePenLine className="mr-2 h-4 w-4" /> Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleDelete(tx.id, tx['Transaction Name'])}
+                                                                className="text-destructive"
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                                <div className="hidden md:flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </React.Fragment>
+                         ))}
                     </TableBody>
                 </Table>
             </div>
@@ -399,47 +516,106 @@ export default function TransactionsList({
                         </div>
                     </div>
                 )}
-                 <CardHeader className="border-b">
+                 <CardHeader className="border-b p-4">
                     <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <CardTitle>
-                            {activeMonth === 'live'
-                                ? 'Recent Transactions'
-                                : `Transactions for ${fmtYMShortFn(activeMonth)}`
-                            }
-                        </CardTitle>
-                        {activeMonth !== 'live' && (
-                            <Tabs defaultValue="date" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
-                                <TabsList className="bg-slate-100 p-1 rounded-lg">
-                                    <TabsTrigger value="date">Transaction Date</TabsTrigger>
-                                    <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
-                                </TabsList>
-                            </Tabs>
-                        )}
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input type="search" placeholder="Search..." className="w-full pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <CardTitle>
+                                {activeMonth === 'live'
+                                    ? 'Recent Transactions'
+                                    : `Transactions for ${fmtYMShortFn(activeMonth)}`
+                                }
+                            </CardTitle>
+                            {activeMonth !== 'live' && (
+                                <Tabs defaultValue="date" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
+                                    <TabsList className="bg-slate-100 p-1 rounded-lg">
+                                        <TabsTrigger value="date">Transaction Date</TabsTrigger>
+                                        <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
+                                    </TabsList>
+                                </Tabs>
+                            )}
                         </div>
-                        <select value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} className="flex-1 sm:flex-initial h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
-                            <option value="all">All Cards</option>
-                            {[...allCards].sort((a, b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 sm:flex-initial h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer">
-                            {categories.map(cat => <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>)}
-                        </select>
+
+                        {/* Toolbar */}
+                        <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center transition-colors">
+                            <div className="flex flex-wrap gap-2 items-center w-full xl:w-auto">
+                                {/* Search */}
+                                <div className="relative w-full md:w-64">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="search"
+                                        placeholder="Search..."
+                                        className="pl-8 h-10"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
+
+                                {/* Card Filter */}
+                                <Select value={cardFilter} onValueChange={setCardFilter}>
+                                    <SelectTrigger className="w-full md:w-[160px] h-10">
+                                        <div className="flex items-center gap-2 truncate">
+                                            <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                            <span className="truncate">
+                                                {cardFilter === 'all' ? 'All Cards' : allCards.find(c => c.id === cardFilter)?.name || 'Selected'}
+                                            </span>
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Cards</SelectItem>
+                                        {[...allCards].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
+                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                {/* Category Filter */}
+                                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                    <SelectTrigger className="w-full md:w-[160px] h-10">
+                                        <div className="flex items-center gap-2 truncate">
+                                            <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                            <span className="truncate">
+                                                {categoryFilter === 'all' ? 'All Categories' : categoryFilter}
+                                            </span>
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {categories.map(cat => (
+                                            <SelectItem key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
+
+                                {/* Group By */}
+                                <Select value={groupBy} onValueChange={setGroupBy}>
+                                    <SelectTrigger className="w-full md:w-[160px] h-10">
+                                        <div className="flex items-center gap-2">
+                                            <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                                            <span className="truncate">Group: {groupBy === 'none' ? 'None' : groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</span>
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">No Grouping</SelectItem>
+                                        <SelectItem value="card">Group by Card</SelectItem>
+                                        <SelectItem value="category">Group by Category</SelectItem>
+                                        <SelectItem value="date">Group by Date</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
                     </div>
-                </div>
                 </CardHeader>
             </div>
             <CardContent className="pt-6">
                 {renderContent()}
                 <div className="mt-6 flex flex-col items-center gap-4">
                     <p className="text-sm text-muted-foreground">
-                        Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{filteredAndSortedTransactions.length}</span> transactions
+                        Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{filteredData.length}</span> transactions
                     </p>
-                    {visibleCount < filteredAndSortedTransactions.length && (
+                    {visibleCount < filteredData.length && (
                         <Button onClick={handleLoadMore} variant="outline">Load More</Button>
                     )}
                 </div>
