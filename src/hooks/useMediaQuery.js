@@ -7,11 +7,25 @@ import { useState, useEffect } from 'react';
  */
 const useMediaQuery = (query) => {
     // State to store whether the media query matches or not.
-    const [matches, setMatches] = useState(false);
+    // Initialize with a safe default if window is undefined
+    const getMatches = (query) => {
+        if (typeof window !== 'undefined' && window.matchMedia) {
+            const mql = window.matchMedia(query);
+            return mql && mql.matches;
+        }
+        return false;
+    }
+
+    const [matches, setMatches] = useState(() => getMatches(query));
 
     useEffect(() => {
+        if (typeof window === 'undefined' || !window.matchMedia) return;
+
         // Create a MediaQueryList object.
         const media = window.matchMedia(query);
+
+        // Safety check if matchMedia returned null/undefined (e.g. bad mock)
+        if (!media) return;
 
         // Update the state with the initial value on mount.
         if (media.matches !== matches) {
@@ -24,11 +38,20 @@ const useMediaQuery = (query) => {
         };
 
         // Add the listener for changes to the media query state.
-        media.addEventListener('change', listener);
+        // Support both addEventListener (modern) and addListener (deprecated but common in older browsers/mocks)
+        if (media.addEventListener) {
+            media.addEventListener('change', listener);
+        } else if (media.addListener) {
+            media.addListener(listener);
+        }
 
         // Cleanup function to remove the listener when the component unmounts.
         return () => {
-            media.removeEventListener('change', listener);
+             if (media.removeEventListener) {
+                media.removeEventListener('change', listener);
+            } else if (media.removeListener) {
+                media.removeListener(listener);
+            }
         };
     }, [matches, query]); // Re-run the effect if the query string changes.
 
