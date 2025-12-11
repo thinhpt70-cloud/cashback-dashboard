@@ -59,6 +59,8 @@ const mapTransaction = (tx) => {
         'Card Summary Category': props['Card Summary Category'],
         'Match': props['Match'],
         'Automated': props['Automated'],
+        'Method': props['Method'],
+        'Statement Month': props['Statement Month'],
     };
 };
 
@@ -708,6 +710,7 @@ app.patch('/api/transactions/:id', async (req, res) => {
             paidFor,
             subCategory,
             billingDate,
+            method,
         } = req.body;
 
         // --- START: NEW "Find-or-Create" Logic ---
@@ -728,7 +731,15 @@ app.patch('/api/transactions/:id', async (req, res) => {
             }
         }
 
-        // 3. Check for new 'Sub Category' (multi-select)
+        // 3. Check for new 'Method' (select)
+        if (method) {
+            const methodOptions = await getSelectOptions('Method');
+            if (!methodOptions.find(o => o.name === method)) {
+                await addSelectOption('Method', method);
+            }
+        }
+
+        // 4. Check for new 'Sub Category' (multi-select)
         if (subCategory && subCategory.length > 0) {
             // Get the database's current sub-category properties
             const db = await notion.databases.retrieve({ database_id: transactionsDbId });
@@ -779,6 +790,7 @@ app.patch('/api/transactions/:id', async (req, res) => {
         if (typeof conversionFee === 'number') propertiesToUpdate['Conversion Fee'] = { number: conversionFee };
         if (applicableRuleId !== undefined) propertiesToUpdate['Applicable Rule'] = applicableRuleId ? { relation: [{ id: applicableRuleId }] } : { relation: [] };
         if (cardSummaryCategoryId !== undefined) propertiesToUpdate['Card Summary Category'] = cardSummaryCategoryId ? { relation: [{ id: cardSummaryCategoryId }] } : { relation: [] };
+        if (method !== undefined) propertiesToUpdate['Method'] = method ? { select: { name: method } } : { select: null };
 
         propertiesToUpdate['Automated'] = { checkbox: false };
 
@@ -1110,6 +1122,7 @@ app.post('/api/transactions', async (req, res) => {
             paidFor,
             subCategory,
             billingDate,
+            method, // Add method
         } = req.body;
 
         const numericAmount = Number(String(amount).replace(/,/g, ''));
@@ -1154,6 +1167,14 @@ app.post('/api/transactions', async (req, res) => {
             properties['Sub Category'] = { multi_select: subCategory.map(s => ({ name: s })) };
         }
         if (billingDate) properties['Billing Date'] = { date: { start: billingDate } };
+
+        if (method) {
+            const methodOptions = await getSelectOptions('Method');
+            if (!methodOptions.find(o => o.name === method)) {
+                await addSelectOption('Method', method);
+            }
+            properties['Method'] = { select: { name: method } };
+        }
 
         // 3. Create the new page (transaction) in Notion
         const newPage = await notion.pages.create({
