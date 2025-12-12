@@ -101,7 +101,7 @@ export default function CashbackDashboard() {
         loading, error, refreshData,
         setRecentTransactions, setReviewTransactions,
         cashbackRules, monthlyCashbackCategories, liveSummary,
-        fetchReviewTransactions, reviewLoading
+        fetchReviewTransactions, reviewLoading, fetchCategorySummaryForMonth
     } = useCashbackData(isAuthenticated);
 
     // Fetch review transactions when tab is active
@@ -110,6 +110,41 @@ export default function CashbackDashboard() {
             fetchReviewTransactions();
         }
     }, [activeView, fetchReviewTransactions]);
+
+    // NEW: Trigger lazy load of category summaries when activeMonth changes
+    useEffect(() => {
+        if (!monthlyCategorySummary) return;
+
+        if (activeMonth === 'live') {
+            // For live view, we need to check the current cashback month for ALL active cards
+            // because different cards might be in different statement cycles.
+            const requiredMonths = new Set();
+            cards.forEach(card => {
+                const currentMonth = getCurrentCashbackMonthForCard(card);
+                requiredMonths.add(currentMonth);
+            });
+
+            // Find which of these required months are missing from our data
+            const loadedMonths = new Set(monthlyCategorySummary.map(item => item.month));
+            const missingMonths = [...requiredMonths].filter(m => !loadedMonths.has(m));
+
+            // Fetch any missing months
+            if (missingMonths.length > 0) {
+                // Fetch them one by one (or could batch if API supported it, but loop is fine for now)
+                missingMonths.forEach(month => {
+                    fetchCategorySummaryForMonth(month);
+                });
+            }
+
+        } else {
+            // Standard historical view: check if we have data for the specific selected month
+            const hasDataForMonth = monthlyCategorySummary.some(item => item.month === activeMonth);
+
+            if (!hasDataForMonth) {
+                fetchCategorySummaryForMonth(activeMonth);
+            }
+        }
+    }, [activeMonth, monthlyCategorySummary, fetchCategorySummaryForMonth, cards]);
 
     const handleLogout = async () => {
         try {

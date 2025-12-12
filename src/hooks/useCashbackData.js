@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { getCurrentCashbackMonthForCard } from '../lib/date'; // This import now gets the correct function
+import { getCurrentCashbackMonthForCard, getTodaysMonth, getPastNMonths } from '../lib/date'; // This import now gets the correct function
 
 const API_BASE_URL = '/api';
 
@@ -29,6 +29,11 @@ export default function useCashbackData(isAuthenticated) {
         }
         setError(null);
         try {
+            // Calculate the recent window (current + last 3 months)
+            const currentMonth = getTodaysMonth();
+            const pastMonths = getPastNMonths(currentMonth, 3); // ['202408', '202409', '202410']
+            const monthsToFetch = [...new Set([...pastMonths, currentMonth])].join(',');
+
             // This array now includes the new '/api/monthly-category-summary' endpoint
             const [
                 cardsRes, 
@@ -44,7 +49,7 @@ export default function useCashbackData(isAuthenticated) {
                 fetch(`${API_BASE_URL}/rules`),
                 fetch(`${API_BASE_URL}/monthly-summary`),
                 fetch(`${API_BASE_URL}/mcc-codes`),
-                fetch(`${API_BASE_URL}/monthly-category-summary`), // Fetches data for the optimized overview
+                fetch(`${API_BASE_URL}/monthly-category-summary?months=${monthsToFetch}`), // Fetches data for the optimized overview
                 fetch(`${API_BASE_URL}/recent-transactions`),
                 fetch(`${API_BASE_URL}/categories`),
                 fetch(`${API_BASE_URL}/common-vendors`),
@@ -89,6 +94,30 @@ export default function useCashbackData(isAuthenticated) {
             if (!isSilent) {
                 setLoading(false);
             }
+        }
+    }, []);
+
+    // New dedicated function to lazy load category summaries for a specific month
+    const fetchCategorySummaryForMonth = useCallback(async (month) => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/monthly-category-summary?months=${month}`);
+            if (!res.ok) throw new Error('Failed to fetch category summary');
+            const newData = await res.json();
+
+            setMonthlyCategorySummary(prevData => {
+                // Create a Map of existing items by ID to avoid duplicates
+                const existingMap = new Map(prevData.map(item => [item.id, item]));
+
+                // Add new items to the map
+                newData.forEach(item => {
+                    existingMap.set(item.id, item);
+                });
+
+                return Array.from(existingMap.values());
+            });
+        } catch (err) {
+            console.error(`Failed to fetch category summary for ${month}:`, err);
+            toast.error("Could not load category summary data.");
         }
     }, []);
 
@@ -190,5 +219,6 @@ export default function useCashbackData(isAuthenticated) {
         // Action
         refreshData: fetchData, // Provide the fetch function under a clearer name
         fetchReviewTransactions,
+        fetchCategorySummaryForMonth, // Expose the new function
     };
 }
