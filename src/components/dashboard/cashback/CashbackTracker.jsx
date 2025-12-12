@@ -252,7 +252,10 @@ export default function CashbackTracker({
     monthlySummary,
     onUpdate,
     rules,
-    monthlyCategorySummary
+    monthlyCategorySummary,
+    onEditTransaction,
+    onTransactionDeleted,
+    onBulkDelete
 }) {
     // --- STATE ---
     const [mainTab, setMainTab] = useState('cash'); // 'cash' | 'points'
@@ -1128,6 +1131,9 @@ export default function CashbackTracker({
                 rules={rules}
                 allCards={cards}
                 monthlyCategorySummary={monthlyCategorySummary}
+                onEdit={onEditTransaction}
+                onDelete={onTransactionDeleted}
+                onBulkDelete={onBulkDelete}
             />
 
         </div>
