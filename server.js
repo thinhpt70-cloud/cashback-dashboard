@@ -1046,12 +1046,37 @@ app.get('/api/mcc-codes', (req, res) => {
 });
 
 app.get('/api/monthly-category-summary', async (req, res) => {
+    const { months } = req.query; // Expecting comma-separated YYYYMM
+
     try {
-        // This endpoint doesn't need pagination as category summaries are unlikely to exceed 100 per month
-        const response = await notion.databases.query({
-            database_id: monthlyCategoryDbId,
-        });
-        const results = response.results.map(page => {
+        let filter;
+        if (months) {
+            const monthList = months.split(',').map(m => m.trim());
+            if (monthList.length > 0) {
+                filter = {
+                    or: monthList.map(m => ({
+                        property: 'Month',
+                        select: { equals: m }
+                    }))
+                };
+            }
+        }
+
+        const allResults = [];
+        let nextCursor = undefined;
+
+        // Loop to handle Notion's pagination, ensuring all results are fetched.
+        do {
+            const response = await notion.databases.query({
+                database_id: monthlyCategoryDbId,
+                filter: filter,
+                start_cursor: nextCursor,
+            });
+            allResults.push(...response.results);
+            nextCursor = response.next_cursor;
+        } while (nextCursor);
+
+        const results = allResults.map(page => {
 
             const parsed = parseNotionPageProperties(page);
             return {
@@ -1614,7 +1639,7 @@ app.post('/api/transactions/analyze-approval', async (req, res) => {
     }
 });
 
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
     app.listen(port, () => {
         console.log(`Server is running on http://localhost:${port}`);
     });

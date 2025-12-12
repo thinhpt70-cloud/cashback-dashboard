@@ -101,7 +101,7 @@ export default function CashbackDashboard() {
         loading, error, refreshData,
         setRecentTransactions, setReviewTransactions,
         cashbackRules, monthlyCashbackCategories, liveSummary,
-        fetchReviewTransactions, reviewLoading
+        fetchReviewTransactions, reviewLoading, fetchCategorySummaryForMonth
     } = useCashbackData(isAuthenticated);
 
     // Fetch review transactions when tab is active
@@ -110,6 +110,20 @@ export default function CashbackDashboard() {
             fetchReviewTransactions();
         }
     }, [activeView, fetchReviewTransactions]);
+
+    // NEW: Trigger lazy load of category summaries when activeMonth changes
+    useEffect(() => {
+        if (activeMonth !== 'live' && monthlyCategorySummary) {
+            // Check if we already have data for this month
+            const hasDataForMonth = monthlyCategorySummary.some(item => item.month === activeMonth);
+
+            // If not, fetch it
+            if (!hasDataForMonth) {
+                // We don't need to await this, it updates state when done
+                fetchCategorySummaryForMonth(activeMonth);
+            }
+        }
+    }, [activeMonth, monthlyCategorySummary, fetchCategorySummaryForMonth]);
 
     const handleLogout = async () => {
         try {
