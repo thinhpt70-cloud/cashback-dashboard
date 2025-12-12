@@ -250,7 +250,9 @@ function PointsLoyaltyCard({ cardName, bankName, totalPoints, lastUpdated, onRed
 export default function CashbackTracker({
     cards,
     monthlySummary,
-    onUpdate
+    onUpdate,
+    rules,
+    monthlyCategorySummary
 }) {
     // --- STATE ---
     const [mainTab, setMainTab] = useState('cash'); // 'cash' | 'points'
@@ -1123,14 +1125,9 @@ export default function CashbackTracker({
                 description="List of transactions associated with this cashback period."
                 currencyFn={currency}
                 cardMap={cardMap}
-                // We pass empty handlers for actions as requested: "view transactions related to that cashback period"
-                // The prompt didn't strictly say it needs full edit capabilities here, but SharedTransactionsDialog supports them.
-                // If needed, we can wire up onEdit, onDelete, etc. For now, read-only view is safer unless requested.
-                // Re-reading: "Add option to view transactions related to that cashback period (using shared transaction dialog similar to Card Spends Cap in Overview tab)"
-                // CardSpendsCap HAS edit capabilities. So I should probably pass them?
-                // But CashbackTracker doesn't own the transaction state/refresh logic the same way CardSpendsCap might rely on parent.
-                // However, onUpdate prop exists.
-                // Let's leave actions null for now to avoid complexity in this step, as "View" is the primary goal.
+                rules={rules}
+                allCards={cards}
+                monthlyCategorySummary={monthlyCategorySummary}
             />
 
         </div>

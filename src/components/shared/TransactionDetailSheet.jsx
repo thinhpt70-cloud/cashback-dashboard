@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
     Sheet,
     SheetContent,
@@ -6,9 +6,9 @@ import {
     SheetTitle,
     SheetDescription,
     SheetFooter,
-} from "../../ui/sheet";
-import { Button } from "../../ui/button";
-import { Badge } from "../../ui/badge";
+} from "../ui/sheet";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
 import {
     Calendar,
     CreditCard,
@@ -20,18 +20,74 @@ import {
     Globe,
     AlertCircle,
     CheckCircle2,
-    Percent
+    Percent,
+    ArrowLeft
 } from "lucide-react";
-import { Checkbox } from "../../ui/checkbox";
-import { cn } from "../../../lib/utils";
+import { Checkbox } from "../ui/checkbox";
+import { cn } from "../../lib/utils";
 
-export default function TransactionDetailSheet({ transaction, isOpen, onClose, onEdit, onDelete, currencyFn, allCards, rules, monthlyCategorySummary }) {
-    if (!transaction) return null;
+export default function TransactionDetailSheet({
+    transaction,
+    isOpen,
+    onClose,
+    onEdit,
+    onDelete,
+    currencyFn,
+    allCards,
+    rules,
+    monthlyCategorySummary
+}) {
+    // Hooks should be at the top level
+    // We derive data from the transaction object
 
+    // Currency helper
     const currency = currencyFn || ((n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }));
 
+    // Data Parsing
+    const {
+        cleanNotes,
+        discounts,
+        fees
+    } = useMemo(() => {
+        if (!transaction?.notes) return { cleanNotes: '', discounts: [], fees: [] };
+
+        let noteText = transaction.notes;
+        let discountData = [];
+        let feeData = [];
+
+        // Parse Discounts
+        const discountMatch = noteText.match(/Discounts: (\[.*\])/);
+        if (discountMatch) {
+            try {
+                discountData = JSON.parse(discountMatch[1]);
+                noteText = noteText.replace(discountMatch[0], '');
+            } catch (e) {
+                console.error("Failed to parse discounts", e);
+            }
+        }
+
+        // Parse Fees
+        const feeMatch = noteText.match(/Fees: (\[.*\])/);
+        if (feeMatch) {
+            try {
+                feeData = JSON.parse(feeMatch[1]);
+                noteText = noteText.replace(feeMatch[0], '');
+            } catch (e) {
+                console.error("Failed to parse fees", e);
+            }
+        }
+
+        return {
+            cleanNotes: noteText.trim(),
+            discounts: discountData,
+            fees: feeData
+        };
+    }, [transaction]);
+
+    if (!transaction) return null;
+
     // Status logic
-    const isCompleted = true; 
+    const isCompleted = true; // Placeholder for now
     const statusColor = isCompleted ? "bg-emerald-100 text-emerald-800" : "bg-yellow-100 text-yellow-800";
     const statusText = isCompleted ? "Completed" : "Pending";
 
@@ -54,6 +110,23 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
     const isInternational = transaction['Method'] === 'International';
     const foreignAmount = transaction['foreignCurrencyAmount'];
     const conversionFee = transaction['conversionFee'];
+    const vndAmount = transaction['Amount'];
+
+    // Calculations for display
+    // Exchange Rate = (VND - Fee) / Foreign
+    // Fee % = Fee / (VND - Fee)
+    let displayExchangeRate = 0;
+    let displayFeePercent = 0;
+
+    if (isInternational && foreignAmount > 0 && vndAmount > 0) {
+        const amountBeforeFee = vndAmount - (conversionFee || 0);
+        if (amountBeforeFee > 0) {
+            displayExchangeRate = amountBeforeFee / foreignAmount;
+            if (conversionFee > 0) {
+                displayFeePercent = (conversionFee / amountBeforeFee) * 100;
+            }
+        }
+    }
 
     // Helper to render a row
     const DetailRow = ({ icon: Icon, label, value, subValue, className }) => (
@@ -79,9 +152,12 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
         <Sheet open={isOpen} onOpenChange={onClose}>
             <SheetContent className="w-full sm:max-w-md flex flex-col h-full p-0 gap-0">
                 
-                {/* Scrollable Wrapper */}
-                <div className="flex-1 overflow-y-auto p-6">
-                    <SheetHeader className="mb-6 space-y-4">
+                {/* Header with Back Button logic */}
+                <div className="p-6 pb-2">
+                     <Button variant="ghost" size="sm" className="mb-2 -ml-2 text-slate-500 hover:text-slate-900" onClick={() => onClose(false)}>
+                        <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                    </Button>
+                    <SheetHeader className="space-y-4">
                         <div className="flex items-center justify-between">
                             <Badge className={statusColor}>{statusText}</Badge>
                         </div>
@@ -107,7 +183,10 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
                             )}
                         </div>
                     </SheetHeader>
+                </div>
 
+                {/* Scrollable Wrapper */}
+                <div className="flex-1 overflow-y-auto px-6 pb-6">
                     <Separator />
 
                     <div className="space-y-6">
@@ -150,24 +229,61 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
                                     <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-2 border">
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">Foreign Amount</span>
-                                            <span>{foreignAmount}</span>
+                                            <span className="font-mono">{foreignAmount}</span>
                                         </div>
                                         <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Exchange Rate</span>
+                                            <span className="font-mono">{displayExchangeRate.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">% Conversion Fee</span>
+                                            <span className="font-mono text-slate-600">{displayFeePercent.toFixed(2)}%</span>
+                                        </div>
+                                         <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-800 mt-1">
                                             <span className="text-muted-foreground">Conversion Fee</span>
-                                            <span className="text-red-500">+{currency(conversionFee)}</span>
+                                            <span className="text-red-500 font-medium">+{currency(conversionFee)}</span>
                                         </div>
                                     </div>
                                 )}
 
-                                {(transaction.otherDiscounts > 0 || transaction.otherFees > 0) && (
-                                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-2 border">
-                                        {transaction.otherDiscounts > 0 && (
-                                            <div className="flex justify-between">
+                                {(discounts.length > 0 || fees.length > 0 || transaction.otherDiscounts > 0 || transaction.otherFees > 0) && (
+                                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-3 border">
+                                        {/* Display Parsed Discounts */}
+                                        {discounts.length > 0 && (
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-semibold text-emerald-600 uppercase">Discounts</p>
+                                                {discounts.map((d, i) => (
+                                                    <div key={i} className="flex justify-between text-xs">
+                                                        <span className="text-slate-600">{d.description || `Discount ${i+1}`}</span>
+                                                        <span className="text-emerald-600 font-mono">-{d.amount}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Fallback to legacy field if parsed list is empty but total > 0 */}
+                                        {discounts.length === 0 && transaction.otherDiscounts > 0 && (
+                                             <div className="flex justify-between">
                                                 <span className="text-muted-foreground">Discounts</span>
                                                 <span className="text-emerald-600 font-medium">-{currency(transaction.otherDiscounts)}</span>
                                             </div>
                                         )}
-                                        {transaction.otherFees > 0 && (
+
+                                        {/* Display Parsed Fees */}
+                                        {fees.length > 0 && (
+                                            <div className="space-y-1 pt-2 border-t border-slate-200 dark:border-slate-800">
+                                                <p className="text-xs font-semibold text-red-600 uppercase">Fees</p>
+                                                {fees.map((f, i) => (
+                                                    <div key={i} className="flex justify-between text-xs">
+                                                        <span className="text-slate-600">{f.description || `Fee ${i+1}`}</span>
+                                                        <span className="text-red-500 font-mono">+{f.amount}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                         {/* Fallback to legacy field */}
+                                        {fees.length === 0 && transaction.otherFees > 0 && (
                                             <div className="flex justify-between">
                                                 <span className="text-muted-foreground">Additional Fees</span>
                                                 <span className="text-red-500 font-medium">+{currency(transaction.otherFees)}</span>
@@ -246,13 +362,13 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
                                     <DetailRow icon={Calendar} label="Billing Date" value={transaction['billingDate']} />
                                 )}
 
-                                {transaction.notes && (
+                                {cleanNotes && (
                                     <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-md border border-amber-100 dark:border-amber-900/50">
                                         <div className="flex gap-2 items-start">
                                             <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
                                             <div className="space-y-1">
                                                 <p className="text-xs font-bold text-amber-800 dark:text-amber-200">Notes</p>
-                                                <p className="text-xs text-amber-700 dark:text-amber-300 whitespace-pre-wrap">{transaction.notes}</p>
+                                                <p className="text-xs text-amber-700 dark:text-amber-300 whitespace-pre-wrap">{cleanNotes}</p>
                                             </div>
                                         </div>
                                     </div>

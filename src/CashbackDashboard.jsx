@@ -21,7 +21,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./co
 // Import dialog components
 import MobileThemeToggle from "./components/dashboard/header/MobileThemeToggle";
 import BestCardFinderDialog from './components/dashboard/dialogs/BestCardFinderDialog';
-import TransactionDetailsDialog from './components/dashboard/dialogs/TransactionDetailsDialog';
 import PaymentLogDialog from './components/dashboard/dialogs/PaymentLogDialog';
 import StatementLogDialog from './components/dashboard/dialogs/StatementLogDialog';
 import CardInfoSheet from './components/dashboard/dialogs/CardInfoSheet';
@@ -41,7 +40,7 @@ import CurrentCashflowChart from "./components/dashboard/overview/CurrentCashflo
 import StatCards from './components/dashboard/overview/OverviewStatCards';
 import TransactionReview from './components/dashboard/transactions/TransactionReview';
 import TransactionsList from './components/dashboard/transactions/TransactionsList';
-import TransactionDetailSheet from './components/dashboard/transactions/TransactionDetailSheet';
+import TransactionDetailSheet from './components/shared/TransactionDetailSheet';
 import CashbackTracker from './components/dashboard/cashback/CashbackTracker';
 
 // Import authentication component
@@ -51,6 +50,7 @@ import LoginScreen from './components/auth/LoginScreen';
 import AppSkeleton from "./components/shared/AppSkeleton";
 import StatCard from "./components/shared/StatCard";
 import AppSidebar from "./components/shared/AppSidebar";
+import SharedTransactionsDialog from "./components/shared/SharedTransactionsDialog";
 
 // Import custom hooks
 import useMediaQuery from "./hooks/useMediaQuery";
@@ -1064,6 +1064,8 @@ export default function CashbackDashboard() {
                             onBulkDelete={handleBulkDelete}
                             onViewTransactionDetails={handleViewTransactionDetails}
                             cardMap={cardMap}
+                            rules={cashbackRules}
+                            monthlyCategorySummary={monthlyCategorySummary}
                         />
                     </div>
                 )}
@@ -1097,13 +1099,18 @@ export default function CashbackDashboard() {
                 isDesktop={isDesktop}
                 useIOSKeyboardGapFix={useIOSKeyboardGapFix}
             />
-            <TransactionDetailsDialog
+            <SharedTransactionsDialog
                 isOpen={!!dialogDetails}
                 onClose={() => setDialogDetails(null)}
-                details={dialogDetails}
                 transactions={dialogTransactions}
-                isLoading={isDialogLoading}
+                title={dialogDetails ? `Transactions - ${dialogDetails.cardName}` : 'Transactions'}
+                description={dialogDetails ? `Viewing statement for ${dialogDetails.monthLabel}` : ''}
                 currencyFn={currency}
+                isLoading={isDialogLoading}
+                cardMap={cardMap}
+                rules={cashbackRules}
+                allCards={cards}
+                monthlyCategorySummary={monthlyCategorySummary}
             />
             <TransactionDetailSheet
                 transaction={viewingTransaction}
