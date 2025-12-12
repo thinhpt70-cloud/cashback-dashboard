@@ -478,6 +478,9 @@ export default function CardSpendsCap({
                 onBulkDelete={onBulkDelete}
                 onViewDetails={onViewTransactionDetails}
                 cardMap={cardMap}
+                rules={rules}
+                allCards={cards}
+                monthlyCategorySummary={monthlyCategorySummary}
             />
         </div>
     );

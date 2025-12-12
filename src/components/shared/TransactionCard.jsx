@@ -13,6 +13,7 @@ const TransactionCard = ({
     isExpanded,
     onEdit,
     onDelete,
+    onViewDetails,
     getMccDescription,
     cardMap 
 }) => {
@@ -101,6 +102,7 @@ const TransactionCard = ({
                         </div>
                     </div>
                     <div className="flex justify-end gap-2 mt-2">
+                        {onViewDetails && <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onViewDetails(transaction); }}>View Details</Button>}
                         {onEdit && <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onEdit(transaction); }}>Edit</Button>}
                         {onDelete && <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); onDelete(transaction.id, name); }}>Delete</Button>}
                     </div>
