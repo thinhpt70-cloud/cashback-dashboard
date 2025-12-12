@@ -338,13 +338,14 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     };
     
     const handleMerchantLookup = async () => {
-        if (!merchant) return;
+        const trimmedMerchant = merchant.trim();
+        if (!trimmedMerchant) return;
         setIsLookingUp(true);
         setLookupResults([]);
         setShowLookupButton(false);
 
         try {
-            const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(merchant)}`);
+            const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(trimmedMerchant)}`);
             if (!res.ok) throw new Error("Server responded with an error.");
             
             const data = await res.json();

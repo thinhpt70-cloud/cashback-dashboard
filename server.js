@@ -219,32 +219,91 @@ const addSelectOption = async (propertyName, optionName) => {
 
 // --- SHARED SMART LOGIC HELPERS ---
 
-const findBestMatchTransaction = async (cleanName, currentId) => {
+// Search Internal Notion History (Name OR Merchant)
+const searchInternalTransactions = async (keyword, excludeId = null) => {
+    const trimmedKeyword = keyword.trim();
+    if (!trimmedKeyword) return [];
+
     try {
-        // Search history for the clean name
         const response = await notion.databases.query({
             database_id: transactionsDbId,
-            page_size: 5, // Get a few to filter
+            page_size: 100,
             filter: {
-                property: 'Transaction Name',
-                title: { contains: cleanName }
+                or: [
+                    { property: 'Transaction Name', title: { contains: trimmedKeyword } },
+                    { property: 'Merchant', rich_text: { contains: trimmedKeyword } }
+                ]
             },
             sorts: [{ property: 'Transaction Date', direction: 'descending' }],
         });
 
-        // Filter out the current transaction ID and return the first match
-        const matches = response.results.filter(r => r.id !== currentId);
-        if (matches.length > 0) {
-            return mapTransaction(matches[0]); // Use our mapper for consistency
-        }
-        return null;
+        // Filter out the excluded ID if provided
+        return response.results
+            .filter(r => !excludeId || r.id !== excludeId)
+            .map(page => mapTransaction(page));
     } catch (error) {
-        console.error("Error in findBestMatchTransaction:", error);
-        return null;
+        console.error("Error in searchInternalTransactions:", error);
+        return [];
     }
 };
 
-const calculateSmartUpdates = async (transaction, match, cleanName) => {
+// Search External MCC API
+const searchExternalMcc = async (keyword) => {
+    const trimmedKeyword = keyword.trim();
+    if (!trimmedKeyword) return [];
+
+    try {
+        const fetch = (await import('node-fetch')).default;
+        const response = await fetch(`https://tra-cuu-mcc.vercel.app/mcc?keyword=${encodeURIComponent(trimmedKeyword)}`);
+
+        if (response.ok) {
+            const data = await response.json();
+            // Map to a consistent format
+            return (data.results || []).map(result => ({
+                merchant: result[1], // Merchant name
+                mcc: result[2],      // MCC code
+                method: result[4]
+            }));
+        }
+        return [];
+    } catch (error) {
+        console.error("Error in searchExternalMcc:", error);
+        return [];
+    }
+};
+
+// Wrapper for single best match (backward compatibility / specific use)
+const findBestMatchTransaction = async (cleanName, currentId) => {
+    const results = await searchInternalTransactions(cleanName, currentId);
+    return results.length > 0 ? results[0] : null;
+};
+
+// Helper to fetch all active rules (for smart matching)
+const fetchActiveRules = async () => {
+    try {
+        const response = await notion.databases.query({
+            database_id: rulesDbId,
+            filter: {
+                property: 'Status',
+                status: { equals: 'Active' }
+            }
+        });
+        return response.results.map(page => {
+            const parsed = parseNotionPageProperties(page);
+            return {
+                id: parsed.id,
+                ruleName: parsed['Rule Name'],
+                mccCodes: parsed['MCC Code'] ? parsed['MCC Code'].split(',').map(c => c.trim()) : [],
+                category: parsed['Category'],
+            };
+        });
+    } catch (error) {
+        console.error("Error fetching rules:", error);
+        return [];
+    }
+};
+
+const calculateSmartUpdates = async (transaction, match, cleanName, activeRules = []) => {
     const updates = {};
     const log = [];
     let status = 'skipped';
@@ -256,10 +315,12 @@ const calculateSmartUpdates = async (transaction, match, cleanName) => {
     updates['Transaction Name'] = { title: [{ text: { content: newName } }] };
     log.push(match ? `Matched history: "${match['Transaction Name']}"` : `Renamed to "${cleanName}"`);
 
-    // 2. Metadata (Copy from match if available)
+    // 2. Metadata (Logic Split: Internal Match vs. External Match)
     let finalRuleId = null;
 
     if (match) {
+        // --- CASE A: Found Internal History Match ---
+
         // MCC
         if (match['MCC Code']) {
             updates['MCC Code'] = { rich_text: [{ text: { content: String(match['MCC Code']) } }] };
@@ -273,22 +334,64 @@ const calculateSmartUpdates = async (transaction, match, cleanName) => {
             finalRuleId = match['Applicable Rule'][0];
             updates['Applicable Rule'] = { relation: [{ id: finalRuleId }] };
         }
+        // Merchant Lookup Name
+        if (match['merchantLookup']) {
+            updates['Merchant'] = { rich_text: [{ text: { content: match['merchantLookup'] } }] };
+        }
 
         // Mark as Approved
         status = 'approved';
         reason = 'Matched with history';
         updates['Automated'] = { checkbox: false };
-    } else {
-        // Fallback: If no match, check if current transaction already has a rule
-        if (transaction['Applicable Rule'] && transaction['Applicable Rule'].length > 0) {
-            finalRuleId = transaction['Applicable Rule'][0];
-        }
 
-        // Do NOT uncheck Automated if no match found
-        // However, if we just renamed it, it might be cleaner to keep it for review
+    } else {
+        // --- CASE B: No Internal Match -> Try External Search ---
+
+        const externalResults = await searchExternalMcc(cleanName);
+
+        if (externalResults.length > 0) {
+            // Take the best external match
+            const bestExt = externalResults[0];
+
+            // Set MCC
+            updates['MCC Code'] = { rich_text: [{ text: { content: String(bestExt.mcc) } }] };
+            // Set Merchant Name (from external)
+            updates['Merchant'] = { rich_text: [{ text: { content: bestExt.merchant } }] };
+
+            log.push(`Found external match: ${bestExt.merchant} (${bestExt.mcc})`);
+
+            // TRY TO LINK A RULE
+            // Look for a rule that contains this MCC
+            const matchingRule = activeRules.find(r => r.mccCodes.includes(String(bestExt.mcc)));
+
+            if (matchingRule) {
+                finalRuleId = matchingRule.id;
+                updates['Applicable Rule'] = { relation: [{ id: finalRuleId }] };
+
+                if (matchingRule.category) {
+                    updates['Category'] = { select: { name: matchingRule.category } };
+                }
+
+                status = 'approved';
+                reason = 'Matched via External API + Rule Link';
+                updates['Automated'] = { checkbox: false };
+                log.push(`Linked to rule: ${matchingRule.ruleName}`);
+            } else {
+                // Found MCC but no Rule -> Partial Update
+                // We do NOT uncheck Automated, but we populate what we found
+                status = 'skipped';
+                reason = 'External match found, but no rule linked';
+                // updates['Automated'] = { checkbox: false }; // Keep it for manual review
+            }
+        } else {
+            // Fallback: Check if current transaction already has a rule manually assigned (unlikely for automated ones)
+            if (transaction['Applicable Rule'] && transaction['Applicable Rule'].length > 0) {
+                finalRuleId = transaction['Applicable Rule'][0];
+            }
+        }
     }
 
-    // 3. Fix Linkage / Mismatch
+    // 3. Fix Linkage / Mismatch (Only if we have a Rule)
     // If we have a Rule and a Month, ensure Summary Category is correct
     const cardId = transaction['Card'] && transaction['Card'][0];
     const month = transaction['Cashback Month'];
@@ -560,6 +663,9 @@ app.post('/api/transactions/bulk-approve', async (req, res) => {
     // The frontend just sent IDs, so we calculate the standard logic here
     if (ids && Array.isArray(ids)) {
         try {
+            // NEW: Fetch all active rules first to enable smart linking for external matches
+            const activeRules = await fetchActiveRules();
+
             const results = [];
             // Process sequentially to avoid Notion rate limits (or use a limited concurrency queue if needed)
             // For now, standard sequential loop is safer for bulk operations involving multiple sub-queries
@@ -569,17 +675,18 @@ app.post('/api/transactions/bulk-approve', async (req, res) => {
                     const page = await notion.pages.retrieve({ page_id: id });
                     const transaction = mapTransaction(page);
 
-                    // 2. Clean Name (Strip "Email_")
+                    // 2. Clean Name (Strip "Email_" and trim)
                     let cleanName = transaction['Transaction Name'] || "";
                     if (cleanName.startsWith("Email_")) {
                         cleanName = cleanName.substring(6);
                     }
+                    cleanName = cleanName.trim();
 
-                    // 3. Find Match in History
+                    // 3. Find Match in History (Uses new search logic)
                     const match = await findBestMatchTransaction(cleanName, id);
 
-                    // 4. Calculate Updates
-                    const { updates, status, reason } = await calculateSmartUpdates(transaction, match, cleanName);
+                    // 4. Calculate Updates (Uses new fallback logic + rules)
+                    const { updates, status, reason } = await calculateSmartUpdates(transaction, match, cleanName, activeRules);
 
                     // 5. Apply Updates
                     await notion.pages.update({
@@ -988,47 +1095,17 @@ app.get('/api/recent-transactions', async (req, res) => {
 
 app.get('/api/lookup-merchant', async (req, res) => {
     const { keyword } = req.query;
-    if (!keyword || keyword.length < 3) {
+    if (!keyword || keyword.trim().length < 2) {
         // Return a consistent structure for empty queries
         return res.json({ type: 'merchant', bestMatch: null, prediction: null, history: [], external: [] });
     }
 
     try {
         // Step 1: Perform BOTH lookups concurrently for better performance.
-        const [notionResponse, externalApiResponse] = await Promise.all([
-            // Query 1: Internal Notion History
-            notion.databases.query({
-                database_id: transactionsDbId,
-                page_size: 100,
-                filter: { property: 'Transaction Name', title: { contains: keyword } },
-                sorts: [{ property: 'Transaction Date', direction: 'descending' }],
-            }),
-            // Query 2: External MCC API
-            (async () => {
-                try {
-                    const fetch = (await import('node-fetch')).default;
-                    const response = await fetch(`https://tc-mcc.tungpun.site/mcc?keyword=${encodeURIComponent(keyword)}`);
-                    // Ensure we handle API errors gracefully
-                    if (response.ok) return response.json();
-                    return { results: [] }; // Return an empty structure on API error
-                } catch (error) {
-                    console.error("External MCC API fetch failed:", error);
-                    return { results: [] }; // Return an empty structure on network error
-                }
-            })()
+        const [transactions, externalResults] = await Promise.all([
+            searchInternalTransactions(keyword),
+            searchExternalMcc(keyword)
         ]);
-        
-        // Step 2: Process the results from both sources.
-
-        // Process your internal Notion history results
-        const transactions = notionResponse.results.map(page => parseNotionPageProperties(page));
-        
-        // Process the external API results
-        const externalResults = (externalApiResponse.results || []).map(result => ({
-            merchant: result[1], // Merchant name from external API
-            mcc: result[2],       // MCC code from external API
-            method: result[4]
-        }));
 
         // Step 3: Derive the combined logic for suggestions.
 
@@ -1036,10 +1113,13 @@ app.get('/api/lookup-merchant', async (req, res) => {
         let bestMatch = null;
 
         // Prioritize your own transaction history for the best match
-        if (transactions.length > 0 && transactions[0]['MCC Code'] && transactions[0]['Merchant']) {
+        // We look for the first valid one with both MCC and Merchant
+        const validHistory = transactions.find(t => t['MCC Code'] && t['merchantLookup']);
+
+        if (validHistory) {
             bestMatch = {
-                mcc: transactions[0]['MCC Code'],
-                merchant: transactions[0]['Merchant'],
+                mcc: validHistory['MCC Code'],
+                merchant: validHistory['merchantLookup'],
                 source: 'history'
             };
         } 
@@ -1047,7 +1127,7 @@ app.get('/api/lookup-merchant', async (req, res) => {
         else if (externalResults.length > 0) {
             bestMatch = {
                 mcc: externalResults[0].mcc,
-                merchant: externalResults[0].merchant, // <-- FIX: Add merchant name from external API
+                merchant: externalResults[0].merchant,
                 source: 'external'
             };
         }
@@ -1055,8 +1135,8 @@ app.get('/api/lookup-merchant', async (req, res) => {
         // B. Logic for "Prediction" (always based on your internal history)
         const frequencyMap = new Map();
         transactions.forEach(tx => {
-            if (tx['Merchant'] && tx['MCC Code'] && tx['Category']) {
-                const key = `${tx['Merchant']}|${tx['MCC Code']}|${tx['Category']}`;
+            if (tx['merchantLookup'] && tx['MCC Code'] && tx['Category']) {
+                const key = `${tx['merchantLookup']}|${tx['MCC Code']}|${tx['Category']}`;
                 frequencyMap.set(key, (frequencyMap.get(key) || 0) + 1);
             }
         });
@@ -1076,10 +1156,10 @@ app.get('/api/lookup-merchant', async (req, res) => {
         // C. Logic for "Historical List" (from your internal history)
         const uniqueHistory = new Map();
         transactions.forEach(tx => {
-            if (tx['Merchant'] && tx['MCC Code']) {
-                const key = `${tx['Merchant']}|${tx['MCC Code']}`;
+            if (tx['merchantLookup'] && tx['MCC Code']) {
+                const key = `${tx['merchantLookup']}|${tx['MCC Code']}`;
                 if (!uniqueHistory.has(key)) {
-                    uniqueHistory.set(key, { merchant: tx['Merchant'], mcc: tx['MCC Code'] });
+                    uniqueHistory.set(key, { merchant: tx['merchantLookup'], mcc: tx['MCC Code'] });
                 }
             }
         });
@@ -1090,7 +1170,7 @@ app.get('/api/lookup-merchant', async (req, res) => {
             bestMatch: bestMatch,
             prediction: prediction,
             history: Array.from(uniqueHistory.values()),
-            external: externalResults // This will now always contain the results from the external API
+            external: externalResults
         });
 
     } catch (error) {
