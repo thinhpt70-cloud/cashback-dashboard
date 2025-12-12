@@ -842,7 +842,7 @@ export default function TransactionsList({
 
                                 {/* Group By */}
                                 <Select value={groupBy} onValueChange={setGroupBy}>
-                                    <SelectTrigger className="w-full md:w-[160px] h-10">
+                                    <SelectTrigger className="hidden md:flex w-full md:w-[160px] h-10">
                                         <div className="flex items-center gap-2">
                                             <Layers className="h-3.5 w-3.5 text-muted-foreground" />
                                             <span className="truncate">Group: {groupBy === 'none' ? 'None' : groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</span>
