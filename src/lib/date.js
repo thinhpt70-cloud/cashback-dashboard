@@ -170,3 +170,26 @@ export const getCurrentCashbackMonthForCard = (card = null, transactionDateStr =
     const finalMonth = month + 1;
     return `${year}${String(finalMonth).padStart(2, '0')}`;
 };
+/**
+ * Calculates the progress of the annual fee cycle.
+ * @param {string} openDateStr - The card open date string.
+ * @param {string} nextFeeDateStr - The next annual fee date string.
+ * @returns {{daysPast: number, progressPercent: number}} - Object containing days past and progress percentage.
+ */
+export const calculateFeeCycleProgress = (openDateStr, nextFeeDateStr) => {
+    if (!openDateStr || !nextFeeDateStr) return { daysPast: 0, progressPercent: 0 };
+
+    const openDate = new Date(openDateStr);
+    const nextFeeDate = new Date(nextFeeDateStr);
+    const today = new Date();
+
+    const totalDuration = nextFeeDate.getTime() - openDate.getTime();
+    const elapsedDuration = today.getTime() - openDate.getTime();
+
+    if (totalDuration <= 0) return { daysPast: 0, progressPercent: 0 };
+
+    const daysPast = Math.floor(elapsedDuration / (1000 * 60 * 60 * 24));
+    const progressPercent = Math.min(100, Math.round((elapsedDuration / totalDuration) * 100));
+
+    return { daysPast, progressPercent };
+};
