@@ -1,7 +1,7 @@
 // CashbackDashboard.jsx
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, TrendingUp, DollarSign, AlertTriangle, Search, Loader2, Plus, History, Check, ChevronDown, List, FilePenLine, LayoutDashboard, ArrowLeftRight, Banknote, Menu, RefreshCw, LogOut } from "lucide-react";
+import { CreditCard, Wallet, CalendarClock, DollarSign, AlertTriangle, Search, Loader2, Plus, History, Check, ChevronDown, List, FilePenLine, LayoutDashboard, ArrowLeftRight, Banknote, Menu, RefreshCw, LogOut } from "lucide-react";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
@@ -58,7 +58,7 @@ import useIOSKeyboardGapFix from "./hooks/useIOSKeyboardGapFix";
 import useCashbackData from "./hooks/useCashbackData";
 
 // Import constants and utilities
-import { COLORS, cardThemes } from './lib/constants';
+import { COLORS } from './lib/constants';
 import { calculateDaysLeft } from './lib/date';
 import { currency, fmtYMShort } from './lib/formatters';
 
