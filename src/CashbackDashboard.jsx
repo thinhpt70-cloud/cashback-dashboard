@@ -1120,6 +1120,7 @@ export default function CashbackDashboard() {
                 currencyFn={currency}
                 allCards={cards}
                 rules={cashbackRules}
+                monthlyCategorySummary={monthlyCategorySummary}
             />
             <NeedsSyncingDialog
                 isOpen={isSyncingDialogOpen}

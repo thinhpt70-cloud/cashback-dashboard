@@ -25,7 +25,7 @@ import {
 import { Checkbox } from "../../ui/checkbox";
 import { cn } from "../../../lib/utils";
 
-export default function TransactionDetailSheet({ transaction, isOpen, onClose, onEdit, onDelete, currencyFn, allCards, rules }) {
+export default function TransactionDetailSheet({ transaction, isOpen, onClose, onEdit, onDelete, currencyFn, allCards, rules, monthlyCategorySummary }) {
     if (!transaction) return null;
 
     const currency = currencyFn || ((n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }));
@@ -42,7 +42,8 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
     const ruleId = transaction['Applicable Rule'] && transaction['Applicable Rule'][0];
     const ruleName = (rules && rules.find(r => r.id === ruleId)?.ruleName) || "No Rule Applied";
 
-    const summaryId = transaction['Card Summary Category'] && transaction['Card Summary Category'][0];
+    const summaryIdRaw = transaction['Card Summary Category'] && transaction['Card Summary Category'][0];
+    const summaryName = (monthlyCategorySummary && monthlyCategorySummary.find(s => s.id === summaryIdRaw)?.summaryId) || summaryIdRaw || "N/A";
 
     // Rate calculation
     const rate = (transaction['Amount'] && transaction['Amount'] > 0)
@@ -80,7 +81,6 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
                 <SheetHeader className="mb-6 space-y-4">
                     <div className="flex items-center justify-between">
                         <Badge className={statusColor}>{statusText}</Badge>
-                         <div className="text-xs text-muted-foreground font-mono">{transaction.id.slice(0, 8)}...</div>
                     </div>
                     <div>
                         <SheetTitle className="text-xl font-bold leading-tight break-words">
@@ -211,8 +211,8 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
                                     <p className="text-xs font-mono truncate bg-slate-100 dark:bg-slate-800 p-1 rounded">{transaction.id}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-xs font-medium text-muted-foreground">Summary ID</p>
-                                    <p className="text-xs truncate text-slate-600 dark:text-slate-400">{summaryId || "N/A"}</p>
+                                    <p className="text-xs font-medium text-muted-foreground">Summary Category</p>
+                                    <p className="text-xs truncate text-slate-600 dark:text-slate-400">{summaryName}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground">Statement Month</p>
@@ -258,7 +258,7 @@ export default function TransactionDetailSheet({ transaction, isOpen, onClose, o
                     </div>
                 </div>
 
-                <SheetFooter className="mt-8 gap-2 sm:gap-0 sticky bottom-0 bg-background pt-4 border-t">
+                <SheetFooter className="mt-8 gap-2 sm:gap-0 sticky bottom-0 bg-white dark:bg-slate-950 pt-4 pb-4 border-t z-10">
                     <div className="flex w-full gap-2">
                         <Button variant="outline" className="flex-1" onClick={() => onEdit(transaction)}>
                             Edit
