@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
     Sheet,
     SheetContent,
@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
+import mccData from '../../lib/MCC.json';
 
 export default function TransactionDetailSheet({
     transaction,
@@ -37,8 +38,17 @@ export default function TransactionDetailSheet({
     rules,
     monthlyCategorySummary
 }) {
-    // Hooks should be at the top level
-    // We derive data from the transaction object
+    // 1. Maintain local copy of data to persist during closing animation
+    const [displayTransaction, setDisplayTransaction] = useState(transaction);
+
+    useEffect(() => {
+        if (transaction) {
+            setDisplayTransaction(transaction);
+        }
+    }, [transaction]);
+
+    // Use displayTransaction for rendering
+    const currentTransaction = displayTransaction;
 
     // Currency helper
     const currency = currencyFn || ((n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }));
@@ -49,9 +59,9 @@ export default function TransactionDetailSheet({
         discounts,
         fees
     } = useMemo(() => {
-        if (!transaction?.notes) return { cleanNotes: '', discounts: [], fees: [] };
+        if (!currentTransaction?.notes) return { cleanNotes: '', discounts: [], fees: [] };
 
-        let noteText = transaction.notes;
+        let noteText = currentTransaction.notes;
         let discountData = [];
         let feeData = [];
 
@@ -82,9 +92,10 @@ export default function TransactionDetailSheet({
             discounts: discountData,
             fees: feeData
         };
-    }, [transaction]);
+    }, [currentTransaction]);
 
-    if (!transaction) return null;
+    // Only return null if we have NEVER had a transaction (initial state)
+    if (!currentTransaction) return null;
 
     // Status logic
     const isCompleted = true; // Placeholder for now
@@ -92,33 +103,32 @@ export default function TransactionDetailSheet({
     const statusText = isCompleted ? "Completed" : "Pending";
 
     // Data Resolution
-    const cardId = transaction['Card'] && transaction['Card'][0];
-    const cardName = transaction['Card Name'] || (allCards && allCards.find(c => c.id === cardId)?.name) || "Unknown Card";
+    const cardId = currentTransaction['Card'] && currentTransaction['Card'][0];
+    const cardName = currentTransaction['Card Name'] || (allCards && allCards.find(c => c.id === cardId)?.name) || "Unknown Card";
 
-    const ruleId = transaction['Applicable Rule'] && transaction['Applicable Rule'][0];
+    const ruleId = currentTransaction['Applicable Rule'] && currentTransaction['Applicable Rule'][0];
     const ruleName = (rules && rules.find(r => r.id === ruleId)?.ruleName) || "No Rule Applied";
 
-    const summaryIdRaw = transaction['Card Summary Category'] && transaction['Card Summary Category'][0];
+    const summaryIdRaw = currentTransaction['Card Summary Category'] && currentTransaction['Card Summary Category'][0];
     const summaryName = (monthlyCategorySummary && monthlyCategorySummary.find(s => s.id === summaryIdRaw)?.summaryId) || summaryIdRaw || "N/A";
 
     // Rate calculation
-    const rate = (transaction['Amount'] && transaction['Amount'] > 0)
-        ? (transaction.estCashback / transaction['Amount'])
+    const rate = (currentTransaction['Amount'] && currentTransaction['Amount'] > 0)
+        ? (currentTransaction.estCashback / currentTransaction['Amount'])
         : 0;
 
     // Foreign Currency Helpers
-    const isInternational = transaction['Method'] === 'International';
-    const foreignAmount = transaction['foreignCurrencyAmount'];
-    const conversionFee = transaction['conversionFee'];
-    const vndAmount = transaction['Amount'];
+    // Logic: Show foreign fields if any foreign data is present, regardless of "Method"
+    const foreignAmount = currentTransaction['foreignCurrencyAmount'];
+    const conversionFee = currentTransaction['conversionFee'];
+    const vndAmount = currentTransaction['Amount'];
+    const hasForeignData = (foreignAmount && foreignAmount !== 'N/A') || (conversionFee && conversionFee > 0);
 
     // Calculations for display
-    // Exchange Rate = (VND - Fee) / Foreign
-    // Fee % = Fee / (VND - Fee)
     let displayExchangeRate = 0;
     let displayFeePercent = 0;
 
-    if (isInternational && foreignAmount > 0 && vndAmount > 0) {
+    if (hasForeignData && foreignAmount > 0 && vndAmount > 0) {
         const amountBeforeFee = vndAmount - (conversionFee || 0);
         if (amountBeforeFee > 0) {
             displayExchangeRate = amountBeforeFee / foreignAmount;
@@ -127,6 +137,22 @@ export default function TransactionDetailSheet({
             }
         }
     }
+
+    // Method Badge Logic
+    const getMethodBadge = (method) => {
+        const m = method || 'POS';
+        switch (m) {
+            case 'POS': return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">POS</Badge>;
+            case 'eCom': return <Badge className="bg-green-100 text-green-800 hover:bg-green-200">eCom</Badge>;
+            case 'International': return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-200">International</Badge>;
+            default: return <Badge variant="secondary">{m}</Badge>;
+        }
+    };
+
+    // MCC Description Logic
+    const mccCode = currentTransaction['MCC Code'];
+    const mccDesc = mccCode ? (mccData.mccDescriptionMap[mccCode]?.vn || 'Unknown') : '';
+    const displayMcc = mccCode ? `${mccCode} - ${mccDesc}` : 'N/A';
 
     // Helper to render a row
     const DetailRow = ({ icon: Icon, label, value, subValue, className }) => (
@@ -163,20 +189,20 @@ export default function TransactionDetailSheet({
                         </div>
                         <div>
                             <SheetTitle className="text-xl font-bold leading-tight break-words">
-                                {transaction['Transaction Name']}
+                                {currentTransaction['Transaction Name']}
                             </SheetTitle>
-                            {transaction.merchantLookup && (
+                            {currentTransaction.merchantLookup && (
                                 <SheetDescription className="text-sm mt-1">
-                                    {transaction.merchantLookup}
+                                    {currentTransaction.merchantLookup}
                                 </SheetDescription>
                             )}
                         </div>
 
                         <div className="flex flex-col gap-1">
                             <span className="text-3xl font-extrabold text-primary tracking-tight">
-                                {currency(transaction['Amount'])}
+                                {currency(currentTransaction['Amount'])}
                             </span>
-                            {isInternational && (
+                            {hasForeignData && (
                                 <span className="text-sm text-muted-foreground">
                                     ≈ {foreignAmount?.toLocaleString()} (Original)
                                 </span>
@@ -194,11 +220,11 @@ export default function TransactionDetailSheet({
                         <div>
                             <SectionHeader title="Transaction Info" />
                             <div className="grid gap-4">
-                                <DetailRow icon={Calendar} label="Date" value={transaction['Transaction Date']} />
-                                <DetailRow icon={Store} label="Merchant" value={transaction.merchantLookup || transaction['Transaction Name']} />
+                                <DetailRow icon={Calendar} label="Date" value={currentTransaction['Transaction Date']} />
+                                <DetailRow icon={Store} label="Merchant" value={currentTransaction.merchantLookup || currentTransaction['Transaction Name']} />
                                 <DetailRow icon={CreditCard} label="Card" value={cardName} />
-                                <DetailRow icon={Globe} label="Method" value={transaction['Method'] || 'POS'} />
-                                <DetailRow icon={Receipt} label="MCC Code" value={transaction['MCC Code'] || 'N/A'} className="font-mono" />
+                                <DetailRow icon={Globe} label="Method" value={getMethodBadge(currentTransaction['Method'])} />
+                                <DetailRow icon={Receipt} label="MCC Code" value={displayMcc} className="font-mono" />
                             </div>
                         </div>
 
@@ -221,11 +247,11 @@ export default function TransactionDetailSheet({
                                         </div>
                                     </div>
                                     <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
-                                        +{currency(transaction.estCashback)}
+                                        +{currency(currentTransaction.estCashback)}
                                     </span>
                                 </div>
 
-                                {isInternational && (
+                                {hasForeignData && (
                                     <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-2 border">
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">Foreign Amount</span>
@@ -246,7 +272,7 @@ export default function TransactionDetailSheet({
                                     </div>
                                 )}
 
-                                {(discounts.length > 0 || fees.length > 0 || transaction.otherDiscounts > 0 || transaction.otherFees > 0) && (
+                                {(discounts.length > 0 || fees.length > 0 || currentTransaction.otherDiscounts > 0 || currentTransaction.otherFees > 0) && (
                                     <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-3 border">
                                         {/* Display Parsed Discounts */}
                                         {discounts.length > 0 && (
@@ -262,10 +288,10 @@ export default function TransactionDetailSheet({
                                         )}
 
                                         {/* Fallback to legacy field if parsed list is empty but total > 0 */}
-                                        {discounts.length === 0 && transaction.otherDiscounts > 0 && (
+                                        {discounts.length === 0 && currentTransaction.otherDiscounts > 0 && (
                                              <div className="flex justify-between">
                                                 <span className="text-muted-foreground">Discounts</span>
-                                                <span className="text-emerald-600 font-medium">-{currency(transaction.otherDiscounts)}</span>
+                                                <span className="text-emerald-600 font-medium">-{currency(currentTransaction.otherDiscounts)}</span>
                                             </div>
                                         )}
 
@@ -283,10 +309,10 @@ export default function TransactionDetailSheet({
                                         )}
 
                                          {/* Fallback to legacy field */}
-                                        {fees.length === 0 && transaction.otherFees > 0 && (
+                                        {fees.length === 0 && currentTransaction.otherFees > 0 && (
                                             <div className="flex justify-between">
                                                 <span className="text-muted-foreground">Additional Fees</span>
-                                                <span className="text-red-500 font-medium">+{currency(transaction.otherFees)}</span>
+                                                <span className="text-red-500 font-medium">+{currency(currentTransaction.otherFees)}</span>
                                             </div>
                                         )}
                                     </div>
@@ -302,19 +328,19 @@ export default function TransactionDetailSheet({
                             <div className="grid gap-4">
                                 <DetailRow icon={Tag} label="Category" value={
                                     <div className="flex gap-2 flex-wrap">
-                                        <Badge variant="secondary">{transaction['Category'] || "Uncategorized"}</Badge>
+                                        <Badge variant="secondary">{currentTransaction['Category'] || "Uncategorized"}</Badge>
                                     </div>
                                 } />
 
                                 <DetailRow icon={Layers} label="Sub-Category" value={
-                                    (transaction.subCategory && transaction.subCategory.length > 0) ? (
+                                    (currentTransaction.subCategory && currentTransaction.subCategory.length > 0) ? (
                                         <div className="flex gap-1 flex-wrap">
-                                            {transaction.subCategory.map(sc => <Badge key={sc} variant="outline" className="text-xs">{sc}</Badge>)}
+                                            {currentTransaction.subCategory.map(sc => <Badge key={sc} variant="outline" className="text-xs">{sc}</Badge>)}
                                         </div>
                                     ) : "None"
                                 } />
 
-                                <DetailRow icon={FileText} label="Paid For" value={transaction['paidFor'] || "N/A"} />
+                                <DetailRow icon={FileText} label="Paid For" value={currentTransaction['paidFor'] || "N/A"} />
                             </div>
                         </div>
 
@@ -327,7 +353,7 @@ export default function TransactionDetailSheet({
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <p className="text-xs font-medium text-muted-foreground">Transaction ID</p>
-                                        <p className="text-xs font-mono truncate bg-slate-100 dark:bg-slate-800 p-1 rounded">{transaction.id}</p>
+                                        <p className="text-xs font-mono truncate bg-slate-100 dark:bg-slate-800 p-1 rounded">{currentTransaction.id}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-xs font-medium text-muted-foreground">Summary Category</p>
@@ -335,31 +361,31 @@ export default function TransactionDetailSheet({
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-xs font-medium text-muted-foreground">Statement Month</p>
-                                        <p className="text-sm">{transaction['Statement Month'] || "N/A"}</p>
+                                        <p className="text-sm">{currentTransaction['Statement Month'] || "N/A"}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-xs font-medium text-muted-foreground">Cashback Month</p>
-                                        <p className="text-sm">{transaction['Cashback Month'] || "N/A"}</p>
+                                        <p className="text-sm">{currentTransaction['Cashback Month'] || "N/A"}</p>
                                     </div>
                                 </div>
 
                                 <div className="flex gap-4">
                                     <div className="flex items-center gap-2">
-                                        <Checkbox checked={transaction['Match']} disabled />
+                                        <Checkbox checked={currentTransaction['Match']} disabled />
                                         <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                                             Matched Rule
                                         </label>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Checkbox checked={transaction['Automated']} disabled />
+                                        <Checkbox checked={currentTransaction['Automated']} disabled />
                                         <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                                             Automated
                                         </label>
                                     </div>
                                 </div>
 
-                                {transaction['billingDate'] && (
-                                    <DetailRow icon={Calendar} label="Billing Date" value={transaction['billingDate']} />
+                                {currentTransaction['billingDate'] && (
+                                    <DetailRow icon={Calendar} label="Billing Date" value={currentTransaction['billingDate']} />
                                 )}
 
                                 {cleanNotes && (
@@ -381,10 +407,10 @@ export default function TransactionDetailSheet({
                 {/* Footer fixed at the bottom */}
                 <SheetFooter className="p-6 border-t bg-white dark:bg-slate-950 gap-2 sm:gap-0 mt-auto">
                     <div className="flex w-full gap-2">
-                        <Button variant="outline" className="flex-1" onClick={() => onEdit(transaction)}>
+                        <Button variant="outline" className="flex-1" onClick={() => onEdit(currentTransaction)}>
                             Edit
                         </Button>
-                        <Button variant="destructive" className="flex-1" onClick={() => onDelete(transaction.id, transaction['Transaction Name'])}>
+                        <Button variant="destructive" className="flex-1" onClick={() => onDelete(currentTransaction.id, currentTransaction['Transaction Name'])}>
                             Delete
                         </Button>
                     </div>

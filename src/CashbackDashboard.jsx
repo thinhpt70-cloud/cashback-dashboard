@@ -1111,6 +1111,9 @@ export default function CashbackDashboard() {
                 rules={cashbackRules}
                 allCards={cards}
                 monthlyCategorySummary={monthlyCategorySummary}
+                onEdit={handleEditClick}
+                onDelete={handleTransactionDeleted}
+                onBulkDelete={handleBulkDelete}
             />
             <TransactionDetailSheet
                 transaction={viewingTransaction}
