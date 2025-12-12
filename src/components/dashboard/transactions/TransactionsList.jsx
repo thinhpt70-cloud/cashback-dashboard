@@ -11,7 +11,8 @@ import {
     X,
     Filter,
     Layers,
-    MoreHorizontal
+    MoreHorizontal,
+    Settings2
 } from "lucide-react";
 
 import { cn } from "../../../lib/utils";
@@ -51,6 +52,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
     DropdownMenuSeparator,
+    DropdownMenuLabel,
 } from "../../ui/dropdown-menu";
 
 export default function TransactionsList({
@@ -77,6 +79,20 @@ export default function TransactionsList({
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
     const [selectedIds, setSelectedIds] = useState([]);
     const [groupBy, setGroupBy] = useState("none");
+
+    const [visibleColumns, setVisibleColumns] = useState({
+        'Transaction Date': true,
+        'Transaction Name': true,
+        'Merchant': false,
+        'Amount': true,
+        'Estimated Cashback': true,
+        'Card Name': true,
+        'Category': false,
+        'Applicable Rule': false,
+        'MCC Code': false,
+        'Notes': false,
+        'Cashback Rate': true,
+    });
 
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
@@ -110,7 +126,6 @@ export default function TransactionsList({
         .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
         .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter);
 
-        // Sorting
         if (sortConfig.key !== null) {
             items.sort((a, b) => {
                 const aValue = a[sortConfig.key];
@@ -143,15 +158,6 @@ export default function TransactionsList({
         }
 
         const groups = {};
-        // Group all filtered data, then slice logic might be tricky with grouping.
-        // For simplicity, we apply grouping to the *filtered* data, but visibleCount applies to total items?
-        // Actually, infinite scroll + grouping is complex.
-        // Let's group the *visible* items or group all and slice?
-        // Standard approach: Group all filtered items, then render. But slicing makes it hard.
-        // To simplify: We will slice the filteredData first, THEN group.
-        // This keeps the "Load More" functionality working on the flat list,
-        // but groups might appear split across "pages". This is acceptable for "Load More".
-
         const itemsToShow = filteredData.slice(0, visibleCount);
 
         itemsToShow.forEach(tx => {
@@ -170,10 +176,7 @@ export default function TransactionsList({
             groups[key].push(tx);
         });
 
-        // Sort keys
         return Object.keys(groups).sort((a, b) => {
-             // If date, sort descending usually? But sortConfig handles item order.
-             // Let's just alphabetical sort group keys for now, or date sort if date.
              if (groupBy === 'date') return new Date(b) - new Date(a);
              return a.localeCompare(b);
         }).reduce((obj, key) => {
@@ -283,46 +286,196 @@ export default function TransactionsList({
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[40px]"><Skeleton className="h-5 w-5" /></TableHead>
-                                <TableHead className="w-[40px]"><Skeleton className="h-5 w-5" /></TableHead>
-                                <TableHead className="w-[120px]"><Skeleton className="h-5 w-20" /></TableHead>
-                                <TableHead><Skeleton className="h-5 w-32" /></TableHead>
-                                <TableHead><Skeleton className="h-5 w-24" /></TableHead>
-                                <TableHead className="text-center"><Skeleton className="h-5 w-16 mx-auto" /></TableHead>
-                                <TableHead className="text-right"><Skeleton className="h-5 w-28 ml-auto" /></TableHead>
-                                <TableHead className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableHead>
-                                <TableHead className="w-[100px] text-center"><Skeleton className="h-5 w-20 mx-auto" /></TableHead>
+                                <TableHead className="w-[30px] p-2">
+                                    <Checkbox
+                                        checked={selectedIds.length > 0 && selectedIds.length === filteredData.length}
+                                        onCheckedChange={handleSelectAll}
+                                        aria-label="Select all"
+                                    />
+                                </TableHead>
+                                <TableHead className="w-[30px]"></TableHead>
+
+                                {visibleColumns['Transaction Date'] && (
+                                    <TableHead className="w-[120px]"><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Transaction Name'] && (
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Merchant'] && (
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('merchantLookup')} className="px-2">Merchant <SortIcon columnKey="merchantLookup" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Amount'] && (
+                                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Estimated Cashback'] && (
+                                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Card Name'] && (
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Category'] && (
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Category')} className="px-2">Category <SortIcon columnKey="Category" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Applicable Rule'] && (
+                                    <TableHead>Rule</TableHead>
+                                )}
+
+                                {visibleColumns['MCC Code'] && (
+                                    <TableHead>MCC</TableHead>
+                                )}
+
+                                {visibleColumns['Notes'] && (
+                                    <TableHead>Notes</TableHead>
+                                )}
+
+                                {visibleColumns['Cashback Rate'] && (
+                                    <TableHead className="text-center"><Button variant="ghost" onClick={() => requestSort('rate')} className="px-2">Rate <SortIcon columnKey="rate" /></Button></TableHead>
+                                )}
+
+                                <TableHead className="w-[100px] text-center">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {Array.from({ length: 7 }).map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                    <TableCell><Skeleton className="h-7 w-16 mx-auto" /></TableCell>
-                                </TableRow>
-                            ))}
+                            {/* Loading State for Table */}
+                            {isLoading ? (
+                                Array.from({ length: 7 }).map((_, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                        <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                                        <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                        <TableCell><Skeleton className="h-7 w-16 mx-auto" /></TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                Object.entries(groupedData).map(([groupKey, groupTxs]) => (
+                                    <React.Fragment key={groupKey}>
+                                        {groupBy !== 'none' && (
+                                            <TableRow className="bg-slate-100/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-900">
+                                                <TableCell colSpan={Object.keys(visibleColumns).filter(k => visibleColumns[k]).length + 3} className="py-2 px-4 font-semibold text-xs uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                                                    {groupKey} <span className="ml-1 text-slate-400 font-normal">({groupTxs.length})</span>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                        {groupTxs.map(tx => {
+                                            const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
+                                            const isSelected = selectedIds.includes(tx.id);
+
+                                            return (
+                                                <TableRow
+                                                    key={tx.id}
+                                                    onClick={() => onViewDetails && onViewDetails(tx)}
+                                                    className={cn("cursor-pointer", isSelected && "bg-slate-50 dark:bg-slate-800/50")}
+                                                >
+                                                    <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
+                                                        <Checkbox
+                                                            checked={isSelected}
+                                                            onCheckedChange={(checked) => handleSelectOne(tx.id, checked)}
+                                                            aria-label={`Select ${tx['Transaction Name']}`}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="px-2">
+                                                    </TableCell>
+
+                                                    {visibleColumns['Transaction Date'] && <TableCell>{tx['Transaction Date']}</TableCell>}
+
+                                                    {visibleColumns['Transaction Name'] && (
+                                                        <TableCell>
+                                                            <div className="font-medium">{tx['Transaction Name']}</div>
+                                                            {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
+                                                        </TableCell>
+                                                    )}
+
+                                                    {visibleColumns['Merchant'] && (
+                                                        <TableCell className="text-slate-500">{tx.merchantLookup || ''}</TableCell>
+                                                    )}
+
+                                                    {visibleColumns['Amount'] && <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>}
+
+                                                    {visibleColumns['Estimated Cashback'] && <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>}
+
+                                                    {visibleColumns['Card Name'] && <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>}
+
+                                                    {visibleColumns['Category'] && <TableCell>{tx['Category'] || ''}</TableCell>}
+
+                                                    {visibleColumns['Applicable Rule'] && (
+                                                        <TableCell className="text-xs font-mono text-slate-500">
+                                                            {tx['Applicable Rule']?.length > 0 ? tx['Applicable Rule'][0].slice(0, 8) + '...' : ''}
+                                                        </TableCell>
+                                                    )}
+
+                                                    {visibleColumns['MCC Code'] && (
+                                                        <TableCell>
+                                                            {tx['MCC Code'] ? `${tx['MCC Code']} - ${mccNameFn ? mccNameFn(tx['MCC Code']) : ''}` : ''}
+                                                        </TableCell>
+                                                    )}
+
+                                                    {visibleColumns['Notes'] && <TableCell>{tx['Notes'] || ''}</TableCell>}
+
+                                                    {visibleColumns['Cashback Rate'] && (
+                                                        <TableCell className="text-center">
+                                                            <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
+                                                                {(tx.rate * 100).toFixed(1)}%
+                                                            </Badge>
+                                                        </TableCell>
+                                                    )}
+
+                                                    <TableCell className="text-center">
+                                                         <div className="md:hidden">
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                        <MoreHorizontal className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end">
+                                                                    <DropdownMenuItem onClick={() => onEditTransaction(tx)}>
+                                                                        <FilePenLine className="mr-2 h-4 w-4" /> Edit
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => handleDelete(tx.id, tx['Transaction Name'])}
+                                                                        className="text-destructive"
+                                                                    >
+                                                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
+                                                        <div className="hidden md:flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </React.Fragment>
+                                 ))
+                            )}
                         </TableBody>
                     </Table>
                 </div>
             );
-        }
+        };
 
         if (filteredData.length === 0) {
             return <div className="text-center h-24 flex items-center justify-center text-muted-foreground"><p>No transactions found.</p></div>;
         }
 
         if (!isDesktop) {
-            // Mobile View - Using card style list
-             // We flatten the groups for mobile simplicity or keep them if easy.
-             // Let's flatten for now as mobile list usually doesn't show group headers nicely unless designed.
-             // Actually, showing grouping on mobile is nice too.
+            // Mobile View
              const flatList = [];
              Object.entries(groupedData).forEach(([key, items]) => {
                  if (groupBy !== 'none') flatList.push({ type: 'header', title: key, count: items.length });
@@ -383,138 +536,237 @@ export default function TransactionsList({
             );
         }
 
-        // --- DESKTOP TABLE VIEW ---
+        // --- DESKTOP TABLE VIEW (Default Return from renderContent) ---
         return (
             <div className="border rounded-md">
-                <Table>
-                    <TableHeader className="bg-background">
-                        <TableRow className="hover:bg-transparent">
-                            <TableHead className="w-[30px] p-2">
-                                <Checkbox
-                                    checked={selectedIds.length > 0 && selectedIds.length === filteredData.length}
-                                    onCheckedChange={handleSelectAll}
-                                    aria-label="Select all"
-                                />
-                            </TableHead>
-                            <TableHead className="w-[30px]"></TableHead>
-                            <TableHead className="w-[120px]"><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
-                            <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
-                            <TableHead className="text-center"><Button variant="ghost" onClick={() => requestSort('rate')} className="px-2">Rate <SortIcon columnKey="rate" /></Button></TableHead>
-                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
-                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
-                            <TableHead className="w-[100px] text-center">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                         {Object.entries(groupedData).map(([groupKey, groupTxs]) => (
-                            <React.Fragment key={groupKey}>
-                                {groupBy !== 'none' && (
-                                    <TableRow className="bg-slate-100/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-900">
-                                        <TableCell colSpan={9} className="py-2 px-4 font-semibold text-xs uppercase text-slate-500 dark:text-slate-400 tracking-wider">
-                                            {groupKey} <span className="ml-1 text-slate-400 font-normal">({groupTxs.length})</span>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                                {groupTxs.map(tx => {
-                                    const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
-                                    const isSelected = selectedIds.includes(tx.id);
+                 <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[30px] p-2">
+                                    <Checkbox
+                                        checked={selectedIds.length > 0 && selectedIds.length === filteredData.length}
+                                        onCheckedChange={handleSelectAll}
+                                        aria-label="Select all"
+                                    />
+                                </TableHead>
+                                <TableHead className="w-[30px]"></TableHead>
 
-                                    return (
-                                        <TableRow
-                                            key={tx.id}
-                                            onClick={() => onViewDetails && onViewDetails(tx)}
-                                            className={cn("cursor-pointer", isSelected && "bg-slate-50 dark:bg-slate-800/50")}
-                                        >
-                                            <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
-                                                <Checkbox
-                                                    checked={isSelected}
-                                                    onCheckedChange={(checked) => handleSelectOne(tx.id, checked)}
-                                                    aria-label={`Select ${tx['Transaction Name']}`}
-                                                />
-                                            </TableCell>
-                                            <TableCell className="px-2">
-                                            </TableCell>
-                                            <TableCell>{tx['Transaction Date']}</TableCell>
-                                            <TableCell>
-                                                <div className="font-medium">{tx['Transaction Name']}</div>
-                                                {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
-                                            </TableCell>
-                                            <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>
-                                            <TableCell className="text-center">
-                                                <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
-                                                    {(tx.rate * 100).toFixed(1)}%
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>
-                                            <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>
-                                            <TableCell className="text-center">
-                                                 <div className="md:hidden">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => onEditTransaction(tx)}>
-                                                                <FilePenLine className="mr-2 h-4 w-4" /> Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                onClick={() => handleDelete(tx.id, tx['Transaction Name'])}
-                                                                className="text-destructive"
-                                                            >
-                                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
-                                                <div className="hidden md:flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </React.Fragment>
-                         ))}
-                    </TableBody>
-                </Table>
-            </div>
+                                {visibleColumns['Transaction Date'] && (
+                                    <TableHead className="w-[120px]"><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Transaction Name'] && (
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Merchant'] && (
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('merchantLookup')} className="px-2">Merchant <SortIcon columnKey="merchantLookup" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Amount'] && (
+                                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Estimated Cashback'] && (
+                                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Card Name'] && (
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Category'] && (
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Category')} className="px-2">Category <SortIcon columnKey="Category" /></Button></TableHead>
+                                )}
+
+                                {visibleColumns['Applicable Rule'] && (
+                                    <TableHead>Rule</TableHead>
+                                )}
+
+                                {visibleColumns['MCC Code'] && (
+                                    <TableHead>MCC</TableHead>
+                                )}
+
+                                {visibleColumns['Notes'] && (
+                                    <TableHead>Notes</TableHead>
+                                )}
+
+                                {visibleColumns['Cashback Rate'] && (
+                                    <TableHead className="text-center"><Button variant="ghost" onClick={() => requestSort('rate')} className="px-2">Rate <SortIcon columnKey="rate" /></Button></TableHead>
+                                )}
+
+                                <TableHead className="w-[100px] text-center">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {/* Desktop Table Body */}
+                            {isLoading ? (
+                                Array.from({ length: 7 }).map((_, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                        <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                                        <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                        <TableCell><Skeleton className="h-7 w-16 mx-auto" /></TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                Object.entries(groupedData).map(([groupKey, groupTxs]) => (
+                                    <React.Fragment key={groupKey}>
+                                        {groupBy !== 'none' && (
+                                            <TableRow className="bg-slate-100/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-900">
+                                                <TableCell colSpan={Object.keys(visibleColumns).filter(k => visibleColumns[k]).length + 3} className="py-2 px-4 font-semibold text-xs uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                                                    {groupKey} <span className="ml-1 text-slate-400 font-normal">({groupTxs.length})</span>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                        {groupTxs.map(tx => {
+                                            const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
+                                            const isSelected = selectedIds.includes(tx.id);
+
+                                            return (
+                                                <TableRow
+                                                    key={tx.id}
+                                                    onClick={() => onViewDetails && onViewDetails(tx)}
+                                                    className={cn("cursor-pointer", isSelected && "bg-slate-50 dark:bg-slate-800/50")}
+                                                >
+                                                    <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
+                                                        <Checkbox
+                                                            checked={isSelected}
+                                                            onCheckedChange={(checked) => handleSelectOne(tx.id, checked)}
+                                                            aria-label={`Select ${tx['Transaction Name']}`}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="px-2">
+                                                    </TableCell>
+
+                                                    {visibleColumns['Transaction Date'] && <TableCell>{tx['Transaction Date']}</TableCell>}
+
+                                                    {visibleColumns['Transaction Name'] && (
+                                                        <TableCell>
+                                                            <div className="font-medium">{tx['Transaction Name']}</div>
+                                                            {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
+                                                        </TableCell>
+                                                    )}
+
+                                                    {visibleColumns['Merchant'] && (
+                                                        <TableCell className="text-slate-500">{tx.merchantLookup || ''}</TableCell>
+                                                    )}
+
+                                                    {visibleColumns['Amount'] && <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>}
+
+                                                    {visibleColumns['Estimated Cashback'] && <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>}
+
+                                                    {visibleColumns['Card Name'] && <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>}
+
+                                                    {visibleColumns['Category'] && <TableCell>{tx['Category'] || ''}</TableCell>}
+
+                                                    {visibleColumns['Applicable Rule'] && (
+                                                        <TableCell className="text-xs font-mono text-slate-500">
+                                                            {tx['Applicable Rule']?.length > 0 ? tx['Applicable Rule'][0].slice(0, 8) + '...' : ''}
+                                                        </TableCell>
+                                                    )}
+
+                                                    {visibleColumns['MCC Code'] && (
+                                                        <TableCell>
+                                                            {tx['MCC Code'] ? `${tx['MCC Code']} - ${mccNameFn ? mccNameFn(tx['MCC Code']) : ''}` : ''}
+                                                        </TableCell>
+                                                    )}
+
+                                                    {visibleColumns['Notes'] && <TableCell>{tx['Notes'] || ''}</TableCell>}
+
+                                                    {visibleColumns['Cashback Rate'] && (
+                                                        <TableCell className="text-center">
+                                                            <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
+                                                                {(tx.rate * 100).toFixed(1)}%
+                                                            </Badge>
+                                                        </TableCell>
+                                                    )}
+
+                                                    <TableCell className="text-center">
+                                                         <div className="md:hidden">
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                        <MoreHorizontal className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end">
+                                                                    <DropdownMenuItem onClick={() => onEditTransaction(tx)}>
+                                                                        <FilePenLine className="mr-2 h-4 w-4" /> Edit
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => handleDelete(tx.id, tx['Transaction Name'])}
+                                                                        className="text-destructive"
+                                                                    >
+                                                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
+                                                        <div className="hidden md:flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </React.Fragment>
+                                 ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
         );
     };
 
+    const renderBulkBar = (isStickyMobile) => (
+        <div className={cn(
+            "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-slate-900 text-white animate-in fade-in slide-in-from-top-2",
+            isStickyMobile ? "sticky top-16 z-40 shadow-md rounded-b-xl" : ""
+        )}>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pl-1 w-full sm:w-auto">
+                <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-white shrink-0" onClick={() => setSelectedIds([])}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm font-medium whitespace-nowrap">{selectedIds.length} Selected</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-300 ml-10 sm:ml-0">
+                    <span className="whitespace-nowrap">Total: <span className="text-white font-medium">{currency(totalAmount)}</span></span>
+                    <span className="hidden sm:inline">•</span>
+                    <span className="whitespace-nowrap">Cashback: <span className="text-emerald-400 font-medium">{currency(totalCashback)}</span></span>
+                </div>
+            </div>
+            <div className="flex items-center gap-2 pr-2 w-full sm:w-auto justify-end">
+                <Button variant="destructive" size="sm" onClick={handleBulkDeleteAction} className="w-full sm:w-auto">
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete ({selectedIds.length})
+                </Button>
+            </div>
+        </div>
+    );
+
     return (
         <Card className="relative">
+            {/* Mobile Bulk Bar - Rendered OUTSIDE the static header wrapper */}
+            {!isDesktop && selectedIds.length > 0 && renderBulkBar(true)}
+
             <div
-                // Sticky Header Container for Filters/Bulk Actions
-                // rounded-t-xl and overflow-hidden ensures the top corners are rounded when sticking
-                className="sticky top-16 z-30 bg-background shadow-sm rounded-t-xl overflow-hidden" 
-            >
-                {selectedIds.length > 0 && (
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-slate-900 text-white animate-in fade-in slide-in-from-top-2">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pl-1 w-full sm:w-auto">
-                            <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-white shrink-0" onClick={() => setSelectedIds([])}>
-                                    <X className="h-4 w-4" />
-                                </Button>
-                                <span className="text-sm font-medium whitespace-nowrap">{selectedIds.length} Selected</span>
-                            </div>
-                            <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-300 ml-10 sm:ml-0">
-                                <span className="whitespace-nowrap">Total: <span className="text-white font-medium">{currency(totalAmount)}</span></span>
-                                <span className="hidden sm:inline">•</span>
-                                <span className="whitespace-nowrap">Cashback: <span className="text-emerald-400 font-medium">{currency(totalCashback)}</span></span>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2 pr-2 w-full sm:w-auto justify-end">
-                            <Button variant="destructive" size="sm" onClick={handleBulkDeleteAction} className="w-full sm:w-auto">
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete ({selectedIds.length})
-                            </Button>
-                        </div>
-                    </div>
+                // Desktop Sticky Header Container
+                className={cn(
+                    "z-30 bg-background shadow-sm rounded-t-xl overflow-hidden",
+                    isDesktop ? "sticky top-16" : "static"
                 )}
+            >
+                {/* Desktop Bulk Bar - Rendered INSIDE the sticky header wrapper */}
+                {isDesktop && selectedIds.length > 0 && renderBulkBar(false)}
+
                  <CardHeader className="border-b p-4">
                     <div className="flex flex-col gap-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -603,6 +855,34 @@ export default function TransactionsList({
                                         <SelectItem value="date">Group by Date</SelectItem>
                                     </SelectContent>
                                 </Select>
+
+                                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
+
+                                {/* Columns Selection */}
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="h-10">
+                                            <Settings2 className="h-3.5 w-3.5 mr-2" />
+                                            Columns
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-[180px]">
+                                        <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {Object.keys(visibleColumns).map((column) => (
+                                            <DropdownMenuItem key={column} onSelect={(e) => e.preventDefault()}>
+                                                <Checkbox
+                                                    checked={visibleColumns[column]}
+                                                    onCheckedChange={() =>
+                                                        setVisibleColumns((prev) => ({ ...prev, [column]: !prev[column] }))
+                                                    }
+                                                    className="mr-2"
+                                                />
+                                                {column}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </div>
                     </div>
