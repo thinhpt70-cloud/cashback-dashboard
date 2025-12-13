@@ -951,6 +951,8 @@ export default function CashbackDashboard() {
                             rules={cashbackRules}
                             getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
                             onEditTransaction={handleEditClick}
+                            isDesktop={isDesktop}
+                            mccMap={mccMap}
                         />
                         <TransactionsList
                             isDesktop={isDesktop}
