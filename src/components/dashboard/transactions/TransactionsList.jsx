@@ -70,7 +70,8 @@ export default function TransactionsList({
     onEditTransaction,
     onBulkDelete,
     onViewDetails,
-    fmtYMShortFn
+    fmtYMShortFn,
+    rules
 }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [cardFilter, setCardFilter] = useState("all");
@@ -411,7 +412,9 @@ export default function TransactionsList({
 
                                                     {visibleColumns['Applicable Rule'] && (
                                                         <TableCell className="text-xs font-mono text-slate-500">
-                                                            {tx['Applicable Rule']?.length > 0 ? tx['Applicable Rule'][0].slice(0, 8) + '...' : ''}
+                                                            {tx['Applicable Rule']?.length > 0 && rules
+                                                                ? (rules.find(r => r.id === tx['Applicable Rule'][0])?.ruleName || tx['Applicable Rule'][0])
+                                                                : ''}
                                                         </TableCell>
                                                     )}
 
