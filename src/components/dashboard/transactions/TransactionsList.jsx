@@ -412,9 +412,12 @@ export default function TransactionsList({
 
                                                     {visibleColumns['Applicable Rule'] && (
                                                         <TableCell className="text-xs font-mono text-slate-500">
-                                                            {tx['Applicable Rule']?.length > 0 && rules
-                                                                ? (rules.find(r => r.id === tx['Applicable Rule'][0])?.ruleName || tx['Applicable Rule'][0])
-                                                                : ''}
+                                                            {(() => {
+                                                                const ruleId = tx['Applicable Rule'] && tx['Applicable Rule'][0];
+                                                                if (!ruleId) return '';
+                                                                const ruleName = rules && rules.find(r => r.id === ruleId)?.ruleName;
+                                                                return ruleName || "Error";
+                                                            })()}
                                                         </TableCell>
                                                     )}
 
