@@ -273,7 +273,24 @@ export default function TransactionReview({
 
     const currency = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 
-    if (!isLoading && transactions.length === 0) {
+    // 1. Loading State
+    if (isLoading) {
+        return (
+            <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 overflow-hidden transition-colors">
+                <div className="p-4 bg-white dark:bg-slate-950 flex justify-between items-center select-none transition-colors">
+                    <div className="flex items-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                        <h3 className="font-semibold text-slate-700 dark:text-slate-200 flex items-center">
+                            Checking transactions...
+                        </h3>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // 2. All Caught Up State (No transactions)
+    if (transactions.length === 0) {
         return (
             <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 overflow-hidden transition-colors">
                 <div className="p-4 bg-white dark:bg-slate-950 border-emerald-100 dark:border-emerald-900/50 flex justify-between items-center select-none transition-colors">
@@ -290,6 +307,7 @@ export default function TransactionReview({
         );
     }
 
+    // 3. Review Needed State (Has transactions)
     return (
         <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 overflow-hidden transition-colors">
             {/* Header */}
@@ -301,13 +319,9 @@ export default function TransactionReview({
                     <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-500" />
                     <h3 className="font-semibold text-orange-900 dark:text-orange-100 flex items-center">
                         Review Needed
-                        {isLoading ? (
-                            <Loader2 className="ml-2 h-4 w-4 animate-spin text-orange-600 dark:text-orange-400" />
-                        ) : (
-                            <Badge variant="secondary" className="ml-2 bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-100 hover:bg-orange-300 dark:hover:bg-orange-800">
-                                {transactions.length}
-                            </Badge>
-                        )}
+                        <Badge variant="secondary" className="ml-2 bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-100 hover:bg-orange-300 dark:hover:bg-orange-800">
+                            {transactions.length}
+                        </Badge>
                     </h3>
                 </div>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-orange-100 dark:hover:bg-orange-900/50">
@@ -459,13 +473,7 @@ export default function TransactionReview({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {isLoading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={9} className="h-24 text-center">
-                                            <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-                                        </TableCell>
-                                    </TableRow>
-                                ) : filteredData.length === 0 ? (
+                                {filteredData.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                                             No transactions match the filters.
