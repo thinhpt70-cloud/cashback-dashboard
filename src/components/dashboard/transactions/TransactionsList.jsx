@@ -1,5 +1,3 @@
-// TransactionsList.jsx
-
 import React, { useState, useMemo, useEffect } from "react";
 import {
     ChevronsUpDown,
@@ -60,6 +58,7 @@ export default function TransactionsList({
     isLoading,
     activeMonth,
     cardMap,
+    rules = [],
     mccNameFn,
     allCards,
     filterType,
@@ -95,6 +94,11 @@ export default function TransactionsList({
     });
 
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+
+    const ruleMap = useMemo(() => {
+        if (!rules) return new Map();
+        return new Map(rules.map(r => [r.id, r]));
+    }, [rules]);
 
     useEffect(() => {
         setSelectedIds([]);
@@ -371,6 +375,9 @@ export default function TransactionsList({
                                         {groupTxs.map(tx => {
                                             const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
                                             const isSelected = selectedIds.includes(tx.id);
+                                            const ruleId = tx['Applicable Rule'] && tx['Applicable Rule'][0];
+                                            const rule = ruleId ? ruleMap.get(ruleId) : null;
+                                            const ruleName = rule ? (rule.ruleName || rule.name) : (ruleId ? ruleId.slice(0, 8) + '...' : '');
 
                                             return (
                                                 <TableRow
@@ -410,8 +417,8 @@ export default function TransactionsList({
                                                     {visibleColumns['Category'] && <TableCell>{tx['Category'] || ''}</TableCell>}
 
                                                     {visibleColumns['Applicable Rule'] && (
-                                                        <TableCell className="text-xs font-mono text-slate-500">
-                                                            {tx['Applicable Rule']?.length > 0 ? tx['Applicable Rule'][0].slice(0, 8) + '...' : ''}
+                                                        <TableCell className="text-xs text-slate-600">
+                                                            {ruleName}
                                                         </TableCell>
                                                     )}
 
@@ -627,6 +634,9 @@ export default function TransactionsList({
                                         {groupTxs.map(tx => {
                                             const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
                                             const isSelected = selectedIds.includes(tx.id);
+                                            const ruleId = tx['Applicable Rule'] && tx['Applicable Rule'][0];
+                                            const rule = ruleId ? ruleMap.get(ruleId) : null;
+                                            const ruleName = rule ? (rule.ruleName || rule.name) : (ruleId ? ruleId.slice(0, 8) + '...' : '');
 
                                             return (
                                                 <TableRow
@@ -666,8 +676,8 @@ export default function TransactionsList({
                                                     {visibleColumns['Category'] && <TableCell>{tx['Category'] || ''}</TableCell>}
 
                                                     {visibleColumns['Applicable Rule'] && (
-                                                        <TableCell className="text-xs font-mono text-slate-500">
-                                                            {tx['Applicable Rule']?.length > 0 ? tx['Applicable Rule'][0].slice(0, 8) + '...' : ''}
+                                                        <TableCell className="text-xs text-slate-600">
+                                                            {ruleName}
                                                         </TableCell>
                                                     )}
 

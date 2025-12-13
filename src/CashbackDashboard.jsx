@@ -968,6 +968,7 @@ export default function CashbackDashboard() {
                             onBulkDelete={handleBulkDelete}
                             onViewDetails={handleViewTransactionDetails}
                             fmtYMShortFn={fmtYMShort}
+                            rules={cashbackRules}
                         />
                     </div>
                 )}
