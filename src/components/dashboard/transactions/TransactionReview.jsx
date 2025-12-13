@@ -5,10 +5,11 @@ import {
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { Input } from "../../ui/input";
+import { Checkbox } from "../../ui/checkbox";
 import {
     Check, Trash2, FilePenLine, ChevronDown, ChevronUp,
     AlertTriangle, ArrowUp, ArrowDown, Search,
-    MoreHorizontal, Loader2, Filter, Layers
+    MoreHorizontal, Loader2, Filter, Layers, X
 } from "lucide-react";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
@@ -29,7 +30,9 @@ export default function TransactionReview({
     categories,
     rules,
     getCurrentCashbackMonthForCard,
-    onEditTransaction
+    onEditTransaction,
+    isDesktop,
+    mccMap
 }) {
     // FIX 1: Set initial state to false so it does not auto-expand on load
     const [isOpen, setIsOpen] = useState(false);
@@ -48,6 +51,13 @@ export default function TransactionReview({
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
     const [isBulkApproveDialogOpen, setIsBulkApproveDialogOpen] = useState(false); // New state
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // --- Helper: Format MCC ---
+    const formatMcc = (code) => {
+        if (!code) return null;
+        const name = mccMap && mccMap[code] ? mccMap[code].vn : null;
+        return name ? `${code} - ${name}` : code;
+    };
 
     // --- 1. Logic to Calculate Status ---
     const enrichedTransactions = useMemo(() => {
@@ -307,9 +317,39 @@ export default function TransactionReview({
         );
     }
 
+    // --- RENDER HELPERS ---
+
+    const renderBulkBar = () => (
+         <div className="sticky top-16 z-40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-slate-900 text-white shadow-md rounded-b-xl animate-in fade-in slide-in-from-top-2 mb-4">
+            <div className="flex items-center gap-4 pl-1 w-full sm:w-auto">
+                <div className="flex items-center gap-2">
+                     <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-white shrink-0" onClick={() => setSelectedIds(new Set())}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm font-medium whitespace-nowrap">{selectedIds.size} Selected</span>
+                </div>
+            </div>
+            <div className="flex items-center gap-2 pr-2 w-full sm:w-auto justify-end">
+                 <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleQuickApprove(filteredData.filter(tx => selectedIds.has(tx.id)))}
+                    disabled={isProcessing}
+                    className="bg-slate-800 border-slate-700 text-emerald-400 hover:text-emerald-300 hover:bg-slate-700"
+                >
+                    <Check className="mr-2 h-3.5 w-3.5" />
+                    Approve
+                </Button>
+                <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={isProcessing} className="w-full sm:w-auto">
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                </Button>
+            </div>
+        </div>
+    );
+
     // 3. Review Needed State (Has transactions)
     return (
-        <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 overflow-hidden transition-colors">
+        <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 overflow-hidden transition-colors relative">
             {/* Header */}
             <div
                 className="p-4 bg-orange-50 dark:bg-orange-950/30 border-b border-orange-100 dark:border-orange-900/50 flex justify-between items-center cursor-pointer select-none transition-colors"
@@ -399,148 +439,284 @@ export default function TransactionReview({
                             </Select>
                         </div>
 
-                        {/* Bulk Actions */}
-                        <div className="flex items-center gap-2 w-full xl:w-auto justify-end">
-                            {selectedIds.size > 0 && (
-                                <>
-                                    <span className="text-sm text-muted-foreground mr-2">
-                                        {selectedIds.size} selected
-                                    </span>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleQuickApprove(filteredData.filter(tx => selectedIds.has(tx.id)))}
-                                        disabled={isProcessing}
-                                        className="bg-white dark:bg-slate-900 text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                                    >
-                                        <Check className="mr-2 h-3.5 w-3.5" />
-                                        Auto Approve
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setIsBulkEditDialogOpen(true)}
-                                        disabled={isProcessing}
-                                        className="bg-white dark:bg-slate-900"
-                                    >
-                                        <FilePenLine className="mr-2 h-3.5 w-3.5" />
-                                        Edit
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="text-destructive hover:text-destructive bg-white dark:bg-slate-900 hover:bg-red-50 border-red-200"
-                                        onClick={handleBulkDelete}
-                                        disabled={isProcessing}
-                                    >
-                                        <Trash2 className="mr-2 h-3.5 w-3.5" />
-                                        Delete
-                                    </Button>
-                                </>
-                            )}
-                        </div>
+                        {/* Bulk Actions (Desktop Only - Mobile has sticky bar) */}
+                        {isDesktop && (
+                            <div className="flex items-center gap-2 w-full xl:w-auto justify-end">
+                                {selectedIds.size > 0 && (
+                                    <>
+                                        <span className="text-sm text-muted-foreground mr-2">
+                                            {selectedIds.size} selected
+                                        </span>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleQuickApprove(filteredData.filter(tx => selectedIds.has(tx.id)))}
+                                            disabled={isProcessing}
+                                            className="bg-white dark:bg-slate-900 text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                                        >
+                                            <Check className="mr-2 h-3.5 w-3.5" />
+                                            Auto Approve
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setIsBulkEditDialogOpen(true)}
+                                            disabled={isProcessing}
+                                            className="bg-white dark:bg-slate-900"
+                                        >
+                                            <FilePenLine className="mr-2 h-3.5 w-3.5" />
+                                            Edit
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-destructive hover:text-destructive bg-white dark:bg-slate-900 hover:bg-red-50 border-red-200"
+                                            onClick={handleBulkDelete}
+                                            disabled={isProcessing}
+                                        >
+                                            <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                            Delete
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
 
-                    {/* Table */}
+                    {/* Mobile Bulk Bar */}
+                    {!isDesktop && selectedIds.size > 0 && renderBulkBar()}
+
+                    {/* Table / List View */}
                     <div className="overflow-x-auto max-h-[600px]">
-                        <Table>
-                            <TableHeader className="bg-slate-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm transition-colors">
-                                <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-900 border-b-slate-200 dark:border-b-slate-800">
-                                    <TableHead className="w-[40px] text-center">
-                                        <input
-                                            type="checkbox"
-                                            className="rounded border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:checked:bg-primary"
-                                            checked={filteredData.length > 0 && selectedIds.size === filteredData.length}
-                                            onChange={handleSelectAll}
-                                        />
-                                    </TableHead>
-                                    <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Transaction Date')}>
-                                        Date {sortConfig.key === 'Transaction Date' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
-                                    </TableHead>
-                                    <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Transaction Name')}>
-                                        Transaction {sortConfig.key === 'Transaction Name' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
-                                    </TableHead>
-                                    <TableHead>Details</TableHead>
-                                    <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Category')}>
-                                        Category {sortConfig.key === 'Category' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
-                                    </TableHead>
-                                    <TableHead>Cashback Rule</TableHead>
-                                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Amount')}>
-                                        Amount {sortConfig.key === 'Amount' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
-                                    </TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredData.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
-                                            No transactions match the filters.
-                                        </TableCell>
+                        {isDesktop ? (
+                            <Table>
+                                <TableHeader className="bg-slate-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm transition-colors">
+                                    <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-900 border-b-slate-200 dark:border-b-slate-800">
+                                        <TableHead className="w-[40px] text-center">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:checked:bg-primary"
+                                                checked={filteredData.length > 0 && selectedIds.size === filteredData.length}
+                                                onChange={handleSelectAll}
+                                            />
+                                        </TableHead>
+                                        <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Transaction Date')}>
+                                            Date {sortConfig.key === 'Transaction Date' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
+                                        </TableHead>
+                                        <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Transaction Name')}>
+                                            Transaction {sortConfig.key === 'Transaction Name' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
+                                        </TableHead>
+                                        <TableHead>Details</TableHead>
+                                        <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Category')}>
+                                            Category {sortConfig.key === 'Category' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
+                                        </TableHead>
+                                        <TableHead>Cashback Rule</TableHead>
+                                        <TableHead className="text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Amount')}>
+                                            Amount {sortConfig.key === 'Amount' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
+                                        </TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredData.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                                                No transactions match the filters.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        Object.entries(groupedData).map(([groupKey, groupTxs]) => (
+                                            <React.Fragment key={groupKey}>
+                                                {/* Group Header */}
+                                                {groupBy !== 'none' && (
+                                                    <TableRow className="bg-slate-100/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-900">
+                                                        <TableCell colSpan={9} className="py-2 px-4 font-semibold text-xs uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                                                            {groupKey} <span className="ml-1 text-slate-400 font-normal">({groupTxs.length})</span>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+
+                                                {/* Transactions in Group */}
+                                                {groupTxs.map(tx => {
+                                                    const cardName = tx['Card'] && cards.find(c => c.id === tx['Card'][0])?.name;
+                                                    const ruleName = tx['Applicable Rule'] && rules.find(r => r.id === tx['Applicable Rule'][0])?.ruleName;
+                                                    const isSelected = selectedIds.has(tx.id);
+
+                                                    return (
+                                                        <TableRow key={tx.id} className={cn("group transition-colors dark:border-slate-800", isSelected && "bg-slate-50 dark:bg-slate-900")}>
+                                                            <TableCell className="text-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="rounded border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:checked:bg-primary"
+                                                                    checked={isSelected}
+                                                                    onChange={() => handleSelectOne(tx.id)}
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                                                                {tx['Transaction Date']}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <div className="font-medium text-sm dark:text-slate-200">{tx['Transaction Name']}</div>
+                                                            </TableCell>
+                                                            <TableCell className="text-xs space-y-1">
+                                                                {cardName && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500 dark:text-slate-400">Card:</span> <span className="dark:text-slate-300">{cardName}</span></div>}
+                                                                {tx['MCC Code'] && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500 dark:text-slate-400">MCC:</span> <span className="dark:text-slate-300">{tx['MCC Code']}</span></div>}
+                                                            </TableCell>
+                                                            <TableCell className="text-sm">
+                                                                {tx['Category'] ? (
+                                                                    <Badge variant="secondary" className="font-normal bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200">
+                                                                        {tx['Category']}
+                                                                    </Badge>
+                                                                ) : (
+                                                                    <span className="text-xs text-muted-foreground italic">Uncategorized</span>
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-sm">
+                                                                {ruleName ? (
+                                                                    <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors border-transparent bg-slate-100 text-slate-900 hover:bg-slate-200/80 dark:bg-slate-800 dark:text-slate-50">
+                                                                        {ruleName}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-xs text-muted-foreground italic">None</span>
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-right font-medium dark:text-slate-200">
+                                                                {currency(tx['Amount'])}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Badge variant="outline" className={cn(
+                                                                    "whitespace-nowrap",
+                                                                    tx.statusType === 'success' && "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900",
+                                                                    tx.statusType === 'warning' && "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900",
+                                                                    tx.statusType === 'error' && "bg-red-100 text-red-800 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-900",
+                                                                    tx.statusType === 'info' && "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-900"
+                                                                )}>
+                                                                    {tx.status}
+                                                                </Badge>
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                                                        onClick={() => handleQuickApprove([tx])}
+                                                                        title="Auto Approve"
+                                                                        disabled={isProcessing}
+                                                                    >
+                                                                        <Check className="h-4 w-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-slate-500 hover:text-slate-700"
+                                                                        onClick={() => onEditTransaction(tx)}
+                                                                        title="Edit"
+                                                                        disabled={isProcessing}
+                                                                    >
+                                                                        <FilePenLine className="h-4 w-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                                                        onClick={() => handleSingleDelete(tx.id)}
+                                                                        title="Delete"
+                                                                        disabled={isProcessing}
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </React.Fragment>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        ) : (
+                            /* Mobile List View */
+                            <div className="flex flex-col gap-2 p-2">
+                                {filteredData.length === 0 ? (
+                                    <div className="p-4 text-center text-muted-foreground border rounded-lg">
+                                        No transactions match the filters.
+                                    </div>
                                 ) : (
                                     Object.entries(groupedData).map(([groupKey, groupTxs]) => (
                                         <React.Fragment key={groupKey}>
-                                            {/* Group Header */}
                                             {groupBy !== 'none' && (
-                                                <TableRow className="bg-slate-100/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-900">
-                                                    <TableCell colSpan={9} className="py-2 px-4 font-semibold text-xs uppercase text-slate-500 dark:text-slate-400 tracking-wider">
-                                                        {groupKey} <span className="ml-1 text-slate-400 font-normal">({groupTxs.length})</span>
-                                                    </TableCell>
-                                                </TableRow>
+                                                <div className="py-2 px-2 font-semibold text-xs uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                                                    {groupKey} <span className="ml-1 text-slate-400 font-normal">({groupTxs.length})</span>
+                                                </div>
                                             )}
-
-                                            {/* Transactions in Group */}
                                             {groupTxs.map(tx => {
                                                 const cardName = tx['Card'] && cards.find(c => c.id === tx['Card'][0])?.name;
                                                 const ruleName = tx['Applicable Rule'] && rules.find(r => r.id === tx['Applicable Rule'][0])?.ruleName;
                                                 const isSelected = selectedIds.has(tx.id);
+                                                const formattedMcc = formatMcc(tx['MCC Code']);
 
                                                 return (
-                                                    <TableRow key={tx.id} className={cn("group transition-colors dark:border-slate-800", isSelected && "bg-slate-50 dark:bg-slate-900")}>
-                                                        <TableCell className="text-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="rounded border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:checked:bg-primary"
-                                                                checked={isSelected}
-                                                                onChange={() => handleSelectOne(tx.id)}
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                                                            {tx['Transaction Date']}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="font-medium text-sm dark:text-slate-200">{tx['Transaction Name']}</div>
-                                                        </TableCell>
-                                                        <TableCell className="text-xs space-y-1">
-                                                            {cardName && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500 dark:text-slate-400">Card:</span> <span className="dark:text-slate-300">{cardName}</span></div>}
-                                                            {tx['MCC Code'] && <div className="flex items-center gap-1"><span className="font-semibold text-slate-500 dark:text-slate-400">MCC:</span> <span className="dark:text-slate-300">{tx['MCC Code']}</span></div>}
-                                                        </TableCell>
-                                                        <TableCell className="text-sm">
-                                                            {tx['Category'] ? (
-                                                                <Badge variant="secondary" className="font-normal bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200">
+                                                    <div
+                                                        key={tx.id}
+                                                        className={cn(
+                                                            "border rounded-lg p-3 bg-white dark:bg-slate-900 shadow-sm transition-colors",
+                                                            isSelected ? "border-primary bg-primary/5 dark:bg-primary/10" : "dark:border-slate-800"
+                                                        )}
+                                                    >
+                                                        {/* Row 1: Checkbox & Name */}
+                                                        <div className="flex gap-3 items-start">
+                                                             <div className="pt-1">
+                                                                <Checkbox
+                                                                    checked={isSelected}
+                                                                    onCheckedChange={() => handleSelectOne(tx.id)}
+                                                                />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex justify-between items-start gap-2">
+                                                                    <div className="flex-col overflow-hidden">
+                                                                        <p className="font-semibold text-sm truncate">{tx['Transaction Name']}</p>
+                                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                                                            <span>{tx['Transaction Date']}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="text-right flex-shrink-0">
+                                                                        <p className="font-bold text-sm">{currency(tx['Amount'])}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Row 2: Details Chips */}
+                                                        <div className="flex flex-wrap gap-1.5 mt-3 ml-7">
+                                                            {cardName && (
+                                                                <Badge variant="outline" className="text-[10px] px-1.5 h-5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-normal">
+                                                                    {cardName}
+                                                                </Badge>
+                                                            )}
+                                                            {formattedMcc && (
+                                                                <Badge variant="outline" className="text-[10px] px-1.5 h-5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-normal max-w-[150px] truncate block">
+                                                                    {formattedMcc}
+                                                                </Badge>
+                                                            )}
+                                                            {tx['Category'] && (
+                                                                <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-normal">
                                                                     {tx['Category']}
                                                                 </Badge>
-                                                            ) : (
-                                                                <span className="text-xs text-muted-foreground italic">Uncategorized</span>
                                                             )}
-                                                        </TableCell>
-                                                        <TableCell className="text-sm">
-                                                            {ruleName ? (
-                                                                <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors border-transparent bg-slate-100 text-slate-900 hover:bg-slate-200/80 dark:bg-slate-800 dark:text-slate-50">
+                                                             {ruleName && (
+                                                                <Badge variant="outline" className="text-[10px] px-1.5 h-5 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 font-normal">
                                                                     {ruleName}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-xs text-muted-foreground italic">None</span>
+                                                                </Badge>
                                                             )}
-                                                        </TableCell>
-                                                        <TableCell className="text-right font-medium dark:text-slate-200">
-                                                            {currency(tx['Amount'])}
-                                                        </TableCell>
-                                                        <TableCell>
+                                                        </div>
+
+                                                        {/* Row 3: Status & Actions */}
+                                                        <div className="flex justify-between items-center mt-3 ml-7 border-t pt-2 dark:border-slate-800">
                                                             <Badge variant="outline" className={cn(
-                                                                "whitespace-nowrap",
+                                                                "text-[10px] px-2 h-5 whitespace-nowrap",
                                                                 tx.statusType === 'success' && "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900",
                                                                 tx.statusType === 'warning' && "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900",
                                                                 tx.statusType === 'error' && "bg-red-100 text-red-800 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-900",
@@ -548,22 +724,22 @@ export default function TransactionReview({
                                                             )}>
                                                                 {tx.status}
                                                             </Badge>
-                                                        </TableCell>
-                                                        
-                                                        {/* FIX 4: Inline Actions for Desktop */}
-                                                        <TableCell className="text-right">
-                                                            {/* Mobile View: Dropdown */}
-                                                            <div className="md:hidden">
+
+                                                            <div className="flex items-center gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                                    onClick={() => handleQuickApprove([tx])}
+                                                                >
+                                                                    Approve
+                                                                </Button>
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild>
-                                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                        <Button variant="ghost" size="icon" className="h-7 w-7">
                                                                             <MoreHorizontal className="h-4 w-4" />
                                                                         </Button>
                                                                     </DropdownMenuTrigger>
                                                                     <DropdownMenuContent align="end">
-                                                                        <DropdownMenuItem onClick={() => handleQuickApprove([tx])}>
-                                                                            <Check className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-500" /> Auto Approve
-                                                                        </DropdownMenuItem>
                                                                         <DropdownMenuItem onClick={() => onEditTransaction(tx)}>
                                                                             <FilePenLine className="mr-2 h-4 w-4" /> Edit
                                                                         </DropdownMenuItem>
@@ -577,49 +753,15 @@ export default function TransactionReview({
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
-
-                                                            {/* Desktop View: Inline Buttons */}
-                                                            <div className="hidden md:flex items-center justify-end gap-1">
-                                                                <Button 
-                                                                    variant="ghost" 
-                                                                    size="icon" 
-                                                                    className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                                                    onClick={() => handleQuickApprove([tx])}
-                                                                    title="Auto Approve"
-                                                                    disabled={isProcessing}
-                                                                >
-                                                                    <Check className="h-4 w-4" />
-                                                                </Button>
-                                                                <Button 
-                                                                    variant="ghost" 
-                                                                    size="icon" 
-                                                                    className="h-8 w-8 text-slate-500 hover:text-slate-700"
-                                                                    onClick={() => onEditTransaction(tx)}
-                                                                    title="Edit"
-                                                                    disabled={isProcessing}
-                                                                >
-                                                                    <FilePenLine className="h-4 w-4" />
-                                                                </Button>
-                                                                <Button 
-                                                                    variant="ghost" 
-                                                                    size="icon" 
-                                                                    className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
-                                                                    onClick={() => handleSingleDelete(tx.id)}
-                                                                    title="Delete"
-                                                                    disabled={isProcessing}
-                                                                >
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
-                                                            </div>
-                                                        </TableCell>
-                                                    </TableRow>
+                                                        </div>
+                                                    </div>
                                                 );
                                             })}
                                         </React.Fragment>
                                     ))
                                 )}
-                            </TableBody>
-                        </Table>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
