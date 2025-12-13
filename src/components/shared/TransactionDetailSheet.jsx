@@ -125,16 +125,14 @@ export default function TransactionDetailSheet({
     const hasForeignData = (foreignAmount && foreignAmount !== 'N/A') || (conversionFee && conversionFee > 0);
 
     // Calculations for display
-    let displayExchangeRate = 0;
+    let displayExchangeRate = currentTransaction['exchangeRate'] || 0;
     let displayFeePercent = 0;
 
     if (hasForeignData && foreignAmount > 0 && vndAmount > 0) {
         const amountBeforeFee = vndAmount - (conversionFee || 0);
-        if (amountBeforeFee > 0) {
-            displayExchangeRate = amountBeforeFee / foreignAmount;
-            if (conversionFee > 0) {
-                displayFeePercent = (conversionFee / amountBeforeFee) * 100;
-            }
+
+        if (amountBeforeFee > 0 && conversionFee > 0) {
+            displayFeePercent = (conversionFee / amountBeforeFee) * 100;
         }
     }
 
@@ -255,7 +253,10 @@ export default function TransactionDetailSheet({
                                     <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-2 border">
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">Foreign Amount</span>
-                                            <span className="font-mono">{foreignAmount}</span>
+                                            <span className="font-mono">
+                                                {currentTransaction['foreignCurrency'] ? `${currentTransaction['foreignCurrency']} ` : ''}
+                                                {foreignAmount}
+                                            </span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">Exchange Rate</span>

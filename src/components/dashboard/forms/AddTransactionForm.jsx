@@ -103,6 +103,8 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                 setMethod('International');
                 setForeignCurrencyAmount(initialData.foreignCurrencyAmount.toLocaleString('en-US'));
                 setConversionFee(initialData.conversionFee.toLocaleString('en-US'));
+                if (initialData.exchangeRate) setConversionRate(initialData.exchangeRate.toLocaleString('en-US'));
+                if (initialData.foreignCurrency) setForeignCurrency(initialData.foreignCurrency);
             }
         }
     }, [initialData, form]);
@@ -395,6 +397,8 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             'otherDiscounts': discounts.reduce((acc, d) => acc + parseFloat(String(d.amount || '0').replace(/,/g, '')), 0),
             'otherFees': fees.reduce((acc, f) => acc + parseFloat(String(f.amount || '0').replace(/,/g, '')), 0),
             'foreignCurrencyAmount': method === 'International' ? parseFloat(String(foreignCurrencyAmount).replace(/,/g, '')) : null,
+            'exchangeRate': method === 'International' ? parseFloat(String(conversionRate).replace(/,/g, '')) : null,
+            'foreignCurrency': method === 'International' ? foreignCurrency : null,
             'conversionFee': method === 'International' ? parseFloat(String(conversionFee).replace(/,/g, '')) : null,
             'paidFor': paidFor || null,
             'subCategory': data.subCategory || [],
@@ -515,17 +519,26 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label htmlFor="foreignCurrencyAmount">Original Amount</label>
+                                <label htmlFor="foreignCurrencyAmount">Foreign Amount</label>
                                 <Input id="foreignCurrencyAmount" type="text" inputMode="decimal" value={foreignCurrencyAmount} onChange={(e) => handleFormattedNumericInput(e.target.value, setForeignCurrencyAmount, true)} placeholder="e.g., 100.00" />
                             </div>
                             <div className="space-y-2">
-                                <label htmlFor="foreignCurrency">Currency</label>
-                                <Input id="foreignCurrency" value={foreignCurrency} onChange={(e) => setForeignCurrency(e.target.value)} placeholder="e.g., USD" />
+                                <label htmlFor="foreignCurrency">Foreign Currency</label>
+                                <Select value={foreignCurrency} onValueChange={setForeignCurrency}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select currency" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'SGD'].map(curr => (
+                                            <SelectItem key={curr} value={curr}>{curr}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label htmlFor="conversionRate">Conversion Rate</label>
+                                <label htmlFor="conversionRate">Exchange Rate</label>
                                 <Input 
                                     id="conversionRate" 
                                     type="text" 

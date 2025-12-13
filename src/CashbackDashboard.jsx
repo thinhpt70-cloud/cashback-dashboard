@@ -359,6 +359,8 @@ export default function CashbackDashboard() {
                                 otherDiscounts: transaction['otherDiscounts'],
                                 otherFees: transaction['otherFees'],
                                 foreignCurrencyAmount: transaction['foreignCurrencyAmount'],
+                                exchangeRate: transaction['exchangeRate'],
+                                foreignCurrency: transaction['foreignCurrency'],
                                 conversionFee: transaction['conversionFee'],
                                 paidFor: transaction['paidFor'],
                                 subCategory: transaction['subCategory'],
