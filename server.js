@@ -50,7 +50,9 @@ const mapTransaction = (tx) => {
         'notes': props['Notes'],
         'otherDiscounts': props['Other Discounts'],
         'otherFees': props['Other Fees'],
-        'foreignCurrencyAmount': props['Foreign Currency'],
+        'foreignCurrencyAmount': props['Foreign Amount'], // Renamed from Foreign Currency
+        'exchangeRate': props['Exchange Rate'],
+        'foreignCurrency': props['Foreign Currency'],
         'conversionFee': props['Conversion Fee'],
         'paidFor': props['Paid for'],
         'subCategory': props['Sub Category'],
@@ -813,6 +815,8 @@ app.patch('/api/transactions/:id', async (req, res) => {
             otherDiscounts,
             otherFees,
             foreignCurrencyAmount,
+            exchangeRate,
+            foreignCurrency,
             conversionFee,
             paidFor,
             subCategory,
@@ -846,7 +850,15 @@ app.patch('/api/transactions/:id', async (req, res) => {
             }
         }
 
-        // 4. Check for new 'Sub Category' (multi-select)
+        // 4. Check for new 'Foreign Currency' (select)
+        if (foreignCurrency) {
+            const fcOptions = await getSelectOptions('Foreign Currency');
+            if (!fcOptions.find(o => o.name === foreignCurrency)) {
+                await addSelectOption('Foreign Currency', foreignCurrency);
+            }
+        }
+
+        // 5. Check for new 'Sub Category' (multi-select)
         if (subCategory && subCategory.length > 0) {
             // Get the database's current sub-category properties
             const db = await notion.databases.retrieve({ database_id: transactionsDbId });
@@ -893,7 +905,9 @@ app.patch('/api/transactions/:id', async (req, res) => {
         if (billingDate !== undefined) propertiesToUpdate['Billing Date'] = billingDate ? { date: { start: billingDate } } : { date: null };
         if (typeof otherDiscounts === 'number') propertiesToUpdate['Other Discounts'] = { number: otherDiscounts };
         if (typeof otherFees === 'number') propertiesToUpdate['Other Fees'] = { number: otherFees };
-        if (typeof foreignCurrencyAmount === 'number') propertiesToUpdate['Foreign Currency'] = { number: foreignCurrencyAmount };
+        if (typeof foreignCurrencyAmount === 'number') propertiesToUpdate['Foreign Amount'] = { number: foreignCurrencyAmount };
+        if (typeof exchangeRate === 'number') propertiesToUpdate['Exchange Rate'] = { number: exchangeRate };
+        if (foreignCurrency) propertiesToUpdate['Foreign Currency'] = { select: { name: foreignCurrency } };
         if (typeof conversionFee === 'number') propertiesToUpdate['Conversion Fee'] = { number: conversionFee };
         if (applicableRuleId !== undefined) propertiesToUpdate['Applicable Rule'] = applicableRuleId ? { relation: [{ id: applicableRuleId }] } : { relation: [] };
         if (cardSummaryCategoryId !== undefined) propertiesToUpdate['Card Summary Category'] = cardSummaryCategoryId ? { relation: [{ id: cardSummaryCategoryId }] } : { relation: [] };
@@ -1223,6 +1237,8 @@ app.post('/api/transactions', async (req, res) => {
             otherDiscounts,
             otherFees,
             foreignCurrencyAmount,
+            exchangeRate,
+            foreignCurrency,
             conversionFee,
             paidFor,
             subCategory,
@@ -1259,8 +1275,16 @@ app.post('/api/transactions', async (req, res) => {
         if (notes) properties['Notes'] = { rich_text: [{ text: { content: notes } }] };
         if (otherDiscounts) properties['Other Discounts'] = { number: Number(otherDiscounts) };
         if (otherFees) properties['Other Fees'] = { number: Number(otherFees) };
-        if (foreignCurrencyAmount) properties['Foreign Currency'] = { number: Number(foreignCurrencyAmount) };
+        if (foreignCurrencyAmount) properties['Foreign Amount'] = { number: Number(foreignCurrencyAmount) };
+        if (exchangeRate) properties['Exchange Rate'] = { number: Number(exchangeRate) };
         if (conversionFee) properties['Conversion Fee'] = { number: Number(conversionFee) };
+        if (foreignCurrency) {
+            const fcOptions = await getSelectOptions('Foreign Currency');
+            if (!fcOptions.find(o => o.name === foreignCurrency)) {
+                await addSelectOption('Foreign Currency', foreignCurrency);
+            }
+            properties['Foreign Currency'] = { select: { name: foreignCurrency } };
+        }
         if (paidFor) {
             const paidForOptions = await getSelectOptions('Paid for');
             if (!paidForOptions.find(o => o.name === paidFor)) {
