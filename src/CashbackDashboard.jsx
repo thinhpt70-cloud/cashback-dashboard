@@ -429,9 +429,16 @@ export default function CashbackDashboard() {
                 const response = await fetch('/api/verify-auth', {
                     credentials: 'include'
                 });
+
                 if (response.ok) {
-                    setIsAuthenticated(true);
+                    const data = await response.json();
+                    if (data.isAuthenticated) {
+                        setIsAuthenticated(true);
+                    } else {
+                        setIsAuthenticated(false);
+                    }
                 } else {
+                    // Fallback for any other non-200 status (though we aim for 200)
                     setIsAuthenticated(false);
                 }
             } catch (error) {

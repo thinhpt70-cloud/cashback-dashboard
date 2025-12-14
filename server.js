@@ -507,8 +507,22 @@ const verifyToken = (req, res, next) => {
 };
 
 // This simple endpoint is for the frontend to check if a session is valid on page load
-app.get('/api/verify-auth', verifyToken, (req, res) => {
-    res.status(200).json({ success: true });
+app.get('/api/verify-auth', (req, res) => {
+    const token = req.cookies.token;
+
+    if (!token) {
+        // Return 200 with isAuthenticated: false to avoid console 401 errors
+        return res.status(200).json({ isAuthenticated: false });
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) {
+            // Invalid token -> treated as not authenticated
+            return res.status(200).json({ isAuthenticated: false });
+        }
+        // Valid token
+        return res.status(200).json({ isAuthenticated: true, user: decoded });
+    });
 });
 
 
