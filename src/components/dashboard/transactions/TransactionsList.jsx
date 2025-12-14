@@ -10,7 +10,10 @@ import {
     Filter,
     Layers,
     MoreHorizontal,
-    Settings2
+    Settings2,
+    CreditCard,
+    ArrowUpDown,
+    ChevronDown
 } from "lucide-react";
 
 import { cn } from "../../../lib/utils";
@@ -78,6 +81,7 @@ export default function TransactionsList({
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
     const [selectedIds, setSelectedIds] = useState([]);
     const [groupBy, setGroupBy] = useState("none");
+    const [sortByValue, setSortByValue] = useState('Newest');
 
     const [visibleColumns, setVisibleColumns] = useState({
         'Transaction Date': true,
@@ -103,6 +107,15 @@ export default function TransactionsList({
     useEffect(() => {
         setSelectedIds([]);
     }, [activeMonth, filterType]);
+
+    // Handle initial sort state mapping
+    useEffect(() => {
+        if (sortConfig.key === 'Transaction Date' && sortConfig.direction === 'descending') setSortByValue('Newest');
+        else if (sortConfig.key === 'Transaction Date' && sortConfig.direction === 'ascending') setSortByValue('Oldest');
+        else if (sortConfig.key === 'Amount' && sortConfig.direction === 'descending') setSortByValue('Amount: High');
+        else if (sortConfig.key === 'Amount' && sortConfig.direction === 'ascending') setSortByValue('Amount: Low');
+        else setSortByValue('Custom');
+    }, [sortConfig]);
 
     const categories = useMemo(() => {
         const uniqueCategories = Array.from(new Set(transactions.map(tx => tx['Category']).filter(Boolean)));
@@ -198,6 +211,14 @@ export default function TransactionsList({
         setSortConfig({ key, direction });
     };
 
+    const handleSortChange = (val) => {
+        setSortByValue(val);
+        if (val === 'Newest') setSortConfig({ key: 'Transaction Date', direction: 'descending' });
+        else if (val === 'Oldest') setSortConfig({ key: 'Transaction Date', direction: 'ascending' });
+        else if (val === 'Amount: High') setSortConfig({ key: 'Amount', direction: 'descending' });
+        else if (val === 'Amount: Low') setSortConfig({ key: 'Amount', direction: 'ascending' });
+    };
+
     const transactionsToShow = useMemo(() => {
         return filteredData.slice(0, visibleCount);
     }, [filteredData, visibleCount]);
@@ -258,6 +279,144 @@ export default function TransactionsList({
         return "bg-gray-100 text-gray-500 border-gray-200";
     };
 
+    const renderMobileFilters = () => {
+        return (
+            <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm px-4 py-3 shadow-sm border-b border-slate-100/50 dark:border-slate-800/50">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 select-none no-scrollbar">
+                    {/* Search */}
+                    <div className="relative flex items-center min-w-[140px]">
+                        <Search className="absolute left-3 w-3.5 h-3.5 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full h-[30px] pl-8 pr-3 bg-slate-100 dark:bg-slate-900 rounded-full text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-500 transition-all border-none"
+                        />
+                        {searchTerm && (
+                            <button onClick={() => setSearchTerm('')} className="absolute right-2 p-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500">
+                                <X className="w-3 h-3" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Card Filter Pill */}
+                    <Select value={cardFilter} onValueChange={setCardFilter}>
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                             <div className={cn(
+                                "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
+                                cardFilter !== 'all'
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm dark:bg-slate-100 dark:text-slate-900'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-400 dark:border-slate-800'
+                            )}>
+                                <CreditCard className="w-3.5 h-3.5" />
+                                <span>Card</span>
+                                {cardFilter !== 'all' && (
+                                    <>
+                                        <span className="opacity-60">|</span>
+                                        <span className="font-semibold max-w-[80px] truncate">
+                                            {allCards.find(c => c.id === cardFilter)?.name || 'Selected'}
+                                        </span>
+                                    </>
+                                )}
+                                <ChevronDown className={cn("w-3 h-3 opacity-50", cardFilter !== 'all' ? 'text-white dark:text-slate-900' : '')} />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Cards</SelectItem>
+                            {[...allCards].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
+                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Category Filter Pill */}
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                            <div className={cn(
+                                "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
+                                categoryFilter !== 'all'
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm dark:bg-slate-100 dark:text-slate-900'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-400 dark:border-slate-800'
+                            )}>
+                                <Filter className="w-3.5 h-3.5" />
+                                <span>Cat</span>
+                                {categoryFilter !== 'all' && (
+                                    <>
+                                        <span className="opacity-60">|</span>
+                                        <span className="font-semibold max-w-[80px] truncate">{categoryFilter}</span>
+                                    </>
+                                )}
+                                <ChevronDown className={cn("w-3 h-3 opacity-50", categoryFilter !== 'all' ? 'text-white dark:text-slate-900' : '')} />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            {categories.map(cat => (
+                                <SelectItem key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                     {/* Group By Pill */}
+                     <Select value={groupBy} onValueChange={setGroupBy}>
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                            <div className={cn(
+                                "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
+                                groupBy !== 'none'
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm dark:bg-slate-100 dark:text-slate-900'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-400 dark:border-slate-800'
+                            )}>
+                                <Layers className="w-3.5 h-3.5" />
+                                <span>Group</span>
+                                {groupBy !== 'none' && (
+                                    <>
+                                        <span className="opacity-60">|</span>
+                                        <span className="font-semibold max-w-[80px] truncate">{groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</span>
+                                    </>
+                                )}
+                                <ChevronDown className={cn("w-3 h-3 opacity-50", groupBy !== 'none' ? 'text-white dark:text-slate-900' : '')} />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">No Grouping</SelectItem>
+                            <SelectItem value="card">Card</SelectItem>
+                            <SelectItem value="category">Category</SelectItem>
+                            <SelectItem value="date">Date</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {/* Sort Pill */}
+                    <Select value={sortByValue} onValueChange={handleSortChange}>
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                            <div className={cn(
+                                "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
+                                sortByValue !== 'Newest' && sortByValue !== 'Custom'
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm dark:bg-slate-100 dark:text-slate-900'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-400 dark:border-slate-800'
+                            )}>
+                                <ArrowUpDown className="w-3.5 h-3.5" />
+                                <span>Sort</span>
+                                {sortByValue !== 'Newest' && sortByValue !== 'Custom' && (
+                                    <>
+                                        <span className="opacity-60">|</span>
+                                        <span className="font-semibold max-w-[80px] truncate">{sortByValue}</span>
+                                    </>
+                                )}
+                                <ChevronDown className={cn("w-3 h-3 opacity-50", sortByValue !== 'Newest' && sortByValue !== 'Custom' ? 'text-white dark:text-slate-900' : '')} />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Newest">Newest</SelectItem>
+                            <SelectItem value="Oldest">Oldest</SelectItem>
+                            <SelectItem value="Amount: High">Amount: High</SelectItem>
+                            <SelectItem value="Amount: Low">Amount: Low</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+        );
+    }
+
     const renderContent = () => {
         if (isLoading) {
              if (!isDesktop) {
@@ -288,7 +447,8 @@ export default function TransactionsList({
             return (
                 <div className="border rounded-md">
                     <Table>
-                        <TableHeader>
+                        {/* Table Header Content */}
+                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[30px] p-2">
                                     <Checkbox
@@ -302,47 +462,37 @@ export default function TransactionsList({
                                 {visibleColumns['Transaction Date'] && (
                                     <TableHead className="w-[120px]"><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
                                 )}
-
+                                {/* ... Other Columns ... */}
                                 {visibleColumns['Transaction Name'] && (
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
                                 )}
-
                                 {visibleColumns['Merchant'] && (
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('merchantLookup')} className="px-2">Merchant <SortIcon columnKey="merchantLookup" /></Button></TableHead>
                                 )}
-
                                 {visibleColumns['Amount'] && (
                                     <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
                                 )}
-
                                 {visibleColumns['Estimated Cashback'] && (
                                     <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
                                 )}
-
                                 {visibleColumns['Card Name'] && (
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
                                 )}
-
                                 {visibleColumns['Category'] && (
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('Category')} className="px-2">Category <SortIcon columnKey="Category" /></Button></TableHead>
                                 )}
-
                                 {visibleColumns['Applicable Rule'] && (
                                     <TableHead>Rule</TableHead>
                                 )}
-
                                 {visibleColumns['MCC Code'] && (
                                     <TableHead>MCC</TableHead>
                                 )}
-
                                 {visibleColumns['Notes'] && (
                                     <TableHead>Notes</TableHead>
                                 )}
-
                                 {visibleColumns['Cashback Rate'] && (
                                     <TableHead className="text-center"><Button variant="ghost" onClick={() => requestSort('rate')} className="px-2">Rate <SortIcon columnKey="rate" /></Button></TableHead>
                                 )}
-
                                 <TableHead className="w-[100px] text-center">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -490,7 +640,22 @@ export default function TransactionsList({
              });
 
             return (
-                <div className="space-y-3">
+                <div className="space-y-2.5 pb-20 p-3">
+                    {/* Select All Row */}
+                    {filteredData.length > 0 && (
+                        <div className="flex items-center justify-between px-2 pt-1 pb-1">
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleSelectAll(selectedIds.length !== filteredData.length); }}>
+                                <Checkbox
+                                    checked={selectedIds.length > 0 && selectedIds.length === filteredData.length}
+                                    onCheckedChange={handleSelectAll}
+                                    className={cn("h-5 w-5 rounded border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 bg-white border-slate-300")}
+                                />
+                                <span className="text-xs font-medium text-slate-500">Select All</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400">{filteredData.length} items</span>
+                        </div>
+                    )}
+
                     {flatList.map((item, index) => {
                         if (item.type === 'header') {
                             return (
@@ -505,34 +670,56 @@ export default function TransactionsList({
                         const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
                         const isSelected = selectedIds.includes(tx.id);
                         return (
-                            <div key={tx.id} className={cn("border rounded-lg shadow-sm overflow-hidden transition-colors", isSelected ? "bg-slate-50 border-slate-400 dark:bg-slate-800 dark:border-slate-600" : "bg-white dark:bg-slate-950 dark:border-slate-800")} onClick={() => onViewDetails && onViewDetails(tx)}>
-                                <div className="p-3 flex gap-3">
-                                    <div onClick={(e) => e.stopPropagation()} className="pt-1">
-                                        <Checkbox
-                                            checked={isSelected}
-                                            onCheckedChange={(checked) => handleSelectOne(tx.id, checked)}
-                                        />
+                            <div
+                                key={tx.id}
+                                className={cn(
+                                    "relative flex items-center gap-3 p-3 bg-white dark:bg-slate-950 rounded-xl shadow-sm border transition-all cursor-pointer",
+                                    isSelected
+                                        ? "border-blue-500 bg-blue-50/30 dark:bg-blue-900/20 ring-1 ring-blue-500/20"
+                                        : "border-slate-100 hover:border-slate-200 dark:border-slate-800"
+                                )}
+                            >
+                                {/* Checkbox Area */}
+                                <div className="shrink-0 pt-0.5" onClick={(e) => { e.stopPropagation(); toggleSelection(tx.id); }}>
+                                    <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() => toggleSelection(tx.id)}
+                                        className={cn("h-5 w-5 rounded border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 bg-white border-slate-300")}
+                                    />
+                                </div>
+
+                                {/* Main Content */}
+                                <div className="flex-1 min-w-0 flex flex-col gap-1.5" onClick={() => onViewDetails && onViewDetails(tx)}>
+                                    {/* Top Row: Name & Amount */}
+                                    <div className="flex justify-between items-start gap-2">
+                                        <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate leading-tight">
+                                            {tx['Transaction Name']}
+                                        </h4>
+                                        <span className="text-sm font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap leading-tight">
+                                            {currency(tx['Amount'])}
+                                        </span>
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-start gap-2">
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-semibold truncate">{tx['Transaction Name']}</p>
-                                            {tx.merchantLookup && <p className="text-xs text-muted-foreground">{tx.merchantLookup}</p>}
-                                            <p className="text-sm text-muted-foreground">{tx['Transaction Date']}</p>
+
+                                    {/* Bottom Row: Metadata & Cashback */}
+                                    <div className="flex justify-between items-center">
+                                        {/* Left: Date • Card */}
+                                        <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                            <div className="flex items-center gap-1.5">
+                                                <span>{tx['Transaction Date']}</span>
+                                                <span className="w-0.5 h-0.5 rounded-full bg-slate-300 dark:bg-slate-600"></span>
+                                                <span className="truncate max-w-[90px] text-slate-600 dark:text-slate-300">{card ? card.name : 'Unknown'}</span>
+                                            </div>
+                                            {tx['Category'] && <span className="text-slate-400 dark:text-slate-500">{tx['Category']}</span>}
                                         </div>
-                                            <div className="text-right flex-shrink-0">
-                                                <p className="font-bold text-lg">{currency(tx['Amount'])}</p>
-                                                <p className="text-sm text-emerald-600 font-medium">+ {currency(tx.estCashback)}</p>
+
+                                        {/* Right: Cashback & Rate */}
+                                        <div className="flex flex-col items-end gap-0.5">
+                                            <div className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-[4px] border border-emerald-100 dark:border-emerald-900">
+                                                <span className="text-[10px] font-bold">+{currency(tx.estCashback)}</span>
                                             </div>
-                                        </div>
-                                        <div className="flex justify-between items-center mt-2 pt-2 border-t dark:border-slate-800">
-                                            <div className="flex items-center gap-2">
-                                                {card && <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge>}
-                                                <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>{(tx.rate * 100).toFixed(1)}%</Badge>
-                                            </div>
-                                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                                Tap for details
-                                            </div>
+                                            <span className="text-[9px] font-medium text-emerald-600/80 dark:text-emerald-500/80">
+                                                    {(tx.rate * 100).toFixed(1)}% Rate
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -736,10 +923,15 @@ export default function TransactionsList({
         );
     };
 
+    // Helper for selecting a single item in mobile view (reuses logic from desktop but simpler call)
+    const toggleSelection = (id) => {
+        handleSelectOne(id, !selectedIds.includes(id));
+    };
+
     const renderBulkBar = (isStickyMobile) => (
         <div className={cn(
             "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-slate-900 text-white animate-in fade-in slide-in-from-top-2",
-            isStickyMobile ? "sticky top-16 z-40 shadow-md rounded-b-xl" : ""
+            isStickyMobile ? "fixed bottom-4 left-4 right-4 z-50 shadow-xl rounded-xl" : ""
         )}>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pl-1 w-full sm:w-auto">
                 <div className="flex items-center gap-2">
@@ -763,144 +955,145 @@ export default function TransactionsList({
     );
 
     return (
-        <Card className="relative">
+        <Card className="relative bg-slate-50 dark:bg-slate-950 border-0 shadow-none">
             {/* Mobile Bulk Bar - Rendered OUTSIDE the static header wrapper */}
             {!isDesktop && selectedIds.length > 0 && renderBulkBar(true)}
 
-            <div
-                // Desktop Sticky Header Container
-                className={cn(
-                    "z-30 bg-background shadow-sm rounded-t-xl overflow-hidden",
-                    isDesktop ? "sticky top-16" : "static"
-                )}
-            >
-                {/* Desktop Bulk Bar - Rendered INSIDE the sticky header wrapper */}
-                {isDesktop && selectedIds.length > 0 && renderBulkBar(false)}
+            {isDesktop ? (
+                // DESKTOP LAYOUT (unchanged mostly)
+                <div className="sticky top-16 z-30 bg-background shadow-sm rounded-t-xl overflow-hidden">
+                    {/* Desktop Bulk Bar */}
+                    {selectedIds.length > 0 && renderBulkBar(false)}
 
-                 <CardHeader className="border-b p-4">
-                    <div className="flex flex-col gap-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <CardTitle>
-                                {activeMonth === 'live'
-                                    ? 'Recent Transactions'
-                                    : `Transactions for ${fmtYMShortFn(activeMonth)}`
-                                }
-                            </CardTitle>
-                            {activeMonth !== 'live' && (
-                                <Tabs defaultValue="date" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
-                                    <TabsList className="bg-slate-100 p-1 rounded-lg">
-                                        <TabsTrigger value="date">Transaction Date</TabsTrigger>
-                                        <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
-                                    </TabsList>
-                                </Tabs>
-                            )}
-                        </div>
+                     <CardHeader className="border-b p-4">
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <CardTitle>
+                                    {activeMonth === 'live'
+                                        ? 'Recent Transactions'
+                                        : `Transactions for ${fmtYMShortFn(activeMonth)}`
+                                    }
+                                </CardTitle>
+                                {activeMonth !== 'live' && (
+                                    <Tabs defaultValue="date" value={filterType} onValueChange={onFilterTypeChange} className="flex items-center">
+                                        <TabsList className="bg-slate-100 p-1 rounded-lg">
+                                            <TabsTrigger value="date">Transaction Date</TabsTrigger>
+                                            <TabsTrigger value="cashbackMonth">Cashback Month</TabsTrigger>
+                                        </TabsList>
+                                    </Tabs>
+                                )}
+                            </div>
 
-                        {/* Toolbar */}
-                        <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center transition-colors">
-                            <div className="flex flex-wrap gap-2 items-center w-full xl:w-auto">
-                                {/* Search */}
-                                <div className="relative w-full md:w-64">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        type="search"
-                                        placeholder="Search..."
-                                        className="pl-8 h-10"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
+                            {/* Toolbar */}
+                            <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center transition-colors">
+                                <div className="flex flex-wrap gap-2 items-center w-full xl:w-auto">
+                                    {/* Search */}
+                                    <div className="relative w-full md:w-64">
+                                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            type="search"
+                                            placeholder="Search..."
+                                            className="pl-8 h-10"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+
+                                    <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
+
+                                    {/* Card Filter */}
+                                    <Select value={cardFilter} onValueChange={setCardFilter}>
+                                        <SelectTrigger className="w-full md:w-[160px] h-10">
+                                            <div className="flex items-center gap-2 truncate">
+                                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <span className="truncate">
+                                                    {cardFilter === 'all' ? 'All Cards' : allCards.find(c => c.id === cardFilter)?.name || 'Selected'}
+                                                </span>
+                                            </div>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Cards</SelectItem>
+                                            {[...allCards].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
+                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+
+                                    {/* Category Filter */}
+                                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                        <SelectTrigger className="w-full md:w-[160px] h-10">
+                                            <div className="flex items-center gap-2 truncate">
+                                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <span className="truncate">
+                                                    {categoryFilter === 'all' ? 'All Categories' : categoryFilter}
+                                                </span>
+                                            </div>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {categories.map(cat => (
+                                                <SelectItem key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+
+                                    <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
+
+                                    {/* Group By */}
+                                    <Select value={groupBy} onValueChange={setGroupBy}>
+                                        <SelectTrigger className="hidden md:flex w-full md:w-[160px] h-10">
+                                            <div className="flex items-center gap-2">
+                                                <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <span className="truncate">Group: {groupBy === 'none' ? 'None' : groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</span>
+                                            </div>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">No Grouping</SelectItem>
+                                            <SelectItem value="card">Group by Card</SelectItem>
+                                            <SelectItem value="category">Group by Category</SelectItem>
+                                            <SelectItem value="date">Group by Date</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+
+                                    <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
+
+                                    {/* Columns Selection */}
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" className="h-10">
+                                                <Settings2 className="h-3.5 w-3.5 mr-2" />
+                                                Columns
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-[180px]">
+                                            <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            {Object.keys(visibleColumns).map((column) => (
+                                                <DropdownMenuItem key={column} onSelect={(e) => e.preventDefault()}>
+                                                    <Checkbox
+                                                        checked={visibleColumns[column]}
+                                                        onCheckedChange={() =>
+                                                            setVisibleColumns((prev) => ({ ...prev, [column]: !prev[column] }))
+                                                        }
+                                                        className="mr-2"
+                                                    />
+                                                    {column}
+                                                </DropdownMenuItem>
+                                            ))}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
-
-                                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
-
-                                {/* Card Filter */}
-                                <Select value={cardFilter} onValueChange={setCardFilter}>
-                                    <SelectTrigger className="w-full md:w-[160px] h-10">
-                                        <div className="flex items-center gap-2 truncate">
-                                            <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                                            <span className="truncate">
-                                                {cardFilter === 'all' ? 'All Cards' : allCards.find(c => c.id === cardFilter)?.name || 'Selected'}
-                                            </span>
-                                        </div>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Cards</SelectItem>
-                                        {[...allCards].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
-                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                {/* Category Filter */}
-                                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                    <SelectTrigger className="w-full md:w-[160px] h-10">
-                                        <div className="flex items-center gap-2 truncate">
-                                            <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                                            <span className="truncate">
-                                                {categoryFilter === 'all' ? 'All Categories' : categoryFilter}
-                                            </span>
-                                        </div>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {categories.map(cat => (
-                                            <SelectItem key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
-
-                                {/* Group By */}
-                                <Select value={groupBy} onValueChange={setGroupBy}>
-                                    <SelectTrigger className="hidden md:flex w-full md:w-[160px] h-10">
-                                        <div className="flex items-center gap-2">
-                                            <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                                            <span className="truncate">Group: {groupBy === 'none' ? 'None' : groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</span>
-                                        </div>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">No Grouping</SelectItem>
-                                        <SelectItem value="card">Group by Card</SelectItem>
-                                        <SelectItem value="category">Group by Category</SelectItem>
-                                        <SelectItem value="date">Group by Date</SelectItem>
-                                    </SelectContent>
-                                </Select>
-
-                                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
-
-                                {/* Columns Selection */}
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" className="h-10">
-                                            <Settings2 className="h-3.5 w-3.5 mr-2" />
-                                            Columns
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-[180px]">
-                                        <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        {Object.keys(visibleColumns).map((column) => (
-                                            <DropdownMenuItem key={column} onSelect={(e) => e.preventDefault()}>
-                                                <Checkbox
-                                                    checked={visibleColumns[column]}
-                                                    onCheckedChange={() =>
-                                                        setVisibleColumns((prev) => ({ ...prev, [column]: !prev[column] }))
-                                                    }
-                                                    className="mr-2"
-                                                />
-                                                {column}
-                                            </DropdownMenuItem>
-                                        ))}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
                             </div>
                         </div>
-                    </div>
-                </CardHeader>
-            </div>
-            <CardContent className="pt-6">
+                    </CardHeader>
+                </div>
+            ) : (
+                // MOBILE HEADER (Filters Only)
+                renderMobileFilters()
+            )}
+
+            <CardContent className={cn("pt-6", !isDesktop && "p-0 pt-0")}>
                 {renderContent()}
-                <div className="mt-6 flex flex-col items-center gap-4">
+                <div className="mt-6 flex flex-col items-center gap-4 mb-20">
                     <p className="text-sm text-muted-foreground">
                         Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{filteredData.length}</span> transactions
                     </p>
