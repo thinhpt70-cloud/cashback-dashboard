@@ -124,10 +124,9 @@ export default function TransactionsList({
     }, [transactions]);
 
     const filteredData = useMemo(() => {
-        // Use Cashback Rate from backend if available, else fallback to calculation
         let items = [...transactions].map(tx => ({
             ...tx,
-            rate: tx['Cashback Rate'] !== undefined ? tx['Cashback Rate'] : ((tx['Amount'] && tx['Amount'] > 0) ? (tx.estCashback / tx['Amount']) : 0)
+            rate: (tx['Amount'] && tx['Amount'] > 0) ? (tx.estCashback / tx['Amount']) : 0
         }));
 
         items = items.filter(tx => {
@@ -679,10 +678,9 @@ export default function TransactionsList({
                                         ? "border-blue-500 bg-blue-50/30 dark:bg-blue-900/20 ring-1 ring-blue-500/20"
                                         : "border-slate-100 hover:border-slate-200 dark:border-slate-800"
                                 )}
-                                onClick={() => toggleSelection(tx.id)}
                             >
                                 {/* Checkbox Area */}
-                                <div className="shrink-0 pt-0.5" onClick={(e) => e.stopPropagation()}>
+                                <div className="shrink-0 pt-0.5" onClick={(e) => { e.stopPropagation(); toggleSelection(tx.id); }}>
                                     <Checkbox
                                         checked={isSelected}
                                         onCheckedChange={() => toggleSelection(tx.id)}
@@ -703,7 +701,7 @@ export default function TransactionsList({
                                     </div>
 
                                     {/* Bottom Row: Metadata & Cashback */}
-                                    <div className="flex justify-between items-end">
+                                    <div className="flex justify-between items-center">
                                         {/* Left: Date • Card */}
                                         <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                                             <div className="flex items-center gap-1.5">
@@ -711,7 +709,7 @@ export default function TransactionsList({
                                                 <span className="w-0.5 h-0.5 rounded-full bg-slate-300 dark:bg-slate-600"></span>
                                                 <span className="truncate max-w-[90px] text-slate-600 dark:text-slate-300">{card ? card.name : 'Unknown'}</span>
                                             </div>
-                                            <span className="text-slate-400 dark:text-slate-500">{tx['Category']}</span>
+                                            {tx['Category'] && <span className="text-slate-400 dark:text-slate-500">{tx['Category']}</span>}
                                         </div>
 
                                         {/* Right: Cashback & Rate */}
