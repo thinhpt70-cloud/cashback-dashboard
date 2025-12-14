@@ -7,6 +7,7 @@ const fs = require('fs'); // ADDED: To read the MCC.json file
 const path = require('path'); // ADDED: To help locate the MCC.json file
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const cheerio = require('cheerio'); // ADDED: for scraping rcgv.vn
 require('dotenv').config();
 
 const mccDataPath = path.join(__dirname, 'MCC.json');
@@ -249,7 +250,7 @@ const searchInternalTransactions = async (keyword, excludeId = null) => {
     }
 };
 
-// Search External MCC API
+// Search External MCC API (Primary - Vercel App)
 const searchExternalMcc = async (keyword) => {
     const trimmedKeyword = keyword.trim();
     if (!trimmedKeyword) return [];
@@ -269,8 +270,58 @@ const searchExternalMcc = async (keyword) => {
         }
         return [];
     } catch (error) {
-        console.error("Error in searchExternalMcc:", error);
+        console.error("Error in searchExternalMcc (Vercel):", error);
         return [];
+    }
+};
+
+// Search External MCC API (Fallback - RCGV.vn)
+const searchExternalMccFallback = async (keyword) => {
+    const trimmedKeyword = keyword.trim();
+    if (!trimmedKeyword) return [];
+
+    console.log(`Searching RCGV (Fallback) for: ${trimmedKeyword}`);
+
+    try {
+        const fetch = (await import('node-fetch')).default;
+        const url = `https://rcgv.vn/check-mcc/?rvq=${encodeURIComponent(trimmedKeyword)}`;
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        });
+
+        if (!response.ok) {
+            console.error(`RCGV fetch failed: ${response.status} ${response.statusText}`);
+            return [];
+        }
+
+        const html = await response.text();
+        const $ = cheerio.load(html);
+        const results = [];
+
+        // Select the table rows in the tbody
+        $('.rv-table tbody tr').each((i, el) => {
+            const $row = $(el);
+            // Extracted logic from test_rcgv_lookup.js
+            const merchant = $row.data('title') || $row.find('td').eq(1).text().trim();
+            const mcc = $row.data('code') || $row.find('td').eq(4).text().trim();
+            const method = $row.data('method') || $row.find('td').eq(3).text().trim();
+
+            if (merchant && mcc) {
+                results.push({
+                    merchant: merchant,
+                    mcc: String(mcc),
+                    method: method === '...' ? '' : method
+                });
+            }
+        });
+
+        return results;
+
+    } catch (error) {
+        console.error("Error in searchExternalMccFallback (RCGV):", error);
+        return []; // Fail-safe: return empty array on error
     }
 };
 
@@ -1140,11 +1191,19 @@ app.get('/api/lookup-merchant', async (req, res) => {
     }
 
     try {
-        // Step 1: Perform BOTH lookups concurrently for better performance.
-        const [transactions, externalResults] = await Promise.all([
+        // Step 1: Perform primary lookups (Internal + External Vercel)
+        let [transactions, externalResults] = await Promise.all([
             searchInternalTransactions(keyword),
             searchExternalMcc(keyword)
         ]);
+
+        // Step 2: Fallback logic - If external results are empty, try RCGV
+        if (externalResults.length === 0) {
+             const rcgvResults = await searchExternalMccFallback(keyword);
+             if (rcgvResults.length > 0) {
+                 externalResults = rcgvResults;
+             }
+        }
 
         // Step 3: Derive the combined logic for suggestions.
 
