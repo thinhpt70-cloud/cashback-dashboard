@@ -202,7 +202,7 @@ export default function TransactionDetailSheet({
                             </span>
                             {hasForeignData && (
                                 <span className="text-sm text-muted-foreground">
-                                    ≈ {foreignAmount?.toLocaleString()} (Original)
+                                    {foreignAmount} {currentTransaction['foreignCurrency'] ? `${currentTransaction['foreignCurrency']} ` : ''}
                                 </span>
                             )}
                         </div>
@@ -253,20 +253,19 @@ export default function TransactionDetailSheet({
                                     <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-2 border">
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">Foreign Amount</span>
-                                            <span className="font-mono">
-                                                {currentTransaction['foreignCurrency'] ? `${currentTransaction['foreignCurrency']} ` : ''}
-                                                {foreignAmount}
+                                            <span className="font-medium">
+                                                {foreignAmount} {currentTransaction['foreignCurrency'] ? `${currentTransaction['foreignCurrency']} ` : ''}
                                             </span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">Exchange Rate</span>
-                                            <span className="font-mono">{displayExchangeRate.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                                            <span className="font-medium">{displayExchangeRate.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">% Conversion Fee</span>
-                                            <span className="font-mono text-slate-600">{displayFeePercent.toFixed(2)}%</span>
+                                            <span className="font-medium">{displayFeePercent.toFixed(2)}%</span>
                                         </div>
-                                         <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-800 mt-1">
+                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">Conversion Fee</span>
                                             <span className="text-red-500 font-medium">+{currency(conversionFee)}</span>
                                         </div>
