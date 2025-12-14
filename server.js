@@ -63,6 +63,7 @@ const mapTransaction = (tx) => {
         'Automated': props['Automated'],
         'Method': props['Method'],
         'Statement Month': props['Statement Month'],
+        'Cashback Rate': props['Cashback Rate'],
     };
 };
 
