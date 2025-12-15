@@ -680,7 +680,7 @@ export default function TransactionsList({
                                 )}
                             >
                                 {/* Checkbox Area */}
-                                <div className="shrink-0 pt-0.5" onClick={(e) => { e.stopPropagation(); toggleSelection(tx.id); }}>
+                                <div className="shrink-0" onClick={(e) => { e.stopPropagation(); toggleSelection(tx.id); }}>
                                     <Checkbox
                                         checked={isSelected}
                                         onCheckedChange={() => toggleSelection(tx.id)}
@@ -701,7 +701,7 @@ export default function TransactionsList({
                                     </div>
 
                                     {/* Bottom Row: Metadata & Cashback */}
-                                    <div className="flex justify-between items-center">
+                                    <div className="flex justify-between items-start">
                                         {/* Left: Date • Card */}
                                         <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                                             <div className="flex items-center gap-1.5">
@@ -955,7 +955,10 @@ export default function TransactionsList({
     );
 
     return (
-        <Card className="relative bg-slate-50 dark:bg-slate-950 border-0 shadow-none">
+        <Card className={cn(
+            "relative",
+            isDesktop ? "bg-white dark:bg-slate-950 border shadow-sm" : "bg-slate-50 dark:bg-slate-950 border-0 shadow-none"
+        )}>
             {/* Mobile Bulk Bar - Rendered OUTSIDE the static header wrapper */}
             {!isDesktop && selectedIds.length > 0 && renderBulkBar(true)}
 
