@@ -309,7 +309,7 @@ export default function TransactionReview({
                             <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <h3 className="font-semibold text-emerald-950 dark:text-emerald-100 flex items-center">
-                            All caught up! No transactions pending review.
+                            All caught up!
                         </h3>
                     </div>
                 </div>
