@@ -79,6 +79,7 @@ export default function CashbackDashboard() {
     const [isMonthlyTxLoading, setIsMonthlyTxLoading] = useState(true);
     const [isAddTxDialogOpen, setIsAddTxDialogOpen] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState(null);
+    const [duplicateTransaction, setDuplicateTransaction] = useState(null);
     const [viewingTransaction, setViewingTransaction] = useState(null);
     const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
     const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
@@ -103,6 +104,13 @@ export default function CashbackDashboard() {
         cashbackRules, monthlyCashbackCategories, liveSummary,
         fetchReviewTransactions, reviewLoading, fetchCategorySummaryForMonth
     } = useCashbackData(isAuthenticated);
+
+    // Fetch review transactions when tab is active
+    useEffect(() => {
+        if (!isAddTxDialogOpen) {
+            setDuplicateTransaction(null);
+        }
+    }, [isAddTxDialogOpen]);
 
     // Fetch review transactions when tab is active
     useEffect(() => {
@@ -239,6 +247,11 @@ export default function CashbackDashboard() {
 
     const handleEditClick = (transaction) => {
         setEditingTransaction(transaction);
+    };
+
+    const handleDuplicateClick = (transaction) => {
+        setDuplicateTransaction(transaction);
+        setIsAddTxDialogOpen(true);
     };
 
     const handleViewTransactionDetails = (transaction) => {
@@ -820,6 +833,7 @@ export default function CashbackDashboard() {
                                         getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
                                         needsSyncing={needsSyncing}
                                         setNeedsSyncing={setNeedsSyncing}
+                                        prefillData={duplicateTransaction}
                                     />
                                 </div>
                             </SheetContent>
@@ -976,6 +990,7 @@ export default function CashbackDashboard() {
                             statementMonths={statementMonths}
                             onTransactionDeleted={handleTransactionDeleted}
                             onEditTransaction={handleEditClick}
+                            onDuplicateTransaction={handleDuplicateClick}
                             onBulkDelete={handleBulkDelete}
                             onViewDetails={handleViewTransactionDetails}
                             fmtYMShortFn={fmtYMShort}
@@ -1057,6 +1072,7 @@ export default function CashbackDashboard() {
                 allCards={cards}
                 monthlyCategorySummary={monthlyCategorySummary}
                 onEdit={handleEditClick}
+                onDuplicate={handleDuplicateClick}
                 onDelete={handleTransactionDeleted}
                 onBulkDelete={handleBulkDelete}
             />
@@ -1068,6 +1084,7 @@ export default function CashbackDashboard() {
                     setViewingTransaction(null);
                     handleEditClick(tx);
                 }}
+                onDuplicate={handleDuplicateClick}
                 onDelete={(id, name) => {
                     setViewingTransaction(null);
                     handleTransactionDeleted(id, name);

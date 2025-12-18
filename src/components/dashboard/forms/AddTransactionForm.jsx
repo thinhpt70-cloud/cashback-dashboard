@@ -19,7 +19,7 @@ import useCardRecommendations from '../../../hooks/useCardRecommendations';
 import { useForm, FormProvider } from 'react-hook-form';
 
 
-export default function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, onClose, needsSyncing, setNeedsSyncing }) {
+export default function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, prefillData, onClose, needsSyncing, setNeedsSyncing }) {
     const form = useForm({
         defaultValues: {
             subCategory: [],
@@ -69,23 +69,24 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     }, [mccCode, mccMap]);
 
     useEffect(() => {
-        if (initialData) {
+        const sourceData = initialData || prefillData;
+        if (sourceData) {
             // Automatically clean the "Email_" prefix for a better user experience
-            let initialMerchant = initialData['Transaction Name'] || '';
+            let initialMerchant = sourceData['Transaction Name'] || '';
             if (initialMerchant.startsWith('Email_')) {
                 initialMerchant = initialMerchant.substring(6); // Remove "Email_"
             }
 
             setMerchant(initialMerchant || '');
-            setAmount((initialData['Amount'] || '').toLocaleString('en-US'));
-            setDate(initialData['Transaction Date'] || new Date().toISOString().slice(0, 10));
-            setCardId(initialData['Card'] ? String(initialData['Card'][0]) : '');
-            setApplicableRuleId(initialData['Applicable Rule'] ? String(initialData['Applicable Rule'][0]) : '');
-            setCardSummaryCategoryId(initialData['Card Summary Category'] ? initialData['Card Summary Category'][0] : 'new'); // <-- ADDED THIS
-            setCategory(initialData['Category'] || '');
-            setMccCode(initialData['MCC Code'] || '');
-            setMerchantLookup(initialData['merchantLookup'] || '');
-            const notes = initialData['notes'] || '';
+            setAmount((sourceData['Amount'] || '').toLocaleString('en-US'));
+            setDate(sourceData['Transaction Date'] || new Date().toISOString().slice(0, 10));
+            setCardId(sourceData['Card'] ? String(sourceData['Card'][0]) : '');
+            setApplicableRuleId(sourceData['Applicable Rule'] ? String(sourceData['Applicable Rule'][0]) : '');
+            setCardSummaryCategoryId(sourceData['Card Summary Category'] ? sourceData['Card Summary Category'][0] : 'new'); // <-- ADDED THIS
+            setCategory(sourceData['Category'] || '');
+            setMccCode(sourceData['MCC Code'] || '');
+            setMerchantLookup(sourceData['merchantLookup'] || '');
+            const notes = sourceData['notes'] || '';
             const discountsMatch = notes.match(/Discounts: (.*)/);
             const feesMatch = notes.match(/Fees: (.*)/);
             if (discountsMatch) {
@@ -95,19 +96,19 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                 setFees(JSON.parse(feesMatch[1]));
             }
             setNotes(notes.split('\n\nDiscounts:')[0]);
-            setPaidFor(initialData['paidFor'] || '');
-            form.setValue('subCategory', initialData['subCategory'] || []);
-            setBillingDate(initialData['billingDate'] || '');
+            setPaidFor(sourceData['paidFor'] || '');
+            form.setValue('subCategory', sourceData['subCategory'] || []);
+            setBillingDate(sourceData['billingDate'] || '');
 
-            if (initialData.foreignCurrencyAmount) {
+            if (sourceData.foreignCurrencyAmount) {
                 setMethod('International');
-                setForeignCurrencyAmount(initialData.foreignCurrencyAmount.toLocaleString('en-US'));
-                setConversionFee(initialData.conversionFee.toLocaleString('en-US'));
-                if (initialData.exchangeRate) setConversionRate(initialData.exchangeRate.toLocaleString('en-US'));
-                if (initialData.foreignCurrency) setForeignCurrency(initialData.foreignCurrency);
+                setForeignCurrencyAmount(sourceData.foreignCurrencyAmount.toLocaleString('en-US'));
+                setConversionFee(sourceData.conversionFee.toLocaleString('en-US'));
+                if (sourceData.exchangeRate) setConversionRate(sourceData.exchangeRate.toLocaleString('en-US'));
+                if (sourceData.foreignCurrency) setForeignCurrency(sourceData.foreignCurrency);
             }
         }
-    }, [initialData, form]);
+    }, [initialData, prefillData, form]);
 
     const handleVendorSelect = (vendor) => {
         setMerchant(vendor.transactionName || '');

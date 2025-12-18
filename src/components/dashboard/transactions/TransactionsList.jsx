@@ -4,6 +4,7 @@ import {
     ArrowUp,
     ArrowDown,
     FilePenLine,
+    Copy,
     Trash2,
     Search,
     X,
@@ -70,6 +71,7 @@ export default function TransactionsList({
     isDesktop,
     onTransactionDeleted,
     onEditTransaction,
+    onDuplicateTransaction,
     onBulkDelete,
     onViewDetails,
     fmtYMShortFn
@@ -600,6 +602,11 @@ export default function TransactionsList({
                                                                     <DropdownMenuItem onClick={() => onEditTransaction(tx)}>
                                                                         <FilePenLine className="mr-2 h-4 w-4" /> Edit
                                                                     </DropdownMenuItem>
+                                                                    {onDuplicateTransaction && (
+                                                                        <DropdownMenuItem onClick={() => onDuplicateTransaction(tx)}>
+                                                                            <Copy className="mr-2 h-4 w-4" /> Duplicate
+                                                                        </DropdownMenuItem>
+                                                                    )}
                                                                     <DropdownMenuSeparator />
                                                                     <DropdownMenuItem
                                                                         onClick={() => handleDelete(tx.id, tx['Transaction Name'])}

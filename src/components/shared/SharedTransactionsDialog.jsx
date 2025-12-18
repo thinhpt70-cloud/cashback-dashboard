@@ -33,6 +33,7 @@ export default function SharedTransactionsDialog({
     currencyFn,
     isLoading,
     onEdit,
+    onDuplicate,
     onDelete,
     onBulkDelete,
     cardMap,
@@ -378,6 +379,7 @@ export default function SharedTransactionsDialog({
                     setViewingTransaction(null);
                     if (onEdit) onEdit(t);
                 }}
+                onDuplicate={onDuplicate}
                 onDelete={(id, name) => {
                     setViewingTransaction(null);
                     if (onDelete) onDelete(id, name);
