@@ -32,6 +32,7 @@ export default function TransactionDetailSheet({
     isOpen,
     onClose,
     onEdit,
+    onDuplicate,
     onDelete,
     currencyFn,
     allCards,
@@ -410,6 +411,14 @@ export default function TransactionDetailSheet({
                         <Button variant="outline" className="flex-1" onClick={() => onEdit(currentTransaction)}>
                             Edit
                         </Button>
+                        {onDuplicate && (
+                            <Button variant="outline" className="flex-1" onClick={() => {
+                                onClose(false);
+                                onDuplicate(currentTransaction);
+                            }}>
+                                Duplicate
+                            </Button>
+                        )}
                         <Button variant="destructive" className="flex-1" onClick={() => onDelete(currentTransaction.id, currentTransaction['Transaction Name'])}>
                             Delete
                         </Button>
