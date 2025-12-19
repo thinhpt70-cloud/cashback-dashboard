@@ -56,6 +56,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuLabel,
 } from "../../ui/dropdown-menu";
+import MobileTransactionItem from "../../shared/MobileTransactionItem";
 
 export default function TransactionsList({
     transactions,
@@ -674,63 +675,17 @@ export default function TransactionsList({
 
                         // Item
                         const tx = item;
-                        const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
                         const isSelected = selectedIds.includes(tx.id);
                         return (
-                            <div
+                            <MobileTransactionItem
                                 key={tx.id}
-                                className={cn(
-                                    "relative flex items-center gap-3 p-3 bg-white dark:bg-slate-950 rounded-xl shadow-sm border transition-all cursor-pointer",
-                                    isSelected
-                                        ? "border-blue-500 bg-blue-50/30 dark:bg-blue-900/20 ring-1 ring-blue-500/20"
-                                        : "border-slate-100 hover:border-slate-200 dark:border-slate-800"
-                                )}
-                            >
-                                {/* Checkbox Area */}
-                                <div className="shrink-0" onClick={(e) => { e.stopPropagation(); toggleSelection(tx.id); }}>
-                                    <Checkbox
-                                        checked={isSelected}
-                                        onCheckedChange={() => toggleSelection(tx.id)}
-                                        className={cn("h-5 w-5 rounded border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 bg-white border-slate-300")}
-                                    />
-                                </div>
-
-                                {/* Main Content */}
-                                <div className="flex-1 min-w-0 flex flex-col gap-1.5" onClick={() => onViewDetails && onViewDetails(tx)}>
-                                    {/* Top Row: Name & Amount */}
-                                    <div className="flex justify-between items-start gap-2">
-                                        <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate leading-tight">
-                                            {tx['Transaction Name']}
-                                        </h4>
-                                        <span className="text-sm font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap leading-tight">
-                                            {currency(tx['Amount'])}
-                                        </span>
-                                    </div>
-
-                                    {/* Bottom Row: Metadata & Cashback */}
-                                    <div className="flex justify-between items-start">
-                                        {/* Left: Date • Card */}
-                                        <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                                            <div className="flex items-center gap-1.5">
-                                                <span>{tx['Transaction Date']}</span>
-                                                <span className="w-0.5 h-0.5 rounded-full bg-slate-300 dark:bg-slate-600"></span>
-                                                <span className="truncate max-w-[90px] text-slate-600 dark:text-slate-300">{card ? card.name : 'Unknown'}</span>
-                                            </div>
-                                            {tx['Category'] && <span className="text-slate-400 dark:text-slate-500">{tx['Category']}</span>}
-                                        </div>
-
-                                        {/* Right: Cashback & Rate */}
-                                        <div className="flex flex-col items-end gap-0.5">
-                                            <div className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-[4px] border border-emerald-100 dark:border-emerald-900">
-                                                <span className="text-[10px] font-bold">+{currency(tx.estCashback)}</span>
-                                            </div>
-                                            <span className="text-[9px] font-medium text-emerald-600/80 dark:text-emerald-500/80">
-                                                    {(tx.rate * 100).toFixed(1)}% Rate
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                                transaction={tx}
+                                isSelected={isSelected}
+                                onSelect={handleSelectOne}
+                                onClick={onViewDetails}
+                                cardMap={cardMap}
+                                currencyFn={currency}
+                            />
                         );
                     })}
                 </div>
@@ -928,11 +883,6 @@ export default function TransactionsList({
                     </Table>
                 </div>
         );
-    };
-
-    // Helper for selecting a single item in mobile view (reuses logic from desktop but simpler call)
-    const toggleSelection = (id) => {
-        handleSelectOne(id, !selectedIds.includes(id));
     };
 
     const renderBulkBar = (isStickyMobile) => (
