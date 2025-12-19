@@ -248,7 +248,7 @@ export default function TransactionsList({
 
     const handleSelectOne = (txId, checked) => {
         if (checked) {
-            setSelectedIds(prev => [...prev, txId]);
+            setSelectedIds(prev => prev.includes(txId) ? prev : [...prev, txId]);
         } else {
             setSelectedIds(prev => prev.filter(id => id !== txId));
         }
@@ -283,8 +283,8 @@ export default function TransactionsList({
 
     const renderMobileFilters = () => {
         return (
-            <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm px-4 py-3 shadow-sm border-b border-slate-100/50 dark:border-slate-800/50">
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 select-none no-scrollbar">
+            <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm px-4 py-3 shadow-sm border-b border-slate-100/50 dark:border-slate-800/50 rounded-xl">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 py-1 select-none no-scrollbar">
                     {/* Search */}
                     <div className="relative flex items-center min-w-[140px]">
                         <Search className="absolute left-3 w-3.5 h-3.5 text-slate-400" />
@@ -304,7 +304,7 @@ export default function TransactionsList({
 
                     {/* Card Filter Pill */}
                     <Select value={cardFilter} onValueChange={setCardFilter}>
-                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
                              <div className={cn(
                                 "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
                                 cardFilter !== 'all'
@@ -334,7 +334,7 @@ export default function TransactionsList({
 
                     {/* Category Filter Pill */}
                     <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
                             <div className={cn(
                                 "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
                                 categoryFilter !== 'all'
@@ -361,7 +361,7 @@ export default function TransactionsList({
 
                      {/* Group By Pill */}
                      <Select value={groupBy} onValueChange={setGroupBy}>
-                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
                             <div className={cn(
                                 "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
                                 groupBy !== 'none'
@@ -389,7 +389,7 @@ export default function TransactionsList({
 
                     {/* Sort Pill */}
                     <Select value={sortByValue} onValueChange={handleSortChange}>
-                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
                             <div className={cn(
                                 "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
                                 sortByValue !== 'Newest' && sortByValue !== 'Custom'
@@ -1103,7 +1103,7 @@ export default function TransactionsList({
 
             <CardContent className={cn("pt-6", !isDesktop && "p-0 pt-0")}>
                 {renderContent()}
-                <div className="mt-6 flex flex-col items-center gap-4 mb-20">
+                <div className="mt-2 flex flex-col items-center gap-4 mb-6">
                     <p className="text-sm text-muted-foreground">
                         Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{filteredData.length}</span> transactions
                     </p>
