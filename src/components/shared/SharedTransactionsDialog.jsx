@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Loader2, Trash2, MoreVertical, Search, X, ArrowUpDown, ChevronDown, Layers } from 'lucide-react';
 import mccData from '@/lib/MCC.json';
+import useMediaQuery from '@/hooks/useMediaQuery';
 import {
     Dialog,
     DialogContent,
@@ -8,6 +9,13 @@ import {
     DialogTitle,
     DialogDescription,
 } from '@/components/ui/dialog';
+import {
+    Drawer,
+    DrawerContent,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerDescription,
+} from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -49,6 +57,7 @@ export default function SharedTransactionsDialog({
     allCards,
     monthlyCategorySummary
 }) {
+    const isDesktop = useMediaQuery("(min-width: 768px)");
     const [selectedRows, setSelectedRows] = useState(new Set());
     const [isSelectionActive, setIsSelectionActive] = useState(false);
     const [viewingTransaction, setViewingTransaction] = useState(null);
@@ -326,287 +335,336 @@ export default function SharedTransactionsDialog({
         </div>
     );
 
-    return (
+    const renderContent = () => (
         <>
-            <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
-                    <DialogHeader className="p-6 pb-2">
-                        <DialogTitle>{title}</DialogTitle>
-                        <DialogDescription>
-                            {description}
-                        </DialogDescription>
-                    </DialogHeader>
+            {/* --- DESKTOP ACTION BAR (HIDDEN ON MOBILE) --- */}
+            <div className="hidden md:flex items-center justify-between px-6 pb-4">
 
-                    {/* --- DESKTOP ACTION BAR (HIDDEN ON MOBILE) --- */}
-                    <div className="hidden md:flex items-center justify-between px-6 pb-4">
+                {/* Bulk Actions with Summaries */}
+                {isSelectionActive && selectedRows.size > 0 ? (
+                    <div className="flex flex-1 items-center justify-between p-2 bg-slate-100 dark:bg-slate-800 rounded-md mr-2">
+                        <div className="flex items-center gap-4">
+                            <span className="text-sm font-semibold">{selectedRows.size} selected</span>
 
-                        {/* Bulk Actions with Summaries */}
-                        {isSelectionActive && selectedRows.size > 0 ? (
-                            <div className="flex flex-1 items-center justify-between p-2 bg-slate-100 dark:bg-slate-800 rounded-md mr-2">
-                                <div className="flex items-center gap-4">
-                                    <span className="text-sm font-semibold">{selectedRows.size} selected</span>
-
-                                    <div className="hidden sm:flex items-center gap-3 border-l border-slate-300 dark:border-slate-600 pl-3">
-                                        <span className="text-xs text-muted-foreground">
-                                            Total: <span className="font-semibold text-foreground">{currencyFn(selectedTotals.amount)}</span>
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">
-                                            Cashback: <span className="font-semibold text-emerald-600">{currencyFn(selectedTotals.cashback)}</span>
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <Button variant="ghost" size="sm" onClick={() => handleSelectAll(false)}>Cancel</Button>
-                                    {onBulkDelete && (
-                                        <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
-                                            <Trash2 className="h-4 w-4 mr-2" />
-                                            Delete
-                                        </Button>
-                                    )}
-                                </div>
+                            <div className="hidden sm:flex items-center gap-3 border-l border-slate-300 dark:border-slate-600 pl-3">
+                                <span className="text-xs text-muted-foreground">
+                                    Total: <span className="font-semibold text-foreground">{currencyFn(selectedTotals.amount)}</span>
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    Cashback: <span className="font-semibold text-emerald-600">{currencyFn(selectedTotals.cashback)}</span>
+                                </span>
                             </div>
-                        ) : (
-                            <div />
-                        )}
+                        </div>
 
-                        {/* Columns Button */}
-                        <div className="hidden md:flex">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="sm">
-                                        <MoreVertical className="h-4 w-4 mr-2" />
-                                        Columns
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    {Object.keys(visibleColumns).map((column) => (
-                                        <DropdownMenuItem key={column}>
-                                            <Checkbox
-                                                checked={visibleColumns[column]}
-                                                onCheckedChange={() =>
-                                                    setVisibleColumns({
-                                                        ...visibleColumns,
-                                                        [column]: !visibleColumns[column],
-                                                    })
-                                                }
-                                                className="mr-2"
-                                            />
-                                            {column}
-                                        </DropdownMenuItem>
-                                    ))}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => handleSelectAll(false)}>Cancel</Button>
+                            {onBulkDelete && (
+                                <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                </Button>
+                            )}
                         </div>
                     </div>
+                ) : (
+                    <div />
+                )}
 
-                    <div className="flex-1 overflow-y-auto px-6 pb-6 pt-0">
-                         {/* Mobile Header (Filters) - Rendered INSIDE scroll area but sticky */}
-                         <div className="md:hidden">
-                            {renderMobileFilters()}
-                         </div>
+                {/* Columns Button */}
+                <div className="hidden md:flex">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                <MoreVertical className="h-4 w-4 mr-2" />
+                                Columns
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            {Object.keys(visibleColumns).map((column) => (
+                                <DropdownMenuItem key={column}>
+                                    <Checkbox
+                                        checked={visibleColumns[column]}
+                                        onCheckedChange={() =>
+                                            setVisibleColumns({
+                                                ...visibleColumns,
+                                                [column]: !visibleColumns[column],
+                                            })
+                                        }
+                                        className="mr-2"
+                                    />
+                                    {column}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </div>
 
-                         {/* Mobile Bulk Bar - Rendered OUTSIDE normal flow but fixed via CSS */}
-                         <div className="md:hidden">
-                            {selectedRows.size > 0 && renderBulkBar()}
-                         </div>
+            <div className="flex-1 overflow-y-auto px-6 pb-6 pt-0">
+                    {/* Mobile Header (Filters) - Rendered INSIDE scroll area but sticky */}
+                    <div className="md:hidden">
+                    {renderMobileFilters()}
+                    </div>
 
-                        {isLoading ? (
-                            <div className="flex justify-center items-center h-48">
-                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            </div>
-                        ) : filteredAndSortedData.length > 0 ? (
-                            <>
-                                {/* Desktop Table View */}
-                                <div className="hidden md:block">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b">
-                                                <th className="p-2 w-10">
+                    {/* Mobile Bulk Bar - Rendered OUTSIDE normal flow but fixed via CSS */}
+                    <div className="md:hidden">
+                    {selectedRows.size > 0 && renderBulkBar()}
+                    </div>
+
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-48">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : filteredAndSortedData.length > 0 ? (
+                    <>
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b">
+                                        <th className="p-2 w-10">
+                                            <Checkbox
+                                                checked={isAllSelected}
+                                                onCheckedChange={handleSelectAll}
+                                            />
+                                        </th>
+                                        {visibleColumns['Transaction Date'] && <th className="text-left p-2">Date</th>}
+                                        {visibleColumns['Transaction Name'] && <th className="text-left p-2">Transaction</th>}
+                                        {visibleColumns['Merchant'] && <th className="text-left p-2">Merchant</th>}
+                                        {visibleColumns['Amount'] && <th className="text-right p-2">Amount</th>}
+                                        {visibleColumns['Estimated Cashback'] && <th className="text-right p-2">Cashback</th>}
+                                        {visibleColumns['Card Name'] && <th className="text-left p-2">Card</th>}
+                                        {visibleColumns['Category'] && <th className="text-left p-2">Category</th>}
+                                        {visibleColumns['Applicable Rule'] && <th className="text-left p-2">Rule</th>}
+                                        {visibleColumns['MCC Code'] && <th className="text-left p-2">MCC</th>}
+                                        {visibleColumns['Notes'] && <th className="text-left p-2">Notes</th>}
+                                        {visibleColumns['Cashback Rate'] && <th className="text-right p-2">Rate</th>}
+                                        <th className="text-center p-2 w-12">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredAndSortedData.map(t => {
+                                        const card = t['Card'] ? cardMap?.get(t['Card'][0]) : null;
+
+                                        return (
+                                            <tr key={t.id} className="border-b">
+                                                <td className="p-2">
                                                     <Checkbox
-                                                        checked={isAllSelected}
-                                                        onCheckedChange={handleSelectAll}
+                                                        checked={selectedRows.has(t.id)}
+                                                        onCheckedChange={(checked) => handleSelectRow(t.id, checked)}
                                                     />
-                                                </th>
-                                                {visibleColumns['Transaction Date'] && <th className="text-left p-2">Date</th>}
-                                                {visibleColumns['Transaction Name'] && <th className="text-left p-2">Transaction</th>}
-                                                {visibleColumns['Merchant'] && <th className="text-left p-2">Merchant</th>}
-                                                {visibleColumns['Amount'] && <th className="text-right p-2">Amount</th>}
-                                                {visibleColumns['Estimated Cashback'] && <th className="text-right p-2">Cashback</th>}
-                                                {visibleColumns['Card Name'] && <th className="text-left p-2">Card</th>}
-                                                {visibleColumns['Category'] && <th className="text-left p-2">Category</th>}
-                                                {visibleColumns['Applicable Rule'] && <th className="text-left p-2">Rule</th>}
-                                                {visibleColumns['MCC Code'] && <th className="text-left p-2">MCC</th>}
-                                                {visibleColumns['Notes'] && <th className="text-left p-2">Notes</th>}
-                                                {visibleColumns['Cashback Rate'] && <th className="text-right p-2">Rate</th>}
-                                                <th className="text-center p-2 w-12">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filteredAndSortedData.map(t => {
-                                                const card = t['Card'] ? cardMap?.get(t['Card'][0]) : null;
+                                                </td>
+                                                {visibleColumns['Transaction Date'] && <td className="p-2">{t['Transaction Date']}</td>}
+                                                {visibleColumns['Transaction Name'] && <td className="p-2">{t['Transaction Name']}</td>}
 
-                                                return (
-                                                    <tr key={t.id} className="border-b">
-                                                        <td className="p-2">
-                                                            <Checkbox
-                                                                checked={selectedRows.has(t.id)}
-                                                                onCheckedChange={(checked) => handleSelectRow(t.id, checked)}
-                                                            />
-                                                        </td>
-                                                        {visibleColumns['Transaction Date'] && <td className="p-2">{t['Transaction Date']}</td>}
-                                                        {visibleColumns['Transaction Name'] && <td className="p-2">{t['Transaction Name']}</td>}
-
-                                                        {visibleColumns['Merchant'] && (
-                                                            <td className="p-2 text-slate-500">{t.merchantLookup || ''}</td>
-                                                        )}
-
-                                                        {visibleColumns['Amount'] && <td className="text-right p-2">{currencyFn(t['Amount'])}</td>}
-
-                                                        {visibleColumns['Estimated Cashback'] && (
-                                                            <td className="text-right p-2 text-emerald-600 font-medium">
-                                                                {currencyFn(t.estCashback)}
-                                                            </td>
-                                                        )}
-
-                                                        {visibleColumns['Card Name'] && <td className="p-2">{card ? card.name : ''}</td>}
-
-                                                        {visibleColumns['Category'] && <td className="p-2">{t['Category'] || ''}</td>}
-
-                                                        {visibleColumns['Applicable Rule'] && (
-                                                            <td className="p-2 text-xs font-mono text-slate-500">
-                                                                {t['Applicable Rule']?.length > 0 ? t['Applicable Rule'][0].slice(0, 8) + '...' : ''}
-                                                            </td>
-                                                        )}
-
-                                                        {visibleColumns['MCC Code'] && (
-                                                            <td className="p-2">
-                                                                {t['MCC Code'] ? `${t['MCC Code']} - ${getMccDescription(t['MCC Code'])}` : ''}
-                                                            </td>
-                                                        )}
-
-                                                        {visibleColumns['Notes'] && <td className="p-2">{t['Notes'] || ''}</td>}
-
-                                                        {visibleColumns['Cashback Rate'] && (
-                                                            <td className="text-right p-2">
-                                                                {(t.estCashback && t['Amount']) ? (t.estCashback / t['Amount'] * 100).toFixed(1) + '%' : ''}
-                                                            </td>
-                                                        )}
-
-                                                        <td className="text-center p-2">
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                        <MoreVertical className="h-4 w-4" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent>
-                                                                    {onEdit && <DropdownMenuItem onClick={() => onEdit(t)}>Edit</DropdownMenuItem>}
-                                                                    <DropdownMenuItem onClick={() => setViewingTransaction(t)}>View Details</DropdownMenuItem>
-                                                                    {onDelete && <DropdownMenuItem onClick={() => onDelete(t.id, t['Transaction Name'])} className="text-destructive">Delete</DropdownMenuItem>}
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-
-                                        <tfoot>
-                                            <tr className="border-t-2 font-semibold bg-slate-50/50">
-                                                <td className="p-2"></td>
-                                                {visibleColumns['Transaction Date'] && <td className="p-2"></td>}
-
-                                                {/* Logic to place 'Total' label correctly */}
-                                                {visibleColumns['Transaction Name'] && (
-                                                    <td className="p-2 text-right text-slate-500">Total</td>
+                                                {visibleColumns['Merchant'] && (
+                                                    <td className="p-2 text-slate-500">{t.merchantLookup || ''}</td>
                                                 )}
-                                                {visibleColumns['Merchant'] && !visibleColumns['Transaction Name'] && (
-                                                    <td className="p-2 text-right text-slate-500">Total</td>
-                                                )}
-                                                {visibleColumns['Merchant'] && visibleColumns['Transaction Name'] && <td className="p-2"></td>}
 
-
-                                                {visibleColumns['Amount'] && (
-                                                    <td className="p-2 text-right">{currencyFn(totals.amount)}</td>
-                                                )}
+                                                {visibleColumns['Amount'] && <td className="text-right p-2">{currencyFn(t['Amount'])}</td>}
 
                                                 {visibleColumns['Estimated Cashback'] && (
-                                                    <td className="p-2 text-right text-emerald-600 font-bold">{currencyFn(totals.cashback)}</td>
+                                                    <td className="text-right p-2 text-emerald-600 font-medium">
+                                                        {currencyFn(t.estCashback)}
+                                                    </td>
                                                 )}
 
-                                                {visibleColumns['Card Name'] && <td className="p-2"></td>}
-                                                {visibleColumns['Category'] && <td className="p-2"></td>}
-                                                {visibleColumns['Applicable Rule'] && <td className="p-2"></td>}
-                                                {visibleColumns['MCC Code'] && <td className="p-2"></td>}
-                                                {visibleColumns['Notes'] && <td className="p-2"></td>}
-                                                {visibleColumns['Cashback Rate'] && <td className="p-2"></td>}
+                                                {visibleColumns['Card Name'] && <td className="p-2">{card ? card.name : ''}</td>}
 
-                                                <td className="p-2"></td>
+                                                {visibleColumns['Category'] && <td className="p-2">{t['Category'] || ''}</td>}
+
+                                                {visibleColumns['Applicable Rule'] && (
+                                                    <td className="p-2 text-xs font-mono text-slate-500">
+                                                        {t['Applicable Rule']?.length > 0 ? t['Applicable Rule'][0].slice(0, 8) + '...' : ''}
+                                                    </td>
+                                                )}
+
+                                                {visibleColumns['MCC Code'] && (
+                                                    <td className="p-2">
+                                                        {t['MCC Code'] ? `${t['MCC Code']} - ${getMccDescription(t['MCC Code'])}` : ''}
+                                                    </td>
+                                                )}
+
+                                                {visibleColumns['Notes'] && <td className="p-2">{t['Notes'] || ''}</td>}
+
+                                                {visibleColumns['Cashback Rate'] && (
+                                                    <td className="text-right p-2">
+                                                        {(t.estCashback && t['Amount']) ? (t.estCashback / t['Amount'] * 100).toFixed(1) + '%' : ''}
+                                                    </td>
+                                                )}
+
+                                                <td className="text-center p-2">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                <MoreVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent>
+                                                            {onEdit && <DropdownMenuItem onClick={() => onEdit(t)}>Edit</DropdownMenuItem>}
+                                                            <DropdownMenuItem onClick={() => setViewingTransaction(t)}>View Details</DropdownMenuItem>
+                                                            {onDelete && <DropdownMenuItem onClick={() => onDelete(t.id, t['Transaction Name'])} className="text-destructive">Delete</DropdownMenuItem>}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </td>
                                             </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
+                                        );
+                                    })}
+                                </tbody>
 
-                                {/* Mobile List View */}
-                                <div className="md:hidden space-y-2.5 pb-20">
-                                     {/* Select All Row */}
-                                    {filteredAndSortedData.length > 0 && (
-                                        <div className="flex items-center justify-between px-2 pt-1 pb-1">
-                                            <div className="flex items-center gap-2 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleSelectAll(selectedRows.size !== filteredAndSortedData.length); }}>
-                                                <Checkbox
-                                                    checked={selectedRows.size > 0 && selectedRows.size === filteredAndSortedData.length}
-                                                    onCheckedChange={handleSelectAll}
-                                                    className={cn("h-5 w-5 rounded border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 bg-white border-slate-300")}
-                                                />
-                                                <span className="text-xs font-medium text-slate-500">Select All</span>
+                                <tfoot>
+                                    <tr className="border-t-2 font-semibold bg-slate-50/50">
+                                        <td className="p-2"></td>
+                                        {visibleColumns['Transaction Date'] && <td className="p-2"></td>}
+
+                                        {/* Logic to place 'Total' label correctly */}
+                                        {visibleColumns['Transaction Name'] && (
+                                            <td className="p-2 text-right text-slate-500">Total</td>
+                                        )}
+                                        {visibleColumns['Merchant'] && !visibleColumns['Transaction Name'] && (
+                                            <td className="p-2 text-right text-slate-500">Total</td>
+                                        )}
+                                        {visibleColumns['Merchant'] && visibleColumns['Transaction Name'] && <td className="p-2"></td>}
+
+
+                                        {visibleColumns['Amount'] && (
+                                            <td className="p-2 text-right">{currencyFn(totals.amount)}</td>
+                                        )}
+
+                                        {visibleColumns['Estimated Cashback'] && (
+                                            <td className="p-2 text-right text-emerald-600 font-bold">{currencyFn(totals.cashback)}</td>
+                                        )}
+
+                                        {visibleColumns['Card Name'] && <td className="p-2"></td>}
+                                        {visibleColumns['Category'] && <td className="p-2"></td>}
+                                        {visibleColumns['Applicable Rule'] && <td className="p-2"></td>}
+                                        {visibleColumns['MCC Code'] && <td className="p-2"></td>}
+                                        {visibleColumns['Notes'] && <td className="p-2"></td>}
+                                        {visibleColumns['Cashback Rate'] && <td className="p-2"></td>}
+
+                                        <td className="p-2"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        {/* Mobile List View */}
+                        <div className="md:hidden space-y-2.5 pb-20">
+                                {/* Select All Row */}
+                            {filteredAndSortedData.length > 0 && (
+                                <div className="flex items-center justify-between px-2 pt-1 pb-1">
+                                    <div className="flex items-center gap-2 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleSelectAll(selectedRows.size !== filteredAndSortedData.length); }}>
+                                        <Checkbox
+                                            checked={selectedRows.size > 0 && selectedRows.size === filteredAndSortedData.length}
+                                            onCheckedChange={handleSelectAll}
+                                            className={cn("h-5 w-5 rounded border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 bg-white border-slate-300")}
+                                        />
+                                        <span className="text-xs font-medium text-slate-500">Select All</span>
+                                    </div>
+                                    <span className="text-[10px] text-slate-400">{filteredAndSortedData.length} items</span>
+                                </div>
+                            )}
+
+                            {/* Grouped List Logic */}
+                            {(() => {
+                                const flatList = [];
+                                Object.entries(groupedData).forEach(([key, items]) => {
+                                    if (groupBy !== 'none') flatList.push({ type: 'header', title: key, count: items.length });
+                                    flatList.push(...items.map(i => ({ type: 'item', ...i })));
+                                });
+
+                                return flatList.map((item, index) => {
+                                        if (item.type === 'header') {
+                                        return (
+                                            <div key={`header-${index}`} className="pt-2 pb-1 px-1">
+                                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{item.title} ({item.count})</span>
                                             </div>
-                                            <span className="text-[10px] text-slate-400">{filteredAndSortedData.length} items</span>
-                                        </div>
-                                    )}
+                                        );
+                                    }
 
-                                    {/* Grouped List Logic */}
-                                    {(() => {
-                                        const flatList = [];
-                                        Object.entries(groupedData).forEach(([key, items]) => {
-                                            if (groupBy !== 'none') flatList.push({ type: 'header', title: key, count: items.length });
-                                            flatList.push(...items.map(i => ({ type: 'item', ...i })));
-                                        });
-
-                                        return flatList.map((item, index) => {
-                                             if (item.type === 'header') {
-                                                return (
-                                                    <div key={`header-${index}`} className="pt-2 pb-1 px-1">
-                                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{item.title} ({item.count})</span>
-                                                    </div>
-                                                );
-                                            }
-
-                                            // Item
-                                            const tx = item;
-                                            return (
-                                                <MobileTransactionItem
-                                                    key={tx.id}
-                                                    transaction={tx}
-                                                    currencyFn={currencyFn}
-                                                    isSelected={selectedRows.has(tx.id)}
-                                                    onSelect={handleSelectRow}
-                                                    onClick={() => setViewingTransaction(tx)}
-                                                    cardMap={cardMap}
-                                                />
-                                            );
-                                        });
-                                    })()}
-                                </div>
-                            </>
-                        ) : (
-                            <div className="flex justify-center items-center h-48">
-                                <p className="text-muted-foreground">No transactions found.</p>
-                            </div>
-                        )}
+                                    // Item
+                                    const tx = item;
+                                    return (
+                                        <MobileTransactionItem
+                                            key={tx.id}
+                                            transaction={tx}
+                                            currencyFn={currencyFn}
+                                            isSelected={selectedRows.has(tx.id)}
+                                            onSelect={handleSelectRow}
+                                            onClick={() => setViewingTransaction(tx)}
+                                            cardMap={cardMap}
+                                        />
+                                    );
+                                });
+                            })()}
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex justify-center items-center h-48">
+                        <p className="text-muted-foreground">No transactions found.</p>
                     </div>
-                </DialogContent>
-            </Dialog>
+                )}
+            </div>
+        </>
+    );
+
+    if (isDesktop) {
+        return (
+            <>
+                <Dialog open={isOpen} onOpenChange={onClose}>
+                    <DialogContent
+                        className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0"
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
+                        <DialogHeader className="p-6 pb-2">
+                            <DialogTitle>{title}</DialogTitle>
+                            <DialogDescription>
+                                {description}
+                            </DialogDescription>
+                        </DialogHeader>
+                        {renderContent()}
+                    </DialogContent>
+                </Dialog>
+
+                {/* Embedded Transaction Detail Sheet */}
+                <TransactionDetailSheet
+                    transaction={viewingTransaction}
+                    isOpen={!!viewingTransaction}
+                    onClose={() => setViewingTransaction(null)}
+                    onEdit={(t) => {
+                        setViewingTransaction(null);
+                        if (onEdit) onEdit(t);
+                    }}
+                    onDuplicate={onDuplicate}
+                    onDelete={(id, name) => {
+                        setViewingTransaction(null);
+                        if (onDelete) onDelete(id, name);
+                    }}
+                    currencyFn={currencyFn}
+                    allCards={allCards}
+                    rules={rules}
+                    monthlyCategorySummary={monthlyCategorySummary}
+                />
+            </>
+        );
+    }
+
+    return (
+        <>
+            <Drawer open={isOpen} onOpenChange={onClose}>
+                <DrawerContent
+                    className="max-h-[90vh] flex flex-col p-0 gap-0"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                >
+                    <DrawerHeader className="p-6 pb-2 text-left">
+                        <DrawerTitle>{title}</DrawerTitle>
+                        <DrawerDescription>
+                            {description}
+                        </DrawerDescription>
+                    </DrawerHeader>
+                    {renderContent()}
+                </DrawerContent>
+            </Drawer>
 
             {/* Embedded Transaction Detail Sheet */}
             <TransactionDetailSheet
