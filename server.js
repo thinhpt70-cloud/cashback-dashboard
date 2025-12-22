@@ -1697,6 +1697,7 @@ app.post('/api/transactions/analyze-approval', async (req, res) => {
     if (!ids || !Array.isArray(ids)) return res.status(400).json({ error: 'IDs required' });
 
     try {
+        const activeRules = await fetchActiveRules(); // Fetch rules once
         const analysisResults = [];
 
         // Process each transaction with the shared smart logic
@@ -1710,12 +1711,13 @@ app.post('/api/transactions/analyze-approval', async (req, res) => {
             if (cleanName.startsWith("Email_")) {
                 cleanName = cleanName.substring(6);
             }
+            cleanName = cleanName.trim();
 
             // 3. Find Match in History
             const match = await findBestMatchTransaction(cleanName, id);
 
             // 4. Calculate Updates
-            const { updates, log, status, reason } = await calculateSmartUpdates(transaction, match, cleanName);
+            const { updates, log, status, reason } = await calculateSmartUpdates(transaction, match, cleanName, activeRules);
 
             analysisResults.push({
                 id: transaction.id,
@@ -1733,6 +1735,46 @@ app.post('/api/transactions/analyze-approval', async (req, res) => {
     } catch (error) {
         console.error("Analyze Error", error);
         res.status(500).json({ error: "Failed to analyze" });
+    }
+});
+
+// POST /api/transactions/finalize - Simple approval for already-valid transactions
+app.post('/api/transactions/finalize', async (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids)) return res.status(400).json({ error: 'IDs required' });
+
+    try {
+        const results = [];
+        for (const id of ids) {
+            try {
+                // 1. Fetch current to get name
+                const page = await notion.pages.retrieve({ page_id: id });
+                const currentName = page.properties['Transaction Name']?.title[0]?.plain_text || "";
+
+                // 2. Clean Name
+                let newName = currentName;
+                if (newName.startsWith("Email_")) {
+                    newName = newName.substring(6);
+                }
+                newName = newName.trim();
+
+                // 3. Update (Name + Uncheck Automated)
+                await notion.pages.update({
+                    page_id: id,
+                    properties: {
+                        'Transaction Name': { title: [{ text: { content: newName } }] },
+                        'Automated': { checkbox: false }
+                    }
+                });
+                results.push(id);
+            } catch (innerErr) {
+                console.error(`Failed to finalize ${id}`, innerErr);
+            }
+        }
+        res.status(200).json(results);
+    } catch (error) {
+        console.error("Finalize Error", error);
+        res.status(500).json({ error: "Failed to finalize transactions" });
     }
 });
 
