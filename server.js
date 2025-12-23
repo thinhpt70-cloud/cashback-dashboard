@@ -348,6 +348,7 @@ const fetchActiveRules = async () => {
                 ruleName: parsed['Rule Name'],
                 mccCodes: parsed['MCC Code'] ? parsed['MCC Code'].split(',').map(c => c.trim()) : [],
                 category: parsed['Category'],
+                cardId: parsed['Card'] ? parsed['Card'][0] : null,
             };
         });
     } catch (error) {
@@ -370,23 +371,44 @@ const calculateSmartUpdates = async (transaction, match, cleanName, activeRules 
 
     // 2. Metadata (Logic Split: Internal Match vs. External Match)
     let finalRuleId = null;
+    const currentCardId = transaction['Card'] && transaction['Card'][0];
 
     if (match) {
         // --- CASE A: Found Internal History Match ---
 
         // MCC
-        if (match['MCC Code']) {
-            updates['MCC Code'] = { rich_text: [{ text: { content: String(match['MCC Code']) } }] };
+        const matchedMcc = match['MCC Code'];
+        if (matchedMcc) {
+            updates['MCC Code'] = { rich_text: [{ text: { content: String(matchedMcc) } }] };
         }
         // Category
-        if (match['Category']) {
-            updates['Category'] = { select: { name: match['Category'] } };
+        const matchedCategory = match['Category'];
+        if (matchedCategory) {
+            updates['Category'] = { select: { name: matchedCategory } };
         }
-        // Applicable Rule
-        if (match['Applicable Rule'] && match['Applicable Rule'].length > 0) {
-            finalRuleId = match['Applicable Rule'][0];
-            updates['Applicable Rule'] = { relation: [{ id: finalRuleId }] };
+
+        // RE-CALCULATE RULE based on Current Card + Matched Info
+        // Do NOT blindly copy the rule from the matched transaction (which might be a different card)
+        if (currentCardId) {
+            // Priority 1: Match by MCC
+            let matchingRule = activeRules.find(r =>
+                r.cardId === currentCardId && matchedMcc && r.mccCodes.includes(String(matchedMcc))
+            );
+
+            // Priority 2: Match by Category (if no MCC match found)
+            if (!matchingRule && matchedCategory) {
+                 matchingRule = activeRules.find(r =>
+                    r.cardId === currentCardId && r.category === matchedCategory
+                );
+            }
+
+            if (matchingRule) {
+                finalRuleId = matchingRule.id;
+                updates['Applicable Rule'] = { relation: [{ id: finalRuleId }] };
+                log.push(`Linked to rule: ${matchingRule.ruleName} (based on history match)`);
+            }
         }
+
         // Merchant Lookup Name
         if (match['merchantLookup']) {
             updates['Merchant'] = { rich_text: [{ text: { content: match['merchantLookup'] } }] };
@@ -414,8 +436,10 @@ const calculateSmartUpdates = async (transaction, match, cleanName, activeRules 
             log.push(`Found external match: ${bestExt.merchant} (${bestExt.mcc})`);
 
             // TRY TO LINK A RULE
-            // Look for a rule that contains this MCC
-            const matchingRule = activeRules.find(r => r.mccCodes.includes(String(bestExt.mcc)));
+            // Look for a rule that contains this MCC AND belongs to the CURRENT CARD
+            const matchingRule = activeRules.find(r =>
+                r.cardId === currentCardId && r.mccCodes.includes(String(bestExt.mcc))
+            );
 
             if (matchingRule) {
                 finalRuleId = matchingRule.id;
