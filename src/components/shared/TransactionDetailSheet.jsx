@@ -7,6 +7,14 @@ import {
     SheetDescription,
     SheetFooter,
 } from "../ui/sheet";
+import {
+    Drawer,
+    DrawerContent,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerDescription,
+    DrawerFooter,
+} from "../ui/drawer";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import {
@@ -26,6 +34,7 @@ import {
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
 import mccData from '../../lib/MCC.json';
+import useMediaQuery from "../../hooks/useMediaQuery";
 
 export default function TransactionDetailSheet({
     transaction,
@@ -39,6 +48,8 @@ export default function TransactionDetailSheet({
     rules,
     monthlyCategorySummary
 }) {
+    const isDesktop = useMediaQuery("(min-width: 768px)");
+
     // 1. Maintain local copy of data to persist during closing animation
     const [displayTransaction, setDisplayTransaction] = useState(transaction);
 
@@ -173,271 +184,332 @@ export default function TransactionDetailSheet({
 
     const Separator = () => <div className="h-px bg-slate-200 dark:bg-slate-800 my-6" />;
 
-    return (
-        <Sheet open={isOpen} onOpenChange={onClose}>
-            <SheetContent className="w-full sm:max-w-md flex flex-col h-full p-0 gap-0">
-                
-                {/* Header with Back Button logic */}
-                <div className="p-6 pb-2">
-                     <Button variant="ghost" size="sm" className="mb-2 -ml-2 text-slate-500 hover:text-slate-900" onClick={() => onClose(false)}>
-                        <ArrowLeft className="h-4 w-4 mr-1" /> Back
-                    </Button>
-                    <SheetHeader className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <Badge className={statusColor}>{statusText}</Badge>
-                        </div>
-                        <div>
-                            <SheetTitle className="text-xl font-bold leading-tight break-words">
-                                {currentTransaction['Transaction Name']}
-                            </SheetTitle>
-                            {currentTransaction.merchantLookup && (
-                                <SheetDescription className="text-sm mt-1">
-                                    {currentTransaction.merchantLookup}
-                                </SheetDescription>
-                            )}
-                        </div>
+    // Shared Content Component
+    const TransactionDetailBody = () => (
+        <div className="space-y-6">
+            {/* 1. Transaction Info */}
+            <div>
+                <SectionHeader title="Transaction Info" />
+                <div className="grid gap-4">
+                    <DetailRow icon={Calendar} label="Date" value={currentTransaction['Transaction Date']} />
+                    <DetailRow icon={Store} label="Merchant" value={currentTransaction.merchantLookup || currentTransaction['Transaction Name']} />
+                    <DetailRow icon={CreditCard} label="Card" value={cardName} />
+                    <DetailRow icon={Globe} label="Method" value={getMethodBadge(currentTransaction['Method'])} />
+                    <DetailRow icon={Receipt} label="MCC Code" value={displayMcc} className="font-mono" />
+                </div>
+            </div>
 
-                        <div className="flex flex-col gap-1">
-                            <span className="text-3xl font-extrabold text-primary tracking-tight">
-                                {currency(currentTransaction['Amount'])}
-                            </span>
-                            {hasForeignData && (
-                                <span className="text-sm text-muted-foreground">
+            <Separator />
+
+            {/* 2. Payment & Cashback */}
+            <div>
+                <SectionHeader title="Payment & Cashback" />
+                <div className="grid gap-4">
+                    <DetailRow icon={CheckCircle2} label="Applied Rule" value={ruleName} />
+
+                    <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 flex justify-between items-center">
+                        <div className="flex gap-3 items-center">
+                            <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                <Percent className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">Estimated Cashback</p>
+                                <p className="text-xs text-emerald-600 dark:text-emerald-400">{(rate * 100).toFixed(1)}% Rate</p>
+                            </div>
+                        </div>
+                        <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
+                            +{currency(currentTransaction.estCashback)}
+                        </span>
+                    </div>
+
+                    {hasForeignData && (
+                        <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-2 border">
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Foreign Amount</span>
+                                <span className="font-medium">
                                     {foreignAmount} {currentTransaction['foreignCurrency'] ? `${currentTransaction['foreignCurrency']} ` : ''}
                                 </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Exchange Rate</span>
+                                <span className="font-medium">{displayExchangeRate.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                            </div>
+                            {currentTransaction.grossAmount !== undefined && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Gross Amount (VND)</span>
+                                    <span className="font-medium">{currency(currentTransaction.grossAmount)}</span>
+                                </div>
                             )}
-                        </div>
-                    </SheetHeader>
-                </div>
-
-                {/* Scrollable Wrapper */}
-                <div className="flex-1 overflow-y-auto px-6 pb-6">
-                    <Separator />
-
-                    <div className="space-y-6">
-                        {/* 1. Transaction Info */}
-                        <div>
-                            <SectionHeader title="Transaction Info" />
-                            <div className="grid gap-4">
-                                <DetailRow icon={Calendar} label="Date" value={currentTransaction['Transaction Date']} />
-                                <DetailRow icon={Store} label="Merchant" value={currentTransaction.merchantLookup || currentTransaction['Transaction Name']} />
-                                <DetailRow icon={CreditCard} label="Card" value={cardName} />
-                                <DetailRow icon={Globe} label="Method" value={getMethodBadge(currentTransaction['Method'])} />
-                                <DetailRow icon={Receipt} label="MCC Code" value={displayMcc} className="font-mono" />
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">% Conversion Fee</span>
+                                <span className="font-medium">{displayFeePercent.toFixed(2)}%</span>
+                            </div>
+                             <div className="flex justify-between">
+                                <span className="text-muted-foreground">Conversion Fee</span>
+                                <span className="text-red-500 font-medium">+{currency(conversionFee)}</span>
                             </div>
                         </div>
+                    )}
 
-                        <Separator />
-
-                        {/* 2. Payment & Cashback */}
-                        <div>
-                            <SectionHeader title="Payment & Cashback" />
-                            <div className="grid gap-4">
-                                <DetailRow icon={CheckCircle2} label="Applied Rule" value={ruleName} />
-
-                                <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 flex justify-between items-center">
-                                    <div className="flex gap-3 items-center">
-                                        <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                                            <Percent className="h-4 w-4" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">Estimated Cashback</p>
-                                            <p className="text-xs text-emerald-600 dark:text-emerald-400">{(rate * 100).toFixed(1)}% Rate</p>
-                                        </div>
-                                    </div>
-                                    <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
-                                        +{currency(currentTransaction.estCashback)}
+                    {(discounts.length > 0 || fees.length > 0 || currentTransaction.otherDiscounts > 0 || currentTransaction.otherFees > 0) && (
+                        <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-3 border">
+                            {currentTransaction.grossAmount !== undefined && (
+                                <div className="flex justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                                    <span className="text-muted-foreground">
+                                        {hasForeignData ? "Amount (after conversion)" : "Gross Amount"}
+                                    </span>
+                                    <span className="font-medium">
+                                        {currency(
+                                            hasForeignData
+                                            ? (currentTransaction.grossAmount + (conversionFee || 0))
+                                            : currentTransaction.grossAmount
+                                        )}
                                     </span>
                                 </div>
+                            )}
 
-                                {hasForeignData && (
-                                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-2 border">
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Foreign Amount</span>
-                                            <span className="font-medium">
-                                                {foreignAmount} {currentTransaction['foreignCurrency'] ? `${currentTransaction['foreignCurrency']} ` : ''}
-                                            </span>
+                            {/* Display Parsed Discounts */}
+                            {discounts.length > 0 && (
+                                <div className="space-y-1">
+                                    <p className="text-xs font-semibold text-emerald-600 uppercase">Discounts</p>
+                                    {discounts.map((d, i) => (
+                                        <div key={i} className="flex justify-between text-xs">
+                                            <span className="text-slate-600">{d.description || `Discount ${i+1}`}</span>
+                                            <span className="text-emerald-600 font-mono">-{d.amount}</span>
                                         </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Exchange Rate</span>
-                                            <span className="font-medium">{displayExchangeRate.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-                                        </div>
-                                        {currentTransaction.grossAmount !== undefined && (
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Gross Amount (VND)</span>
-                                                <span className="font-medium">{currency(currentTransaction.grossAmount)}</span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">% Conversion Fee</span>
-                                            <span className="font-medium">{displayFeePercent.toFixed(2)}%</span>
-                                        </div>
-                                         <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Conversion Fee</span>
-                                            <span className="text-red-500 font-medium">+{currency(conversionFee)}</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {(discounts.length > 0 || fees.length > 0 || currentTransaction.otherDiscounts > 0 || currentTransaction.otherFees > 0) && (
-                                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-3 border">
-                                        {currentTransaction.grossAmount !== undefined && (
-                                            <div className="flex justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-                                                <span className="text-muted-foreground">Gross Amount</span>
-                                                <span className="font-medium">{currency(currentTransaction.grossAmount)}</span>
-                                            </div>
-                                        )}
-
-                                        {/* Display Parsed Discounts */}
-                                        {discounts.length > 0 && (
-                                            <div className="space-y-1">
-                                                <p className="text-xs font-semibold text-emerald-600 uppercase">Discounts</p>
-                                                {discounts.map((d, i) => (
-                                                    <div key={i} className="flex justify-between text-xs">
-                                                        <span className="text-slate-600">{d.description || `Discount ${i+1}`}</span>
-                                                        <span className="text-emerald-600 font-mono">-{d.amount}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {/* Fallback to legacy field if parsed list is empty but total > 0 */}
-                                        {discounts.length === 0 && currentTransaction.otherDiscounts > 0 && (
-                                             <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Discounts</span>
-                                                <span className="text-emerald-600 font-medium">-{currency(currentTransaction.otherDiscounts)}</span>
-                                            </div>
-                                        )}
-
-                                        {/* Display Parsed Fees */}
-                                        {fees.length > 0 && (
-                                            <div className="space-y-1 pt-2 border-t border-slate-200 dark:border-slate-800">
-                                                <p className="text-xs font-semibold text-red-600 uppercase">Fees</p>
-                                                {fees.map((f, i) => (
-                                                    <div key={i} className="flex justify-between text-xs">
-                                                        <span className="text-slate-600">{f.description || `Fee ${i+1}`}</span>
-                                                        <span className="text-red-500 font-mono">+{f.amount}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                         {/* Fallback to legacy field */}
-                                        {fees.length === 0 && currentTransaction.otherFees > 0 && (
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Additional Fees</span>
-                                                <span className="text-red-500 font-medium">+{currency(currentTransaction.otherFees)}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* 3. Category */}
-                        <div>
-                            <SectionHeader title="Categorization" />
-                            <div className="grid gap-4">
-                                <DetailRow icon={Tag} label="Category" value={
-                                    <div className="flex gap-2 flex-wrap">
-                                        <Badge variant="secondary">{currentTransaction['Category'] || "Uncategorized"}</Badge>
-                                    </div>
-                                } />
-
-                                <DetailRow icon={Layers} label="Sub-Category" value={
-                                    (currentTransaction.subCategory && currentTransaction.subCategory.length > 0) ? (
-                                        <div className="flex gap-1 flex-wrap">
-                                            {currentTransaction.subCategory.map(sc => <Badge key={sc} variant="outline" className="text-xs">{sc}</Badge>)}
-                                        </div>
-                                    ) : "None"
-                                } />
-
-                                <DetailRow icon={FileText} label="Paid For" value={currentTransaction['paidFor'] || "N/A"} />
-                            </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* 4. Other Information */}
-                        <div>
-                            <SectionHeader title="Other Information" />
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-medium text-muted-foreground">Transaction ID</p>
-                                        <p className="text-xs font-mono truncate bg-slate-100 dark:bg-slate-800 p-1 rounded">{currentTransaction.id}</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-medium text-muted-foreground">Summary Category</p>
-                                        <p className="text-xs truncate text-slate-600 dark:text-slate-400">{summaryName}</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-medium text-muted-foreground">Statement Month</p>
-                                        <p className="text-sm">{currentTransaction['Statement Month'] || "N/A"}</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-medium text-muted-foreground">Cashback Month</p>
-                                        <p className="text-sm">{currentTransaction['Cashback Month'] || "N/A"}</p>
-                                    </div>
+                                    ))}
                                 </div>
+                            )}
 
-                                <div className="flex gap-4">
-                                    <div className="flex items-center gap-2">
-                                        <Checkbox checked={currentTransaction['Match']} disabled />
-                                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                            Matched Rule
-                                        </label>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Checkbox checked={currentTransaction['Automated']} disabled />
-                                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                            Automated
-                                        </label>
-                                    </div>
+                            {/* Fallback to legacy field if parsed list is empty but total > 0 */}
+                            {discounts.length === 0 && currentTransaction.otherDiscounts > 0 && (
+                                 <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Discounts</span>
+                                    <span className="text-emerald-600 font-medium">-{currency(currentTransaction.otherDiscounts)}</span>
                                 </div>
+                            )}
 
-                                {currentTransaction['billingDate'] && (
-                                    <DetailRow icon={Calendar} label="Billing Date" value={currentTransaction['billingDate']} />
-                                )}
-
-                                {cleanNotes && (
-                                    <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-md border border-amber-100 dark:border-amber-900/50">
-                                        <div className="flex gap-2 items-start">
-                                            <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
-                                            <div className="space-y-1">
-                                                <p className="text-xs font-bold text-amber-800 dark:text-amber-200">Notes</p>
-                                                <p className="text-xs text-amber-700 dark:text-amber-300 whitespace-pre-wrap">{cleanNotes}</p>
-                                            </div>
+                            {/* Display Parsed Fees */}
+                            {fees.length > 0 && (
+                                <div className="space-y-1">
+                                    {/* Only add border top if there are previous elements (Discounts or Gross Amount) */}
+                                    {(discounts.length > 0 || currentTransaction.grossAmount !== undefined) && (
+                                         <div className="h-px bg-slate-200 dark:bg-slate-800 my-2" />
+                                    )}
+                                    <p className="text-xs font-semibold text-red-600 uppercase">Fees</p>
+                                    {fees.map((f, i) => (
+                                        <div key={i} className="flex justify-between text-xs">
+                                            <span className="text-slate-600">{f.description || `Fee ${i+1}`}</span>
+                                            <span className="text-red-500 font-mono">+{f.amount}</span>
                                         </div>
-                                    </div>
-                                )}
+                                    ))}
+                                </div>
+                            )}
+
+                             {/* Fallback to legacy field */}
+                            {fees.length === 0 && currentTransaction.otherFees > 0 && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Additional Fees</span>
+                                    <span className="text-red-500 font-medium">+{currency(currentTransaction.otherFees)}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <Separator />
+
+            {/* 3. Category */}
+            <div>
+                <SectionHeader title="Categorization" />
+                <div className="grid gap-4">
+                    <DetailRow icon={Tag} label="Category" value={
+                        <div className="flex gap-2 flex-wrap">
+                            <Badge variant="secondary">{currentTransaction['Category'] || "Uncategorized"}</Badge>
+                        </div>
+                    } />
+
+                    <DetailRow icon={Layers} label="Sub-Category" value={
+                        (currentTransaction.subCategory && currentTransaction.subCategory.length > 0) ? (
+                            <div className="flex gap-1 flex-wrap">
+                                {currentTransaction.subCategory.map(sc => <Badge key={sc} variant="outline" className="text-xs">{sc}</Badge>)}
                             </div>
+                        ) : "None"
+                    } />
+
+                    <DetailRow icon={FileText} label="Paid For" value={currentTransaction['paidFor'] || "N/A"} />
+                </div>
+            </div>
+
+            <Separator />
+
+            {/* 4. Other Information */}
+            <div>
+                <SectionHeader title="Other Information" />
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground">Transaction ID</p>
+                            <p className="text-xs font-mono truncate bg-slate-100 dark:bg-slate-800 p-1 rounded">{currentTransaction.id}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground">Summary Category</p>
+                            <p className="text-xs truncate text-slate-600 dark:text-slate-400">{summaryName}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground">Statement Month</p>
+                            <p className="text-sm">{currentTransaction['Statement Month'] || "N/A"}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground">Cashback Month</p>
+                            <p className="text-sm">{currentTransaction['Cashback Month'] || "N/A"}</p>
                         </div>
                     </div>
+
+                    <div className="flex gap-4">
+                        <div className="flex items-center gap-2">
+                            <Checkbox checked={currentTransaction['Match']} disabled />
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                Matched Rule
+                            </label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Checkbox checked={currentTransaction['Automated']} disabled />
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                Automated
+                            </label>
+                        </div>
+                    </div>
+
+                    {currentTransaction['billingDate'] && (
+                        <DetailRow icon={Calendar} label="Billing Date" value={currentTransaction['billingDate']} />
+                    )}
+
+                    {cleanNotes && (
+                        <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-md border border-amber-100 dark:border-amber-900/50">
+                            <div className="flex gap-2 items-start">
+                                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-amber-800 dark:text-amber-200">Notes</p>
+                                    <p className="text-xs text-amber-700 dark:text-amber-300 whitespace-pre-wrap">{cleanNotes}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+
+    // Shared Header
+    const DetailHeader = () => (
+         <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <Badge className={statusColor}>{statusText}</Badge>
+            </div>
+            <div>
+                {/* Use proper Title component in parent, this is just content */}
+                <h2 className="text-xl font-bold leading-tight break-words">
+                    {currentTransaction['Transaction Name']}
+                </h2>
+                {currentTransaction.merchantLookup && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                        {currentTransaction.merchantLookup}
+                    </p>
+                )}
+            </div>
+
+            <div className="flex flex-col gap-1">
+                <span className="text-3xl font-extrabold text-primary tracking-tight">
+                    {currency(currentTransaction['Amount'])}
+                </span>
+                {hasForeignData && (
+                    <span className="text-sm text-muted-foreground">
+                        {foreignAmount} {currentTransaction['foreignCurrency'] ? `${currentTransaction['foreignCurrency']} ` : ''}
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+
+    // Shared Footer Buttons
+    const DetailFooterContent = () => (
+        <div className="flex w-full gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => onEdit(currentTransaction)}>
+                Edit
+            </Button>
+            {onDuplicate && (
+                <Button variant="outline" className="flex-1" onClick={() => {
+                    onClose(false);
+                    onDuplicate(currentTransaction);
+                }}>
+                    Duplicate
+                </Button>
+            )}
+            <Button variant="destructive" className="flex-1" onClick={() => onDelete(currentTransaction.id, currentTransaction['Transaction Name'])}>
+                Delete
+            </Button>
+        </div>
+    );
+
+    if (isDesktop) {
+        return (
+            <Sheet open={isOpen} onOpenChange={onClose}>
+                <SheetContent className="w-full sm:max-w-md flex flex-col h-full p-0 gap-0">
+                    {/* Header with Back Button logic */}
+                    <div className="p-6 pb-2">
+                        <Button variant="ghost" size="sm" className="mb-2 -ml-2 text-slate-500 hover:text-slate-900" onClick={() => onClose(false)}>
+                            <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                        </Button>
+                        <SheetHeader>
+                             {/* Re-using logic but inside Sheet primitives */}
+                             <DetailHeader />
+                             {/* Visually hidden Title/Desc if needed for accessiblity compliance, but we rendered them visually above */}
+                             <div className="sr-only">
+                                <SheetTitle>{currentTransaction['Transaction Name']}</SheetTitle>
+                                <SheetDescription>Transaction Details</SheetDescription>
+                             </div>
+                        </SheetHeader>
+                    </div>
+
+                    {/* Scrollable Wrapper */}
+                    <div className="flex-1 overflow-y-auto px-6 pb-6">
+                        <Separator />
+                        <TransactionDetailBody />
+                    </div>
+
+                    {/* Footer fixed at the bottom */}
+                    <SheetFooter className="p-6 border-t bg-white dark:bg-slate-950 gap-2 sm:gap-0 mt-auto">
+                        <DetailFooterContent />
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
+        );
+    }
+
+    return (
+        <Drawer open={isOpen} onOpenChange={onClose}>
+            <DrawerContent className="h-[96%] flex flex-col focus:outline-none">
+                <div className="p-6 pb-2">
+                    <DrawerHeader className="p-0 text-left">
+                         <DetailHeader />
+                          <div className="sr-only">
+                                <DrawerTitle>{currentTransaction['Transaction Name']}</DrawerTitle>
+                                <DrawerDescription>Transaction Details</DrawerDescription>
+                         </div>
+                    </DrawerHeader>
                 </div>
 
-                {/* Footer fixed at the bottom */}
-                <SheetFooter className="p-6 border-t bg-white dark:bg-slate-950 gap-2 sm:gap-0 mt-auto">
-                    <div className="flex w-full gap-2">
-                        <Button variant="outline" className="flex-1" onClick={() => onEdit(currentTransaction)}>
-                            Edit
-                        </Button>
-                        {onDuplicate && (
-                            <Button variant="outline" className="flex-1" onClick={() => {
-                                onClose(false);
-                                onDuplicate(currentTransaction);
-                            }}>
-                                Duplicate
-                            </Button>
-                        )}
-                        <Button variant="destructive" className="flex-1" onClick={() => onDelete(currentTransaction.id, currentTransaction['Transaction Name'])}>
-                            Delete
-                        </Button>
-                    </div>
-                </SheetFooter>
-            </SheetContent>
-        </Sheet>
+                <div className="flex-1 overflow-y-auto px-6 pb-6">
+                    <Separator />
+                    <TransactionDetailBody />
+                </div>
+
+                <DrawerFooter className="p-6 pt-2 border-t bg-white dark:bg-slate-950 gap-2 mt-auto">
+                    <DetailFooterContent />
+                </DrawerFooter>
+            </DrawerContent>
+        </Drawer>
     );
 }

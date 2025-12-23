@@ -1,85 +1,141 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import TransactionDetailSheet from './TransactionDetailSheet';
-import '@testing-library/jest-dom';
+import useMediaQuery from '../../hooks/useMediaQuery';
+
+// Mock dependencies
+jest.mock('../../hooks/useMediaQuery', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
+jest.mock('../ui/sheet', () => ({
+  Sheet: ({ children, open }) => open ? <div data-testid="sheet">{children}</div> : null,
+  SheetContent: ({ children }) => <div data-testid="sheet-content">{children}</div>,
+  SheetHeader: ({ children }) => <div>{children}</div>,
+  SheetTitle: ({ children }) => <div>{children}</div>,
+  SheetDescription: ({ children }) => <div>{children}</div>,
+  SheetFooter: ({ children }) => <div>{children}</div>,
+}));
+
+jest.mock('../ui/drawer', () => ({
+  Drawer: ({ children, open }) => open ? <div data-testid="drawer">{children}</div> : null,
+  DrawerContent: ({ children }) => <div data-testid="drawer-content">{children}</div>,
+  DrawerHeader: ({ children }) => <div>{children}</div>,
+  DrawerTitle: ({ children }) => <div>{children}</div>,
+  DrawerDescription: ({ children }) => <div>{children}</div>,
+  DrawerFooter: ({ children }) => <div>{children}</div>,
+}));
+
+jest.mock('../../lib/utils', () => ({
+    cn: (...args) => args.join(' '),
+}));
 
 // Mock Lucide icons
 jest.mock('lucide-react', () => ({
-    Calendar: () => <span data-testid="icon-calendar" />,
-    CreditCard: () => <span data-testid="icon-credit-card" />,
-    Tag: () => <span data-testid="icon-tag" />,
-    Store: () => <span data-testid="icon-store" />,
-    Layers: () => <span data-testid="icon-layers" />,
-    FileText: () => <span data-testid="icon-file-text" />,
-    Receipt: () => <span data-testid="icon-receipt" />,
-    Globe: () => <span data-testid="icon-globe" />,
-    AlertCircle: () => <span data-testid="icon-alert-circle" />,
-    CheckCircle2: () => <span data-testid="icon-check-circle" />,
-    Check: () => <span data-testid="icon-check" />,
-    Percent: () => <span data-testid="icon-percent" />,
-    ArrowLeft: () => <span data-testid="icon-arrow-left" />,
+  Calendar: () => <span data-testid="icon-calendar" />,
+  CreditCard: () => <span data-testid="icon-credit-card" />,
+  Tag: () => <span data-testid="icon-tag" />,
+  Store: () => <span data-testid="icon-store" />,
+  Layers: () => <span data-testid="icon-layers" />,
+  FileText: () => <span data-testid="icon-file-text" />,
+  Receipt: () => <span data-testid="icon-receipt" />,
+  Globe: () => <span data-testid="icon-globe" />,
+  AlertCircle: () => <span data-testid="icon-alert-circle" />,
+  CheckCircle2: () => <span data-testid="icon-check-circle" />,
+  Percent: () => <span data-testid="icon-percent" />,
+  ArrowLeft: () => <span data-testid="icon-arrow-left" />,
 }));
 
-// Mock Shadcn Sheet components to just render children immediately
-jest.mock('../ui/sheet', () => ({
-    Sheet: ({ children, open }) => open ? <div>{children}</div> : null,
-    SheetContent: ({ children }) => <div>{children}</div>,
-    SheetHeader: ({ children }) => <div>{children}</div>,
-    SheetTitle: ({ children }) => <div>{children}</div>,
-    SheetDescription: ({ children }) => <div>{children}</div>,
-    SheetFooter: ({ children }) => <div>{children}</div>,
-}));
+const mockTransaction = {
+  id: 'tx-1',
+  'Transaction Name': 'Test Transaction',
+  'Amount': 100000,
+  grossAmount: 100000,
+  estCashback: 1000,
+  notes: '',
+};
 
 describe('TransactionDetailSheet', () => {
-    const mockTransaction = {
-        id: 'tx1',
-        'Transaction Name': 'Test Transaction',
-        'Amount': 80000, // Final
-        'grossAmount': 100000, // Gross
-        'Transaction Date': '2023-10-01',
-        'Card': ['card1'],
-        'notes': 'Discounts: [{"description": "Promo", "amount": 20000}]',
-        'otherDiscounts': 20000,
+  beforeEach(() => {
+    // Default to desktop view
+    useMediaQuery.mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders Gross Amount in Fees section when no foreign data', () => {
+    const transaction = {
+      ...mockTransaction,
+      grossAmount: 100000,
+      notes: 'Fees: [{"description": "Test Fee", "amount": 5000}]',
     };
 
-    test('renders Gross Amount in Discounts section', () => {
-        render(
-            <TransactionDetailSheet
-                transaction={mockTransaction}
-                isOpen={true}
-                onClose={() => {}}
-                currencyFn={(n) => `${n} VND`}
-            />
-        );
+    render(
+      <TransactionDetailSheet
+        transaction={transaction}
+        isOpen={true}
+        onClose={() => {}}
+      />
+    );
 
-        // Look for Gross Amount text
-        expect(screen.getByText('Gross Amount')).toBeInTheDocument();
-        expect(screen.getByText('100000 VND')).toBeInTheDocument();
-    });
+    // Should see "Gross Amount" in the fees section
+    expect(screen.getByText('Gross Amount')).toBeInTheDocument();
+    // Should NOT see "Amount (after conversion)"
+    expect(screen.queryByText('Amount (after conversion)')).not.toBeInTheDocument();
+  });
 
-    test('renders Gross Amount (VND) in International section', () => {
-        const intlTransaction = {
-            ...mockTransaction,
-            notes: '',
-            otherDiscounts: 0,
-            foreignCurrencyAmount: 10,
-            foreignCurrency: 'USD',
-            exchangeRate: 23000,
-            conversionFee: 5000,
-            'grossAmount': 230000,
-            'Amount': 235000 // Gross + Fee
-        };
+  it('renders Amount (after conversion) in Fees section when has foreign data', () => {
+    const transaction = {
+      ...mockTransaction,
+      grossAmount: 100000,
+      foreignCurrencyAmount: 10,
+      foreignCurrency: 'USD',
+      conversionFee: 2000,
+      notes: 'Fees: [{"description": "Test Fee", "amount": 5000}]',
+    };
 
-        render(
-            <TransactionDetailSheet
-                transaction={intlTransaction}
-                isOpen={true}
-                onClose={() => {}}
-                currencyFn={(n) => `${n} VND`}
-            />
-        );
+    render(
+      <TransactionDetailSheet
+        transaction={transaction}
+        isOpen={true}
+        onClose={() => {}}
+      />
+    );
 
-        expect(screen.getByText('Gross Amount (VND)')).toBeInTheDocument();
-        expect(screen.getByText('230000 VND')).toBeInTheDocument();
-    });
+    // Should see "Amount (after conversion)"
+    expect(screen.getByText('Amount (after conversion)')).toBeInTheDocument();
+  });
+
+  it('renders mobile Drawer when isDesktop is false', () => {
+    useMediaQuery.mockReturnValue(false); // Mobile
+
+    render(
+      <TransactionDetailSheet
+        transaction={mockTransaction}
+        isOpen={true}
+        onClose={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId('drawer')).toBeInTheDocument();
+    expect(screen.queryByTestId('sheet')).not.toBeInTheDocument();
+  });
+
+  it('renders Desktop Sheet when isDesktop is true', () => {
+    useMediaQuery.mockReturnValue(true); // Desktop
+
+    render(
+      <TransactionDetailSheet
+        transaction={mockTransaction}
+        isOpen={true}
+        onClose={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId('sheet')).toBeInTheDocument();
+    expect(screen.queryByTestId('drawer')).not.toBeInTheDocument();
+  });
 });
