@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "../../ui/table";
@@ -9,7 +9,8 @@ import { Checkbox } from "../../ui/checkbox";
 import {
     Check, Trash2, FilePenLine, ChevronDown, ChevronUp,
     AlertTriangle, ArrowUp, ArrowDown, Search,
-    MoreHorizontal, Loader2, Filter, Layers, X, Wand2
+    MoreHorizontal, Loader2, Filter, Layers, X, Wand2,
+    CreditCard, ArrowUpDown
 } from "lucide-react";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
@@ -46,7 +47,8 @@ export default function TransactionReview({
         status: 'all'
     });
     // FIX 2 & 3: Grouping State
-    const [groupBy, setGroupBy] = useState('none'); // 'none', 'card', 'status', 'date'
+    const [groupBy, setGroupBy] = useState('date'); // Default to date
+    const [sortByValue, setSortByValue] = useState('Newest');
 
     // Bulk Edit State
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
@@ -57,6 +59,14 @@ export default function TransactionReview({
     const [processingIds, setProcessingIds] = useState(new Set());
     // NEW: Manual Review Needed IDs
     const [manualReviewIds, setManualReviewIds] = useState(new Set());
+
+    // Sync sortConfig with sortByValue
+    useEffect(() => {
+        if (sortConfig.key === 'Transaction Date' && sortConfig.direction === 'descending') setSortByValue('Newest');
+        else if (sortConfig.key === 'Transaction Date' && sortConfig.direction === 'ascending') setSortByValue('Oldest');
+        else if (sortConfig.key === 'Amount' && sortConfig.direction === 'descending') setSortByValue('Amount: High');
+        else if (sortConfig.key === 'Amount' && sortConfig.direction === 'ascending') setSortByValue('Amount: Low');
+    }, [sortConfig]);
 
     // --- Helper: Format MCC ---
     const formatMcc = (code) => {
@@ -164,7 +174,10 @@ export default function TransactionReview({
         });
 
         // Sort keys to make groups appear in order (optional)
-        return Object.keys(groups).sort().reduce((obj, key) => { 
+        return Object.keys(groups).sort((a, b) => {
+             if (groupBy === 'date') return new Date(b) - new Date(a);
+             return a.localeCompare(b);
+        }).reduce((obj, key) => {
             obj[key] = groups[key]; 
             return obj;
         }, {});
@@ -179,6 +192,14 @@ export default function TransactionReview({
             direction = 'descending';
         }
         setSortConfig({ key, direction });
+    };
+
+    const handleSortChange = (val) => {
+        setSortByValue(val);
+        if (val === 'Newest') setSortConfig({ key: 'Transaction Date', direction: 'descending' });
+        else if (val === 'Oldest') setSortConfig({ key: 'Transaction Date', direction: 'ascending' });
+        else if (val === 'Amount: High') setSortConfig({ key: 'Amount', direction: 'descending' });
+        else if (val === 'Amount: Low') setSortConfig({ key: 'Amount', direction: 'ascending' });
     };
 
     const handleSelectAll = () => {
@@ -436,9 +457,156 @@ export default function TransactionReview({
         </div>
     );
 
+    const renderMobileFilters = () => {
+        return (
+            <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm px-4 py-3 shadow-sm border-b border-slate-100/50 dark:border-slate-800/50">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 py-1 select-none no-scrollbar">
+                    {/* Search */}
+                    <div className="relative flex items-center min-w-[140px]">
+                        <Search className="absolute left-3 w-3.5 h-3.5 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={filters.search}
+                            onChange={(e) => setFilters({...filters, search: e.target.value})}
+                            className="w-full h-[30px] pl-8 pr-3 bg-slate-100 dark:bg-slate-900 rounded-full text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-500 transition-all border-none"
+                        />
+                        {filters.search && (
+                            <button onClick={() => setFilters({...filters, search: ''})} className="absolute right-2 p-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500">
+                                <X className="w-3 h-3" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Card Filter Pill */}
+                    <Select value={filters.card} onValueChange={(v) => setFilters({...filters, card: v})}>
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                             <div className={cn(
+                                "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
+                                filters.card !== 'all'
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm dark:bg-slate-100 dark:text-slate-900'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-400 dark:border-slate-800'
+                            )}>
+                                <CreditCard className="w-3.5 h-3.5" />
+                                <span>Card</span>
+                                {filters.card !== 'all' && (
+                                    <>
+                                        <span className="opacity-60">|</span>
+                                        <span className="font-semibold max-w-[80px] truncate">
+                                            {cards.find(c => c.id === filters.card)?.name || 'Selected'}
+                                        </span>
+                                    </>
+                                )}
+                                <ChevronDown className={cn("w-3 h-3 opacity-50", filters.card !== 'all' ? 'text-white dark:text-slate-900' : '')} />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Cards</SelectItem>
+                            {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
+                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Status Filter Pill */}
+                    <Select value={filters.status} onValueChange={(v) => setFilters({...filters, status: v})}>
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                            <div className={cn(
+                                "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
+                                filters.status !== 'all'
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm dark:bg-slate-100 dark:text-slate-900'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-400 dark:border-slate-800'
+                            )}>
+                                <Filter className="w-3.5 h-3.5" />
+                                <span>Status</span>
+                                {filters.status !== 'all' && (
+                                    <>
+                                        <span className="opacity-60">|</span>
+                                        <span className="font-semibold max-w-[80px] truncate">
+                                            {filters.status === 'automated' ? 'Quick Approve' :
+                                             filters.status === 'missing' ? 'Missing Info' :
+                                             filters.status === 'mismatch' ? 'Mismatch' : filters.status}
+                                        </span>
+                                    </>
+                                )}
+                                <ChevronDown className={cn("w-3 h-3 opacity-50", filters.status !== 'all' ? 'text-white dark:text-slate-900' : '')} />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="automated">Quick Approve</SelectItem>
+                            <SelectItem value="missing">Missing Info</SelectItem>
+                            <SelectItem value="mismatch">Mismatch</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                     {/* Group By Pill */}
+                     <Select value={groupBy} onValueChange={setGroupBy}>
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                            <div className={cn(
+                                "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
+                                groupBy !== 'none'
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm dark:bg-slate-100 dark:text-slate-900'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-400 dark:border-slate-800'
+                            )}>
+                                <Layers className="w-3.5 h-3.5" />
+                                <span>Group</span>
+                                {groupBy !== 'none' && (
+                                    <>
+                                        <span className="opacity-60">|</span>
+                                        <span className="font-semibold max-w-[80px] truncate">{groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</span>
+                                    </>
+                                )}
+                                <ChevronDown className={cn("w-3 h-3 opacity-50", groupBy !== 'none' ? 'text-white dark:text-slate-900' : '')} />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">No Grouping</SelectItem>
+                            <SelectItem value="card">Card</SelectItem>
+                            <SelectItem value="status">Status</SelectItem>
+                            <SelectItem value="date">Date</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {/* Sort Pill */}
+                    <Select value={sortByValue} onValueChange={handleSortChange}>
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                            <div className={cn(
+                                "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
+                                sortByValue !== 'Newest' && sortByValue !== 'Custom'
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm dark:bg-slate-100 dark:text-slate-900'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-400 dark:border-slate-800'
+                            )}>
+                                <ArrowUpDown className="w-3.5 h-3.5" />
+                                <span>Sort</span>
+                                {sortByValue !== 'Newest' && sortByValue !== 'Custom' && (
+                                    <>
+                                        <span className="opacity-60">|</span>
+                                        <span className="font-semibold max-w-[80px] truncate">{sortByValue}</span>
+                                    </>
+                                )}
+                                <ChevronDown className={cn("w-3 h-3 opacity-50", sortByValue !== 'Newest' && sortByValue !== 'Custom' ? 'text-white dark:text-slate-900' : '')} />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Newest">Newest</SelectItem>
+                            <SelectItem value="Oldest">Oldest</SelectItem>
+                            <SelectItem value="Amount: High">Amount: High</SelectItem>
+                            <SelectItem value="Amount: Low">Amount: Low</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+        );
+    }
+
     // 3. Review Needed State (Has transactions)
     return (
-        <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 overflow-hidden transition-colors relative">
+        <div className={cn(
+            "border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 transition-colors relative",
+            // Remove overflow-hidden on mobile when open to allow sticky header to work
+            isOpen && !isDesktop ? "" : "overflow-hidden"
+        )}>
             {/* Header */}
             <div
                 className="p-4 bg-orange-50 dark:bg-orange-950/30 border-b border-orange-100 dark:border-orange-900/50 flex justify-between items-center cursor-pointer select-none transition-colors"
@@ -461,75 +629,75 @@ export default function TransactionReview({
             {/* Content */}
             {isOpen && (
                 <div className="p-0">
-                    {/* Toolbar */}
-                    <div className="p-4 border-b dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center transition-colors">
-                        <div className="flex flex-wrap gap-2 items-center w-full xl:w-auto">
-                            {/* Search */}
-                            <div className="relative w-full md:w-48">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search..."
-                                    className="pl-8 h-9 bg-white dark:bg-slate-900"
-                                    value={filters.search}
-                                    onChange={(e) => setFilters({...filters, search: e.target.value})}
-                                />
+                    {/* Toolbar (Desktop) */}
+                    {isDesktop && (
+                        <div className="p-4 border-b dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center transition-colors">
+                            <div className="flex flex-wrap gap-2 items-center w-full xl:w-auto">
+                                {/* Search */}
+                                <div className="relative w-full md:w-48">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search..."
+                                        className="pl-8 h-9 bg-white dark:bg-slate-900"
+                                        value={filters.search}
+                                        onChange={(e) => setFilters({...filters, search: e.target.value})}
+                                    />
+                                </div>
+
+                                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
+
+                                {/* Filter: Card */}
+                                <Select value={filters.card} onValueChange={(v) => setFilters({...filters, card: v})}>
+                                    <SelectTrigger className="w-[160px] h-9 bg-white dark:bg-slate-900">
+                                        <div className="flex items-center gap-2 truncate">
+                                            <Filter className="h-3.5 w-3.5 text-muted-foreground"/>
+                                            <span className="truncate">{filters.card === 'all' ? 'All Cards' : cards.find(c => c.id === filters.card)?.name || 'Selected'}</span>
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Cards</SelectItem>
+                                        {cards.map(card => (
+                                            <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                {/* Filter: Status */}
+                                <Select value={filters.status} onValueChange={(v) => setFilters({...filters, status: v})}>
+                                    <SelectTrigger className="w-[180px] h-9 bg-white dark:bg-slate-900">
+                                        <div className="flex items-center gap-2">
+                                            <Filter className="h-3.5 w-3.5 text-muted-foreground"/>
+                                            <SelectValue placeholder="Status" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Statuses</SelectItem>
+                                        <SelectItem value="automated">Quick Approve</SelectItem>
+                                        <SelectItem value="missing">Missing Info</SelectItem>
+                                        <SelectItem value="mismatch">Mismatch</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
+
+                                {/* Group By */}
+                                <Select value={groupBy} onValueChange={setGroupBy}>
+                                    <SelectTrigger className="w-[180px] h-9 bg-white dark:bg-slate-900">
+                                        <div className="flex items-center gap-2">
+                                            <Layers className="h-3.5 w-3.5 text-muted-foreground"/>
+                                            <span className="truncate">Group: {groupBy === 'none' ? 'None' : groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</span>
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">No Grouping</SelectItem>
+                                        <SelectItem value="card">Group by Card</SelectItem>
+                                        <SelectItem value="status">Group by Status</SelectItem>
+                                        <SelectItem value="date">Group by Date</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
-                            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
-
-                            {/* Filter: Card (Added) */}
-                            <Select value={filters.card} onValueChange={(v) => setFilters({...filters, card: v})}>
-                                <SelectTrigger className="w-[160px] h-9 bg-white dark:bg-slate-900">
-                                    <div className="flex items-center gap-2 truncate">
-                                        <Filter className="h-3.5 w-3.5 text-muted-foreground"/>
-                                        <span className="truncate">{filters.card === 'all' ? 'All Cards' : cards.find(c => c.id === filters.card)?.name || 'Selected'}</span>
-                                    </div>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Cards</SelectItem>
-                                    {cards.map(card => (
-                                        <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-
-                            {/* Filter: Status */}
-                            <Select value={filters.status} onValueChange={(v) => setFilters({...filters, status: v})}>
-                                <SelectTrigger className="w-[180px] h-9 bg-white dark:bg-slate-900">
-                                     <div className="flex items-center gap-2">
-                                        <Filter className="h-3.5 w-3.5 text-muted-foreground"/>
-                                        <SelectValue placeholder="Status" />
-                                    </div>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Statuses</SelectItem>
-                                    <SelectItem value="automated">Quick Approve</SelectItem>
-                                    <SelectItem value="missing">Missing Info</SelectItem>
-                                    <SelectItem value="mismatch">Mismatch</SelectItem>
-                                </SelectContent>
-                            </Select>
-
-                            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
-
-                            {/* Group By (Added) */}
-                            <Select value={groupBy} onValueChange={setGroupBy}>
-                                <SelectTrigger className="w-[180px] h-9 bg-white dark:bg-slate-900">
-                                    <div className="flex items-center gap-2">
-                                        <Layers className="h-3.5 w-3.5 text-muted-foreground"/>
-                                        <span className="truncate">Group: {groupBy === 'none' ? 'None' : groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</span>
-                                    </div>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">No Grouping</SelectItem>
-                                    <SelectItem value="card">Group by Card</SelectItem>
-                                    <SelectItem value="status">Group by Status</SelectItem>
-                                    <SelectItem value="date">Group by Date</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Bulk Actions (Desktop Only - Mobile has sticky bar) */}
-                        {isDesktop && (
+                            {/* Bulk Actions */}
                             <div className="flex items-center gap-2 w-full xl:w-auto justify-end">
                                 {selectedIds.size > 0 && (
                                     <>
@@ -569,8 +737,11 @@ export default function TransactionReview({
                                     </>
                                 )}
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
+
+                    {/* Mobile Filters */}
+                    {!isDesktop && renderMobileFilters()}
 
                     {/* Mobile Bulk Bar */}
                     {!isDesktop && selectedIds.size > 0 && renderBulkBar()}
