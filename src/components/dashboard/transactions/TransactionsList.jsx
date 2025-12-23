@@ -14,7 +14,8 @@ import {
     Settings2,
     CreditCard,
     ArrowUpDown,
-    ChevronDown
+    ChevronDown,
+    Eye
 } from "lucide-react";
 
 import { cn } from "../../../lib/utils";
@@ -74,7 +75,7 @@ export default function TransactionsList({
     onEditTransaction,
     onDuplicateTransaction,
     onBulkDelete,
-    onViewDetails,
+    onViewDetails = () => {},
     fmtYMShortFn
 }) {
     const [searchTerm, setSearchTerm] = useState("");
@@ -83,7 +84,7 @@ export default function TransactionsList({
     const [visibleCount, setVisibleCount] = useState(15);
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
     const [selectedIds, setSelectedIds] = useState([]);
-    const [groupBy, setGroupBy] = useState("none");
+    const [groupBy, setGroupBy] = useState("date");
     const [sortByValue, setSortByValue] = useState('Newest');
 
     const [visibleColumns, setVisibleColumns] = useState({
@@ -98,6 +99,7 @@ export default function TransactionsList({
         'MCC Code': false,
         'Notes': false,
         'Cashback Rate': true,
+        'Paid for': false,
     });
 
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
@@ -496,6 +498,9 @@ export default function TransactionsList({
                                 {visibleColumns['Cashback Rate'] && (
                                     <TableHead className="text-center"><Button variant="ghost" onClick={() => requestSort('rate')} className="px-2">Rate <SortIcon columnKey="rate" /></Button></TableHead>
                                 )}
+                                {visibleColumns['Paid for'] && (
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Paid for')} className="px-2">Paid for <SortIcon columnKey="Paid for" /></Button></TableHead>
+                                )}
                                 <TableHead className="w-[100px] text-center">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -591,6 +596,12 @@ export default function TransactionsList({
                                                         </TableCell>
                                                     )}
 
+                                                    {visibleColumns['Paid for'] && (
+                                                        <TableCell>
+                                                            {tx['Paid for'] ? <Badge variant="secondary">{tx['Paid for']}</Badge> : ''}
+                                                        </TableCell>
+                                                    )}
+
                                                     <TableCell className="text-center">
                                                          <div className="md:hidden">
                                                             <DropdownMenu>
@@ -619,6 +630,7 @@ export default function TransactionsList({
                                                             </DropdownMenu>
                                                         </div>
                                                         <div className="hidden md:flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onViewDetails(tx)}><Eye className="h-4 w-4" /></Button>
                                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
                                                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
                                                         </div>
@@ -1027,7 +1039,9 @@ export default function TransactionsList({
                                         <DropdownMenuContent align="end" className="w-[180px]">
                                             <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
                                             <DropdownMenuSeparator />
-                                            {Object.keys(visibleColumns).map((column) => (
+                                            {Object.keys(visibleColumns)
+                                                .filter(column => column !== 'Merchant')
+                                                .map((column) => (
                                                 <DropdownMenuItem key={column} onSelect={(e) => e.preventDefault()}>
                                                     <Checkbox
                                                         checked={visibleColumns[column]}
