@@ -14,7 +14,8 @@ import {
     Settings2,
     CreditCard,
     ArrowUpDown,
-    ChevronDown
+    ChevronDown,
+    Eye
 } from "lucide-react";
 
 import { cn } from "../../../lib/utils";
@@ -89,7 +90,6 @@ export default function TransactionsList({
     const [visibleColumns, setVisibleColumns] = useState({
         'Transaction Date': true,
         'Transaction Name': true,
-        'Merchant': false,
         'Amount': true,
         'Estimated Cashback': true,
         'Card Name': true,
@@ -469,9 +469,6 @@ export default function TransactionsList({
                                 {visibleColumns['Transaction Name'] && (
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
                                 )}
-                                {visibleColumns['Merchant'] && (
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('merchantLookup')} className="px-2">Merchant <SortIcon columnKey="merchantLookup" /></Button></TableHead>
-                                )}
                                 {visibleColumns['Amount'] && (
                                     <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
                                 )}
@@ -557,10 +554,6 @@ export default function TransactionsList({
                                                         </TableCell>
                                                     )}
 
-                                                    {visibleColumns['Merchant'] && (
-                                                        <TableCell className="text-slate-500">{tx.merchantLookup || ''}</TableCell>
-                                                    )}
-
                                                     {visibleColumns['Amount'] && <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>}
 
                                                     {visibleColumns['Estimated Cashback'] && <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>}
@@ -619,6 +612,7 @@ export default function TransactionsList({
                                                             </DropdownMenu>
                                                         </div>
                                                         <div className="hidden md:flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onViewDetails(tx)}><Eye className="h-4 w-4" /></Button>
                                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
                                                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
                                                         </div>
@@ -715,9 +709,6 @@ export default function TransactionsList({
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
                                 )}
 
-                                {visibleColumns['Merchant'] && (
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('merchantLookup')} className="px-2">Merchant <SortIcon columnKey="merchantLookup" /></Button></TableHead>
-                                )}
 
                                 {visibleColumns['Amount'] && (
                                     <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
@@ -812,9 +803,6 @@ export default function TransactionsList({
                                                         </TableCell>
                                                     )}
 
-                                                    {visibleColumns['Merchant'] && (
-                                                        <TableCell className="text-slate-500">{tx.merchantLookup || ''}</TableCell>
-                                                    )}
 
                                                     {visibleColumns['Amount'] && <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>}
 
