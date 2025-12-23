@@ -262,6 +262,12 @@ export default function TransactionDetailSheet({
                                             <span className="text-muted-foreground">Exchange Rate</span>
                                             <span className="font-medium">{displayExchangeRate.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                                         </div>
+                                        {currentTransaction.grossAmount !== undefined && (
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Gross Amount (VND)</span>
+                                                <span className="font-medium">{currency(currentTransaction.grossAmount)}</span>
+                                            </div>
+                                        )}
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">% Conversion Fee</span>
                                             <span className="font-medium">{displayFeePercent.toFixed(2)}%</span>
@@ -275,6 +281,13 @@ export default function TransactionDetailSheet({
 
                                 {(discounts.length > 0 || fees.length > 0 || currentTransaction.otherDiscounts > 0 || currentTransaction.otherFees > 0) && (
                                     <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-3 border">
+                                        {currentTransaction.grossAmount !== undefined && (
+                                            <div className="flex justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                                                <span className="text-muted-foreground">Gross Amount</span>
+                                                <span className="font-medium">{currency(currentTransaction.grossAmount)}</span>
+                                            </div>
+                                        )}
+
                                         {/* Display Parsed Discounts */}
                                         {discounts.length > 0 && (
                                             <div className="space-y-1">

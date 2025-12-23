@@ -40,7 +40,8 @@ const mapTransaction = (tx) => {
     return {
         id: tx.id,
         'Transaction Name': props['Transaction Name'],
-        'Amount': props['Amount'],
+        'Amount': props['Final Amount'],
+        'grossAmount': props['Amount'],
         'Transaction Date': props['Transaction Date'],
         'Card': props['Card'],
         'Category': props['Category'],

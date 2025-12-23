@@ -78,7 +78,9 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             }
 
             setMerchant(initialMerchant || '');
-            setAmount((sourceData['Amount'] || '').toLocaleString('en-US'));
+            // Prioritize grossAmount (Base Amount) for editing, fall back to Amount (Final Amount)
+            const baseAmount = sourceData['grossAmount'] !== undefined ? sourceData['grossAmount'] : sourceData['Amount'];
+            setAmount((baseAmount || '').toLocaleString('en-US'));
             setDate(sourceData['Transaction Date'] || new Date().toISOString().slice(0, 10));
             setCardId(sourceData['Card'] ? String(sourceData['Card'][0]) : '');
             setApplicableRuleId(sourceData['Applicable Rule'] ? String(sourceData['Applicable Rule'][0]) : '');
