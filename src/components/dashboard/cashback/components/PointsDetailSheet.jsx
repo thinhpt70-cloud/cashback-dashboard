@@ -1,14 +1,14 @@
 import React from 'react';
 import {
-    Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter
+    Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription
 } from "@/components/ui/sheet";
 import {
-    Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose
+    Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit2, AlertCircle } from "lucide-react";
+import { Edit2 } from "lucide-react";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 import { fmtYMShort } from "@/lib/formatters";
