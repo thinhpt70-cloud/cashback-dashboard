@@ -9,7 +9,7 @@ import { Checkbox } from "../../ui/checkbox";
 import {
     Check, Trash2, FilePenLine, ChevronDown, ChevronUp,
     AlertTriangle, ArrowUp, ArrowDown, Search,
-    MoreHorizontal, Loader2, Filter, Layers, X
+    MoreHorizontal, Loader2, Filter, Layers, X, Wand2
 } from "lucide-react";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
@@ -21,6 +21,7 @@ import { cn } from "../../../lib/utils";
 import { toast } from 'sonner';
 import BulkEditDialog from '../dialogs/BulkEditDialog';
 import BulkApproveDialog from '../../dashboard/dialogs/BulkApproveDialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../ui/tooltip";
 
 export default function TransactionReview({
     transactions,
@@ -51,6 +52,11 @@ export default function TransactionReview({
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
     const [isBulkApproveDialogOpen, setIsBulkApproveDialogOpen] = useState(false); // New state
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // NEW: Processing IDs to track individual loading states
+    const [processingIds, setProcessingIds] = useState(new Set());
+    // NEW: Manual Review Needed IDs
+    const [manualReviewIds, setManualReviewIds] = useState(new Set());
 
     // --- Helper: Format MCC ---
     const formatMcc = (code) => {
@@ -193,46 +199,129 @@ export default function TransactionReview({
         setSelectedIds(newSelected);
     };
 
-    const handleQuickApprove = async (txsToApprove) => {
-        if (txsToApprove.length === 0) return;
+    const handleSingleProcess = async (tx) => {
+        // STATE 1: ALREADY FAILED SMART MATCH -> OPEN DIALOG
+        if (manualReviewIds.has(tx.id)) {
+            onEditTransaction(tx);
+            return;
+        }
 
-        const ids = txsToApprove.map(t => t.id);
+        const newProcessingIds = new Set(processingIds);
+        newProcessingIds.add(tx.id);
+        setProcessingIds(newProcessingIds);
 
-        // CASE 1: Single Transaction (Automatic)
-        if (ids.length === 1) {
-            setIsProcessing(true);
-            try {
-                const res = await fetch('/api/transactions/bulk-approve', {
+        try {
+            // STATE 2: QUICK APPROVE (Green Status) -> FINALIZE
+            if (tx.status === 'Quick Approve') {
+                const res = await fetch('/api/transactions/finalize', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ids })
+                    body: JSON.stringify({ ids: [tx.id] })
                 });
-
-                if (!res.ok) throw new Error("Approval failed");
-
-                const updatedTxs = await res.json();
+                if (!res.ok) throw new Error("Finalize failed");
+                toast.success("Transaction finalized.");
                 onRefresh();
-
-                const newSelected = new Set(selectedIds);
-                ids.forEach(id => newSelected.delete(id));
-                setSelectedIds(newSelected);
-
-                // Check status of single item
-                if (updatedTxs && updatedTxs[0] && updatedTxs[0].approvalStatus === 'skipped') {
-                    toast.warning(`Renamed only: ${updatedTxs[0].approvalReason}`);
-                } else {
-                    toast.success(`Approved transaction.`);
-                }
-            } catch (error) {
-                console.error(error);
-                toast.error("Failed to approve transaction.");
-            } finally {
-                setIsProcessing(false);
             }
+            // STATE 3: REVIEW NEEDED -> SMART SEARCH
+            else {
+                const res = await fetch('/api/transactions/analyze-approval', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: [tx.id] })
+                });
+                if (!res.ok) throw new Error("Analysis failed");
+                const analysis = await res.json();
+                const result = analysis[0];
+
+                if (result.status === 'approved') {
+                    // APPLY THE MATCH
+                    const applyRes = await fetch('/api/transactions/bulk-approve', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ items: [{ id: result.id, updates: result.updates }] })
+                    });
+                    if (!applyRes.ok) throw new Error("Apply failed");
+                    toast.success("Match found and applied.");
+                    onRefresh();
+                } else {
+                    // NO MATCH FOUND
+                    setManualReviewIds(prev => new Set(prev).add(tx.id));
+                    toast.info("No smart match found. Click again to edit manually.");
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Process failed.");
+        } finally {
+            setProcessingIds(prev => {
+                const next = new Set(prev);
+                next.delete(tx.id);
+                return next;
+            });
         }
-        // CASE 2: Multiple Transactions (Open Dialog)
-        else {
-            setIsBulkApproveDialogOpen(true);
+    };
+
+    const handleBulkProcess = async () => {
+        const txsToProcess = filteredData.filter(tx => selectedIds.has(tx.id));
+        if (txsToProcess.length === 0) return;
+
+        setIsProcessing(true);
+        try {
+            const quickApproveIds = txsToProcess.filter(tx => tx.status === 'Quick Approve').map(t => t.id);
+            const otherIds = txsToProcess.filter(tx => tx.status !== 'Quick Approve').map(t => t.id);
+            let successCount = 0;
+            const newManualIds = new Set(manualReviewIds);
+
+            // 1. Process Quick Approves (Finalize)
+            if (quickApproveIds.length > 0) {
+                await fetch('/api/transactions/finalize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: quickApproveIds })
+                });
+                successCount += quickApproveIds.length;
+            }
+
+            // 2. Process Others (Analyze -> Apply if matched)
+            if (otherIds.length > 0) {
+                const res = await fetch('/api/transactions/analyze-approval', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: otherIds })
+                });
+                const analysis = await res.json();
+
+                const toApply = analysis.filter(a => a.status === 'approved');
+                const toReview = analysis.filter(a => a.status !== 'approved');
+
+                if (toApply.length > 0) {
+                     await fetch('/api/transactions/bulk-approve', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ items: toApply.map(a => ({ id: a.id, updates: a.updates })) })
+                    });
+                    successCount += toApply.length;
+                }
+
+                // Add failed ones to manual review list
+                toReview.forEach(a => newManualIds.add(a.id));
+            }
+
+            toast.success(`Processed ${txsToProcess.length} items: ${successCount} finalized, ${txsToProcess.length - successCount} require manual review.`);
+
+            setManualReviewIds(newManualIds);
+            onRefresh();
+            // Deselect successfully processed ones, keep failed ones selected
+            // We can assume successCount corresponds to those removed from the list by onRefresh (eventually),
+            // but for immediate UI feedback we reset selection or let the user see the remaining ones.
+            // Let's keep the failed ones selected to help user find them.
+            // The ones that were finalized/applied will disappear from 'filteredData' after refresh.
+
+        } catch (error) {
+            console.error(error);
+            toast.error("Bulk process failed.");
+        } finally {
+            setIsProcessing(false);
         }
     };
 
@@ -333,12 +422,12 @@ export default function TransactionReview({
                  <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleQuickApprove(filteredData.filter(tx => selectedIds.has(tx.id)))}
+                    onClick={handleBulkProcess}
                     disabled={isProcessing}
                     className="bg-slate-800 border-slate-700 text-emerald-400 hover:text-emerald-300 hover:bg-slate-700"
                 >
-                    <Check className="mr-2 h-3.5 w-3.5" />
-                    Approve
+                    {isProcessing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <Wand2 className="mr-2 h-3.5 w-3.5" />}
+                    Smart Process
                 </Button>
                 <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={isProcessing} className="w-full sm:w-auto">
                     <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -450,12 +539,12 @@ export default function TransactionReview({
                                         <Button
                                             size="sm"
                                             variant="outline"
-                                            onClick={() => handleQuickApprove(filteredData.filter(tx => selectedIds.has(tx.id)))}
+                                            onClick={handleBulkProcess}
                                             disabled={isProcessing}
                                             className="bg-white dark:bg-slate-900 text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:bg-emerald-50"
                                         >
-                                            <Check className="mr-2 h-3.5 w-3.5" />
-                                            Auto Approve
+                                            {isProcessing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <Wand2 className="mr-2 h-3.5 w-3.5" />}
+                                            Smart Process
                                         </Button>
                                         <Button
                                             size="sm"
@@ -597,16 +686,38 @@ export default function TransactionReview({
                                                             </TableCell>
                                                             <TableCell className="text-right">
                                                                 <div className="flex items-center justify-end gap-1">
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                                                        onClick={() => handleQuickApprove([tx])}
-                                                                        title="Auto Approve"
-                                                                        disabled={isProcessing}
-                                                                    >
-                                                                        <Check className="h-4 w-4" />
-                                                                    </Button>
+                                                                    <TooltipProvider>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger asChild>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    aria-label={tx.status === 'Quick Approve' ? "Quick Approve" : manualReviewIds.has(tx.id) ? "Edit Manually" : "Smart Search"}
+                                                                                    className={cn(
+                                                                                        "h-8 w-8 transition-colors",
+                                                                                        tx.status === 'Quick Approve' ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" :
+                                                                                        (manualReviewIds.has(tx.id) ? "text-orange-500 hover:text-orange-600 hover:bg-orange-50" : "text-blue-500 hover:text-blue-600 hover:bg-blue-50")
+                                                                                    )}
+                                                                                    onClick={() => handleSingleProcess(tx)}
+                                                                                    disabled={processingIds.has(tx.id)}
+                                                                                >
+                                                                                    {processingIds.has(tx.id) ? (
+                                                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                                                    ) : tx.status === 'Quick Approve' ? (
+                                                                                        <Check className="h-4 w-4" />
+                                                                                    ) : manualReviewIds.has(tx.id) ? (
+                                                                                        <FilePenLine className="h-4 w-4" />
+                                                                                    ) : (
+                                                                                        <Wand2 className="h-4 w-4" />
+                                                                                    )}
+                                                                                </Button>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                {tx.status === 'Quick Approve' ? "Quick Approve" : manualReviewIds.has(tx.id) ? "Edit Manually" : "Smart Search"}
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
+
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="icon"
@@ -726,12 +837,30 @@ export default function TransactionReview({
                                                             </Badge>
 
                                                             <div className="flex items-center gap-2">
-                                                                <Button
+                                                                 <Button
                                                                     size="sm"
-                                                                    className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                                    onClick={() => handleQuickApprove([tx])}
+                                                                    variant="ghost"
+                                                                    className={cn(
+                                                                        "h-7 px-3 text-xs border transition-colors",
+                                                                        tx.status === 'Quick Approve'
+                                                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950 dark:border-emerald-900 dark:text-emerald-400"
+                                                                            : (manualReviewIds.has(tx.id)
+                                                                                ? "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100 dark:bg-orange-950 dark:border-orange-900 dark:text-orange-400"
+                                                                                : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-950 dark:border-blue-900 dark:text-blue-400")
+                                                                    )}
+                                                                    onClick={() => handleSingleProcess(tx)}
+                                                                    disabled={processingIds.has(tx.id)}
                                                                 >
-                                                                    Approve
+                                                                    {processingIds.has(tx.id) ? (
+                                                                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                                                    ) : tx.status === 'Quick Approve' ? (
+                                                                        <Check className="mr-2 h-3 w-3" />
+                                                                    ) : manualReviewIds.has(tx.id) ? (
+                                                                        <FilePenLine className="mr-2 h-3 w-3" />
+                                                                    ) : (
+                                                                        <Wand2 className="mr-2 h-3 w-3" />
+                                                                    )}
+                                                                    {tx.status === 'Quick Approve' ? "Approve" : manualReviewIds.has(tx.id) ? "Edit" : "Check"}
                                                                 </Button>
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild>
