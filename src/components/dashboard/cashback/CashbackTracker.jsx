@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
     CheckCircle, AlertTriangle, Filter, Edit2, Clock, Calendar, Wallet,
-    Coins, Gift, TrendingUp, List, ArrowDown, Eye, Info
+    Coins, Gift, TrendingUp, List, ArrowDown, Eye, Info, Lock
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,9 +13,11 @@ import { Textarea } from "../../ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "../../ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
+import { Progress } from "../../ui/progress";
 import { cn } from "@/lib/utils";
 import StatCard from "../../shared/StatCard";
 import SharedTransactionsDialog from '@/components/shared/SharedTransactionsDialog';
+import { PointsDetailSheet } from './components/PointsDetailSheet';
 
 import { calculateCashbackSplit, calculatePaymentDate, getPaymentStatus, isStatementFinalized } from '../../../lib/cashback-logic';
 import { fmtYMShort } from '../../../lib/formatters';
@@ -183,62 +185,78 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, sta
     );
 }
 
-function PointsLoyaltyCard({ cardName, bankName, totalPoints, lastUpdated, onRedeem, history }) {
+function PointsLoyaltyCard({ cardName, bankName, totalPoints, minPointsRedeem, onRedeem, onViewDetails }) {
+    const isRedeemable = totalPoints >= (minPointsRedeem || 0);
+    const progress = minPointsRedeem > 0 ? Math.min((totalPoints / minPointsRedeem) * 100, 100) : 100;
+
     return (
-        <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
-            {/* Card Header (Visual) */}
-            <div className="h-20 bg-gradient-to-r from-indigo-500 to-purple-600 p-4 relative">
-                <div className="absolute top-0 right-0 p-3 opacity-20">
-                    <Coins className="h-16 w-16 text-white" />
-                </div>
-                <div className="relative z-10 flex flex-col justify-between h-full">
-                    <div className="flex justify-between items-start">
-                        <span className="text-white/90 text-xs font-bold tracking-wider uppercase">{bankName}</span>
-                        <Badge variant="outline" className="bg-white/10 text-white border-white/20 backdrop-blur-sm">Points</Badge>
+        <div className="group relative flex flex-col justify-between border border-slate-200 dark:border-slate-800 rounded-xl p-4 transition-all duration-200 hover:shadow-md bg-white dark:bg-slate-950">
+             {/* Header */}
+             <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-indigo-50 dark:bg-indigo-900/50 flex items-center justify-center text-xs font-bold text-indigo-600 dark:text-indigo-400 shrink-0 uppercase border border-indigo-100 dark:border-indigo-800">
+                        {bankName ? bankName.substring(0,2) : 'CB'}
                     </div>
-                    <h3 className="text-white font-bold text-lg truncate">{cardName}</h3>
+                    <div>
+                        <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 leading-tight line-clamp-1">{cardName}</h3>
+                        <p className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">Points Rewards</p>
+                    </div>
                 </div>
+                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-80 hover:opacity-100 transition-opacity" onClick={onViewDetails}>
+                     <List className="h-3 w-3 text-slate-400 hover:text-slate-600" />
+                </Button>
             </div>
 
-            {/* Card Body */}
-            <div className="p-5">
-                <div className="mb-6">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium mb-1">Available Balance</p>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{currency(totalPoints)}</span>
-                        <span className="text-sm font-medium text-slate-500">pts</span>
-                    </div>
-                    {lastUpdated && (
-                        <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> Last updated: {lastUpdated}
-                        </p>
-                    )}
+            {/* Body */}
+            <div className="text-center py-4 border-t border-b border-slate-100 dark:border-slate-800 my-1">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Available Balance</p>
+                <div className="flex items-baseline justify-center gap-1">
+                    <span className="text-2xl font-black tracking-tight text-indigo-600 dark:text-indigo-400">
+                        {currency(totalPoints)}
+                    </span>
+                    <span className="text-xs font-medium text-slate-400">pts</span>
                 </div>
 
-                <div className="space-y-3">
-                    <Button onClick={onRedeem} className="w-full bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm">
-                        <Gift className="h-4 w-4 mr-2" /> Redeem Points
-                    </Button>
-
-                    {/* Mini History Preview */}
-                    {history && history.length > 0 && (
-                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                            <p className="text-xs font-semibold text-slate-500 mb-2">Recent Earnings</p>
-                            <div className="space-y-2">
-                                {history.slice(0, 2).map((h, i) => (
-                                    <div key={i} className="flex justify-between text-xs">
-                                        <span className="text-slate-600 dark:text-slate-300">{h.month}</span>
-                                        <span className="font-mono font-medium text-emerald-600">+{currency(h.amount)}</span>
-                                    </div>
-                                ))}
-                                {history.length > 2 && (
-                                    <p className="text-[10px] text-center text-slate-400 italic">+{history.length - 2} more records</p>
-                                )}
-                            </div>
+                {/* Min Redeem Progress */}
+                {minPointsRedeem > 0 && (
+                    <div className="mt-3 px-4">
+                        <div className="flex justify-between text-[10px] mb-1.5 font-medium">
+                            <span className={cn(isRedeemable ? "text-emerald-600" : "text-slate-400")}>
+                                {isRedeemable ? "Redeemable" : "Accumulating"}
+                            </span>
+                            <span className="text-slate-400">{currency(minPointsRedeem)} min</span>
                         </div>
-                    )}
-                </div>
+                        <Progress value={progress} className="h-1.5 bg-slate-100 dark:bg-slate-800" indicatorClassName={isRedeemable ? "bg-emerald-500" : "bg-indigo-400"} />
+                    </div>
+                )}
             </div>
+
+             {/* Footer */}
+             <div className="mt-3">
+                 <Button
+                    onClick={onRedeem}
+                    disabled={!isRedeemable}
+                    className={cn(
+                        "w-full h-8 text-xs font-semibold shadow-sm",
+                         !isRedeemable ? "opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 hover:bg-slate-100" : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                    )}
+                 >
+                    {!isRedeemable ? (
+                        <>
+                            <Lock className="h-3 w-3 mr-1.5" />
+                            {minPointsRedeem > 0 ? `Reach ${currency(minPointsRedeem)}` : "Unavailable"}
+                        </>
+                    ) : (
+                        <>
+                            <Gift className="h-3 w-3 mr-1.5" />
+                            Redeem Points
+                        </>
+                    )}
+                </Button>
+             </div>
+
+            <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-50 dark:bg-slate-900 rounded-full border-r border-slate-200 dark:border-slate-800" />
+            <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-50 dark:bg-slate-900 rounded-full border-l border-slate-200 dark:border-slate-800" />
         </div>
     );
 }
@@ -274,6 +292,10 @@ export default function CashbackTracker({
     const [redeemAmount, setRedeemAmount] = useState('');
     const [redeemNotes, setRedeemNotes] = useState('');
     const [optimisticData, setOptimisticData] = useState({});
+
+    // Points Details Sheet
+    const [pointsDetailOpen, setPointsDetailOpen] = useState(false);
+    const [selectedPointsCardId, setSelectedPointsCardId] = useState(null);
 
     // Shared Transaction Dialog
     const [txDialog, setTxDialog] = useState({
@@ -344,6 +366,7 @@ export default function CashbackTracker({
                         cardId: card.id,
                         cardName: card.name,
                         bankName: card.bank,
+                        minPointsRedeem: card.minPointsRedeem || 0, // Ensure this is mapped
                         totalPoints: 0,
                         history: [],
                         items: [] // Keep track of raw items for FIFO redemption
@@ -544,6 +567,11 @@ export default function CashbackTracker({
         setRedeemAmount('');
         setRedeemNotes('');
         setIsRedeemDialogOpen(true);
+    };
+
+    const handleOpenDetails = (cardData) => {
+        setSelectedPointsCardId(cardData.cardId);
+        setPointsDetailOpen(true);
     };
 
     const handleRedeemConfirm = async () => {
@@ -1041,9 +1069,9 @@ export default function CashbackTracker({
                                     cardName={card.cardName}
                                     bankName={card.bankName}
                                     totalPoints={card.totalPoints}
-                                    lastUpdated={card.history[0]?.month || 'N/A'}
-                                    history={card.history}
+                                    minPointsRedeem={card.minPointsRedeem}
                                     onRedeem={() => handleOpenRedeem(card)}
+                                    onViewDetails={() => handleOpenDetails(card)}
                                 />
                             ))}
                         </div>
@@ -1051,7 +1079,7 @@ export default function CashbackTracker({
                 </div>
             )}
 
-            {/* EDIT DIALOG (CASH) */}
+            {/* EDIT DIALOG (CASH & POINTS) */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
@@ -1118,6 +1146,14 @@ export default function CashbackTracker({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <PointsDetailSheet
+                isOpen={pointsDetailOpen}
+                onClose={() => setPointsDetailOpen(false)}
+                cardData={pointsByCard.find(c => c.cardId === selectedPointsCardId)}
+                onEdit={handleEditClick}
+                currencyFn={currency}
+            />
 
             <SharedTransactionsDialog
                 isOpen={txDialog.isOpen}
