@@ -81,6 +81,7 @@ export default function TransactionsList({
     const [searchTerm, setSearchTerm] = useState("");
     const [cardFilter, setCardFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
+    const [methodFilter, setMethodFilter] = useState("all");
     const [visibleCount, setVisibleCount] = useState(15);
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
     const [selectedIds, setSelectedIds] = useState([]);
@@ -90,7 +91,6 @@ export default function TransactionsList({
     const [visibleColumns, setVisibleColumns] = useState({
         'Transaction Date': true,
         'Transaction Name': true,
-        'Merchant': false,
         'Amount': true,
         'Estimated Cashback': true,
         'Card Name': true,
@@ -100,6 +100,7 @@ export default function TransactionsList({
         'Notes': false,
         'Cashback Rate': true,
         'Paid for': false,
+        'Method': false,
     });
 
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
@@ -146,7 +147,8 @@ export default function TransactionsList({
             );
         })
         .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
-        .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter);
+        .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter)
+        .filter(tx => methodFilter === "all" || tx['Method'] === methodFilter);
 
         if (sortConfig.key !== null) {
             items.sort((a, b) => {
@@ -168,7 +170,7 @@ export default function TransactionsList({
             });
         }
         return items;
-    }, [transactions, searchTerm, cardFilter, categoryFilter, sortConfig]);
+    }, [transactions, searchTerm, cardFilter, categoryFilter, sortConfig, methodFilter]);
 
     useEffect(() => {
         setVisibleCount(15);
@@ -362,6 +364,34 @@ export default function TransactionsList({
                         </SelectContent>
                     </Select>
 
+                    {/* Method Filter Pill */}
+                    <Select value={methodFilter} onValueChange={setMethodFilter}>
+                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                            <div className={cn(
+                                "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
+                                methodFilter !== 'all'
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm dark:bg-slate-100 dark:text-slate-900'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-400 dark:border-slate-800'
+                            )}>
+                                <CreditCard className="w-3.5 h-3.5" />
+                                <span>Method</span>
+                                {methodFilter !== 'all' && (
+                                    <>
+                                        <span className="opacity-60">|</span>
+                                        <span className="font-semibold max-w-[80px] truncate">{methodFilter}</span>
+                                    </>
+                                )}
+                                <ChevronDown className={cn("w-3 h-3 opacity-50", methodFilter !== 'all' ? 'text-white dark:text-slate-900' : '')} />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Methods</SelectItem>
+                            <SelectItem value="POS">POS</SelectItem>
+                            <SelectItem value="eCom">eCom</SelectItem>
+                            <SelectItem value="International">International</SelectItem>
+                        </SelectContent>
+                    </Select>
+
                      {/* Group By Pill */}
                      <Select value={groupBy} onValueChange={setGroupBy}>
                         <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
@@ -450,7 +480,7 @@ export default function TransactionsList({
             }
 
             return (
-                <div className="border rounded-md">
+                <div className="rounded-md">
                     <Table>
                         {/* Table Header Content */}
                          <TableHeader>
@@ -470,9 +500,6 @@ export default function TransactionsList({
                                 {/* ... Other Columns ... */}
                                 {visibleColumns['Transaction Name'] && (
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
-                                )}
-                                {visibleColumns['Merchant'] && (
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('merchantLookup')} className="px-2">Merchant <SortIcon columnKey="merchantLookup" /></Button></TableHead>
                                 )}
                                 {visibleColumns['Amount'] && (
                                     <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
@@ -500,6 +527,9 @@ export default function TransactionsList({
                                 )}
                                 {visibleColumns['Paid for'] && (
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('Paid for')} className="px-2">Paid for <SortIcon columnKey="Paid for" /></Button></TableHead>
+                                )}
+                                {visibleColumns['Method'] && (
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Method')} className="px-2">Method <SortIcon columnKey="Method" /></Button></TableHead>
                                 )}
                                 <TableHead className="w-[100px] text-center">Actions</TableHead>
                             </TableRow>
@@ -562,10 +592,6 @@ export default function TransactionsList({
                                                         </TableCell>
                                                     )}
 
-                                                    {visibleColumns['Merchant'] && (
-                                                        <TableCell className="text-slate-500">{tx.merchantLookup || ''}</TableCell>
-                                                    )}
-
                                                     {visibleColumns['Amount'] && <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>}
 
                                                     {visibleColumns['Estimated Cashback'] && <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>}
@@ -598,7 +624,23 @@ export default function TransactionsList({
 
                                                     {visibleColumns['Paid for'] && (
                                                         <TableCell>
-                                                            {tx['Paid for'] ? <Badge variant="secondary">{tx['Paid for']}</Badge> : ''}
+                                                            {tx.paidFor ? <Badge variant="secondary">{tx.paidFor}</Badge> : ''}
+                                                        </TableCell>
+                                                    )}
+
+                                                    {visibleColumns['Method'] && (
+                                                        <TableCell>
+                                                            {tx['Method'] && (
+                                                                <Badge variant="outline" className={cn(
+                                                                    "font-mono font-normal",
+                                                                    tx['Method'] === 'International' && "bg-orange-100 text-orange-800 border-orange-200",
+                                                                    tx['Method'] === 'POS' && "bg-blue-100 text-blue-800 border-blue-200",
+                                                                    tx['Method'] === 'eCom' && "bg-green-100 text-green-800 border-green-200",
+                                                                    !['International', 'POS', 'eCom'].includes(tx['Method']) && "bg-slate-100 text-slate-700 border-slate-200"
+                                                                )}>
+                                                                    {tx['Method']}
+                                                                </Badge>
+                                                            )}
                                                         </TableCell>
                                                     )}
 
@@ -630,9 +672,9 @@ export default function TransactionsList({
                                                             </DropdownMenu>
                                                         </div>
                                                         <div className="hidden md:flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onViewDetails(tx)}><Eye className="h-4 w-4" /></Button>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-slate-700" onClick={() => onViewDetails(tx)}><Eye className="h-4 w-4" /></Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-slate-700" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive/90" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>
@@ -706,7 +748,7 @@ export default function TransactionsList({
 
         // --- DESKTOP TABLE VIEW (Default Return from renderContent) ---
         return (
-            <div className="border rounded-md">
+            <div className="rounded-md">
                  <Table>
                         <TableHeader>
                             <TableRow>
@@ -1010,6 +1052,26 @@ export default function TransactionsList({
 
                                     <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
 
+                                    {/* Method Filter */}
+                                    <Select value={methodFilter} onValueChange={setMethodFilter}>
+                                        <SelectTrigger className="w-full md:w-[160px] h-10">
+                                            <div className="flex items-center gap-2 truncate">
+                                                <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <span className="truncate">
+                                                    {methodFilter === 'all' ? 'All Methods' : methodFilter}
+                                                </span>
+                                            </div>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Methods</SelectItem>
+                                            <SelectItem value="POS">POS</SelectItem>
+                                            <SelectItem value="eCom">eCom</SelectItem>
+                                            <SelectItem value="International">International</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+
+                                    <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
+
                                     {/* Group By */}
                                     <Select value={groupBy} onValueChange={setGroupBy}>
                                         <SelectTrigger className="hidden md:flex w-full md:w-[160px] h-10">
@@ -1040,7 +1102,6 @@ export default function TransactionsList({
                                             <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
                                             <DropdownMenuSeparator />
                                             {Object.keys(visibleColumns)
-                                                .filter(column => column !== 'Merchant')
                                                 .map((column) => (
                                                 <DropdownMenuItem key={column} onSelect={(e) => e.preventDefault()}>
                                                     <Checkbox
@@ -1065,7 +1126,7 @@ export default function TransactionsList({
                 renderMobileFilters()
             )}
 
-            <CardContent className={cn("pt-6", !isDesktop && "p-0 pt-0")}>
+            <CardContent className={cn("p-0")}>
                 {renderContent()}
                 <div className="mt-2 flex flex-col items-center gap-4 mb-6">
                     <p className="text-sm text-muted-foreground">
