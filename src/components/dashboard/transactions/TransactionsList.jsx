@@ -100,6 +100,7 @@ export default function TransactionsList({
         'Notes': false,
         'Cashback Rate': true,
         'Paid for': false,
+        'Method': false,
     });
 
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
@@ -479,7 +480,7 @@ export default function TransactionsList({
             }
 
             return (
-                <div className="border rounded-md">
+                <div className="rounded-md">
                     <Table>
                         {/* Table Header Content */}
                          <TableHeader>
@@ -526,6 +527,9 @@ export default function TransactionsList({
                                 )}
                                 {visibleColumns['Paid for'] && (
                                     <TableHead><Button variant="ghost" onClick={() => requestSort('Paid for')} className="px-2">Paid for <SortIcon columnKey="Paid for" /></Button></TableHead>
+                                )}
+                                {visibleColumns['Method'] && (
+                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Method')} className="px-2">Method <SortIcon columnKey="Method" /></Button></TableHead>
                                 )}
                                 <TableHead className="w-[100px] text-center">Actions</TableHead>
                             </TableRow>
@@ -621,6 +625,22 @@ export default function TransactionsList({
                                                     {visibleColumns['Paid for'] && (
                                                         <TableCell>
                                                             {tx.paidFor ? <Badge variant="secondary">{tx.paidFor}</Badge> : ''}
+                                                        </TableCell>
+                                                    )}
+
+                                                    {visibleColumns['Method'] && (
+                                                        <TableCell>
+                                                            {tx['Method'] && (
+                                                                <Badge variant="outline" className={cn(
+                                                                    "font-mono font-normal",
+                                                                    tx['Method'] === 'International' && "bg-orange-100 text-orange-800 border-orange-200",
+                                                                    tx['Method'] === 'POS' && "bg-blue-100 text-blue-800 border-blue-200",
+                                                                    tx['Method'] === 'eCom' && "bg-green-100 text-green-800 border-green-200",
+                                                                    !['International', 'POS', 'eCom'].includes(tx['Method']) && "bg-slate-100 text-slate-700 border-slate-200"
+                                                                )}>
+                                                                    {tx['Method']}
+                                                                </Badge>
+                                                            )}
                                                         </TableCell>
                                                     )}
 
@@ -728,7 +748,7 @@ export default function TransactionsList({
 
         // --- DESKTOP TABLE VIEW (Default Return from renderContent) ---
         return (
-            <div className="border rounded-md">
+            <div className="rounded-md">
                  <Table>
                         <TableHeader>
                             <TableRow>
