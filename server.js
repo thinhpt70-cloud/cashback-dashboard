@@ -257,7 +257,6 @@ const searchExternalMcc = async (keyword) => {
     if (!trimmedKeyword) return [];
 
     try {
-        const fetch = (await import('node-fetch')).default;
         const response = await fetch(`https://tra-cuu-mcc.vercel.app/mcc?keyword=${encodeURIComponent(trimmedKeyword)}`);
 
         if (response.ok) {
@@ -284,7 +283,6 @@ const searchExternalMccFallback = async (keyword) => {
     console.log(`Searching RCGV (Fallback) for: ${trimmedKeyword}`);
 
     try {
-        const fetch = (await import('node-fetch')).default;
         const url = `https://rcgv.vn/check-mcc/?rvq=${encodeURIComponent(trimmedKeyword)}`;
         const response = await fetch(url, {
             headers: {
