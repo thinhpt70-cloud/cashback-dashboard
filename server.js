@@ -366,7 +366,13 @@ const calculateSmartUpdates = async (transaction, match, cleanName, activeRules 
 
     // 1. Transaction Name
     // Use match name if available, otherwise use cleanName
-    const newName = match ? match['Transaction Name'] : cleanName;
+    let newName = match ? match['Transaction Name'] : cleanName;
+
+    // FIX: Ensure we don't propagate "Email_" prefix from dirty history
+    if (newName && newName.startsWith("Email_")) {
+        newName = newName.substring(6).trim();
+    }
+
     updates['Transaction Name'] = { title: [{ text: { content: newName } }] };
     log.push(match ? `Matched history: "${match['Transaction Name']}"` : `Renamed to "${cleanName}"`);
 
