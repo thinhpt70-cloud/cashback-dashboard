@@ -4,13 +4,11 @@ import {
     ArrowUp,
     ArrowDown,
     FilePenLine,
-    Copy,
     Trash2,
     Search,
     X,
     Filter,
     Layers,
-    MoreHorizontal,
     Settings2,
     CreditCard,
     ArrowUpDown,
@@ -52,7 +50,7 @@ import {
 import {
     DropdownMenu,
     DropdownMenuContent,
-    DropdownMenuItem,
+    DropdownMenuCheckboxItem,
     DropdownMenuTrigger,
     DropdownMenuSeparator,
     DropdownMenuLabel,
@@ -88,33 +86,170 @@ export default function TransactionsList({
     const [groupBy, setGroupBy] = useState("date");
     const [sortByValue, setSortByValue] = useState('Newest');
 
-    const [visibleColumns, setVisibleColumns] = useState({
-        'Transaction Date': true,
-        'Transaction Name': true,
-        'Amount': true,
-        'Estimated Cashback': true,
-        'Card Name': true,
-        'Category': false,
-        'Applicable Rule': false,
-        'MCC Code': false,
-        'Notes': false,
-        'Cashback Rate': true,
-        'Paid for': false,
-        'Method': false,
-    });
-
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
-
+    // ------------------------------------------------------------------
+    // 1. Column Configuration
+    // ------------------------------------------------------------------
     const ruleMap = useMemo(() => {
         if (!rules) return new Map();
         return new Map(rules.map(r => [r.id, r]));
     }, [rules]);
 
+    const getRateColor = (r) => {
+        const ratePercent = r * 100;
+        if (ratePercent >= 5) return "bg-emerald-100 text-emerald-800 border-emerald-200";
+        if (ratePercent >= 2) return "bg-sky-100 text-sky-800 border-sky-200";
+        if (ratePercent > 0) return "bg-slate-100 text-slate-700 border-slate-200";
+        return "bg-gray-100 text-gray-500 border-gray-200";
+    };
+
+    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+
+    const columnsConfig = useMemo(() => [
+        {
+            id: 'date',
+            label: 'Transaction Date',
+            sortKey: 'Transaction Date',
+            defaultVisible: true,
+            width: 'w-[120px]',
+            renderCell: (tx) => tx['Transaction Date']
+        },
+        {
+            id: 'name',
+            label: 'Transaction Name',
+            sortKey: 'Transaction Name',
+            defaultVisible: true,
+            renderCell: (tx) => (
+                <>
+                    <div className="font-medium">{tx['Transaction Name']}</div>
+                    {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
+                </>
+            )
+        },
+        {
+            id: 'merchant',
+            label: 'Merchant',
+            sortKey: 'merchantLookup',
+            defaultVisible: false,
+            cellClass: "text-slate-500",
+            renderCell: (tx) => tx.merchantLookup || ''
+        },
+        {
+            id: 'amount',
+            label: 'Amount',
+            sortKey: 'Amount',
+            defaultVisible: true,
+            headerClass: "text-right",
+            cellClass: "text-right",
+            renderCell: (tx) => currency(tx['Amount'])
+        },
+        {
+            id: 'estCashback',
+            label: 'Estimated Cashback',
+            sortKey: 'estCashback',
+            defaultVisible: true,
+            headerClass: "text-right",
+            cellClass: "text-right font-medium text-emerald-600",
+            renderCell: (tx) => currency(tx.estCashback)
+        },
+        {
+            id: 'card',
+            label: 'Card Name',
+            sortKey: 'Card',
+            defaultVisible: true,
+            renderCell: (tx) => {
+                const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
+                return card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A';
+            }
+        },
+        {
+            id: 'category',
+            label: 'Category',
+            sortKey: 'Category',
+            defaultVisible: false,
+            renderCell: (tx) => tx['Category'] || ''
+        },
+        {
+            id: 'rule',
+            label: 'Applicable Rule',
+            defaultVisible: false,
+            renderCell: (tx) => {
+                const ruleId = tx['Applicable Rule'] && tx['Applicable Rule'][0];
+                const rule = ruleId ? ruleMap.get(ruleId) : null;
+                const ruleName = rule ? (rule.ruleName || rule.name) : (ruleId ? ruleId.slice(0, 8) + '...' : '');
+                return <span className="text-xs text-slate-600">{ruleName}</span>;
+            }
+        },
+        {
+            id: 'mcc',
+            label: 'MCC Code',
+            defaultVisible: false,
+            renderCell: (tx) => tx['MCC Code'] ? `${tx['MCC Code']} - ${mccNameFn ? mccNameFn(tx['MCC Code']) : ''}` : ''
+        },
+        {
+            id: 'notes',
+            label: 'Notes',
+            defaultVisible: false,
+            renderCell: (tx) => tx['Notes'] || ''
+        },
+        {
+            id: 'rate',
+            label: 'Cashback Rate',
+            sortKey: 'rate',
+            defaultVisible: true,
+            headerClass: "text-center",
+            cellClass: "text-center",
+            renderCell: (tx) => (
+                <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
+                    {(tx.rate * 100).toFixed(1)}%
+                </Badge>
+            )
+        },
+        {
+            id: 'paidFor',
+            label: 'Paid for',
+            sortKey: 'Paid for',
+            defaultVisible: false,
+            renderCell: (tx) => tx.paidFor ? <Badge variant="secondary">{tx.paidFor}</Badge> : ''
+        },
+        {
+            id: 'method',
+            label: 'Method',
+            sortKey: 'Method',
+            defaultVisible: false,
+            renderCell: (tx) => tx['Method'] && (
+                <Badge variant="outline" className={cn(
+                    "font-mono font-normal",
+                    tx['Method'] === 'International' && "bg-orange-100 text-orange-800 border-orange-200",
+                    tx['Method'] === 'POS' && "bg-blue-100 text-blue-800 border-blue-200",
+                    tx['Method'] === 'eCom' && "bg-green-100 text-green-800 border-green-200",
+                    !['International', 'POS', 'eCom'].includes(tx['Method']) && "bg-slate-100 text-slate-700 border-slate-200"
+                )}>
+                    {tx['Method']}
+                </Badge>
+            )
+        }
+    ], [cardMap, ruleMap, mccNameFn]);
+
+    // Initialize visibility state based on config defaults
+    const [visibleColumnIds, setVisibleColumnIds] = useState(() => {
+        // We can't access columnsConfig here directly in initial render if it depends on props/memos
+        // But we can recreate the initial state logic or use an effect.
+        // Hardcoding defaults here to match the config above for simplicity and stability.
+        return ['date', 'name', 'amount', 'estCashback', 'card', 'rate'];
+    });
+
+    const activeColumns = useMemo(() => {
+        return columnsConfig.filter(col => visibleColumnIds.includes(col.id));
+    }, [columnsConfig, visibleColumnIds]);
+
+    // ------------------------------------------------------------------
+    // Existing Logic (Sorting, Filtering, Grouping)
+    // ------------------------------------------------------------------
+
     useEffect(() => {
         setSelectedIds([]);
     }, [activeMonth, filterType]);
 
-    // Handle initial sort state mapping
     useEffect(() => {
         if (sortConfig.key === 'Transaction Date' && sortConfig.direction === 'descending') setSortByValue('Newest');
         else if (sortConfig.key === 'Transaction Date' && sortConfig.direction === 'ascending') setSortByValue('Oldest');
@@ -276,14 +411,6 @@ export default function TransactionsList({
     const SortIcon = ({ columnKey }) => {
         if (sortConfig.key !== columnKey) return <ChevronsUpDown className="ml-2 h-4 w-4" />;
         return sortConfig.direction === 'ascending' ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />;
-    };
-
-    const getRateColor = (r) => {
-        const ratePercent = r * 100;
-        if (ratePercent >= 5) return "bg-emerald-100 text-emerald-800 border-emerald-200";
-        if (ratePercent >= 2) return "bg-sky-100 text-sky-800 border-sky-200";
-        if (ratePercent > 0) return "bg-slate-100 text-slate-700 border-slate-200";
-        return "bg-gray-100 text-gray-500 border-gray-200";
     };
 
     const renderMobileFilters = () => {
@@ -482,219 +609,41 @@ export default function TransactionsList({
             return (
                 <div className="rounded-md">
                     <Table>
-                        {/* Table Header Content */}
-                         <TableHeader>
-                            <TableRow>
+                        <TableHeader>
+                             <TableRow>
                                 <TableHead className="w-[30px] p-2">
-                                    <Checkbox
-                                        checked={selectedIds.length > 0 && selectedIds.length === filteredData.length}
-                                        onCheckedChange={handleSelectAll}
-                                        aria-label="Select all"
-                                    />
+                                    <Checkbox />
                                 </TableHead>
                                 <TableHead className="w-[30px]"></TableHead>
-
-                                {visibleColumns['Transaction Date'] && (
-                                    <TableHead className="w-[120px]"><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
-                                )}
-                                {/* ... Other Columns ... */}
-                                {visibleColumns['Transaction Name'] && (
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
-                                )}
-                                {visibleColumns['Amount'] && (
-                                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
-                                )}
-                                {visibleColumns['Estimated Cashback'] && (
-                                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
-                                )}
-                                {visibleColumns['Card Name'] && (
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
-                                )}
-                                {visibleColumns['Category'] && (
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Category')} className="px-2">Category <SortIcon columnKey="Category" /></Button></TableHead>
-                                )}
-                                {visibleColumns['Applicable Rule'] && (
-                                    <TableHead>Rule</TableHead>
-                                )}
-                                {visibleColumns['MCC Code'] && (
-                                    <TableHead>MCC</TableHead>
-                                )}
-                                {visibleColumns['Notes'] && (
-                                    <TableHead>Notes</TableHead>
-                                )}
-                                {visibleColumns['Cashback Rate'] && (
-                                    <TableHead className="text-center"><Button variant="ghost" onClick={() => requestSort('rate')} className="px-2">Rate <SortIcon columnKey="rate" /></Button></TableHead>
-                                )}
-                                {visibleColumns['Paid for'] && (
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Paid for')} className="px-2">Paid for <SortIcon columnKey="Paid for" /></Button></TableHead>
-                                )}
-                                {visibleColumns['Method'] && (
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Method')} className="px-2">Method <SortIcon columnKey="Method" /></Button></TableHead>
-                                )}
-                                <TableHead className="w-[100px] text-center">Actions</TableHead>
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                    <TableHead key={i}><Skeleton className="h-4 w-20" /></TableHead>
+                                ))}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {/* Loading State for Table */}
-                            {isLoading ? (
-                                Array.from({ length: 7 }).map((_, i) => (
-                                    <TableRow key={i}>
-                                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                        <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                                        <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                        <TableCell><Skeleton className="h-7 w-16 mx-auto" /></TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                Object.entries(groupedData).map(([groupKey, groupTxs]) => (
-                                    <React.Fragment key={groupKey}>
-                                        {groupBy !== 'none' && (
-                                            <TableRow className="bg-slate-100/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-900">
-                                                <TableCell colSpan={Object.keys(visibleColumns).filter(k => visibleColumns[k]).length + 3} className="py-2 px-4 font-semibold text-xs uppercase text-slate-500 dark:text-slate-400 tracking-wider">
-                                                    {groupKey} <span className="ml-1 text-slate-400 font-normal">({groupTxs.length})</span>
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                        {groupTxs.map(tx => {
-                                            const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
-                                            const isSelected = selectedIds.includes(tx.id);
-                                            const ruleId = tx['Applicable Rule'] && tx['Applicable Rule'][0];
-                                            const rule = ruleId ? ruleMap.get(ruleId) : null;
-                                            const ruleName = rule ? (rule.ruleName || rule.name) : (ruleId ? ruleId.slice(0, 8) + '...' : '');
-
-                                            return (
-                                                <TableRow
-                                                    key={tx.id}
-                                                    onClick={() => onViewDetails && onViewDetails(tx)}
-                                                    className={cn("cursor-pointer", isSelected && "bg-slate-50 dark:bg-slate-800/50")}
-                                                >
-                                                    <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
-                                                        <Checkbox
-                                                            checked={isSelected}
-                                                            onCheckedChange={(checked) => handleSelectOne(tx.id, checked)}
-                                                            aria-label={`Select ${tx['Transaction Name']}`}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="px-2">
-                                                    </TableCell>
-
-                                                    {visibleColumns['Transaction Date'] && <TableCell>{tx['Transaction Date']}</TableCell>}
-
-                                                    {visibleColumns['Transaction Name'] && (
-                                                        <TableCell>
-                                                            <div className="font-medium">{tx['Transaction Name']}</div>
-                                                            {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
-                                                        </TableCell>
-                                                    )}
-
-                                                    {visibleColumns['Amount'] && <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>}
-
-                                                    {visibleColumns['Estimated Cashback'] && <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>}
-
-                                                    {visibleColumns['Card Name'] && <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>}
-
-                                                    {visibleColumns['Category'] && <TableCell>{tx['Category'] || ''}</TableCell>}
-
-                                                    {visibleColumns['Applicable Rule'] && (
-                                                        <TableCell className="text-xs text-slate-600">
-                                                            {ruleName}
-                                                        </TableCell>
-                                                    )}
-
-                                                    {visibleColumns['MCC Code'] && (
-                                                        <TableCell>
-                                                            {tx['MCC Code'] ? `${tx['MCC Code']} - ${mccNameFn ? mccNameFn(tx['MCC Code']) : ''}` : ''}
-                                                        </TableCell>
-                                                    )}
-
-                                                    {visibleColumns['Notes'] && <TableCell>{tx['Notes'] || ''}</TableCell>}
-
-                                                    {visibleColumns['Cashback Rate'] && (
-                                                        <TableCell className="text-center">
-                                                            <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
-                                                                {(tx.rate * 100).toFixed(1)}%
-                                                            </Badge>
-                                                        </TableCell>
-                                                    )}
-
-                                                    {visibleColumns['Paid for'] && (
-                                                        <TableCell>
-                                                            {tx.paidFor ? <Badge variant="secondary">{tx.paidFor}</Badge> : ''}
-                                                        </TableCell>
-                                                    )}
-
-                                                    {visibleColumns['Method'] && (
-                                                        <TableCell>
-                                                            {tx['Method'] && (
-                                                                <Badge variant="outline" className={cn(
-                                                                    "font-mono font-normal",
-                                                                    tx['Method'] === 'International' && "bg-orange-100 text-orange-800 border-orange-200",
-                                                                    tx['Method'] === 'POS' && "bg-blue-100 text-blue-800 border-blue-200",
-                                                                    tx['Method'] === 'eCom' && "bg-green-100 text-green-800 border-green-200",
-                                                                    !['International', 'POS', 'eCom'].includes(tx['Method']) && "bg-slate-100 text-slate-700 border-slate-200"
-                                                                )}>
-                                                                    {tx['Method']}
-                                                                </Badge>
-                                                            )}
-                                                        </TableCell>
-                                                    )}
-
-                                                    <TableCell className="text-center">
-                                                         <div className="md:hidden">
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                        <MoreHorizontal className="h-4 w-4" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end">
-                                                                    <DropdownMenuItem onClick={() => onEditTransaction(tx)}>
-                                                                        <FilePenLine className="mr-2 h-4 w-4" /> Edit
-                                                                    </DropdownMenuItem>
-                                                                    {onDuplicateTransaction && (
-                                                                        <DropdownMenuItem onClick={() => onDuplicateTransaction(tx)}>
-                                                                            <Copy className="mr-2 h-4 w-4" /> Duplicate
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem
-                                                                        onClick={() => handleDelete(tx.id, tx['Transaction Name'])}
-                                                                        className="text-destructive"
-                                                                    >
-                                                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
-                                                        <div className="hidden md:flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-slate-700" onClick={() => onViewDetails(tx)}><Eye className="h-4 w-4" /></Button>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-slate-700" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive/90" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </React.Fragment>
-                                 ))
-                            )}
+                            {Array.from({ length: 7 }).map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                </TableRow>
+                            ))}
                         </TableBody>
                     </Table>
                 </div>
             );
-        };
+        }
 
         if (filteredData.length === 0) {
             return <div className="text-center h-24 flex items-center justify-center text-muted-foreground"><p>No transactions found.</p></div>;
         }
 
         if (!isDesktop) {
-            // Mobile View
+            // Mobile View (Unchanged logic using MobileTransactionItem)
              const flatList = [];
              Object.entries(groupedData).forEach(([key, items]) => {
                  if (groupBy !== 'none') flatList.push({ type: 'header', title: key, count: items.length });
@@ -727,7 +676,6 @@ export default function TransactionsList({
                             );
                         }
 
-                        // Item
                         const tx = item;
                         const isSelected = selectedIds.includes(tx.id);
                         return (
@@ -746,7 +694,7 @@ export default function TransactionsList({
             );
         }
 
-        // --- DESKTOP TABLE VIEW (Default Return from renderContent) ---
+        // --- DESKTOP TABLE VIEW (Refactored) ---
         return (
             <div className="rounded-md">
                  <Table>
@@ -761,178 +709,103 @@ export default function TransactionsList({
                                 </TableHead>
                                 <TableHead className="w-[30px]"></TableHead>
 
-                                {visibleColumns['Transaction Date'] && (
-                                    <TableHead className="w-[120px]"><Button variant="ghost" onClick={() => requestSort('Transaction Date')} className="px-2">Date <SortIcon columnKey="Transaction Date" /></Button></TableHead>
-                                )}
-
-                                {visibleColumns['Transaction Name'] && (
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Transaction Name')} className="px-2">Transaction <SortIcon columnKey="Transaction Name" /></Button></TableHead>
-                                )}
-
-                                {visibleColumns['Merchant'] && (
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('merchantLookup')} className="px-2">Merchant <SortIcon columnKey="merchantLookup" /></Button></TableHead>
-                                )}
-
-                                {visibleColumns['Amount'] && (
-                                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('Amount')} className="px-2 justify-end">Amount <SortIcon columnKey="Amount" /></Button></TableHead>
-                                )}
-
-                                {visibleColumns['Estimated Cashback'] && (
-                                    <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('estCashback')} className="px-2 justify-end">Cashback <SortIcon columnKey="estCashback" /></Button></TableHead>
-                                )}
-
-                                {visibleColumns['Card Name'] && (
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Card')} className="px-2">Card <SortIcon columnKey="Card" /></Button></TableHead>
-                                )}
-
-                                {visibleColumns['Category'] && (
-                                    <TableHead><Button variant="ghost" onClick={() => requestSort('Category')} className="px-2">Category <SortIcon columnKey="Category" /></Button></TableHead>
-                                )}
-
-                                {visibleColumns['Applicable Rule'] && (
-                                    <TableHead>Rule</TableHead>
-                                )}
-
-                                {visibleColumns['MCC Code'] && (
-                                    <TableHead>MCC</TableHead>
-                                )}
-
-                                {visibleColumns['Notes'] && (
-                                    <TableHead>Notes</TableHead>
-                                )}
-
-                                {visibleColumns['Cashback Rate'] && (
-                                    <TableHead className="text-center"><Button variant="ghost" onClick={() => requestSort('rate')} className="px-2">Rate <SortIcon columnKey="rate" /></Button></TableHead>
-                                )}
+                                {/* Dynamic Headers */}
+                                {activeColumns.map(col => (
+                                    <TableHead key={col.id} className={col.width || ''}>
+                                        {col.sortKey ? (
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => requestSort(col.sortKey)}
+                                                className={cn("px-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-800", col.headerClass || "")}
+                                            >
+                                                {col.label} <SortIcon columnKey={col.sortKey} />
+                                            </Button>
+                                        ) : (
+                                            <span className={cn(col.headerClass || "")}>{col.label}</span>
+                                        )}
+                                    </TableHead>
+                                ))}
 
                                 <TableHead className="w-[100px] text-center">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {/* Desktop Table Body */}
-                            {isLoading ? (
-                                Array.from({ length: 7 }).map((_, i) => (
-                                    <TableRow key={i}>
-                                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                        <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                                        <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                                        <TableCell><Skeleton className="h-7 w-16 mx-auto" /></TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                Object.entries(groupedData).map(([groupKey, groupTxs]) => (
-                                    <React.Fragment key={groupKey}>
-                                        {groupBy !== 'none' && (
-                                            <TableRow className="bg-slate-100/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-900">
-                                                <TableCell colSpan={Object.keys(visibleColumns).filter(k => visibleColumns[k]).length + 3} className="py-2 px-4 font-semibold text-xs uppercase text-slate-500 dark:text-slate-400 tracking-wider">
-                                                    {groupKey} <span className="ml-1 text-slate-400 font-normal">({groupTxs.length})</span>
+                            {Object.entries(groupedData).map(([groupKey, groupTxs]) => (
+                                <React.Fragment key={groupKey}>
+                                    {groupBy !== 'none' && (
+                                        <TableRow className="bg-slate-100/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-900">
+                                            {/* colSpan = activeColumns.length + 3 (Check, Spacer, Actions) */}
+                                            <TableCell colSpan={activeColumns.length + 3} className="py-2 px-4 font-semibold text-xs uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                                                {groupKey} <span className="ml-1 text-slate-400 font-normal">({groupTxs.length})</span>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                    {groupTxs.map(tx => {
+                                        const isSelected = selectedIds.includes(tx.id);
+                                        return (
+                                            <TableRow
+                                                key={tx.id}
+                                                onClick={() => onViewDetails && onViewDetails(tx)}
+                                                className={cn("cursor-pointer", isSelected && "bg-slate-50 dark:bg-slate-800/50")}
+                                            >
+                                                <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
+                                                    <Checkbox
+                                                        checked={isSelected}
+                                                        onCheckedChange={(checked) => handleSelectOne(tx.id, checked)}
+                                                        aria-label={`Select ${tx['Transaction Name']}`}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-2">
+                                                    {/* Spacer/Indicator could go here */}
+                                                </TableCell>
+
+                                                {/* Dynamic Cells */}
+                                                {activeColumns.map(col => (
+                                                    <TableCell key={col.id} className={col.cellClass || ""}>
+                                                        {col.renderCell(tx)}
+                                                    </TableCell>
+                                                ))}
+
+                                                {/* Actions Column - Fixed */}
+                                                <TableCell className="text-center">
+                                                    <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                        {/* Fixed View Details Button */}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7 text-slate-500 hover:text-slate-700"
+                                                            onClick={() => onViewDetails(tx)}
+                                                            title="View Details"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7 text-slate-500 hover:text-slate-700"
+                                                            onClick={() => handleEdit(tx)}
+                                                            title="Edit"
+                                                        >
+                                                            <FilePenLine className="h-4 w-4" />
+                                                        </Button>
+
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7 text-destructive hover:text-destructive/90"
+                                                            onClick={() => handleDelete(tx.id, tx['Transaction Name'])}
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
-                                        )}
-                                        {groupTxs.map(tx => {
-                                            const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
-                                            const isSelected = selectedIds.includes(tx.id);
-                                            const ruleId = tx['Applicable Rule'] && tx['Applicable Rule'][0];
-                                            const rule = ruleId ? ruleMap.get(ruleId) : null;
-                                            const ruleName = rule ? (rule.ruleName || rule.name) : (ruleId ? ruleId.slice(0, 8) + '...' : '');
-
-                                            return (
-                                                <TableRow
-                                                    key={tx.id}
-                                                    onClick={() => onViewDetails && onViewDetails(tx)}
-                                                    className={cn("cursor-pointer", isSelected && "bg-slate-50 dark:bg-slate-800/50")}
-                                                >
-                                                    <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
-                                                        <Checkbox
-                                                            checked={isSelected}
-                                                            onCheckedChange={(checked) => handleSelectOne(tx.id, checked)}
-                                                            aria-label={`Select ${tx['Transaction Name']}`}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="px-2">
-                                                    </TableCell>
-
-                                                    {visibleColumns['Transaction Date'] && <TableCell>{tx['Transaction Date']}</TableCell>}
-
-                                                    {visibleColumns['Transaction Name'] && (
-                                                        <TableCell>
-                                                            <div className="font-medium">{tx['Transaction Name']}</div>
-                                                            {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
-                                                        </TableCell>
-                                                    )}
-
-                                                    {visibleColumns['Merchant'] && (
-                                                        <TableCell className="text-slate-500">{tx.merchantLookup || ''}</TableCell>
-                                                    )}
-
-                                                    {visibleColumns['Amount'] && <TableCell className="text-right">{currency(tx['Amount'])}</TableCell>}
-
-                                                    {visibleColumns['Estimated Cashback'] && <TableCell className="text-right font-medium text-emerald-600">{currency(tx.estCashback)}</TableCell>}
-
-                                                    {visibleColumns['Card Name'] && <TableCell>{card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A'}</TableCell>}
-
-                                                    {visibleColumns['Category'] && <TableCell>{tx['Category'] || ''}</TableCell>}
-
-                                                    {visibleColumns['Applicable Rule'] && (
-                                                        <TableCell className="text-xs text-slate-600">
-                                                            {ruleName}
-                                                        </TableCell>
-                                                    )}
-
-                                                    {visibleColumns['MCC Code'] && (
-                                                        <TableCell>
-                                                            {tx['MCC Code'] ? `${tx['MCC Code']} - ${mccNameFn ? mccNameFn(tx['MCC Code']) : ''}` : ''}
-                                                        </TableCell>
-                                                    )}
-
-                                                    {visibleColumns['Notes'] && <TableCell>{tx['Notes'] || ''}</TableCell>}
-
-                                                    {visibleColumns['Cashback Rate'] && (
-                                                        <TableCell className="text-center">
-                                                            <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
-                                                                {(tx.rate * 100).toFixed(1)}%
-                                                            </Badge>
-                                                        </TableCell>
-                                                    )}
-
-                                                    <TableCell className="text-center">
-                                                         <div className="md:hidden">
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                        <MoreHorizontal className="h-4 w-4" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end">
-                                                                    <DropdownMenuItem onClick={() => onEditTransaction(tx)}>
-                                                                        <FilePenLine className="mr-2 h-4 w-4" /> Edit
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem
-                                                                        onClick={() => handleDelete(tx.id, tx['Transaction Name'])}
-                                                                        className="text-destructive"
-                                                                    >
-                                                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
-                                                        <div className="hidden md:flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}><FilePenLine className="h-4 w-4" /></Button>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(tx.id, tx['Transaction Name'])}><Trash2 className="h-4 w-4" /></Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </React.Fragment>
-                                 ))
-                            )}
+                                        );
+                                    })}
+                                </React.Fragment>
+                             ))}
                         </TableBody>
                     </Table>
                 </div>
@@ -974,7 +847,7 @@ export default function TransactionsList({
             {!isDesktop && selectedIds.length > 0 && renderBulkBar(true)}
 
             {isDesktop ? (
-                // DESKTOP LAYOUT (unchanged mostly)
+                // DESKTOP LAYOUT
                 <div className="sticky top-16 z-30 bg-background shadow-sm rounded-t-xl overflow-hidden">
                     {/* Desktop Bulk Bar */}
                     {selectedIds.length > 0 && renderBulkBar(false)}
@@ -1090,7 +963,7 @@ export default function TransactionsList({
 
                                     <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
 
-                                    {/* Columns Selection */}
+                                    {/* Columns Selection - REFACTORED */}
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="outline" className="h-10">
@@ -1101,18 +974,21 @@ export default function TransactionsList({
                                         <DropdownMenuContent align="end" className="w-[180px]">
                                             <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
                                             <DropdownMenuSeparator />
-                                            {Object.keys(visibleColumns)
-                                                .map((column) => (
-                                                <DropdownMenuItem key={column} onSelect={(e) => e.preventDefault()}>
-                                                    <Checkbox
-                                                        checked={visibleColumns[column]}
-                                                        onCheckedChange={() =>
-                                                            setVisibleColumns((prev) => ({ ...prev, [column]: !prev[column] }))
-                                                        }
-                                                        className="mr-2"
-                                                    />
-                                                    {column}
-                                                </DropdownMenuItem>
+                                            {columnsConfig.map((column) => (
+                                                <DropdownMenuCheckboxItem
+                                                    key={column.id}
+                                                    checked={visibleColumnIds.includes(column.id)}
+                                                    onCheckedChange={(checked) => {
+                                                        setVisibleColumnIds(prev =>
+                                                            checked
+                                                                ? [...prev, column.id]
+                                                                : prev.filter(id => id !== column.id)
+                                                        );
+                                                    }}
+                                                    onSelect={(e) => e.preventDefault()}
+                                                >
+                                                    {column.label}
+                                                </DropdownMenuCheckboxItem>
                                             ))}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
