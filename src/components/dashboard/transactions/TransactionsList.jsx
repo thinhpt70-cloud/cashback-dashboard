@@ -148,7 +148,7 @@ export default function TransactionsList({
         },
         {
             id: 'estCashback',
-            label: 'Estimated Cashback',
+            label: 'Est. Cashback',
             sortKey: 'estCashback',
             defaultVisible: true,
             headerClass: "text-right",
