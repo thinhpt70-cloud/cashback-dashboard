@@ -1,6 +1,7 @@
 import React from "react";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
+import MethodIndicator from "./MethodIndicator";
 
 const MobileTransactionItem = ({
     transaction,
@@ -36,9 +37,12 @@ const MobileTransactionItem = ({
             <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                 {/* Top Row: Name & Amount */}
                 <div className="flex justify-between items-start gap-2">
-                    <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate leading-tight">
-                        {tx['Transaction Name']}
-                    </h4>
+                    <div className="flex items-center gap-2 min-w-0">
+                        <MethodIndicator method={tx['Method']} />
+                        <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate leading-tight">
+                            {tx['Transaction Name']}
+                        </h4>
+                    </div>
                     <span className="text-sm font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap leading-tight">
                         {currencyFn(tx['Amount'])}
                     </span>
