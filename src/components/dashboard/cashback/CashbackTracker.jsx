@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import {
     CheckCircle, AlertTriangle, Filter, Edit2, Clock, Calendar, Wallet,
-    Coins, Gift, TrendingUp, List, ArrowDown, Eye, Info, Lock
+    Coins, Gift, TrendingUp, List, ArrowDown, Eye, Info, Lock, CheckSquare, Square
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "../../ui/badge";
+import { Checkbox } from "../../ui/checkbox";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
@@ -280,6 +281,9 @@ export default function CashbackTracker({
     const [cashViewMode, setCashViewMode] = useState('month'); // 'month' | 'card' | 'list'
     const [statusFilter, setStatusFilter] = useState('unpaid');
 
+    // Selection State
+    const [selectedIds, setSelectedIds] = useState([]);
+
     // New state for list view grouping
     const [listGroupBy, setListGroupBy] = useState('month'); // 'month' | 'card'
     const [showAllGroups, setShowAllGroups] = useState(false); // For accordion logic
@@ -356,6 +360,7 @@ export default function CashbackTracker({
                 tier2Amount: tier2, tier2Date, tier2Status,
                 remainingDue,
                 isPoints: isPointsItem,
+                reviewed: summary.reviewed || false,
             };
 
             if (isPointsItem) {
@@ -451,6 +456,104 @@ export default function CashbackTracker({
     }, [filteredCashItems, cashViewMode, listGroupBy]);
 
     // --- ACTIONS ---
+    const handleSelectAll = (filteredItems) => {
+        const allIds = filteredItems.map(item => item.id);
+        if (selectedIds.length === allIds.length && allIds.length > 0) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(allIds);
+        }
+    };
+
+    const handleSelectOne = (id) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+    };
+
+    const handleMarkReviewed = async (item, reviewedStatus) => {
+        // 1. Optimistic Update
+        setOptimisticData(prev => ({
+            ...prev,
+            [item.id]: { reviewed: reviewedStatus }
+        }));
+
+        // 2. Revert Function
+        const revert = () => {
+             setOptimisticData(prev => ({
+                ...prev,
+                [item.id]: { reviewed: !reviewedStatus }
+            }));
+             fetch(`${API_BASE_URL}/monthly-summary/${item.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reviewed: !reviewedStatus })
+            }).then(() => { if (onUpdate) onUpdate(); });
+        };
+
+        toast.success(`Marked as ${reviewedStatus ? 'Reviewed' : 'Unreviewed'}`, {
+             action: { label: 'Undo', onClick: revert }
+        });
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/monthly-summary/${item.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reviewed: reviewedStatus })
+            });
+            if (!res.ok) throw new Error('Failed to update reviewed status');
+            if (onUpdate) onUpdate();
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to update status");
+             setOptimisticData(prev => {
+                const newState = { ...prev };
+                delete newState[item.id];
+                return newState;
+            });
+        }
+    };
+
+    const handleBulkReviewed = async (reviewedStatus) => {
+        if (selectedIds.length === 0) return;
+
+        // 1. Optimistic
+        const updates = {};
+        selectedIds.forEach(id => {
+            updates[id] = { reviewed: reviewedStatus };
+        });
+        setOptimisticData(prev => ({ ...prev, ...updates }));
+
+        const idsToUpdate = [...selectedIds];
+        setSelectedIds([]); // Clear selection immediately
+
+        toast.success(`Updating ${idsToUpdate.length} items...`);
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/monthly-summary/batch-update`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    updates: idsToUpdate.map(id => ({ id, properties: { reviewed: reviewedStatus } }))
+                })
+            });
+
+            if (!res.ok) throw new Error('Batch update failed');
+
+            toast.success("Bulk update complete");
+            if (onUpdate) onUpdate();
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to batch update");
+            // Revert
+             setOptimisticData(prev => {
+                const newState = { ...prev };
+                idsToUpdate.forEach(id => delete newState[id]);
+                return newState;
+            });
+        }
+    };
+
     const handleEditClick = (item) => {
         setEditingSummary({
             id: item.id,

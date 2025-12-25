@@ -1138,6 +1138,7 @@ app.get('/api/monthly-summary', async (req, res) => {
                 adjustment: parsed['Adjustment'] || 0,
                 notes: parsed['Notes'],
                 amountRedeemed: parsed['Amount Redeemed'] || 0,
+                reviewed: parsed['Reviewed'] || false,
             };
         });
         res.json(results);
@@ -1563,7 +1564,7 @@ app.post('/api/summaries', async (req, res) => {
 
 app.patch('/api/monthly-summary/:id', async (req, res) => {
     const { id } = req.params;
-    const { paidAmount, statementAmount, adjustment, notes, amountRedeemed } = req.body;
+    const { paidAmount, statementAmount, adjustment, notes, amountRedeemed, reviewed } = req.body;
 
     try {
         const propertiesToUpdate = {};
@@ -1584,6 +1585,9 @@ app.patch('/api/monthly-summary/:id', async (req, res) => {
         if (notes !== undefined) {
              propertiesToUpdate['Notes'] = { rich_text: [{ text: { content: notes || "" } }] };
         }
+        if (typeof reviewed === 'boolean') {
+            propertiesToUpdate['Reviewed'] = { checkbox: reviewed };
+        }
 
         // Check if there's anything to update
         if (Object.keys(propertiesToUpdate).length === 0) {
@@ -1598,6 +1602,38 @@ app.patch('/api/monthly-summary/:id', async (req, res) => {
     } catch (error) {
         console.error('Error updating summary in Notion:', error.body || error);
         res.status(500).json({ error: 'Failed to update summary in Notion.' });
+    }
+});
+
+app.post('/api/monthly-summary/batch-update', async (req, res) => {
+    const { updates } = req.body; // Expecting [{ id, properties }]
+
+    if (!updates || !Array.isArray(updates) || updates.length === 0) {
+        return res.status(400).json({ error: 'An array of updates is required.' });
+    }
+
+    try {
+        const results = await Promise.all(updates.map(async (update) => {
+            const { id, properties } = update;
+            const propertiesToUpdate = {};
+
+            if (typeof properties.reviewed === 'boolean') {
+                propertiesToUpdate['Reviewed'] = { checkbox: properties.reviewed };
+            }
+
+            if (Object.keys(propertiesToUpdate).length > 0) {
+                await notion.pages.update({
+                    page_id: id,
+                    properties: propertiesToUpdate,
+                });
+            }
+            return id;
+        }));
+
+        res.status(200).json({ success: true, updatedIds: results });
+    } catch (error) {
+        console.error('Error batch updating monthly summaries:', error.body || error);
+        res.status(500).json({ error: 'Failed to batch update summaries.' });
     }
 });
 
