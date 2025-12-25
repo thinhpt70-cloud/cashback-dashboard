@@ -56,6 +56,7 @@ import {
     DropdownMenuLabel,
 } from "../../ui/dropdown-menu";
 import MobileTransactionItem from "../../shared/MobileTransactionItem";
+import MethodIndicator from "../../shared/MethodIndicator";
 
 export default function TransactionsList({
     transactions,
@@ -119,10 +120,13 @@ export default function TransactionsList({
             sortKey: 'Transaction Name',
             defaultVisible: true,
             renderCell: (tx) => (
-                <>
-                    <div className="font-medium">{tx['Transaction Name']}</div>
-                    {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
-                </>
+                <div className="flex items-center gap-2">
+                    <MethodIndicator method={tx['Method']} />
+                    <div>
+                        <div className="font-medium">{tx['Transaction Name']}</div>
+                        {tx.merchantLookup && <div className="text-xs text-gray-500">{tx.merchantLookup}</div>}
+                    </div>
+                </div>
             )
         },
         {
@@ -144,7 +148,7 @@ export default function TransactionsList({
         },
         {
             id: 'estCashback',
-            label: 'Estimated Cashback',
+            label: 'Est. Cashback',
             sortKey: 'estCashback',
             defaultVisible: true,
             headerClass: "text-right",
@@ -716,12 +720,18 @@ export default function TransactionsList({
                                             <Button
                                                 variant="ghost"
                                                 onClick={() => requestSort(col.sortKey)}
-                                                className={cn("px-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-800", col.headerClass || "")}
+                                                className={cn(
+                                                    "px-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1",
+                                                    col.headerClass?.includes("text-right") ? "w-full justify-end ml-0" : "",
+                                                    col.headerClass || ""
+                                                )}
                                             >
                                                 {col.label} <SortIcon columnKey={col.sortKey} />
                                             </Button>
                                         ) : (
-                                            <span className={cn(col.headerClass || "")}>{col.label}</span>
+                                            <div className={cn("flex items-center", col.headerClass?.includes("text-right") ? "justify-end" : "", col.headerClass || "")}>
+                                                <span>{col.label}</span>
+                                            </div>
                                         )}
                                     </TableHead>
                                 ))}
