@@ -37,9 +37,9 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                         </p>
                     </div>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <p className="text-xs text-slate-500 uppercase font-semibold">Minimum Redemption</p>
-                    <p className="text-2xl font-bold text-slate-700 dark:text-slate-300">
+                <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                    <p className="text-xs text-slate-500 uppercase font-semibold">Minimum Redemption:</p>
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
                         {cardData.minPointsRedeem ? currencyFn(cardData.minPointsRedeem) : '0'}
                     </p>
                 </div>
