@@ -27,7 +27,7 @@ import { PointsDetailSheet } from './components/PointsDetailSheet';
 import { RedeemPointsDialog } from './components/RedeemPointsDialog';
 import { UpdateDetailsDialog } from './components/UpdateDetailsDialog';
 
-import { calculateCashbackSplit, calculatePaymentDate, getPaymentStatus, isStatementFinalized } from '../../../lib/cashback-logic';
+import { calculateCashbackSplit, calculatePaymentDate, getPaymentStatus, isStatementFinalized, RE_REDEMPTION_LOG } from '../../../lib/cashback-logic';
 import { fmtYMShort } from '../../../lib/formatters';
 
 // ==========================================
@@ -75,9 +75,8 @@ function getCardActivities(items, statementDay) {
 
         // 2. Redeemed
         if (item.notes) {
-            // Regex for [Redeemed <amount> (on <date>)?: <note>]
-            // Updated to support decimal amounts and optional commas: ([\d,]+(?:\.\d+)?)
-            const regex = /\[Redeemed\s+([\d,]+(?:\.\d+)?)(?:\s+on\s+(\d{4}-\d{2}-\d{2}))?(?::\s*(.*?))?\]/g;
+            // Use shared Regex
+            const regex = new RegExp(RE_REDEMPTION_LOG); // Copy regex
             const legacyDateRegex = /(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+redemption/i;
 
             let match;
@@ -1006,6 +1005,76 @@ export default function CashbackTracker({
         }
     };
 
+    const handleUndoRedemption = async (event) => {
+        if (!event || !event.contributors || event.contributors.length === 0) return;
+
+        const updates = event.contributors.map(c => {
+             // 1. Strip the log from notes
+             // Since regex is global, we need to be careful. String replace of the exact original log is safest.
+             // But notes might have trailing newlines.
+
+             // Find the original item from monthlySummary
+             const item = monthlySummary.find(i => i.id === c.itemId);
+             if(!item) return null;
+
+             let newNotes = item.notes.replace(c.originalLog, '').trim();
+             // Clean up extra newlines if any
+             newNotes = newNotes.replace(/\n\s*\n/g, '\n').trim();
+
+             // 2. Reduce amountRedeemed
+             // If we just undo, we subtract.
+             // Note: If user edited AMOUNT manually outside of this flow, this logic assumes consistent state.
+             const newAmount = Math.max(0, (item.amountRedeemed || 0) - c.amount);
+
+             return {
+                 id: item.id,
+                 notes: newNotes,
+                 amountRedeemed: newAmount,
+                 // For optimistic
+                 originalNotes: item.notes,
+                 originalAmount: item.amountRedeemed
+             };
+        }).filter(Boolean);
+
+        if (updates.length === 0) return;
+
+        // Optimistic Update
+        const optimisticUpdates = {};
+        updates.forEach(u => {
+            optimisticUpdates[u.id] = { amountRedeemed: u.amountRedeemed, notes: u.notes };
+        });
+        setOptimisticData(prev => ({ ...prev, ...optimisticUpdates }));
+
+        toast.promise(
+            Promise.all(updates.map(u =>
+                 fetch(`${API_BASE_URL}/monthly-summary/${u.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amountRedeemed: u.amountRedeemed,
+                        notes: u.notes
+                    })
+                })
+            )),
+            {
+                loading: 'Reverting redemption...',
+                success: () => {
+                    if (onUpdate) onUpdate();
+                    return 'Redemption reverted successfully';
+                },
+                error: (err) => {
+                    // Revert optimistic
+                    setOptimisticData(prev => {
+                        const newState = { ...prev };
+                        updates.forEach(u => delete newState[u.id]);
+                        return newState;
+                    });
+                    return 'Failed to revert redemption';
+                }
+            }
+        );
+    };
+
     // --- HELPER FOR LIST VIEW ---
     const renderListView = () => {
         return (
@@ -1455,6 +1524,7 @@ export default function CashbackTracker({
                 onEdit={handleEditClick}
                 onToggleReviewed={handleToggleReviewed}
                 onViewTransactions={handleViewTransactions}
+                onUndoRedemption={handleUndoRedemption}
                 currencyFn={currency}
             />
 
