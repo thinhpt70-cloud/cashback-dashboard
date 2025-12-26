@@ -79,7 +79,7 @@ function getCardActivities(items, statementDay) {
         if (item.notes) {
             // Regex for [Redeemed <amount> (on <date>)?: <note>]
             // Updated to support decimal amounts and optional commas: ([\d,]+(?:\.\d+)?)
-            const regex = /\[Redeemed\s+([\d,]+(?:\.\d+)?)(?:\s+on\s+(\d{4}-\d{2}-\d{2}))?(?::\s*(.*?))?\]/g;
+            const regex = /\[Redeemed:?\s+([\d,]+(?:\.\d+)?)(?:\s+on\s+(\d{4}-\d{2}-\d{2}))?(?:\s*:\s*(.*?))?\]/gi;
             const legacyDateRegex = /(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+redemption/i;
 
             let match;
