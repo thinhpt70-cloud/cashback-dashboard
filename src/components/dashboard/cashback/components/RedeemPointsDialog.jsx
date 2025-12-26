@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Gift, AlertCircle, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,7 +20,7 @@ const parseCurrency = (value) => {
     return String(value).replace(/,/g, '');
 };
 
-const QUICK_AMOUNTS = [100000, 200000, 300000, 500000];
+const QUICK_AMOUNTS = [200000, 300000, 500000];
 
 export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
     const [amount, setAmount] = useState('');
@@ -170,7 +171,7 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 pt-2">
+                        <div className="space-y-4 pt-2">
                             <div className="space-y-2">
                                 <Label htmlFor="redeem-date">Date & Time</Label>
                                 <Input
@@ -178,17 +179,22 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
                                     type="datetime-local"
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
-                                    className="text-sm"
+                                    className="text-sm w-full"
                                 />
                             </div>
                              <div className="space-y-2">
                                 <Label htmlFor="redeem-notes">Notes (Optional)</Label>
-                                <Input
+                                <Textarea
                                     id="redeem-notes"
                                     value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
+                                    onChange={(e) => {
+                                        setNotes(e.target.value);
+                                        // Simple auto-grow
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = e.target.scrollHeight + 'px';
+                                    }}
                                     placeholder="e.g. Voucher"
-                                    className="text-sm"
+                                    className="text-sm min-h-[80px] resize-none overflow-hidden"
                                 />
                             </div>
                         </div>
