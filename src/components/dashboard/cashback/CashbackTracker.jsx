@@ -531,7 +531,6 @@ export default function CashbackTracker({
                         statementDay: card.statementDay,
                         totalPoints: 0,
                         totalRedeemed: 0,
-                        statementDay: card.statementDay,
                         history: [],
                         items: [] // Keep track of raw items for FIFO redemption
                     };
