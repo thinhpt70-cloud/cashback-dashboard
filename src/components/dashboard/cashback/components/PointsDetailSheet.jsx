@@ -72,24 +72,23 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                                              </div>
                                          </div>
                                          <div className="flex gap-1 -mr-2 -mt-2">
-                                             <Button
+                                            <Button
                                                 variant="ghost"
                                                 size="icon"
                                                 className={cn("h-6 w-6 transition-opacity", isReviewed ? "text-indigo-600 opacity-100" : "opacity-30 group-hover:opacity-100 text-slate-400 hover:text-indigo-600")}
                                                 onClick={() => onToggleReviewed(item)}
                                                 title={isReviewed ? "Mark Unreviewed" : "Mark Reviewed"}
-                                             >
-                                                 <ClipboardCheck className="h-3 w-3" />
-     
-                                             <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100" onClick={() => onViewTransactions(item)}>
-                                                 <Eye className="h-3 w-3" />
-                                             </Button>
-                                             <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100" onClick={() => onEdit(item)}>
-                                                 <Edit2 className="h-3 w-3" />
-                                             </Button>
+                                            >
+                                                <ClipboardCheck className="h-3 w-3" />
+                                            </Button> {/* <--- THIS TAG WAS MISSING */}
                                         
-                                     </div>
-
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100" onClick={() => onViewTransactions(item)}>
+                                                <Eye className="h-3 w-3" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100" onClick={() => onEdit(item)}>
+                                                <Edit2 className="h-3 w-3" />
+                                            </Button>
+                                        </div>
                                      <div className="grid grid-cols-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
                                          <div className="flex justify-between pr-2">
                                              <span>Earned:</span>
