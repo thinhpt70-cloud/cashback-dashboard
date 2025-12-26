@@ -16,6 +16,14 @@ import { Tabs, TabsList, TabsTrigger } from "../../ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { Progress } from "../../ui/progress";
 import { Card, CardContent, CardHeader, CardFooter } from "../../ui/card";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "../../ui/table";
 import { cn } from "@/lib/utils";
 import StatCard from "../../shared/StatCard";
 import SharedTransactionsDialog from '@/components/shared/SharedTransactionsDialog';
