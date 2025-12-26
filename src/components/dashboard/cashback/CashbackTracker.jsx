@@ -31,7 +31,7 @@ const API_BASE_URL = '/api';
 
 const currency = (n) => new Intl.NumberFormat('en-US', { style: 'decimal', maximumFractionDigits: 0 }).format(n);
 
-function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, statementDay }) {
+function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, statementDay, onSelect, isSelected, onToggleReviewed }) {
     const isPaid = item.remainingDue <= 0;
     
     // 1. Calculate paid status for specific tiers
@@ -61,17 +61,34 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, sta
                 ? "border-slate-200 dark:border-slate-800 opacity-60"
                 : isCardOverdue
                     ? "border-red-300 dark:border-red-900 bg-red-50/10"
-                    : "border-emerald-500/50 dark:border-emerald-500/50 border-dashed"
+                    : "border-emerald-500/50 dark:border-emerald-500/50 border-dashed",
+            isSelected ? "ring-2 ring-indigo-500" : ""
         )}>
+            {/* Selection Overlay (Top Right) */}
+            <div className="absolute top-2 right-2 flex gap-1 z-10">
+                 <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={(c) => onSelect(item.id)}
+                    className={cn("bg-white border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600", !isSelected && "opacity-0 group-hover:opacity-100 transition-opacity")}
+                />
+            </div>
+
+            {/* Reviewed Badge (Top Left - Floating) */}
+            {item.reviewed && (
+                <div className="absolute -top-2 -left-2 bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm z-10 flex items-center gap-1">
+                    <CheckSquare className="h-3 w-3" /> Reviewed
+                </div>
+            )}
+
             {/* Header */}
-            <div className="flex justify-between items-start mb-3">
+            <div className="flex justify-between items-start mb-3 pt-2">
                 <div className="flex items-center gap-2">
                     <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0 uppercase">
                         {item.bankName ? item.bankName.substring(0,2) : 'CB'}
                     </div>
                     <div>
                         <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 leading-tight line-clamp-1">{item.cardName}</h3>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-xs text-slate-500 font-medium">{fmtYMShort(item.month)}</p>
                             {isStatementPending && !isPaid && (
                                 <Badge variant="secondary" className="text-[10px] h-4 px-1 py-0 font-normal bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200">
@@ -81,12 +98,15 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, sta
                         </div>
                     </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 pr-6"> {/* Added padding for checkbox space */}
                     <Button variant="ghost" size="icon" className="h-6 w-6 opacity-80 hover:opacity-100 transition-opacity" onClick={() => onViewTransactions(item)}>
                          <Eye className="h-3 w-3 text-slate-400 hover:text-slate-600" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-6 w-6 opacity-80 hover:opacity-100 transition-opacity" onClick={() => onEdit(item)}>
                         <Edit2 className="h-3 w-3 text-slate-400 hover:text-slate-600" />
+                    </Button>
+                     <Button variant="ghost" size="icon" className={cn("h-6 w-6 transition-opacity", item.reviewed ? "text-emerald-500" : "opacity-20 hover:opacity-100")} onClick={() => onToggleReviewed(item, !item.reviewed)} title="Toggle Reviewed">
+                        {item.reviewed ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
                     </Button>
                 </div>
             </div>
