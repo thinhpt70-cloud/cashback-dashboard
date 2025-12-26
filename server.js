@@ -1138,6 +1138,7 @@ app.get('/api/monthly-summary', async (req, res) => {
                 adjustment: parsed['Adjustment'] || 0,
                 notes: parsed['Notes'],
                 amountRedeemed: parsed['Amount Redeemed'] || 0,
+                reviewed: parsed['Reviewed'] || false, // NEW
             };
         });
         res.json(results);
@@ -1563,7 +1564,7 @@ app.post('/api/summaries', async (req, res) => {
 
 app.patch('/api/monthly-summary/:id', async (req, res) => {
     const { id } = req.params;
-    const { paidAmount, statementAmount, adjustment, notes, amountRedeemed } = req.body;
+    const { paidAmount, statementAmount, adjustment, notes, amountRedeemed, reviewed } = req.body;
 
     try {
         const propertiesToUpdate = {};
@@ -1584,6 +1585,9 @@ app.patch('/api/monthly-summary/:id', async (req, res) => {
         if (notes !== undefined) {
              propertiesToUpdate['Notes'] = { rich_text: [{ text: { content: notes || "" } }] };
         }
+        if (typeof reviewed === 'boolean') {
+            propertiesToUpdate['Reviewed'] = { checkbox: reviewed };
+        }
 
         // Check if there's anything to update
         if (Object.keys(propertiesToUpdate).length === 0) {
@@ -1598,6 +1602,46 @@ app.patch('/api/monthly-summary/:id', async (req, res) => {
     } catch (error) {
         console.error('Error updating summary in Notion:', error.body || error);
         res.status(500).json({ error: 'Failed to update summary in Notion.' });
+    }
+});
+
+// POST /api/monthly-summary/bulk-review - Bulk update Reviewed status
+app.post('/api/monthly-summary/bulk-review', async (req, res) => {
+    const { ids, reviewed } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'An array of summary IDs is required.' });
+    }
+
+    if (typeof reviewed !== 'boolean') {
+        return res.status(400).json({ error: 'A boolean "reviewed" status is required.' });
+    }
+
+    try {
+        // Notion doesn't have a native bulk update for pages.
+        // We process sequentially to avoid hitting rate limits (3 req/sec),
+        // as bulk operations might exceed this if done in parallel.
+        const results = [];
+
+        for (const id of ids) {
+            try {
+                await notion.pages.update({
+                    page_id: id,
+                    properties: {
+                        'Reviewed': { checkbox: reviewed }
+                    }
+                });
+                results.push(id);
+            } catch (innerError) {
+                console.error(`Failed to update summary ${id} in bulk-review`, innerError);
+            }
+        }
+
+        res.status(200).json({ success: true, updatedIds: results });
+
+    } catch (error) {
+        console.error('Error bulk updating summary reviews:', error.body || error);
+        res.status(500).json({ error: 'Failed to bulk update reviews.' });
     }
 });
 

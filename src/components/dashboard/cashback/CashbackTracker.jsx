@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import {
     CheckCircle, AlertTriangle, Filter, Edit2, Clock, Calendar, Wallet,
-    Coins, Gift, TrendingUp, List, ArrowDown, Eye, Info, Lock
+    Coins, Gift, TrendingUp, List, ArrowDown, Eye, Info, Lock, ClipboardCheck, X
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
+import { Checkbox } from "../../ui/checkbox";
 import { Label } from "../../ui/label";
 import { Textarea } from "../../ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../ui/dialog";
@@ -30,8 +31,9 @@ const API_BASE_URL = '/api';
 
 const currency = (n) => new Intl.NumberFormat('en-US', { style: 'decimal', maximumFractionDigits: 0 }).format(n);
 
-function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, statementDay }) {
+function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, onToggleReviewed, statementDay, isSelectionMode, isSelected, onToggleSelect }) {
     const isPaid = item.remainingDue <= 0;
+    const isReviewed = item.reviewed;
     
     // 1. Calculate paid status for specific tiers
     const tier1Paid = (item.amountRedeemed || 0) >= item.tier1Amount;
@@ -65,6 +67,13 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, sta
             {/* Header */}
             <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
+                    {isSelectionMode && (
+                        <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={onToggleSelect}
+                            className="mr-1"
+                        />
+                    )}
                     <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0 uppercase">
                         {item.bankName ? item.bankName.substring(0,2) : 'CB'}
                     </div>
@@ -72,6 +81,11 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, sta
                         <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 leading-tight line-clamp-1">{item.cardName}</h3>
                         <div className="flex items-center gap-2">
                             <p className="text-xs text-slate-500 font-medium">{fmtYMShort(item.month)}</p>
+                            {isReviewed && (
+                                <Badge variant="outline" className="text-[10px] h-4 px-1 py-0 font-normal text-indigo-600 border-indigo-200 bg-indigo-50 dark:bg-indigo-950/30">
+                                    <ClipboardCheck className="h-3 w-3 mr-1" /> Reviewed
+                                </Badge>
+                            )}
                             {isStatementPending && !isPaid && (
                                 <Badge variant="secondary" className="text-[10px] h-4 px-1 py-0 font-normal bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200">
                                     <Info className="h-3 w-3 mr-1" /> Pending Stmt
@@ -142,12 +156,30 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, sta
 
                 {/* Buttons */}
                 {isPaid ? (
-                    <div className="w-full py-1.5 flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 rounded-md cursor-default">
-                        <CheckCircle className="h-3.5 w-3.5" />
-                        <span>Settled</span>
+                    <div className="space-y-2">
+                        <div className="w-full py-1.5 flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 rounded-md cursor-default">
+                            <CheckCircle className="h-3.5 w-3.5" />
+                            <span>Settled</span>
+                        </div>
+                        <Button
+                            variant="outline"
+                            onClick={() => onToggleReviewed(item)}
+                            className={cn("w-full h-7 text-[10px]", isReviewed ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50" : "text-slate-500")}
+                        >
+                            {isReviewed ? "Unmark Reviewed" : "Mark Reviewed"}
+                        </Button>
                     </div>
                 ) : (
                     <div className="space-y-2">
+                        {/* Mark Reviewed Button (Visible on Unpaid too) */}
+                        <Button
+                            variant="outline"
+                            onClick={() => onToggleReviewed(item)}
+                            className={cn("w-full h-7 text-[10px]", isReviewed ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50" : "text-slate-500")}
+                        >
+                            {isReviewed ? "Unmark Reviewed" : "Mark Reviewed"}
+                        </Button>
+
                         {/* Tier 1 Button */}
                         {!tier1Paid && (
                             <Button
@@ -284,6 +316,10 @@ export default function CashbackTracker({
     const [listGroupBy, setListGroupBy] = useState('month'); // 'month' | 'card'
     const [showAllGroups, setShowAllGroups] = useState(false); // For accordion logic
 
+    // Selection State
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState(new Set());
+
     // Dialog States
     const [editingSummary, setEditingSummary] = useState(null);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -317,9 +353,12 @@ export default function CashbackTracker({
 
         monthlySummary.forEach(originalSummary => {
             // Apply optimistic override if exists
+            const optimistic = optimisticData[originalSummary.id] || {};
             const summary = {
                 ...originalSummary,
-                ...(optimisticData[originalSummary.id] || {})
+                ...optimistic,
+                // Ensure reviewed status is taken from optimistic data if present, otherwise fallback to original
+                reviewed: optimistic.reviewed !== undefined ? optimistic.reviewed : (originalSummary.reviewed || false)
             };
 
             const card = cMap.get(summary.cardId);
@@ -356,6 +395,9 @@ export default function CashbackTracker({
                 tier2Amount: tier2, tier2Date, tier2Status,
                 remainingDue,
                 isPoints: isPointsItem,
+                // reviewed is already merged in 'summary' above, but we keep it explicit if needed.
+                // We don't need to re-default it here as 'summary' already has the merged value.
+                reviewed: summary.reviewed,
             };
 
             if (isPointsItem) {
@@ -486,6 +528,96 @@ export default function CashbackTracker({
             toast.error("Failed to update summary");
         }
     };
+
+    // --- REVIEWED LOGIC ---
+    const handleToggleReviewed = async (item) => {
+        const newStatus = !item.reviewed;
+
+        // Optimistic
+        setOptimisticData(prev => ({
+            ...prev,
+            [item.id]: { reviewed: newStatus }
+        }));
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/monthly-summary/${item.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reviewed: newStatus })
+            });
+
+            if (!res.ok) throw new Error("Failed to update review status");
+
+            if (onUpdate) onUpdate();
+            toast.success(newStatus ? "Marked as Reviewed" : "Marked as Unreviewed");
+
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to update status");
+            // Revert
+            setOptimisticData(prev => {
+                const newState = { ...prev };
+                delete newState[item.id];
+                return newState;
+            });
+        }
+    };
+
+    // --- BULK SELECTION LOGIC ---
+    const toggleSelectionMode = () => {
+        setIsSelectionMode(prev => {
+            if (prev) setSelectedIds(new Set()); // Clear on exit
+            return !prev;
+        });
+    };
+
+    const handleToggleSelect = (id) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const handleBulkReview = async (status) => {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+
+        // Optimistic
+        const optimisticUpdates = {};
+        ids.forEach(id => {
+            optimisticUpdates[id] = { reviewed: status };
+        });
+        setOptimisticData(prev => ({ ...prev, ...optimisticUpdates }));
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/monthly-summary/bulk-review`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids, reviewed: status })
+            });
+
+            if (!res.ok) throw new Error("Bulk update failed");
+
+            toast.success(`Updated ${ids.length} items`);
+            setSelectedIds(new Set());
+            setIsSelectionMode(false);
+            if (onUpdate) onUpdate();
+
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to update items");
+            // Revert is complex here, generally rely on refetch or specific error handling
+            // For now, clear optimistic to prevent stuck state
+            setOptimisticData(prev => {
+                const newState = { ...prev };
+                ids.forEach(id => delete newState[id]);
+                return newState;
+            });
+        }
+    };
+
 
     const handleMarkReceived = async (item, tier = 'full') => {
         // 0. Calculate values
@@ -768,6 +900,7 @@ export default function CashbackTracker({
                         <table className="w-full text-sm text-left">
                             <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 uppercase text-xs font-semibold">
                                 <tr>
+                                    {isSelectionMode && <th className="px-4 py-3 w-10"></th>}
                                     <th className="px-4 py-3">Month</th>
                                     <th className="px-4 py-3">Card</th>
                                     <th className="px-4 py-3 text-right">Total Earned</th>
@@ -789,12 +922,24 @@ export default function CashbackTracker({
                                             const isPaid = item.remainingDue <= 0;
                                             const tier1Paid = (item.amountRedeemed || 0) >= item.tier1Amount;
                                             const isStatementPending = !isStatementFinalized(item.month, item.statementDay);
+                                            const isReviewed = item.reviewed;
 
                                             const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', {day: 'numeric', month: 'short'}) : '-';
 
                                             return (
                                                 <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
-                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono">{fmtYMShort(item.month)}</td>
+                                                    {isSelectionMode && (
+                                                        <td className="px-4 py-3">
+                                                            <Checkbox
+                                                                checked={selectedIds.has(item.id)}
+                                                                onCheckedChange={() => handleToggleSelect(item.id)}
+                                                            />
+                                                        </td>
+                                                    )}
+                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono">
+                                                        {fmtYMShort(item.month)}
+                                                        {isReviewed && <Badge variant="outline" className="ml-2 text-[9px] h-4 px-1 py-0 text-indigo-600 border-indigo-200">Reviewed</Badge>}
+                                                    </td>
                                                     <td className="px-4 py-3">
                                                         <div className="font-medium text-slate-900 dark:text-slate-100">{item.cardName}</div>
                                                         <div className="text-[10px] text-slate-400">{item.bankName}</div>
@@ -829,6 +974,15 @@ export default function CashbackTracker({
                                                         <div className="flex justify-center gap-1">
                                                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleViewTransactions(item)}>
                                                                 <Eye className="h-4 w-4 text-slate-400" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className={cn("h-8 w-8", isReviewed ? "text-indigo-600" : "text-slate-400")}
+                                                                onClick={() => handleToggleReviewed(item)}
+                                                                title={isReviewed ? "Mark Unreviewed" : "Mark Reviewed"}
+                                                            >
+                                                                <ClipboardCheck className="h-4 w-4" />
                                                             </Button>
                                                             {!isPaid && (
                                                                 <Button
@@ -928,6 +1082,15 @@ export default function CashbackTracker({
                         </Tabs>
 
                         <div className="flex items-center gap-3 w-full md:w-auto">
+                            <Button
+                                variant={isSelectionMode ? "secondary" : "outline"}
+                                size="sm"
+                                onClick={toggleSelectionMode}
+                                className={cn("gap-2", isSelectionMode ? "bg-slate-200 dark:bg-slate-800" : "")}
+                            >
+                                {isSelectionMode ? <X className="h-4 w-4" /> : <ClipboardCheck className="h-4 w-4" />}
+                                {isSelectionMode ? "Cancel" : "Select"}
+                            </Button>
                             <div className="relative w-full md:w-[200px]">
                                 <Filter className="absolute left-3 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
                                 <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -972,6 +1135,10 @@ export default function CashbackTracker({
                                                     onMarkReceived={handleMarkReceived}
                                                     onEdit={handleEditClick}
                                                     onViewTransactions={handleViewTransactions}
+                                                    onToggleReviewed={handleToggleReviewed}
+                                                    isSelectionMode={isSelectionMode}
+                                                    isSelected={selectedIds.has(item.id)}
+                                                    onToggleSelect={() => handleToggleSelect(item.id)}
                                                 />
                                             ))}
                                         </div>
@@ -1015,6 +1182,10 @@ export default function CashbackTracker({
                                                                     onMarkReceived={handleMarkReceived}
                                                                     onEdit={handleEditClick}
                                                                     onViewTransactions={handleViewTransactions}
+                                                                    onToggleReviewed={handleToggleReviewed}
+                                                                    isSelectionMode={isSelectionMode}
+                                                                    isSelected={selectedIds.has(item.id)}
+                                                                    onToggleSelect={() => handleToggleSelect(item.id)}
                                                                 />
                                                             ))}
                                                         </div>
@@ -1147,11 +1318,44 @@ export default function CashbackTracker({
                 </DialogContent>
             </Dialog>
 
+            {/* BULK ACTION BAR */}
+            {selectedIds.size > 0 && (
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/90 dark:bg-slate-100/90 text-white dark:text-slate-900 px-6 py-3 rounded-full shadow-lg backdrop-blur-sm z-50 flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-200">
+                    <span className="text-sm font-semibold">{selectedIds.size} Selected</span>
+                    <div className="h-4 w-px bg-white/20 dark:bg-black/20" />
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-white dark:text-slate-900 hover:bg-white/20 dark:hover:bg-black/10 h-8"
+                        onClick={() => handleBulkReview(true)}
+                    >
+                        Mark Reviewed
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-white dark:text-slate-900 hover:bg-white/20 dark:hover:bg-black/10 h-8"
+                        onClick={() => handleBulkReview(false)}
+                    >
+                        Unmark
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-slate-400 hover:text-white dark:hover:text-slate-900 hover:bg-transparent h-8 w-8 ml-2"
+                        onClick={() => setSelectedIds(new Set())}
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+            )}
+
             <PointsDetailSheet
                 isOpen={pointsDetailOpen}
                 onClose={() => setPointsDetailOpen(false)}
                 cardData={pointsByCard.find(c => c.cardId === selectedPointsCardId)}
                 onEdit={handleEditClick}
+                onToggleReviewed={handleToggleReviewed}
                 onViewTransactions={handleViewTransactions}
                 currencyFn={currency}
             />
