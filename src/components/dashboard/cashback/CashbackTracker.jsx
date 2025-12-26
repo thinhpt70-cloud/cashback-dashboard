@@ -866,6 +866,9 @@ export default function CashbackTracker({
 
     // --- HELPER FOR LIST VIEW ---
     const renderListView = () => {
+        const flatItems = groupedCashData.flatMap(g => g.items);
+        const allSelected = flatItems.length > 0 && selectedIds.length === flatItems.length;
+
         return (
             <div className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
@@ -891,6 +894,10 @@ export default function CashbackTracker({
                         <table className="w-full text-sm text-left">
                             <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 uppercase text-xs font-semibold">
                                 <tr>
+                                    <th className="w-[30px] p-2 text-center">
+                                        <Checkbox checked={allSelected} onCheckedChange={() => handleSelectAll(flatItems)} aria-label="Select all" />
+                                    </th>
+                                    <th className="px-4 py-3">Reviewed</th>
                                     <th className="px-4 py-3">Month</th>
                                     <th className="px-4 py-3">Card</th>
                                     <th className="px-4 py-3 text-right">Total Earned</th>
@@ -904,7 +911,7 @@ export default function CashbackTracker({
                                 {groupedCashData.map(group => (
                                     <React.Fragment key={group.title}>
                                         <tr className="bg-slate-50/50 dark:bg-slate-900/30">
-                                            <td colSpan="7" className="px-4 py-2 font-bold text-slate-700 dark:text-slate-300">
+                                            <td colSpan="9" className="px-4 py-2 font-bold text-slate-700 dark:text-slate-300">
                                                 {group.title} <span className="text-slate-400 font-normal text-xs ml-2">({group.items.length} items)</span>
                                             </td>
                                         </tr>
@@ -912,11 +919,26 @@ export default function CashbackTracker({
                                             const isPaid = item.remainingDue <= 0;
                                             const tier1Paid = (item.amountRedeemed || 0) >= item.tier1Amount;
                                             const isStatementPending = !isStatementFinalized(item.month, item.statementDay);
+                                            const isSelected = selectedIds.includes(item.id);
 
                                             const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', {day: 'numeric', month: 'short'}) : '-';
 
                                             return (
-                                                <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+                                                <tr key={item.id} className={cn("hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors", isSelected && "bg-slate-50 dark:bg-slate-800/50")}>
+                                                    <td className="p-2 text-center">
+                                                        <Checkbox checked={isSelected} onCheckedChange={() => handleSelectOne(item.id)} />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <button
+                                                            onClick={() => handleMarkReviewed(item, !item.reviewed)}
+                                                            className={cn("flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-semibold transition-colors border",
+                                                                item.reviewed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
+                                                            )}
+                                                        >
+                                                            {item.reviewed ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
+                                                            {item.reviewed ? "Reviewed" : "Pending"}
+                                                        </button>
+                                                    </td>
                                                     <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono">{fmtYMShort(item.month)}</td>
                                                     <td className="px-4 py-3">
                                                         <div className="font-medium text-slate-900 dark:text-slate-100">{item.cardName}</div>
@@ -975,6 +997,27 @@ export default function CashbackTracker({
                         </table>
                     </div>
                 </div>
+            </div>
+        );
+    };
+
+    const BulkActionBar = () => {
+        if (selectedIds.length === 0) return null;
+        return (
+            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-4 py-2 rounded-full shadow-xl flex items-center gap-4 animate-in slide-in-from-bottom-4">
+                <span className="text-sm font-medium pl-2">{selectedIds.length} selected</span>
+                <div className="h-4 w-px bg-slate-700"></div>
+                <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => handleBulkReviewed(true)} className="text-emerald-400 hover:text-emerald-300 hover:bg-slate-800">
+                        <CheckSquare className="h-4 w-4 mr-1.5" /> Mark Reviewed
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleBulkReviewed(false)} className="text-slate-300 hover:text-white hover:bg-slate-800">
+                        <Square className="h-4 w-4 mr-1.5" /> Mark Unreviewed
+                    </Button>
+                </div>
+                <Button size="icon" variant="ghost" className="h-6 w-6 rounded-full hover:bg-slate-800 text-slate-400" onClick={() => setSelectedIds([])}>
+                    <ArrowDown className="h-4 w-4" />
+                </Button>
             </div>
         );
     };
