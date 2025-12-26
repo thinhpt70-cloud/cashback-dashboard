@@ -1340,7 +1340,6 @@ export default function CashbackTracker({
                         Unmark
                     </Button>
                     <Button
-                        size="sm"
                         variant="ghost"
                         size="icon"
                         className="text-slate-400 hover:text-white dark:hover:text-slate-900 hover:bg-transparent h-8 w-8 ml-2"
