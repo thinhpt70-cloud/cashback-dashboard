@@ -71,11 +71,26 @@ function getCardActivities(items, statementDay) {
             // Regex for [Redeemed <amount> (on <date>)?: <note>]
             // Updated to support decimal amounts: (\d+(?:\.\d+)?)
             const regex = /\[Redeemed\s+(\d+(?:\.\d+)?)(?:\s+on\s+(\d{4}-\d{2}-\d{2}))?(?::\s*(.*?))?\]/g;
+            const legacyDateRegex = /(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+redemption/i;
+
             let match;
             while ((match = regex.exec(item.notes)) !== null) {
                 const amount = Number(match[1]);
-                const dateRaw = match[2];
-                const noteContent = match[3];
+                let dateRaw = match[2];
+                let noteContent = match[3];
+
+                // Legacy: Check if noteContent contains a date like "31 Oct 2025 redemption"
+                if (!dateRaw && noteContent) {
+                    const dateMatch = noteContent.match(legacyDateRegex);
+                    if (dateMatch) {
+                        const day = dateMatch[1];
+                        const monthStr = dateMatch[2];
+                        const year = dateMatch[3];
+                        const month = new Date(`${monthStr} 1 2000`).getMonth() + 1; // Parse month name
+                        dateRaw = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        noteContent = 'Redemption'; // Normalize description
+                    }
+                }
 
                 let dateStr = dateRaw;
                 if (!dateStr) {
