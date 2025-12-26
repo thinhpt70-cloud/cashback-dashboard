@@ -142,3 +142,97 @@ export const getPaymentStatus = (amountDue, amountPaid, dueDate) => {
 
     return { status: 'unpaid', label: 'Unpaid', color: 'bg-gray-100 text-gray-800' };
 };
+
+// Regex for [Redeemed <amount> (on <date>)?: <note>]
+// Updated to support decimal amounts and optional commas: ([\d,]+(?:\.\d+)?)
+export const RE_REDEMPTION_LOG = /\[Redeemed\s+([\d,]+(?:\.\d+)?)(?:\s+on\s+(\d{4}-\d{2}-\d{2}))?(?::\s*(.*?))?\]/g;
+
+/**
+ * Groups monthly summary items into a unified history timeline.
+ *
+ * @param {Array} items - Array of monthly summary items (from cardData.items)
+ * @returns {Array} - Sorted array of events { type: 'earned'|'redeemed', date, amount, ... }
+ */
+export const groupRedemptionEvents = (items) => {
+    const events = [];
+    const redemptionMap = new Map(); // Key: "date-note", Value: { totalAmount, contributors: [] }
+
+    if (!items) return [];
+
+    // 1. Process Items
+    items.forEach(item => {
+        // A. Earned Events
+        if (item.totalEarned > 0) {
+            events.push({
+                type: 'earned',
+                id: `earned-${item.id}`,
+                date: item.month, // This will be formatted later, keep sortable YYYYMM or YYYY-MM
+                amount: item.totalEarned,
+                month: item.month,
+                item: item
+            });
+        }
+
+        // B. Redemption Logs
+        if (item.notes) {
+            let match;
+            // Reset regex lastIndex
+            RE_REDEMPTION_LOG.lastIndex = 0;
+
+            while ((match = RE_REDEMPTION_LOG.exec(item.notes)) !== null) {
+                const amount = Number(match[1].replace(/,/g, ''));
+                let dateStr = match[2];
+                let note = match[3] ? match[3].trim() : '';
+                const fullLog = match[0];
+
+                // Legacy format handling (if needed, copying logic from CashbackTracker)
+                if (!dateStr) {
+                    // Fallback to item month end if date missing
+                    // We assume item.month is YYYYMM or YYYY-MM
+                    let y, m;
+                     if (item.month.includes('-')) {
+                        const p = item.month.split('-');
+                        y = parseInt(p[0], 10);
+                        m = parseInt(p[1], 10);
+                    } else {
+                        y = parseInt(item.month.substring(0, 4), 10);
+                        m = parseInt(item.month.substring(4, 6), 10);
+                    }
+                    // Last day of month
+                    const d = new Date(y, m, 0).getDate();
+                    dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                }
+
+                const key = `${dateStr}|${note || 'Redemption'}`;
+
+                if (!redemptionMap.has(key)) {
+                    redemptionMap.set(key, {
+                        type: 'redeemed',
+                        id: `redeem-${key}`,
+                        date: dateStr,
+                        note: note || 'Redemption',
+                        amount: 0,
+                        contributors: []
+                    });
+                }
+
+                const event = redemptionMap.get(key);
+                event.amount += amount;
+                event.contributors.push({
+                    itemId: item.id,
+                    month: item.month,
+                    amount: amount,
+                    originalLog: fullLog
+                });
+            }
+        }
+    });
+
+    // 2. Merge Redemptions into Events
+    redemptionMap.forEach(event => events.push(event));
+
+    // 3. Sort by Date Descending
+    // Note: Earned events date might be YYYYMM or YYYY-MM. Redeemed is YYYY-MM-DD.
+    // We normalize to string comparison which works for YYYY...
+    return events.sort((a, b) => b.date.localeCompare(a.date));
+};
