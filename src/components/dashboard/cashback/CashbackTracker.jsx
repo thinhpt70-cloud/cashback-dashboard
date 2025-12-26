@@ -36,11 +36,22 @@ function getCardActivities(items, statementDay) {
     const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
 
     items.forEach(item => {
+        const getYearMonth = (mStr) => {
+            if (mStr.includes('-')) {
+                const parts = mStr.split('-');
+                return [Number(parts[0]), Number(parts[1])];
+            }
+            if (mStr.length === 6) {
+                return [Number(mStr.substring(0, 4)), Number(mStr.substring(4, 6))];
+            }
+            return [new Date().getFullYear(), new Date().getMonth() + 1]; // Fallback
+        };
+
+        const [y, m] = getYearMonth(item.month);
+
         // 1. Earned
         if (item.totalEarned > 0) {
             // Calculate Statement Date: Month + Statement Day
-            // item.month is "YYYY-MM"
-            const [y, m] = item.month.split('-').map(Number);
             const daysInMonth = new Date(y, m, 0).getDate(); // Day 0 of next month = last day of current
             const day = Math.min(statementDay || 1, daysInMonth);
 
@@ -58,7 +69,8 @@ function getCardActivities(items, statementDay) {
         // 2. Redeemed
         if (item.notes) {
             // Regex for [Redeemed <amount> (on <date>)?: <note>]
-            const regex = /\[Redeemed\s+(\d+)(?:\s+on\s+(\d{4}-\d{2}-\d{2}))?(?::\s*(.*?))?\]/g;
+            // Updated to support decimal amounts: (\d+(?:\.\d+)?)
+            const regex = /\[Redeemed\s+(\d+(?:\.\d+)?)(?:\s+on\s+(\d{4}-\d{2}-\d{2}))?(?::\s*(.*?))?\]/g;
             let match;
             while ((match = regex.exec(item.notes)) !== null) {
                 const amount = Number(match[1]);
@@ -68,7 +80,6 @@ function getCardActivities(items, statementDay) {
                 let dateStr = dateRaw;
                 if (!dateStr) {
                     // Fallback to item month end
-                     const [y, m] = item.month.split('-').map(Number);
                      const daysInMonth = new Date(y, m, 0).getDate();
                      dateStr = `${y}-${String(m).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
                 }
