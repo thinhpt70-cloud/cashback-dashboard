@@ -46,32 +46,32 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                 <ScrollArea className="flex-1 pr-4 -mr-4">
                     <div className="space-y-3 pb-4">
                         {cardData.items.slice().reverse().map((item) => { // Reverse to show newest first
-                             const earned = item.totalEarned || 0;
-                             const redeemed = item.amountRedeemed || 0;
-                             const adjustment = item.adjustment || 0;
-                             const remaining = item.remainingDue || 0;
-                             const hasNotes = item.notes && item.notes.trim().length > 0;
-                             const isReviewed = item.reviewed;
+                            const earned = item.totalEarned || 0;
+                            const redeemed = item.amountRedeemed || 0;
+                            const adjustment = item.adjustment || 0;
+                            const remaining = item.remainingDue || 0;
+                            const hasNotes = item.notes && item.notes.trim().length > 0;
+                            const isReviewed = item.reviewed;
 
-                             return (
-                                 <div key={item.id} className="group relative border border-slate-200 dark:border-slate-800 rounded-lg p-3 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors bg-white dark:bg-slate-950">
-                                     <div className="flex justify-between items-start mb-2">
-                                         <div>
-                                             <div className="flex items-center gap-2">
-                                                 <span className="font-mono font-bold text-slate-700 dark:text-slate-200">{fmtYMShort(item.month)}</span>
-                                                 {remaining > 0 ? (
-                                                     <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 px-1 py-0 h-5">Active</Badge>
-                                                 ) : (
-                                                     <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-200 px-1 py-0 h-5">Settled</Badge>
-                                                 )}
-                                                 {isReviewed && (
-                                                     <Badge variant="outline" className="text-[10px] bg-indigo-50 text-indigo-600 border-indigo-200 px-1 py-0 h-5 flex items-center gap-1">
-                                                         <ClipboardCheck className="h-2.5 w-2.5" />
-                                                     </Badge>
-                                                 )}
-                                             </div>
-                                         </div>
-                                         <div className="flex gap-1 -mr-2 -mt-2">
+                            return (
+                                <div key={item.id} className="group relative border border-slate-200 dark:border-slate-800 rounded-lg p-3 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors bg-white dark:bg-slate-950">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono font-bold text-slate-700 dark:text-slate-200">{fmtYMShort(item.month)}</span>
+                                                {remaining > 0 ? (
+                                                    <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 px-1 py-0 h-5">Active</Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-200 px-1 py-0 h-5">Settled</Badge>
+                                                )}
+                                                {isReviewed && (
+                                                    <Badge variant="outline" className="text-[10px] bg-indigo-50 text-indigo-600 border-indigo-200 px-1 py-0 h-5 flex items-center gap-1">
+                                                        <ClipboardCheck className="h-2.5 w-2.5" />
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-1 -mr-2 -mt-2">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -80,41 +80,44 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                                                 title={isReviewed ? "Mark Unreviewed" : "Mark Reviewed"}
                                             >
                                                 <ClipboardCheck className="h-3 w-3" />
-                                            </Button> {/* <--- THIS TAG WAS MISSING */}
-                                        
+                                            </Button>
+                                            
                                             <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100" onClick={() => onViewTransactions(item)}>
                                                 <Eye className="h-3 w-3" />
                                             </Button>
+                                            
                                             <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100" onClick={() => onEdit(item)}>
                                                 <Edit2 className="h-3 w-3" />
                                             </Button>
                                         </div>
-                                     <div className="grid grid-cols-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
-                                         <div className="flex justify-between pr-2">
-                                             <span>Earned:</span>
-                                             <span className="font-medium">{currencyFn(earned)}</span>
-                                         </div>
-                                          <div className="flex justify-between pl-2 border-l border-slate-100 dark:border-slate-800">
-                                             <span>Redeemed:</span>
-                                             <span className={cn("font-medium", redeemed > 0 ? "text-indigo-600" : "")}>{currencyFn(redeemed)}</span>
-                                         </div>
-                                          <div className="flex justify-between pr-2">
-                                             <span>Adj:</span>
-                                             <span className={cn("font-medium", adjustment !== 0 ? "text-orange-600" : "")}>{currencyFn(adjustment)}</span>
-                                         </div>
-                                          <div className="flex justify-between pl-2 border-l border-slate-100 dark:border-slate-800">
-                                             <span className="font-bold text-slate-900 dark:text-slate-200">Remaining:</span>
-                                             <span className="font-bold text-emerald-600 dark:text-emerald-500">{currencyFn(remaining)}</span>
-                                         </div>
-                                     </div>
+                                    </div>
 
-                                     {hasNotes && (
-                                         <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-500 italic bg-slate-50/50 dark:bg-slate-900/50 p-1.5 rounded">
-                                             {item.notes}
-                                         </div>
-                                     )}
-                                 </div>
-                             );
+                                    <div className="grid grid-cols-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
+                                        <div className="flex justify-between pr-2">
+                                            <span>Earned:</span>
+                                            <span className="font-medium">{currencyFn(earned)}</span>
+                                        </div>
+                                        <div className="flex justify-between pl-2 border-l border-slate-100 dark:border-slate-800">
+                                            <span>Redeemed:</span>
+                                            <span className={cn("font-medium", redeemed > 0 ? "text-indigo-600" : "")}>{currencyFn(redeemed)}</span>
+                                        </div>
+                                        <div className="flex justify-between pr-2">
+                                            <span>Adj:</span>
+                                            <span className={cn("font-medium", adjustment !== 0 ? "text-orange-600" : "")}>{currencyFn(adjustment)}</span>
+                                        </div>
+                                        <div className="flex justify-between pl-2 border-l border-slate-100 dark:border-slate-800">
+                                            <span className="font-bold text-slate-900 dark:text-slate-200">Remaining:</span>
+                                            <span className="font-bold text-emerald-600 dark:text-emerald-500">{currencyFn(remaining)}</span>
+                                        </div>
+                                    </div>
+
+                                    {hasNotes && (
+                                        <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-500 italic bg-slate-50/50 dark:bg-slate-900/50 p-1.5 rounded">
+                                            {item.notes}
+                                        </div>
+                                    )}
+                                </div>
+                            );
                         })}
                     </div>
                 </ScrollArea>
