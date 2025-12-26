@@ -7,11 +7,7 @@ import { toast } from "sonner";
 
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
-import { Input } from "../../ui/input";
 import { Checkbox } from "../../ui/checkbox";
-import { Label } from "../../ui/label";
-import { Textarea } from "../../ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "../../ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { Progress } from "../../ui/progress";
@@ -28,6 +24,8 @@ import { cn } from "@/lib/utils";
 import StatCard from "../../shared/StatCard";
 import SharedTransactionsDialog from '@/components/shared/SharedTransactionsDialog';
 import { PointsDetailSheet } from './components/PointsDetailSheet';
+import { RedeemPointsDialog } from './components/RedeemPointsDialog';
+import { UpdateDetailsDialog } from './components/UpdateDetailsDialog';
 
 import { calculateCashbackSplit, calculatePaymentDate, getPaymentStatus, isStatementFinalized } from '../../../lib/cashback-logic';
 import { fmtYMShort } from '../../../lib/formatters';
@@ -443,8 +441,6 @@ export default function CashbackTracker({
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isRedeemDialogOpen, setIsRedeemDialogOpen] = useState(false);
     const [redeemTarget, setRedeemTarget] = useState(null); // { cardName, balance, items: [] }
-    const [redeemAmount, setRedeemAmount] = useState('');
-    const [redeemNotes, setRedeemNotes] = useState('');
     const [optimisticData, setOptimisticData] = useState({});
 
     // Points Details Sheet
@@ -632,20 +628,23 @@ export default function CashbackTracker({
             notes: item.notes || '',
             amountRedeemed: item.amountRedeemed || 0,
             cardName: item.cardName,
-            month: item.month
+            month: item.month,
+            isPoints: item.isPoints, // PASSING CONTEXT
+            totalEarned: item.totalEarned // PASSING CONTEXT
         });
         setIsEditDialogOpen(true);
     };
 
-    const handleSaveEdit = async () => {
+    const handleSaveEdit = async (updatedItem) => {
+        // Updated to receive updatedItem from dialog component
         try {
-            const res = await fetch(`${API_BASE_URL}/monthly-summary/${editingSummary.id}`, {
+            const res = await fetch(`${API_BASE_URL}/monthly-summary/${updatedItem.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    adjustment: Number(editingSummary.adjustment),
-                    notes: editingSummary.notes,
-                    amountRedeemed: Number(editingSummary.amountRedeemed)
+                    adjustment: Number(updatedItem.adjustment),
+                    notes: updatedItem.notes,
+                    amountRedeemed: Number(updatedItem.amountRedeemed)
                 })
             });
 
@@ -828,8 +827,7 @@ export default function CashbackTracker({
 
     const handleOpenRedeem = (cardData) => {
         setRedeemTarget(cardData);
-        setRedeemAmount('');
-        setRedeemNotes('');
+        // Cleaned up reset of other states as they are now handled inside the dialog component
         setIsRedeemDialogOpen(true);
     };
 
@@ -838,10 +836,13 @@ export default function CashbackTracker({
         setPointsDetailOpen(true);
     };
 
-    const handleRedeemConfirm = async () => {
-        const amountToRedeem = Number(redeemAmount);
+    const handleRedeemConfirm = async ({ amount, notes }) => {
+        // Refactored to accept object from RedeemPointsDialog
+        const amountToRedeem = Number(amount);
+
+        // Validation handled in dialog, double check here
         if (!redeemTarget || isNaN(amountToRedeem) || amountToRedeem <= 0) {
-            toast.error("Please enter a valid amount");
+            toast.error("Invalid amount");
             return;
         }
 
@@ -870,7 +871,7 @@ export default function CashbackTracker({
 
             // Append notes if provided
             const dateStr = new Date().toISOString().split('T')[0];
-            const noteEntry = `[Redeemed ${redeemFromThis} on ${dateStr}${redeemNotes ? ': ' + redeemNotes : ''}]`;
+            const noteEntry = `[Redeemed ${redeemFromThis} on ${dateStr}${notes ? ': ' + notes : ''}]`;
             const newNotes = item.notes ? `${item.notes}\n${noteEntry}` : noteEntry;
 
             updates.push({
@@ -1144,7 +1145,7 @@ export default function CashbackTracker({
 
     // --- RENDER ---
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="space-y-6">
 
             {/* MAIN TAB SWITCHER */}
             <div className="flex justify-center">
@@ -1166,7 +1167,7 @@ export default function CashbackTracker({
 
             {/* ===== CASH VIEW ===== */}
             {mainTab === 'cash' && (
-                <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
+                <div className="space-y-6">
 
                     {/* Stats Cards */}
                     {stats && (
@@ -1344,7 +1345,7 @@ export default function CashbackTracker({
 
             {/* ===== POINTS VIEW ===== */}
             {mainTab === 'points' && (
-                <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
+                <div className="space-y-6">
 
                     {/* Points Hero Stats */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1400,72 +1401,20 @@ export default function CashbackTracker({
             )}
 
             {/* EDIT DIALOG (CASH & POINTS) */}
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Edit Details</DialogTitle>
-                        <DialogDescription>{editingSummary?.cardName} • {editingSummary?.month}</DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Adj.</Label>
-                            <Input type="number" value={editingSummary?.adjustment} onChange={(e) => setEditingSummary({...editingSummary, adjustment: e.target.value})} className="col-span-3"/>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Received</Label>
-                            <Input type="number" value={editingSummary?.amountRedeemed} onChange={(e) => setEditingSummary({...editingSummary, amountRedeemed: e.target.value})} className="col-span-3"/>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Notes</Label>
-                            <Textarea value={editingSummary?.notes} onChange={(e) => setEditingSummary({...editingSummary, notes: e.target.value})}/>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveEdit}>Save Changes</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <UpdateDetailsDialog
+                isOpen={isEditDialogOpen}
+                onClose={() => setIsEditDialogOpen(false)}
+                onSave={handleSaveEdit}
+                item={editingSummary}
+            />
 
             {/* REDEEM DIALOG (POINTS) */}
-            <Dialog open={isRedeemDialogOpen} onOpenChange={setIsRedeemDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <Gift className="h-5 w-5 text-indigo-600" /> Redeem Points
-                        </DialogTitle>
-                        <DialogDescription>
-                            {redeemTarget?.cardName} (Bal: {currency(redeemTarget?.totalPoints || 0)})
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4 space-y-4">
-                        <div className="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-lg border border-indigo-100 dark:border-indigo-800 text-sm text-indigo-700 dark:text-indigo-300">
-                            Confirming this will mark points as "Redeemed" in your ledger. This action helps track what you've spent vs. accumulated.
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Amount to Redeem</Label>
-                            <Input
-                                type="number"
-                                placeholder="Enter points amount..."
-                                value={redeemAmount}
-                                onChange={(e) => setRedeemAmount(e.target.value)}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Redemption Notes (Optional)</Label>
-                            <Input
-                                placeholder="e.g., Agoda voucher, Statement credit..."
-                                value={redeemNotes}
-                                onChange={(e) => setRedeemNotes(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsRedeemDialogOpen(false)}>Cancel</Button>
-                        <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleRedeemConfirm}>Confirm Redemption</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <RedeemPointsDialog
+                isOpen={isRedeemDialogOpen}
+                onClose={() => setIsRedeemDialogOpen(false)}
+                onConfirm={handleRedeemConfirm}
+                target={redeemTarget}
+            />
 
             {/* BULK ACTION BAR */}
             {selectedIds.size > 0 && (
