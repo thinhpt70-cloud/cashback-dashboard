@@ -147,11 +147,11 @@ const parseNotionPageProperties = (page) => {
         const prop = props[key];
         switch (prop.type) {
             case 'title':
-                result[key] = prop.title[0]?.plain_text || null;
+                result[key] = prop.title.map(t => t.plain_text).join('') || null;
                 break;
             case 'rich_text':
             case 'text': // Note: The Notion API often uses 'text' for Text properties
-                result[key] = prop[prop.type][0]?.plain_text || null;
+                result[key] = prop[prop.type].map(t => t.plain_text).join('') || null;
                 break;
             case 'number':
                 result[key] = prop.number;
