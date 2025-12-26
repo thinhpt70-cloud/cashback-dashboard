@@ -77,36 +77,57 @@ function getCardActivities(items, statementDay) {
 
         // 2. Redeemed
         if (item.notes) {
-            // Regex for [Redeemed <amount> (on <date>)?: <note>]
-            // Updated to support decimal amounts and optional commas: ([\d,]+(?:\.\d+)?)
-            const regex = /\[Redeemed:?\s+([\d,]+(?:\.\d+)?)(?:\s+on\s+(\d{4}-\d{2}-\d{2}))?(?:\s*:\s*(.*?))?\]/gi;
-            const legacyDateRegex = /(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+redemption/i;
-
+            // New logic: Match all square brackets and parse content manually
+            // This is more robust than a single complex regex
+            const bracketRegex = /\[(.*?)\]/g;
             let match;
-            while ((match = regex.exec(item.notes)) !== null) {
-                // Remove commas before parsing number
-                const amountStr = match[1].replace(/,/g, '');
-                const amount = Number(amountStr);
+            while ((match = bracketRegex.exec(item.notes)) !== null) {
+                const content = match[1].trim();
 
-                let dateRaw = match[2];
-                let noteContent = match[3];
+                // Filter: Must start with "Redeemed" (case-insensitive)
+                if (!/^redeemed/i.test(content)) continue;
 
-                // Legacy: Check if noteContent contains a date like "31 Oct 2025 redemption"
-                if (!dateRaw && noteContent) {
-                    const dateMatch = noteContent.match(legacyDateRegex);
-                    if (dateMatch) {
-                        const day = dateMatch[1];
-                        const monthStr = dateMatch[2];
-                        const year = dateMatch[3];
+                // Step A: Clean Prefix ("Redeemed" or "Redeemed:")
+                let cleanContent = content.replace(/^redeemed:?\s*/i, '');
+
+                // Step B: Extract Amount (Start of string)
+                const amountMatch = cleanContent.match(/^([\d,]+(?:\.\d+)?)/);
+                if (!amountMatch) continue; // No amount found, skip
+
+                const amountStr = amountMatch[1];
+                const amount = Number(amountStr.replace(/,/g, ''));
+
+                // Advance past amount
+                cleanContent = cleanContent.substring(amountStr.length).trim();
+
+                // Step C: Extract Date "on YYYY-MM-DD"
+                let dateStr = null;
+                const dateMatch = cleanContent.match(/^on\s+(\d{4}-\d{2}-\d{2})/i);
+                if (dateMatch) {
+                    dateStr = dateMatch[1];
+                    // Advance past date
+                    cleanContent = cleanContent.substring(dateMatch[0].length).trim();
+                }
+
+                // Step D: Remainder is Note (Remove leading colon if present)
+                let noteContent = cleanContent.replace(/^:\s*/, '').trim();
+
+                // Step E: Legacy Date Handling (inside note)
+                if (!dateStr && noteContent) {
+                    const legacyDateRegex = /(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+redemption/i;
+                    const legacyMatch = noteContent.match(legacyDateRegex);
+                    if (legacyMatch) {
+                        const day = legacyMatch[1];
+                        const monthStr = legacyMatch[2];
+                        const year = legacyMatch[3];
                         const month = new Date(`${monthStr} 1 2000`).getMonth() + 1; // Parse month name
-                        dateRaw = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                         noteContent = 'Redemption'; // Normalize description
                     }
                 }
 
-                let dateStr = dateRaw;
+                // Fallback Date: End of current summary month
                 if (!dateStr) {
-                    // Fallback to item month end
                      const daysInMonth = new Date(y, m, 0).getDate();
                      dateStr = `${y}-${String(m).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
                 }
