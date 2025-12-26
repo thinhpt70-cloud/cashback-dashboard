@@ -68,43 +68,6 @@ export function UpdateDetailsDialog({ isOpen, onClose, onSave, item }) {
 
     const handleNumberInput = (setter) => (e) => {
         const rawValue = e.target.value;
-        // Allow negative numbers for adjustment, and decimal points
-        // We strip non-numeric, non-minus, non-dot chars
-        const numericValue = rawValue.replace(/[^0-9-.]/g, '');
-        // formatCurrency expects a number-like value, but we want to allow typing
-        // If we format on every keystroke, decimals might get tricky.
-        // Simple approach: set raw value to state if it ends with dot, otherwise format?
-        // But the state is used for calculations too.
-        // Let's stick to simple formatting: allow the user to type freely, but maybe not enforce thousand separators on keystroke if it breaks decimals.
-        // For now, to be safe and consistent with the previous 'number' input while adding separators:
-        // We will just allow digits, minus and dot. We won't re-format to thousands on every keystroke if it interrupts typing decimals.
-        // However, the current implementation sets formatted string.
-        // Let's try: parse -> format.
-
-        // BETTER APPROACH: Just strip commas for storage/calc, format for display.
-        // If user types '.', don't strip it.
-
-        // Actually, the simplest fix for now to match request:
-        // Allow numbers, minus, dot.
-        // But 'formatCurrency' uses Intl which might add commas.
-        // If I type '1000', it becomes '1,000'. If I type '.', it becomes '1,000.'?
-        // Intl.NumberFormat might ignore trailing dot.
-
-        // Let's rely on a simpler regex that just blocks invalid chars but doesn't force re-format mid-typing if it's complex.
-        // But the previous code WAS forcing formatCurrency(numericValue).
-        // Let's just update the regex to allow dots.
-        // numericValue is passed to formatCurrency.
-        // formatCurrency uses Intl.NumberFormat('en-US').format(value).
-        // format(100.) -> "100". It eats the dot!
-
-        // FIX: If the value ends in a dot (or .0, .00), we should preserve it in the input state.
-        // But 'adjustment' state is used for `parseCurrency` which removes commas.
-
-        // To support decimals properly with live formatting:
-        // 1. Remove non-numeric chars (keep dot/minus).
-        // 2. If it ends with dot, keep it.
-        // 3. Otherwise, format it.
-
         const cleanVal = rawValue.replace(/[^0-9-.]/g, '');
 
         if (cleanVal.endsWith('.')) {
