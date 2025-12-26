@@ -417,6 +417,8 @@ export default function CashbackTracker({
                         cardName: card.name,
                         bankName: card.bank,
                         minPointsRedeem: card.minPointsRedeem || 0, // Ensure this is mapped
+                        totalAmountRedeemed: card.totalAmountRedeemed || 0,
+                        statementDay: card.statementDay,
                         totalPoints: 0,
                         history: [],
                         items: [] // Keep track of raw items for FIFO redemption
