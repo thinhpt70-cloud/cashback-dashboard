@@ -14,7 +14,7 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Edit2, ClipboardCheck, Eye, List, History, Trash2, ArrowDown } from "lucide-react";
+import { Edit2, ClipboardCheck, Eye, Trash2, ArrowDown } from "lucide-react";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 import { fmtYMShort } from "@/lib/formatters";
