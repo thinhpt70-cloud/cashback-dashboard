@@ -20,19 +20,27 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
     if (!cardData) return null;
 
     const Content = (
-        <div className="space-y-6 h-full flex flex-col">
+        <div className="space-y-6 flex-1 min-h-0 flex flex-col">
             {/* Header Stats */}
-            <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <p className="text-xs text-slate-500 uppercase font-semibold">Current Balance</p>
-                    <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                        {currencyFn(cardData.totalPoints)}
-                    </p>
+            <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                        <p className="text-xs text-slate-500 uppercase font-semibold">Current Balance</p>
+                        <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                            {currencyFn(cardData.totalPoints)}
+                        </p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                        <p className="text-xs text-slate-500 uppercase font-semibold">Amount Redeemed</p>
+                        <p className="text-2xl font-bold text-slate-700 dark:text-slate-300">
+                            {cardData.totalAmountRedeemed ? currencyFn(cardData.totalAmountRedeemed) : '0'}
+                        </p>
+                    </div>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <p className="text-xs text-slate-500 uppercase font-semibold">Amount Redeemed</p>
+                    <p className="text-xs text-slate-500 uppercase font-semibold">Minimum Redemption</p>
                     <p className="text-2xl font-bold text-slate-700 dark:text-slate-300">
-                        {cardData.totalAmountRedeemed ? currencyFn(cardData.totalAmountRedeemed) : '0'}
+                        {cardData.minPointsRedeem ? currencyFn(cardData.minPointsRedeem) : '0'}
                     </p>
                 </div>
             </div>
@@ -143,12 +151,7 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                             {cardData.cardName}
                         </SheetTitle>
                         <SheetDescription>
-                            <div className="flex flex-col gap-0.5 mt-1">
-                                <span>Points history and redemption details</span>
-                                <span className="text-xs text-slate-500">
-                                    Min. Redeem: {cardData.minPointsRedeem ? currencyFn(cardData.minPointsRedeem) : '0'} VND
-                                </span>
-                            </div>
+                            Points history and redemption details
                         </SheetDescription>
                     </SheetHeader>
                     {Content}
@@ -168,15 +171,10 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                         {cardData.cardName}
                     </DrawerTitle>
                     <DrawerDescription>
-                        <div className="flex flex-col gap-0.5 mt-1">
-                            <span>Points history and redemption details</span>
-                            <span className="text-xs text-slate-500">
-                                Min. Redeem: {cardData.minPointsRedeem ? currencyFn(cardData.minPointsRedeem) : '0'} VND
-                            </span>
-                        </div>
+                        Points history and redemption details
                     </DrawerDescription>
                 </DrawerHeader>
-                <div className="px-4 h-full overflow-hidden pb-8">
+                <div className="px-4 flex-1 overflow-hidden pb-8 flex flex-col">
                     {Content}
                 </div>
             </DrawerContent>
