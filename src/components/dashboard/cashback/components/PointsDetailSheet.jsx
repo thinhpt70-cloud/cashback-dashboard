@@ -12,6 +12,7 @@ import { Edit2, ClipboardCheck, Eye } from "lucide-react";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 import { fmtYMShort } from "@/lib/formatters";
+import { isStatementFinalized } from "@/lib/cashback-logic";
 
 export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleReviewed, onViewTransactions, currencyFn }) {
     const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -29,9 +30,9 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                     </p>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <p className="text-xs text-slate-500 uppercase font-semibold">Min. Redeem</p>
+                    <p className="text-xs text-slate-500 uppercase font-semibold">Amount Redeemed</p>
                     <p className="text-2xl font-bold text-slate-700 dark:text-slate-300">
-                        {cardData.minPointsRedeem ? currencyFn(cardData.minPointsRedeem) : '0'}
+                        {cardData.totalAmountRedeemed ? currencyFn(cardData.totalAmountRedeemed) : '0'}
                     </p>
                 </div>
             </div>
@@ -52,6 +53,7 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                             const remaining = item.remainingDue || 0;
                             const hasNotes = item.notes && item.notes.trim().length > 0;
                             const isReviewed = item.reviewed;
+                            const isStatementFinished = isStatementFinalized(item.month, cardData.statementDay);
 
                             return (
                                 <div key={item.id} className="group relative border border-slate-200 dark:border-slate-800 rounded-lg p-3 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors bg-white dark:bg-slate-950">
@@ -60,7 +62,11 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                                             <div className="flex items-center gap-2">
                                                 <span className="font-mono font-bold text-slate-700 dark:text-slate-200">{fmtYMShort(item.month)}</span>
                                                 {remaining > 0 ? (
-                                                    <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 px-1 py-0 h-5">Active</Badge>
+                                                    !isStatementFinished ? (
+                                                        <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-700 border-orange-200 px-1 py-0 h-5">Pending</Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 px-1 py-0 h-5">Active</Badge>
+                                                    )
                                                 ) : (
                                                     <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-200 px-1 py-0 h-5">Settled</Badge>
                                                 )}
@@ -137,7 +143,12 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                             {cardData.cardName}
                         </SheetTitle>
                         <SheetDescription>
-                            Points history and redemption details
+                            <div className="flex flex-col gap-0.5 mt-1">
+                                <span>Points history and redemption details</span>
+                                <span className="text-xs text-slate-500">
+                                    Min. Redeem: {cardData.minPointsRedeem ? currencyFn(cardData.minPointsRedeem) : '0'} VND
+                                </span>
+                            </div>
                         </SheetDescription>
                     </SheetHeader>
                     {Content}
@@ -157,7 +168,12 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                         {cardData.cardName}
                     </DrawerTitle>
                     <DrawerDescription>
-                        Points history and redemption details
+                        <div className="flex flex-col gap-0.5 mt-1">
+                            <span>Points history and redemption details</span>
+                            <span className="text-xs text-slate-500">
+                                Min. Redeem: {cardData.minPointsRedeem ? currencyFn(cardData.minPointsRedeem) : '0'} VND
+                            </span>
+                        </div>
                     </DrawerDescription>
                 </DrawerHeader>
                 <div className="px-4 h-full overflow-hidden pb-8">

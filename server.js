@@ -1064,6 +1064,7 @@ app.get('/api/cards', async (req, res) => {
                 tier1PaymentType: parsed['Tier 1 Cashback Payment Type'],
                 tier2PaymentType: parsed['Tier 2 Cashback Payment Type'],
                 minPointsRedeem: parsed['Minimum Points Redeem'],
+                totalAmountRedeemed: parsed['Total Amount Redeemed'],
             };
         });
 
