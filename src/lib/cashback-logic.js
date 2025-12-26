@@ -145,7 +145,8 @@ export const getPaymentStatus = (amountDue, amountPaid, dueDate) => {
 
 // Regex for [Redeemed <amount> (on <date>)?: <note>]
 // Updated to support decimal amounts and optional commas: ([\d,]+(?:\.\d+)?)
-export const RE_REDEMPTION_LOG = /\[Redeemed\s+([\d,]+(?:\.\d+)?)(?:\s+on\s+(\d{4}-\d{2}-\d{2}))?(?::\s*(.*?))?\]/g;
+// Updated to support optional time: (\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2})?)
+export const RE_REDEMPTION_LOG = /\[Redeemed\s+([\d,]+(?:\.\d+)?)(?:\s+on\s+(\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2})?))?(?::\s*(.*?))?\]/g;
 
 /**
  * Groups monthly summary items into a unified history timeline.

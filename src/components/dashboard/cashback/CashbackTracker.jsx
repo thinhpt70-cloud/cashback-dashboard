@@ -41,6 +41,18 @@ const currency = (n) => new Intl.NumberFormat('en-US', { style: 'decimal', maxim
 function getCardActivities(items, statementDay) {
     const activities = [];
     const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+    const fmtDateTime = (d) => {
+        const date = new Date(d);
+        // Display format: 30 Oct 2025 18:59
+        return isNaN(date.getTime()) ? d : date.toLocaleString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }).replace(',', '');
+    };
 
     items.forEach(item => {
         const getYearMonth = (mStr) => {
@@ -108,11 +120,19 @@ function getCardActivities(items, statementDay) {
                      dateStr = `${y}-${String(m).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
                 }
 
+                // If the regex captured a time (e.g. 2023-10-30 14:30), we should display it.
+                // Our fmtDateTime handles complete strings if they parse correctly.
+                // Replace space in "YYYY-MM-DD HH:MM" with "T" for Safari parsing if needed,
+                // but Chrome handles space. Safest is T.
+                // However, the regex output is directly what we have.
+                // Let's create a safe parseable string for the Date constructor.
+                const safeDateStr = dateStr.includes(' ') ? dateStr.replace(' ', 'T') : dateStr;
+
                 activities.push({
                     type: 'redeemed',
                     amount: amount,
-                    date: dateStr,
-                    displayDate: fmtDate(dateStr),
+                    date: dateStr, // Keep original for sort
+                    displayDate: dateStr.includes(':') ? fmtDateTime(safeDateStr) : fmtDate(safeDateStr),
                     desc: noteContent || 'Redeemed'
                 });
             }
@@ -835,7 +855,7 @@ export default function CashbackTracker({
         setPointsDetailOpen(true);
     };
 
-    const handleRedeemConfirm = async ({ amount, notes }) => {
+    const handleRedeemConfirm = async ({ amount, notes, date }) => {
         // Refactored to accept object from RedeemPointsDialog
         const amountToRedeem = Number(amount);
 
@@ -869,8 +889,12 @@ export default function CashbackTracker({
             const newAmountRedeemed = (item.amountRedeemed || 0) + redeemFromThis;
 
             // Append notes if provided
-            const dateStr = new Date().toISOString().split('T')[0];
-            const noteEntry = `[Redeemed ${redeemFromThis} on ${dateStr}${notes ? ': ' + notes : ''}]`;
+            // Use provided date (YYYY-MM-DDTHH:mm) or fallback to simple date.
+            // We want format YYYY-MM-DD HH:mm for the log.
+            // Input 'date' is from datetime-local, which is YYYY-MM-DDTHH:mm
+            const formattedDate = date ? date.replace('T', ' ') : new Date().toISOString().slice(0, 16).replace('T', ' ');
+
+            const noteEntry = `[Redeemed ${redeemFromThis} on ${formattedDate}${notes ? ': ' + notes : ''}]`;
             const newNotes = item.notes ? `${item.notes}\n${noteEntry}` : noteEntry;
 
             updates.push({

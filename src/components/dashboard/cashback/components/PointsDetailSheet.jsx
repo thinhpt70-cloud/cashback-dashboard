@@ -126,7 +126,29 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
             )}
             {historyEvents.map((event) => {
                 const isEarned = event.type === 'earned';
-                const dateDisplay = isEarned ? fmtYMShort(event.date) : new Date(event.date).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+                // For earned: display date is just Month Year (e.g. Oct 2025)
+                // For redeemed: event.date might contain time (YYYY-MM-DD HH:MM)
+                let dateDisplay;
+                if (isEarned) {
+                     dateDisplay = fmtYMShort(event.date);
+                } else {
+                     // Check if it has time
+                     const hasTime = event.date && event.date.includes(':');
+                     const d = new Date(event.date.includes(' ') ? event.date.replace(' ', 'T') : event.date);
+
+                     if (hasTime) {
+                         dateDisplay = d.toLocaleString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false
+                        }).replace(',', '');
+                     } else {
+                         dateDisplay = d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+                     }
+                }
 
                 if (isEarned) {
                     return (
