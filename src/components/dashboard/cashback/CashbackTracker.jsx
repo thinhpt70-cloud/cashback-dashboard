@@ -1356,6 +1356,7 @@ export default function CashbackTracker({
                 cardData={pointsByCard.find(c => c.cardId === selectedPointsCardId)}
                 onEdit={handleEditClick}
                 onToggleReviewed={handleToggleReviewed}
+                onViewTransactions={handleViewTransactions}
                 currencyFn={currency}
             />
 
