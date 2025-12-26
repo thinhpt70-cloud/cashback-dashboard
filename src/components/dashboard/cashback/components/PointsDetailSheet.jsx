@@ -126,7 +126,35 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
             )}
             {historyEvents.map((event) => {
                 const isEarned = event.type === 'earned';
-                const dateDisplay = isEarned ? fmtYMShort(event.date) : new Date(event.date).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+                // Update: Show time for redemptions if available
+                let dateDisplay;
+                if (isEarned) {
+                    dateDisplay = fmtYMShort(event.date);
+                } else {
+                    const d = new Date(event.date);
+                    // Check if the date string had time component (length > 10 usually YYYY-MM-DD HH:MM)
+                    // Or check if hours/minutes are non-zero (careful with midnight redemptions)
+                    // Better: check if the input string includes ':' or use options based on validity
+
+                    const hasTime = event.date && event.date.includes(':');
+
+                    if (hasTime) {
+                        dateDisplay = d.toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false
+                        });
+                    } else {
+                         dateDisplay = d.toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                        });
+                    }
+                }
 
                 if (isEarned) {
                     return (

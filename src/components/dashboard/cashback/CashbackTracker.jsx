@@ -108,6 +108,12 @@ function getCardActivities(items, statementDay) {
                      dateStr = `${y}-${String(m).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
                 }
 
+                // If dateStr contains time, we want to show it in displayDate?
+                // The current fmtDate only shows Day-Month-Year.
+                // For "Recent Activity" on card, keeping it compact is usually better,
+                // but we can support time if needed. The request asked for "History view" explicitly to show time.
+                // For here, we'll keep standard date format but ensure dateStr is valid string for sorting.
+
                 activities.push({
                     type: 'redeemed',
                     amount: amount,
@@ -835,7 +841,7 @@ export default function CashbackTracker({
         setPointsDetailOpen(true);
     };
 
-    const handleRedeemConfirm = async ({ amount, notes }) => {
+    const handleRedeemConfirm = async ({ amount, notes, date }) => {
         // Refactored to accept object from RedeemPointsDialog
         const amountToRedeem = Number(amount);
 
@@ -858,6 +864,14 @@ export default function CashbackTracker({
         // The items are already sorted by month ASC in pointsByCard logic
         const items = redeemTarget.items.filter(i => i.remainingDue > 0);
 
+        // Use provided date or fallback to current YYYY-MM-DD HH:MM
+        let dateStr = date;
+        if (!dateStr) {
+             const now = new Date();
+             // Simple format if user cleared input for some reason
+             dateStr = now.toISOString().slice(0, 16).replace('T', ' ');
+        }
+
         for (const item of items) {
             if (remainingToRedeem <= 0) break;
 
@@ -869,7 +883,7 @@ export default function CashbackTracker({
             const newAmountRedeemed = (item.amountRedeemed || 0) + redeemFromThis;
 
             // Append notes if provided
-            const dateStr = new Date().toISOString().split('T')[0];
+            // Format: [Redeemed <amount> on <YYYY-MM-DD HH:MM>: <note>]
             const noteEntry = `[Redeemed ${redeemFromThis} on ${dateStr}${notes ? ': ' + notes : ''}]`;
             const newNotes = item.notes ? `${item.notes}\n${noteEntry}` : noteEntry;
 
