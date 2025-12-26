@@ -8,12 +8,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit2 } from "lucide-react";
+import { Edit2, ClipboardCheck } from "lucide-react";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 import { fmtYMShort } from "@/lib/formatters";
 
-export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, currencyFn }) {
+export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleReviewed, currencyFn }) {
     const isDesktop = useMediaQuery("(min-width: 768px)");
 
     if (!cardData) return null;
@@ -51,6 +51,7 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, currencyF
                              const adjustment = item.adjustment || 0;
                              const remaining = item.remainingDue || 0;
                              const hasNotes = item.notes && item.notes.trim().length > 0;
+                             const isReviewed = item.reviewed;
 
                              return (
                                  <div key={item.id} className="group relative border border-slate-200 dark:border-slate-800 rounded-lg p-3 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors bg-white dark:bg-slate-950">
@@ -63,11 +64,27 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, currencyF
                                                  ) : (
                                                      <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-200 px-1 py-0 h-5">Settled</Badge>
                                                  )}
+                                                 {isReviewed && (
+                                                     <Badge variant="outline" className="text-[10px] bg-indigo-50 text-indigo-600 border-indigo-200 px-1 py-0 h-5 flex items-center gap-1">
+                                                         <ClipboardCheck className="h-2.5 w-2.5" />
+                                                     </Badge>
+                                                 )}
                                              </div>
                                          </div>
-                                         <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2 -mt-2 opacity-50 group-hover:opacity-100" onClick={() => onEdit(item)}>
-                                             <Edit2 className="h-3 w-3" />
-                                         </Button>
+                                         <div className="flex gap-1 -mr-2 -mt-2">
+                                             <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className={cn("h-6 w-6 transition-opacity", isReviewed ? "text-indigo-600 opacity-100" : "opacity-30 group-hover:opacity-100 text-slate-400 hover:text-indigo-600")}
+                                                onClick={() => onToggleReviewed(item)}
+                                                title={isReviewed ? "Mark Unreviewed" : "Mark Reviewed"}
+                                             >
+                                                 <ClipboardCheck className="h-3 w-3" />
+                                             </Button>
+                                             <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100" onClick={() => onEdit(item)}>
+                                                 <Edit2 className="h-3 w-3" />
+                                             </Button>
+                                         </div>
                                      </div>
 
                                      <div className="grid grid-cols-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
