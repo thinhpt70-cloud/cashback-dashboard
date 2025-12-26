@@ -40,6 +40,91 @@ const API_BASE_URL = '/api';
 
 const currency = (n) => new Intl.NumberFormat('en-US', { style: 'decimal', maximumFractionDigits: 0 }).format(n);
 
+function getCardActivities(items, statementDay) {
+    const activities = [];
+    const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+
+    items.forEach(item => {
+        const getYearMonth = (mStr) => {
+            if (mStr.includes('-')) {
+                const parts = mStr.split('-');
+                return [Number(parts[0]), Number(parts[1])];
+            }
+            if (mStr.length === 6) {
+                return [Number(mStr.substring(0, 4)), Number(mStr.substring(4, 6))];
+            }
+            return [new Date().getFullYear(), new Date().getMonth() + 1]; // Fallback
+        };
+
+        const [y, m] = getYearMonth(item.month);
+
+        // 1. Earned
+        if (item.totalEarned > 0) {
+            // Calculate Statement Date: Month + Statement Day
+            const daysInMonth = new Date(y, m, 0).getDate(); // Day 0 of next month = last day of current
+            const day = Math.min(statementDay || 1, daysInMonth);
+
+            const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+            activities.push({
+                type: 'earned',
+                amount: item.totalEarned,
+                date: dateStr,
+                displayDate: fmtDate(dateStr),
+                desc: 'Points Added'
+            });
+        }
+
+        // 2. Redeemed
+        if (item.notes) {
+            // Regex for [Redeemed <amount> (on <date>)?: <note>]
+            // Updated to support decimal amounts and optional commas: ([\d,]+(?:\.\d+)?)
+            const regex = /\[Redeemed\s+([\d,]+(?:\.\d+)?)(?:\s+on\s+(\d{4}-\d{2}-\d{2}))?(?::\s*(.*?))?\]/g;
+            const legacyDateRegex = /(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+redemption/i;
+
+            let match;
+            while ((match = regex.exec(item.notes)) !== null) {
+                // Remove commas before parsing number
+                const amountStr = match[1].replace(/,/g, '');
+                const amount = Number(amountStr);
+
+                let dateRaw = match[2];
+                let noteContent = match[3];
+
+                // Legacy: Check if noteContent contains a date like "31 Oct 2025 redemption"
+                if (!dateRaw && noteContent) {
+                    const dateMatch = noteContent.match(legacyDateRegex);
+                    if (dateMatch) {
+                        const day = dateMatch[1];
+                        const monthStr = dateMatch[2];
+                        const year = dateMatch[3];
+                        const month = new Date(`${monthStr} 1 2000`).getMonth() + 1; // Parse month name
+                        dateRaw = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        noteContent = 'Redemption'; // Normalize description
+                    }
+                }
+
+                let dateStr = dateRaw;
+                if (!dateStr) {
+                    // Fallback to item month end
+                     const daysInMonth = new Date(y, m, 0).getDate();
+                     dateStr = `${y}-${String(m).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+                }
+
+                activities.push({
+                    type: 'redeemed',
+                    amount: amount,
+                    date: dateStr,
+                    displayDate: fmtDate(dateStr),
+                    desc: noteContent || 'Redeemed'
+                });
+            }
+        }
+    });
+
+    return activities.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
+}
+
 function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, onToggleReviewed, statementDay, isSelectionMode, isSelected, onToggleSelect }) {
     const isPaid = item.remainingDue <= 0;
     const isReviewed = item.reviewed;
@@ -225,9 +310,12 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, onT
     );
 }
 
-function PointsLoyaltyCard({ cardName, bankName, totalPoints, minPointsRedeem, onRedeem, onViewDetails }) {
+function PointsLoyaltyCard({ cardName, bankName, totalPoints, minPointsRedeem, onRedeem, onViewDetails, items, statementDay }) {
     const isRedeemable = totalPoints >= (minPointsRedeem || 0);
     const progress = minPointsRedeem > 0 ? Math.min((totalPoints / minPointsRedeem) * 100, 100) : 100;
+
+    // Get Activities
+    const activities = useMemo(() => getCardActivities(items || [], statementDay), [items, statementDay]);
 
     return (
         <div className="group relative flex flex-col justify-between border border-slate-200 dark:border-slate-800 rounded-xl p-4 transition-all duration-200 hover:shadow-md bg-white dark:bg-slate-950">
@@ -270,6 +358,28 @@ function PointsLoyaltyCard({ cardName, bankName, totalPoints, minPointsRedeem, o
                     </div>
                 )}
             </div>
+
+            {/* Recent Activity */}
+            {activities.length > 0 && (
+                <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2">Recent Activity</p>
+                    <div className="space-y-2">
+                        {activities.map((act, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-xs">
+                                <div className="flex flex-col">
+                                    <span className="font-medium text-slate-700 dark:text-slate-300 line-clamp-1 max-w-[120px]" title={act.desc}>
+                                        {act.desc}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400">{act.displayDate}</span>
+                                </div>
+                                <span className={cn("font-bold", act.type === 'earned' ? "text-emerald-600" : "text-orange-600")}>
+                                    {act.type === 'earned' ? '+' : '-'}{currency(act.amount)}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
              {/* Footer */}
              <div className="mt-3">
@@ -420,12 +530,15 @@ export default function CashbackTracker({
                         totalAmountRedeemed: card.totalAmountRedeemed || 0,
                         statementDay: card.statementDay,
                         totalPoints: 0,
+                        totalRedeemed: 0,
+                        statementDay: card.statementDay,
                         history: [],
                         items: [] // Keep track of raw items for FIFO redemption
                     };
                 }
                 // Only add to total if it hasn't been "redeemed" in our logic
                 pCardMap[card.id].totalPoints += remainingDue;
+                pCardMap[card.id].totalRedeemed += (item.amountRedeemed || 0);
                 pCardMap[card.id].items.push(item);
                 if (remainingDue > 0) {
                     pCardMap[card.id].history.push({ month: summary.month, amount: remainingDue });
@@ -757,9 +870,9 @@ export default function CashbackTracker({
             const newAmountRedeemed = (item.amountRedeemed || 0) + redeemFromThis;
 
             // Append notes if provided
-            const newNotes = redeemNotes
-                ? (item.notes ? `${item.notes}\n[Redeemed ${redeemFromThis}: ${redeemNotes}]` : `[Redeemed ${redeemFromThis}: ${redeemNotes}]`)
-                : item.notes;
+            const dateStr = new Date().toISOString().split('T')[0];
+            const noteEntry = `[Redeemed ${redeemFromThis} on ${dateStr}${redeemNotes ? ': ' + redeemNotes : ''}]`;
+            const newNotes = item.notes ? `${item.notes}\n${noteEntry}` : noteEntry;
 
             updates.push({
                 id: item.id,
@@ -1235,14 +1348,29 @@ export default function CashbackTracker({
                 <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
 
                     {/* Points Hero Stats */}
-                    <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-                        <div className="absolute top-0 right-0 -mr-10 -mt-10 bg-white/10 h-64 w-64 rounded-full blur-3xl pointer-events-none"></div>
-                        <div className="relative z-10">
-                            <p className="text-indigo-100 font-medium mb-1">Total Rewards Value</p>
-                            <h2 className="text-4xl font-bold tracking-tight">
-                                {currency(pointsByCard.reduce((acc, c) => acc + c.totalPoints, 0))} <span className="text-lg font-normal opacity-80">pts</span>
-                            </h2>
-                            <p className="text-sm text-indigo-200 mt-2"> across {pointsByCard.length} cards</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Available Balance */}
+                        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                            <div className="absolute top-0 right-0 -mr-10 -mt-10 bg-white/10 h-64 w-64 rounded-full blur-3xl pointer-events-none"></div>
+                            <div className="relative z-10">
+                                <p className="text-indigo-100 font-medium mb-1">Total Rewards Value</p>
+                                <h2 className="text-4xl font-bold tracking-tight">
+                                    {currency(pointsByCard.reduce((acc, c) => acc + c.totalPoints, 0))} <span className="text-lg font-normal opacity-80">pts</span>
+                                </h2>
+                                <p className="text-sm text-indigo-200 mt-2"> across {pointsByCard.length} cards</p>
+                            </div>
+                        </div>
+
+                        {/* Redeemed Balance */}
+                        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                            <div className="absolute top-0 right-0 -mr-10 -mt-10 bg-white/10 h-64 w-64 rounded-full blur-3xl pointer-events-none"></div>
+                            <div className="relative z-10">
+                                <p className="text-emerald-100 font-medium mb-1">Total Redeemed</p>
+                                <h2 className="text-4xl font-bold tracking-tight">
+                                    {currency(pointsByCard.reduce((acc, c) => acc + (c.totalRedeemed || 0), 0))} <span className="text-lg font-normal opacity-80">pts</span>
+                                </h2>
+                                <p className="text-sm text-emerald-200 mt-2"> realized value</p>
+                            </div>
                         </div>
                     </div>
 
@@ -1263,6 +1391,8 @@ export default function CashbackTracker({
                                     minPointsRedeem={card.minPointsRedeem}
                                     onRedeem={() => handleOpenRedeem(card)}
                                     onViewDetails={() => handleOpenDetails(card)}
+                                    items={card.items}
+                                    statementDay={card.statementDay}
                                 />
                             ))}
                         </div>
