@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsList, TabsTrigger } from "../../ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { Progress } from "../../ui/progress";
+import { Card, CardContent, CardHeader, CardFooter } from "../../ui/card";
 import { cn } from "@/lib/utils";
 import StatCard from "../../shared/StatCard";
 import SharedTransactionsDialog from '@/components/shared/SharedTransactionsDialog';
@@ -56,17 +57,17 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, onT
     };
 
     return (
-        <div className={cn(
-            "group relative flex flex-col justify-between border rounded-xl p-4 transition-all duration-200 hover:shadow-md bg-white dark:bg-slate-950",
+        <Card className={cn(
+            "group relative flex flex-col justify-between transition-all duration-200 hover:shadow-lg",
             isPaid
-                ? "border-slate-200 dark:border-slate-800 opacity-60"
+                ? "border-slate-200 dark:border-slate-800 opacity-70 bg-slate-50/50 dark:bg-slate-900/20"
                 : isCardOverdue
-                    ? "border-red-300 dark:border-red-900 bg-red-50/10"
-                    : "border-emerald-500/50 dark:border-emerald-500/50 border-dashed"
+                    ? "border-red-200 dark:border-red-900/50 bg-red-50/20 shadow-red-100/20"
+                    : "border-emerald-200 dark:border-emerald-800/50 bg-white dark:bg-slate-950"
         )}>
             {/* Header */}
-            <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-2">
+            <CardHeader className="p-4 pb-2 flex-row items-start justify-between space-y-0">
+                <div className="flex items-center gap-3">
                     {isSelectionMode && (
                         <Checkbox
                             checked={isSelected}
@@ -74,66 +75,80 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, onT
                             className="mr-1"
                         />
                     )}
-                    <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0 uppercase">
+                    <div className="h-9 w-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-400 shrink-0 uppercase border border-slate-200 dark:border-slate-700">
                         {item.bankName ? item.bankName.substring(0,2) : 'CB'}
                     </div>
                     <div>
-                        <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 leading-tight line-clamp-1">{item.cardName}</h3>
-                        <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100 leading-tight line-clamp-1">{item.cardName}</h3>
+                        <div className="flex items-center gap-2 mt-0.5">
                             <p className="text-xs text-slate-500 font-medium">{fmtYMShort(item.month)}</p>
                             {isReviewed && (
-                                <Badge variant="outline" className="text-[10px] h-4 px-1 py-0 font-normal text-indigo-600 border-indigo-200 bg-indigo-50 dark:bg-indigo-950/30">
-                                    <ClipboardCheck className="h-3 w-3 mr-1" /> Reviewed
+                                <Badge variant="outline" className="text-[10px] h-4 px-1 py-0 font-normal text-indigo-600 border-indigo-200 bg-indigo-50 dark:bg-indigo-950/30 flex items-center gap-1">
+                                    <ClipboardCheck className="h-2.5 w-2.5" /> Reviewed
                                 </Badge>
                             )}
                             {isStatementPending && !isPaid && (
-                                <Badge variant="secondary" className="text-[10px] h-4 px-1 py-0 font-normal bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200">
-                                    <Info className="h-3 w-3 mr-1" /> Pending Stmt
+                                <Badge variant="secondary" className="text-[10px] h-4 px-1 py-0 font-normal bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200">
+                                    <Info className="h-2.5 w-2.5 mr-1" /> Pending
                                 </Badge>
                             )}
                         </div>
                     </div>
                 </div>
-                <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-80 hover:opacity-100 transition-opacity" onClick={() => onViewTransactions(item)}>
-                         <Eye className="h-3 w-3 text-slate-400 hover:text-slate-600" />
+                <div className="flex gap-1 -mr-2 -mt-2">
+                     <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-7 w-7 transition-opacity", isReviewed ? "text-indigo-600 opacity-100" : "opacity-30 group-hover:opacity-100 text-slate-400 hover:text-indigo-600")}
+                        onClick={() => onToggleReviewed(item)}
+                        title={isReviewed ? "Mark Unreviewed" : "Mark Reviewed"}
+                    >
+                        <ClipboardCheck className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-80 hover:opacity-100 transition-opacity" onClick={() => onEdit(item)}>
-                        <Edit2 className="h-3 w-3 text-slate-400 hover:text-slate-600" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-30 group-hover:opacity-100 transition-opacity" onClick={() => onViewTransactions(item)}>
+                         <Eye className="h-4 w-4 text-slate-500" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-30 group-hover:opacity-100 transition-opacity" onClick={() => onEdit(item)}>
+                        <Edit2 className="h-4 w-4 text-slate-500" />
                     </Button>
                 </div>
-            </div>
+            </CardHeader>
 
             {/* Body */}
-            <div className="text-center py-2 border-t border-b border-slate-100 dark:border-slate-800 my-1">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Total Earned</p>
-                <div className="flex items-baseline justify-center gap-1">
-                    <span className={cn("text-2xl font-black tracking-tight", isPaid ? "text-slate-400" : "text-emerald-600 dark:text-emerald-500")}>
-                        {currency(item.totalEarned)}
-                    </span>
-                    <span className="text-xs font-medium text-slate-400">₫</span>
-                </div>
-                {item.tier2Amount > 0 && (
-                    <div className="mt-1 flex justify-center gap-3 text-[10px] text-slate-500">
-                        <span>Pri: <b>{currency(item.tier1Amount)}</b></span>
-                        <span className="text-slate-300">|</span>
-                        <span>Exc: <b>{currency(item.tier2Amount)}</b></span>
+            <CardContent className="p-4 py-3 border-t border-b border-dashed border-slate-100 dark:border-slate-800/50 my-1 relative">
+                 {/* Voucher Cutouts */}
+                 <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-50 dark:bg-slate-900 rounded-full border-r border-slate-200 dark:border-slate-800 z-10" />
+                 <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-50 dark:bg-slate-900 rounded-full border-l border-slate-200 dark:border-slate-800 z-10" />
+
+                <div className="text-center">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-0.5">Total Earned</p>
+                    <div className="flex items-baseline justify-center gap-1">
+                        <span className={cn("text-2xl font-bold tracking-tight", isPaid ? "text-slate-400" : "text-emerald-600 dark:text-emerald-500")}>
+                            {currency(item.totalEarned)}
+                        </span>
+                        <span className="text-xs font-medium text-slate-400">₫</span>
                     </div>
-                )}
-            </div>
+                    {item.tier2Amount > 0 && (
+                        <div className="mt-2 flex justify-center gap-3 text-[10px] text-slate-500 bg-slate-50 dark:bg-slate-900/50 rounded-full py-0.5 px-3 mx-auto w-fit">
+                            <span>P: <b className="text-slate-700 dark:text-slate-300">{currency(item.tier1Amount)}</b></span>
+                            <span className="text-slate-300">|</span>
+                            <span>E: <b className="text-slate-700 dark:text-slate-300">{currency(item.tier2Amount)}</b></span>
+                        </div>
+                    )}
+                </div>
+            </CardContent>
 
             {/* Footer */}
-            <div className="mt-3 space-y-3">
+            <CardFooter className="p-4 block space-y-3">
                 {!isPaid && (
-                    // FIX: Use Flexbox to align Label (Left) and Dates (Right)
                     <div className="flex justify-between items-start text-xs">
-                        <span className="text-slate-500 mt-0.5">Expected Payment:</span>
+                        <span className="text-slate-500 mt-0.5 font-medium">Expected Payment</span>
                         
-                        <div className="flex flex-col items-end gap-1">
+                        <div className="flex flex-col items-end gap-1.5">
                             {/* Tier 1 Date */}
-                            <div className="flex items-center gap-1">
-                                 {hasTier2 && <span className="text-slate-400 mr-1">Tier 1:</span>}
-                                 <span className={cn("font-medium flex items-center gap-1", isTier1Overdue ? "text-red-600" : "text-slate-700 dark:text-slate-300")}>
+                            <div className="flex items-center gap-1.5">
+                                 {hasTier2 && <span className="text-slate-400 text-[10px] uppercase tracking-wide">Tier 1</span>}
+                                 <span className={cn("font-medium flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800", isTier1Overdue && "bg-red-50 text-red-600 border-red-100")}>
                                     {isTier1Overdue && <AlertTriangle className="h-3 w-3" />}
                                     {formatDate(item.tier1Date)}
                                     {tier1Paid && hasTier2 && <CheckCircle className="h-3 w-3 text-emerald-500" />}
@@ -142,9 +157,9 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, onT
                             
                             {/* Tier 2 Date */}
                             {hasTier2 && (
-                                 <div className="flex items-center gap-1">
-                                     <span className="text-slate-400 mr-1">Tier 2:</span>
-                                     <span className={cn("font-medium flex items-center gap-1", isTier2Overdue ? "text-red-600" : "text-slate-700 dark:text-slate-300")}>
+                                 <div className="flex items-center gap-1.5">
+                                     <span className="text-slate-400 text-[10px] uppercase tracking-wide">Tier 2</span>
+                                     <span className={cn("font-medium flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800", isTier2Overdue && "bg-red-50 text-red-600 border-red-100")}>
                                         {isTier2Overdue && <AlertTriangle className="h-3 w-3" />}
                                         {formatDate(item.tier2Date)}
                                     </span>
@@ -156,38 +171,23 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, onT
 
                 {/* Buttons */}
                 {isPaid ? (
-                    <div className="space-y-2">
-                        <div className="w-full py-1.5 flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 rounded-md cursor-default">
-                            <CheckCircle className="h-3.5 w-3.5" />
-                            <span>Settled</span>
-                        </div>
-                        <Button
-                            variant="outline"
-                            onClick={() => onToggleReviewed(item)}
-                            className={cn("w-full h-7 text-[10px]", isReviewed ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50" : "text-slate-500")}
-                        >
-                            {isReviewed ? "Unmark Reviewed" : "Mark Reviewed"}
-                        </Button>
+                    <div className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20 rounded-lg cursor-default">
+                        <CheckCircle className="h-3.5 w-3.5" />
+                        <span>Settled & Reviewed</span>
                     </div>
                 ) : (
-                    <div className="space-y-2">
-                        {/* Mark Reviewed Button (Visible on Unpaid too) */}
-                        <Button
-                            variant="outline"
-                            onClick={() => onToggleReviewed(item)}
-                            className={cn("w-full h-7 text-[10px]", isReviewed ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50" : "text-slate-500")}
-                        >
-                            {isReviewed ? "Unmark Reviewed" : "Mark Reviewed"}
-                        </Button>
-
+                    <div className="grid gap-2">
                         {/* Tier 1 Button */}
                         {!tier1Paid && (
                             <Button
+                                size="sm"
                                 onClick={() => onMarkReceived(item, 'tier1')}
                                 disabled={isStatementPending}
                                 className={cn(
-                                    "w-full h-8 text-xs font-semibold shadow-sm",
-                                    isStatementPending ? "opacity-50 cursor-not-allowed" : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    "w-full h-9 text-xs font-semibold shadow-sm",
+                                    isStatementPending
+                                        ? "opacity-60 cursor-not-allowed bg-slate-100 text-slate-500 hover:bg-slate-100"
+                                        : "bg-emerald-600 hover:bg-emerald-700 text-white"
                                 )}
                             >
                                 {isStatementPending ? "Pending Statement" : (hasTier2 ? "Mark Tier 1 Received" : "Mark Received")}
@@ -197,11 +197,14 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, onT
                         {/* Tier 2 Button */}
                         {hasTier2 && tier1Paid && !tier2Paid && (
                             <Button
+                                size="sm"
                                 onClick={() => onMarkReceived(item, 'tier2')}
                                 disabled={isStatementPending}
                                 className={cn(
-                                    "w-full h-8 text-xs font-semibold shadow-sm",
-                                    isStatementPending ? "opacity-50 cursor-not-allowed" : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    "w-full h-9 text-xs font-semibold shadow-sm",
+                                    isStatementPending
+                                        ? "opacity-60 cursor-not-allowed bg-slate-100 text-slate-500 hover:bg-slate-100"
+                                        : "bg-emerald-600 hover:bg-emerald-700 text-white"
                                 )}
                             >
                                 {isStatementPending ? "Pending Statement" : "Mark Tier 2 Received"}
@@ -209,11 +212,8 @@ function CashVoucherCard({ item, onMarkReceived, onEdit, onViewTransactions, onT
                         )}
                     </div>
                 )}
-            </div>
-
-            <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-50 dark:bg-slate-900 rounded-full border-r border-slate-200 dark:border-slate-800" />
-            <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-50 dark:bg-slate-900 rounded-full border-l border-slate-200 dark:border-slate-800" />
-        </div>
+            </CardFooter>
+        </Card>
     );
 }
 
@@ -475,7 +475,12 @@ export default function CashbackTracker({
                     earned: 0
                 };
                 groups[item.month].items.push(item);
-                groups[item.month].due += item.remainingDue;
+
+                // Only count as "Due" for the header if the statement is finalized
+                if (isStatementFinalized(item.month, item.statementDay)) {
+                    groups[item.month].due += item.remainingDue;
+                }
+
                 groups[item.month].earned += item.totalEarned;
             });
             // Sort by ID (YYYYMM) descending
@@ -485,7 +490,12 @@ export default function CashbackTracker({
                 const key = item.cardName;
                 if (!groups[key]) groups[key] = { title: key, bank: item.bankName, items: [], due: 0, earned: 0 };
                 groups[key].items.push(item);
-                groups[key].due += item.remainingDue;
+
+                // Only count as "Due" for the header if the statement is finalized
+                if (isStatementFinalized(item.month, item.statementDay)) {
+                    groups[key].due += item.remainingDue;
+                }
+
                 groups[key].earned += item.totalEarned;
             });
             return Object.values(groups).sort((a, b) => b.due - a.due || a.title.localeCompare(b.title));
@@ -895,116 +905,116 @@ export default function CashbackTracker({
                      </div>
                 </div>
 
-                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-950">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 uppercase text-xs font-semibold">
-                                <tr>
-                                    {isSelectionMode && <th className="px-4 py-3 w-10"></th>}
-                                    <th className="px-4 py-3">Month</th>
-                                    <th className="px-4 py-3">Card</th>
-                                    <th className="px-4 py-3 text-right">Total Earned</th>
-                                    <th className="px-4 py-3 text-right">Status</th>
-                                    <th className="px-4 py-3 text-right">Tier 1</th>
-                                    <th className="px-4 py-3 text-right">Tier 2</th>
-                                    <th className="px-4 py-3 text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {groupedCashData.map(group => (
-                                    <React.Fragment key={group.title}>
-                                        <tr className="bg-slate-50/50 dark:bg-slate-900/30">
-                                            <td colSpan="7" className="px-4 py-2 font-bold text-slate-700 dark:text-slate-300">
-                                                {group.title} <span className="text-slate-400 font-normal text-xs ml-2">({group.items.length} items)</span>
-                                            </td>
-                                        </tr>
-                                        {group.items.map(item => {
-                                            const isPaid = item.remainingDue <= 0;
-                                            const tier1Paid = (item.amountRedeemed || 0) >= item.tier1Amount;
-                                            const isStatementPending = !isStatementFinalized(item.month, item.statementDay);
-                                            const isReviewed = item.reviewed;
+                <div className="rounded-md border bg-white dark:bg-slate-950">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                {isSelectionMode && <TableHead className="w-[30px] p-2"><div className="w-4" /></TableHead>}
+                                <TableHead className="w-[120px]">Month</TableHead>
+                                <TableHead>Card</TableHead>
+                                <TableHead className="text-right">Total Earned</TableHead>
+                                <TableHead className="text-right">Status</TableHead>
+                                <TableHead className="text-right">Tier 1</TableHead>
+                                <TableHead className="text-right">Tier 2</TableHead>
+                                <TableHead className="text-center w-[120px]">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {groupedCashData.map(group => (
+                                <React.Fragment key={group.title}>
+                                    <TableRow className="bg-slate-50/50 dark:bg-slate-900/30 hover:bg-slate-100 dark:hover:bg-slate-800/50">
+                                        <TableCell colSpan={isSelectionMode ? 8 : 7} className="font-bold text-slate-700 dark:text-slate-300 py-2">
+                                            {group.title} <span className="text-slate-400 font-normal text-xs ml-2">({group.items.length} items)</span>
+                                        </TableCell>
+                                    </TableRow>
+                                    {group.items.map(item => {
+                                        const isPaid = item.remainingDue <= 0;
+                                        const tier1Paid = (item.amountRedeemed || 0) >= item.tier1Amount;
+                                        const isStatementPending = !isStatementFinalized(item.month, item.statementDay);
+                                        const isReviewed = item.reviewed;
 
-                                            const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', {day: 'numeric', month: 'short'}) : '-';
+                                        const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', {day: 'numeric', month: 'short'}) : '-';
 
-                                            return (
-                                                <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
-                                                    {isSelectionMode && (
-                                                        <td className="px-4 py-3">
-                                                            <Checkbox
-                                                                checked={selectedIds.has(item.id)}
-                                                                onCheckedChange={() => handleToggleSelect(item.id)}
-                                                            />
-                                                        </td>
-                                                    )}
-                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono">
+                                        return (
+                                            <TableRow key={item.id} className="group hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+                                                {isSelectionMode && (
+                                                    <TableCell className="p-2">
+                                                        <Checkbox
+                                                            checked={selectedIds.has(item.id)}
+                                                            onCheckedChange={() => handleToggleSelect(item.id)}
+                                                        />
+                                                    </TableCell>
+                                                )}
+                                                <TableCell className="font-mono text-slate-600 dark:text-slate-400 py-3">
+                                                    <div className="flex items-center gap-2">
                                                         {fmtYMShort(item.month)}
-                                                        {isReviewed && <Badge variant="outline" className="ml-2 text-[9px] h-4 px-1 py-0 text-indigo-600 border-indigo-200">Reviewed</Badge>}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="font-medium text-slate-900 dark:text-slate-100">{item.cardName}</div>
-                                                        <div className="text-[10px] text-slate-400">{item.bankName}</div>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right font-bold text-emerald-600">
-                                                        {currency(item.totalEarned)}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right">
-                                                        <Badge variant={isPaid ? "outline" : "default"} className={cn("text-[10px]", isPaid ? "text-emerald-600 border-emerald-200" : isStatementPending ? "bg-orange-100 text-orange-700 hover:bg-orange-100" : "bg-slate-600")}>
-                                                            {isPaid ? "Settled" : isStatementPending ? "Stmt Pending" : "Unpaid"}
-                                                        </Badge>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right">
+                                                        {isReviewed && <Badge variant="outline" className="text-[9px] h-4 px-1 py-0 text-indigo-600 border-indigo-200">Reviewed</Badge>}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="py-3">
+                                                    <div className="font-medium text-slate-900 dark:text-slate-100">{item.cardName}</div>
+                                                    <div className="text-[10px] text-slate-400">{item.bankName}</div>
+                                                </TableCell>
+                                                <TableCell className="text-right font-bold text-emerald-600 py-3">
+                                                    {currency(item.totalEarned)}
+                                                </TableCell>
+                                                <TableCell className="text-right py-3">
+                                                    <Badge variant={isPaid ? "outline" : "default"} className={cn("text-[10px]", isPaid ? "text-emerald-600 border-emerald-200" : isStatementPending ? "bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-200" : "bg-slate-600")}>
+                                                        {isPaid ? "Settled" : isStatementPending ? "Stmt Pending" : "Unpaid"}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right py-3">
+                                                    <div className="text-xs">
+                                                        <div>{currency(item.tier1Amount)}</div>
+                                                        <div className={cn("text-[10px]", item.tier1Status?.status === 'overdue' ? "text-red-500" : "text-slate-400")}>
+                                                            {formatDate(item.tier1Date)}
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right py-3">
+                                                    {item.tier2Amount > 0 ? (
                                                         <div className="text-xs">
-                                                            <div>{currency(item.tier1Amount)}</div>
-                                                            <div className={cn("text-[10px]", item.tier1Status?.status === 'overdue' ? "text-red-500" : "text-slate-400")}>
-                                                                {formatDate(item.tier1Date)}
+                                                            <div>{currency(item.tier2Amount)}</div>
+                                                            <div className={cn("text-[10px]", item.tier2Status?.status === 'overdue' ? "text-red-500" : "text-slate-400")}>
+                                                                {formatDate(item.tier2Date)}
                                                             </div>
                                                         </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right">
-                                                        {item.tier2Amount > 0 ? (
-                                                            <div className="text-xs">
-                                                                <div>{currency(item.tier2Amount)}</div>
-                                                                <div className={cn("text-[10px]", item.tier2Status?.status === 'overdue' ? "text-red-500" : "text-slate-400")}>
-                                                                    {formatDate(item.tier2Date)}
-                                                                </div>
-                                                            </div>
-                                                        ) : <span className="text-slate-300">-</span>}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex justify-center gap-1">
-                                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleViewTransactions(item)}>
-                                                                <Eye className="h-4 w-4 text-slate-400" />
-                                                            </Button>
+                                                    ) : <span className="text-slate-300">-</span>}
+                                                </TableCell>
+                                                <TableCell className="py-3">
+                                                    <div className="flex justify-center gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600" onClick={() => handleViewTransactions(item)} title="View Transactions">
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className={cn("h-8 w-8", isReviewed ? "text-indigo-600" : "text-slate-400 hover:text-indigo-600")}
+                                                            onClick={() => handleToggleReviewed(item)}
+                                                            title={isReviewed ? "Mark Unreviewed" : "Mark Reviewed"}
+                                                        >
+                                                            <ClipboardCheck className="h-4 w-4" />
+                                                        </Button>
+                                                        {!isPaid && (
                                                             <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className={cn("h-8 w-8", isReviewed ? "text-indigo-600" : "text-slate-400")}
-                                                                onClick={() => handleToggleReviewed(item)}
-                                                                title={isReviewed ? "Mark Unreviewed" : "Mark Reviewed"}
+                                                                size="sm"
+                                                                disabled={isStatementPending}
+                                                                className={cn("h-8 text-[10px] px-2", isStatementPending ? "opacity-50" : "bg-emerald-600 hover:bg-emerald-700 text-white")}
+                                                                onClick={() => handleMarkReceived(item, !tier1Paid ? 'tier1' : 'tier2')}
                                                             >
-                                                                <ClipboardCheck className="h-4 w-4" />
+                                                                {isStatementPending ? "Pending" : (!tier1Paid ? (item.tier2Amount > 0 ? "Pay T1" : "Pay") : "Pay T2")}
                                                             </Button>
-                                                            {!isPaid && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    disabled={isStatementPending}
-                                                                    className={cn("h-8 text-[10px]", isStatementPending ? "opacity-50" : "bg-emerald-600 hover:bg-emerald-700 text-white")}
-                                                                    onClick={() => handleMarkReceived(item, !tier1Paid ? 'tier1' : 'tier2')}
-                                                                >
-                                                                    {isStatementPending ? "Pending" : (!tier1Paid ? (item.tier2Amount > 0 ? "Pay T1" : "Pay") : "Pay T2")}
-                                                                </Button>
-                                                            )}
-                                                            {isPaid && <CheckCircle className="h-5 w-5 text-emerald-500 opacity-50" />}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </React.Fragment>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                                        )}
+                                                        {isPaid && <CheckCircle className="h-5 w-5 text-emerald-500 opacity-50 ml-1" />}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </React.Fragment>
+                            ))}
+                        </TableBody>
+                    </Table>
                 </div>
             </div>
         );
@@ -1021,7 +1031,7 @@ export default function CashbackTracker({
                         onClick={() => setMainTab('cash')}
                         className={cn("px-6 py-2 rounded-full text-sm font-semibold transition-all", mainTab === 'cash' ? "bg-white dark:bg-slate-950 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200")}
                     >
-                        Cashback
+                        Balances
                     </button>
                     <button
                         onClick={() => setMainTab('points')}
