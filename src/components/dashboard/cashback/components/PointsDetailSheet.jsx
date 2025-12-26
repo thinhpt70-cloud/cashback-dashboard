@@ -8,12 +8,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit2 } from "lucide-react";
+import { Edit2, Eye } from "lucide-react";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 import { fmtYMShort } from "@/lib/formatters";
 
-export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, currencyFn }) {
+export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onViewTransactions, currencyFn }) {
     const isDesktop = useMediaQuery("(min-width: 768px)");
 
     if (!cardData) return null;
@@ -65,9 +65,14 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, currencyF
                                                  )}
                                              </div>
                                          </div>
-                                         <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2 -mt-2 opacity-50 group-hover:opacity-100" onClick={() => onEdit(item)}>
-                                             <Edit2 className="h-3 w-3" />
-                                         </Button>
+                                         <div className="flex -mr-2 -mt-2">
+                                             <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100" onClick={() => onViewTransactions(item)}>
+                                                 <Eye className="h-3 w-3" />
+                                             </Button>
+                                             <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100" onClick={() => onEdit(item)}>
+                                                 <Edit2 className="h-3 w-3" />
+                                             </Button>
+                                         </div>
                                      </div>
 
                                      <div className="grid grid-cols-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
