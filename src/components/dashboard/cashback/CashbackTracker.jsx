@@ -334,7 +334,7 @@ function PointsLoyaltyCard({ cardName, bankName, totalPoints, minPointsRedeem, o
             </div>
 
             {/* Body */}
-            <div className="text-center py-4 border-t border-b border-slate-100 dark:border-slate-800 my-1">
+            <div className={cn("text-center py-4 border-t border-slate-100 dark:border-slate-800 my-1", activities.length === 0 && "border-b")}>
                 <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Available Balance</p>
                 <div className="flex items-baseline justify-center gap-1">
                     <span className="text-2xl font-black tracking-tight text-indigo-600 dark:text-indigo-400">
