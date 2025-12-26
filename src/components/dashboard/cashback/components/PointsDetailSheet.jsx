@@ -131,26 +131,26 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                 if (isEarned) {
                     dateDisplay = fmtYMShort(event.date);
                 } else {
-                    const d = new Date(event.date);
-                    // Check if the date string had time component (length > 10 usually YYYY-MM-DD HH:MM)
-                    // Or check if hours/minutes are non-zero (careful with midnight redemptions)
-                    // Better: check if the input string includes ':' or use options based on validity
+                    // Fix for Safari: ensure ISO format by replacing space with T if time exists
+                    const safeDateStr = event.date.includes(' ') ? event.date.replace(' ', 'T') : event.date;
+                    const d = new Date(safeDateStr);
 
                     const hasTime = event.date && event.date.includes(':');
 
                     if (hasTime) {
-                        dateDisplay = d.toLocaleDateString('en-GB', {
-                            day: 'numeric',
+                        // Requested Format: Oct 25 2023 14:30
+                        dateDisplay = d.toLocaleDateString('en-US', {
                             month: 'short',
+                            day: 'numeric',
                             year: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit',
                             hour12: false
-                        });
+                        }).replace(',', ''); // Remove comma after year/day if present by default
                     } else {
-                         dateDisplay = d.toLocaleDateString('en-GB', {
-                            day: 'numeric',
+                         dateDisplay = d.toLocaleDateString('en-US', {
                             month: 'short',
+                            day: 'numeric',
                             year: 'numeric'
                         });
                     }
