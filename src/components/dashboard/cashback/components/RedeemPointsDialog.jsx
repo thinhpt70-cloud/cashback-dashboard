@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Gift, AlertCircle } from "lucide-react";
+import { Gift, AlertCircle, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Helper for currency formatting
@@ -19,11 +20,12 @@ const parseCurrency = (value) => {
     return String(value).replace(/,/g, '');
 };
 
-const QUICK_AMOUNTS = [100000, 200000, 300000, 500000];
+const QUICK_AMOUNTS = [200000, 300000, 500000];
 
 export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
     const [amount, setAmount] = useState('');
     const [notes, setNotes] = useState('');
+    const [date, setDate] = useState('');
     const [error, setError] = useState(null);
 
     // Reset state when dialog opens
@@ -31,6 +33,14 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
         if (isOpen) {
             setAmount('');
             setNotes('');
+            // Default to current local time in YYYY-MM-DDTHH:MM format
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            setDate(`${year}-${month}-${day}T${hours}:${minutes}`);
             setError(null);
         }
     }, [isOpen]);
@@ -73,7 +83,7 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
 
     const handleSubmit = () => {
         if (!isValid) return;
-        onConfirm({ amount: numericAmount, notes });
+        onConfirm({ amount: numericAmount, notes, date });
     };
 
     return (
@@ -92,25 +102,27 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
                 </DialogHeader>
 
                 <div className="space-y-6 py-4">
-                    {/* Hero: Balance Visualization */}
-                    <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-600 to-purple-700 p-6 text-white shadow-md">
-                        <div className="relative z-10 flex justify-between items-center">
-                            <div>
-                                <p className="text-indigo-100 text-xs font-medium uppercase tracking-wider mb-1">Available Balance</p>
-                                <h3 className="text-3xl font-bold tracking-tight">{formatCurrency(currentBalance)}</h3>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-indigo-100 text-xs font-medium uppercase tracking-wider mb-1">After Redeem</p>
-                                <h3 className={cn("text-2xl font-bold tracking-tight transition-colors",
-                                    remainingBalance < 0 ? "text-red-300" : "text-white/90"
-                                )}>
-                                    {remainingBalance < 0 ? '-' : ''}{formatCurrency(Math.abs(remainingBalance))}
-                                </h3>
-                            </div>
+                    {/* Hero: Balance Visualization (Split Cards) */}
+                    <div className="grid grid-cols-2 gap-3">
+                         {/* Card 1: Available */}
+                        <div className="relative overflow-hidden rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4">
+                             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Available</p>
+                             <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{formatCurrency(currentBalance)}</h3>
                         </div>
-                        {/* Decorative background elements */}
-                        <div className="absolute top-0 right-0 -mr-8 -mt-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-                        <div className="absolute bottom-0 left-0 -ml-8 -mb-8 h-32 w-32 rounded-full bg-indigo-500/30 blur-2xl" />
+
+                        {/* Card 2: After Redeem */}
+                        <div className={cn(
+                            "relative overflow-hidden rounded-xl border p-4 transition-colors",
+                            isValid ? "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800" : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-80"
+                        )}>
+                            <p className={cn("text-[10px] font-bold uppercase tracking-wider mb-1", isValid ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500")}>New Balance</p>
+                            <h3 className={cn("text-xl font-bold tracking-tight flex items-center gap-1",
+                                remainingBalance < 0 ? "text-red-500" : (isValid ? "text-indigo-700 dark:text-indigo-300" : "text-slate-900 dark:text-slate-100")
+                            )}>
+                                {remainingBalance < 0 ? '-' : ''}{formatCurrency(Math.abs(remainingBalance))}
+                                {isValid && <ArrowRight className="h-3 w-3 opacity-50" />}
+                            </h3>
+                        </div>
                     </div>
 
                     {/* Inputs */}
@@ -159,15 +171,32 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
                             </div>
                         </div>
 
-                        <div className="space-y-2 pt-2">
-                            <Label htmlFor="redeem-notes">Notes (Optional)</Label>
-                            <Input
-                                id="redeem-notes"
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                placeholder="e.g. Agoda voucher, Statement credit..."
-                                className="text-sm"
-                            />
+                        <div className="space-y-4 pt-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="redeem-date">Date & Time</Label>
+                                <Input
+                                    id="redeem-date"
+                                    type="datetime-local"
+                                    value={date}
+                                    onChange={(e) => setDate(e.target.value)}
+                                    className="text-sm w-full"
+                                />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="redeem-notes">Notes (Optional)</Label>
+                                <Textarea
+                                    id="redeem-notes"
+                                    value={notes}
+                                    onChange={(e) => {
+                                        setNotes(e.target.value);
+                                        // Simple auto-grow
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = e.target.scrollHeight + 'px';
+                                    }}
+                                    placeholder="e.g. Voucher"
+                                    className="text-sm min-h-[80px] resize-none overflow-hidden"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
