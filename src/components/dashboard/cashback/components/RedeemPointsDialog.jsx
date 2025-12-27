@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Gift, AlertCircle, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import useMediaQuery from "@/hooks/useMediaQuery";
 
 // Helper for currency formatting
 const formatCurrency = (value) => {
@@ -23,6 +25,7 @@ const parseCurrency = (value) => {
 const QUICK_AMOUNTS = [200000, 300000, 500000];
 
 export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
+    const isDesktop = useMediaQuery("(min-width: 768px)");
     const [amount, setAmount] = useState('');
     const [notes, setNotes] = useState('');
     const [date, setDate] = useState('');
@@ -86,132 +89,166 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
         onConfirm({ amount: numericAmount, notes, date });
     };
 
-    return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-xl">
-                        <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
-                            <Gift className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                        </div>
-                        Redeem Points
-                    </DialogTitle>
-                    <DialogDescription>
-                        Use your accumulated points for rewards or statement credits.
-                    </DialogDescription>
-                </DialogHeader>
+    const TitleContent = (
+        <div className="flex items-center gap-2 text-xl">
+            <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
+                <Gift className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            Redeem Points
+        </div>
+    );
 
-                <div className="space-y-6 py-4">
-                    {/* Hero: Balance Visualization (Split Cards) */}
-                    <div className="grid grid-cols-2 gap-3">
-                         {/* Card 1: Available */}
-                        <div className="relative overflow-hidden rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4">
-                             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Available</p>
-                             <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{formatCurrency(currentBalance)}</h3>
-                        </div>
+    const DescriptionContent = "Use your accumulated points for rewards or statement credits.";
 
-                        {/* Card 2: After Redeem */}
-                        <div className={cn(
-                            "relative overflow-hidden rounded-xl border p-4 transition-colors",
-                            isValid ? "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800" : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-80"
-                        )}>
-                            <p className={cn("text-[10px] font-bold uppercase tracking-wider mb-1", isValid ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500")}>New Balance</p>
-                            <h3 className={cn("text-xl font-bold tracking-tight flex items-center gap-1",
-                                remainingBalance < 0 ? "text-red-500" : (isValid ? "text-indigo-700 dark:text-indigo-300" : "text-slate-900 dark:text-slate-100")
-                            )}>
-                                {remainingBalance < 0 ? '-' : ''}{formatCurrency(Math.abs(remainingBalance))}
-                                {isValid && <ArrowRight className="h-3 w-3 opacity-50" />}
-                            </h3>
-                        </div>
+    const MainContent = (
+        <div className="space-y-6 py-4">
+            {/* Hero: Balance Visualization (Split Cards) */}
+            <div className="grid grid-cols-2 gap-3">
+                 {/* Card 1: Available */}
+                <div className="relative overflow-hidden rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4">
+                     <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Available</p>
+                     <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{formatCurrency(currentBalance)}</h3>
+                </div>
+
+                {/* Card 2: After Redeem */}
+                <div className={cn(
+                    "relative overflow-hidden rounded-xl border p-4 transition-colors",
+                    isValid ? "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800" : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-80"
+                )}>
+                    <p className={cn("text-[10px] font-bold uppercase tracking-wider mb-1", isValid ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500")}>New Balance</p>
+                    <h3 className={cn("text-xl font-bold tracking-tight flex items-center gap-1",
+                        remainingBalance < 0 ? "text-red-500" : (isValid ? "text-indigo-700 dark:text-indigo-300" : "text-slate-900 dark:text-slate-100")
+                    )}>
+                        {remainingBalance < 0 ? '-' : ''}{formatCurrency(Math.abs(remainingBalance))}
+                        {isValid && <ArrowRight className="h-3 w-3 opacity-50" />}
+                    </h3>
+                </div>
+            </div>
+
+            {/* Inputs */}
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="redeem-amount">Amount to Redeem</Label>
+                    <div className="relative">
+                        <Input
+                            id="redeem-amount"
+                            value={amount}
+                            onChange={handleAmountChange}
+                            placeholder="0"
+                            className={cn("pl-4 pr-12 text-lg font-semibold", error && "border-red-500 focus-visible:ring-red-500")}
+                            autoFocus
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">pts</div>
                     </div>
+                    {error && (
+                        <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                            <AlertCircle className="h-3 w-3" /> {error}
+                        </p>
+                    )}
+                </div>
 
-                    {/* Inputs */}
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="redeem-amount">Amount to Redeem</Label>
-                            <div className="relative">
-                                <Input
-                                    id="redeem-amount"
-                                    value={amount}
-                                    onChange={handleAmountChange}
-                                    placeholder="0"
-                                    className={cn("pl-4 pr-12 text-lg font-semibold", error && "border-red-500 focus-visible:ring-red-500")}
-                                    autoFocus
-                                />
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">pts</div>
-                            </div>
-                            {error && (
-                                <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
-                                    <AlertCircle className="h-3 w-3" /> {error}
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Quick Select */}
-                        <div>
-                            <Label className="text-xs text-slate-500 mb-2 block">Quick Select</Label>
-                            <div className="flex flex-wrap gap-2">
-                                {QUICK_AMOUNTS.map((amt) => (
-                                    <Badge
-                                        key={amt}
-                                        variant="outline"
-                                        className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all px-3 py-1.5 h-auto text-sm font-normal"
-                                        onClick={() => handleQuickSelect(amt)}
-                                    >
-                                        {formatCurrency(amt)}
-                                    </Badge>
-                                ))}
-                                <Badge
-                                    variant="outline"
-                                    className="cursor-pointer bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 active:scale-95 transition-all px-3 py-1.5 h-auto text-sm font-medium"
-                                    onClick={handleMax}
-                                >
-                                    Max
-                                </Badge>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4 pt-2">
-                            <div className="space-y-2">
-                                <Label htmlFor="redeem-date">Date & Time</Label>
-                                <Input
-                                    id="redeem-date"
-                                    type="datetime-local"
-                                    value={date}
-                                    onChange={(e) => setDate(e.target.value)}
-                                    className="text-sm w-full"
-                                />
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="redeem-notes">Notes (Optional)</Label>
-                                <Textarea
-                                    id="redeem-notes"
-                                    value={notes}
-                                    onChange={(e) => {
-                                        setNotes(e.target.value);
-                                        // Simple auto-grow
-                                        e.target.style.height = 'auto';
-                                        e.target.style.height = e.target.scrollHeight + 'px';
-                                    }}
-                                    placeholder="e.g. Voucher"
-                                    className="text-sm min-h-[80px] resize-none overflow-hidden"
-                                />
-                            </div>
-                        </div>
+                {/* Quick Select */}
+                <div>
+                    <Label className="text-xs text-slate-500 mb-2 block">Quick Select</Label>
+                    <div className="flex flex-wrap gap-2">
+                        {QUICK_AMOUNTS.map((amt) => (
+                            <Badge
+                                key={amt}
+                                variant="outline"
+                                className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all px-3 py-1.5 h-auto text-sm font-normal"
+                                onClick={() => handleQuickSelect(amt)}
+                            >
+                                {formatCurrency(amt)}
+                            </Badge>
+                        ))}
+                        <Badge
+                            variant="outline"
+                            className="cursor-pointer bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 active:scale-95 transition-all px-3 py-1.5 h-auto text-sm font-medium"
+                            onClick={handleMax}
+                        >
+                            Max
+                        </Badge>
                     </div>
                 </div>
 
-                <DialogFooter>
-                    <Button variant="ghost" onClick={onClose}>Cancel</Button>
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={!isValid || !!error}
-                        className={cn("min-w-[100px]", isValid ? "bg-indigo-600 hover:bg-indigo-700" : "")}
-                    >
-                        Confirm
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                <div className="space-y-4 pt-2">
+                    <div className="space-y-2 w-full">
+                        <Label htmlFor="redeem-date">Date & Time</Label>
+                        <div className="w-full">
+                            <Input
+                                id="redeem-date"
+                                type="datetime-local"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                                className="text-sm w-full block min-w-0"
+                                style={{ WebkitAppearance: 'none' }}
+                            />
+                        </div>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="redeem-notes">Notes (Optional)</Label>
+                        <Textarea
+                            id="redeem-notes"
+                            value={notes}
+                            onChange={(e) => {
+                                setNotes(e.target.value);
+                                // Simple auto-grow
+                                e.target.style.height = 'auto';
+                                e.target.style.height = e.target.scrollHeight + 'px';
+                            }}
+                            placeholder="e.g. Voucher"
+                            className="text-sm min-h-[80px] resize-none overflow-hidden"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const FooterContent = (
+        <>
+            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button
+                onClick={handleSubmit}
+                disabled={!isValid || !!error}
+                className={cn("min-w-[100px]", isValid ? "bg-indigo-600 hover:bg-indigo-700" : "")}
+            >
+                Confirm
+            </Button>
+        </>
+    );
+
+    if (isDesktop) {
+        return (
+            <Dialog open={isOpen} onOpenChange={onClose}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{TitleContent}</DialogTitle>
+                        <DialogDescription>{DescriptionContent}</DialogDescription>
+                    </DialogHeader>
+                    {MainContent}
+                    <DialogFooter>
+                        {FooterContent}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        );
+    }
+
+    return (
+        <Drawer open={isOpen} onOpenChange={onClose}>
+            <DrawerContent>
+                <DrawerHeader className="text-left">
+                    <DrawerTitle>{TitleContent}</DrawerTitle>
+                    <DrawerDescription>{DescriptionContent}</DrawerDescription>
+                </DrawerHeader>
+                <div className="px-4 pb-4">
+                    {MainContent}
+                    <DrawerFooter className="pt-2 px-0">
+                        {FooterContent}
+                    </DrawerFooter>
+                </div>
+            </DrawerContent>
+        </Drawer>
     );
 }

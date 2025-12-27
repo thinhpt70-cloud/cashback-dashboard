@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtYMShort } from "@/lib/formatters";
+import useMediaQuery from "@/hooks/useMediaQuery";
 
 // Helper for currency formatting
 const formatCurrency = (value) => {
@@ -22,6 +24,7 @@ const parseCurrency = (value) => {
 };
 
 export function UpdateDetailsDialog({ isOpen, onClose, onSave, item }) {
+    const isDesktop = useMediaQuery("(min-width: 768px)");
     const [adjustment, setAdjustment] = useState('');
     const [amountRedeemed, setAmountRedeemed] = useState('');
     const [notes, setNotes] = useState('');
@@ -87,113 +90,146 @@ export function UpdateDetailsDialog({ isOpen, onClose, onSave, item }) {
         setter(cleanVal ? new Intl.NumberFormat('en-US').format(cleanVal) : '');
     };
 
-    return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                    <div className="flex items-center gap-2 mb-1">
-                        <Badge variant="outline" className={cn("text-[10px] h-5 px-2 font-normal", isPoints ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-emerald-50 text-emerald-700 border-emerald-200")}>
-                            {typeLabel} Record
-                        </Badge>
-                        <span className="text-sm text-slate-500 font-medium">{fmtYMShort(item.month)}</span>
-                    </div>
-                    <DialogTitle className="text-xl">{item.cardName}</DialogTitle>
-                    <DialogDescription>
-                        Update the financial details for this period.
-                    </DialogDescription>
-                </DialogHeader>
+    const TitleContent = (
+        <div className="flex flex-col gap-1 items-start text-left">
+            <div className="flex items-center gap-2 mb-1">
+                <Badge variant="outline" className={cn("text-[10px] h-5 px-2 font-normal", isPoints ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-emerald-50 text-emerald-700 border-emerald-200")}>
+                    {typeLabel} Record
+                </Badge>
+                <span className="text-sm text-slate-500 font-medium">{fmtYMShort(item.month)}</span>
+            </div>
+            <div className="text-xl font-semibold leading-none tracking-tight">{item.cardName}</div>
+        </div>
+    );
 
-                <div className="py-4 space-y-6">
-                    {/* Calculator Visualization */}
-                    <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
-                        {/* Row 1: Earned */}
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-slate-500 font-medium">Original Earned</span>
-                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{formatCurrency(numEarned)}</span>
-                        </div>
+    const DescriptionContent = "Update the financial details for this period.";
 
-                        {/* Row 2: Adjustment */}
-                        <div className="flex justify-between items-center text-sm">
-                            <Label htmlFor="adjustment" className="text-slate-500 font-medium flex items-center gap-2">
-                                + Adjustment
-                                <Badge variant="secondary" className="text-[9px] h-4 px-1 py-0 font-normal text-slate-500">Manual</Badge>
-                            </Label>
-                            <div className="w-[140px]">
-                                <Input
-                                    id="adjustment"
-                                    value={adjustment}
-                                    onChange={handleNumberInput(setAdjustment)}
-                                    className="h-8 text-right font-mono text-sm bg-white dark:bg-slate-950"
-                                    placeholder="0"
-                                />
-                            </div>
-                        </div>
+    const MainContent = (
+        <div className="py-4 space-y-6">
+            {/* Calculator Visualization */}
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
+                {/* Row 1: Earned */}
+                <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500 font-medium">Original Earned</span>
+                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{formatCurrency(numEarned)}</span>
+                </div>
 
-                        <div className="h-px bg-slate-200 dark:bg-slate-700" />
-
-                        {/* Row 3: Total Available */}
-                        <div className="flex justify-between items-center text-sm bg-slate-100 dark:bg-slate-800/80 -mx-4 px-4 py-2">
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">Total Available</span>
-                            <span className="font-mono font-bold text-base">{formatCurrency(totalAvailable)}</span>
-                        </div>
-
-                        {/* Row 4: Redeemed/Received */}
-                        <div className="flex justify-between items-center text-sm pt-1">
-                            <Label htmlFor="redeemed" className="text-slate-500 font-medium flex items-center gap-2">
-                                - {redeemedLabel}
-                                <Badge variant="secondary" className="text-[9px] h-4 px-1 py-0 font-normal text-slate-500">Paid</Badge>
-                            </Label>
-                            <div className="w-[140px]">
-                                <Input
-                                    id="redeemed"
-                                    value={amountRedeemed}
-                                    onChange={handleNumberInput(setAmountRedeemed)}
-                                    className={cn("h-8 text-right font-mono text-sm bg-white dark:bg-slate-950", isOverRedeemed && "border-red-500 focus-visible:ring-red-500")}
-                                    placeholder="0"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="h-px bg-slate-200 dark:bg-slate-700" />
-
-                        {/* Row 5: Remaining */}
-                        <div className="flex justify-between items-center">
-                             <span className={cn("text-sm font-bold", remainingDue < 0 ? "text-red-600" : "text-emerald-600")}>
-                                {remainingDue < 0 ? "Overpaid / Excess" : "Remaining Due"}
-                             </span>
-                             <span className={cn("font-mono font-bold text-lg", remainingDue < 0 ? "text-red-600" : "text-emerald-600")}>
-                                {remainingDue < 0 ? '-' : ''}{formatCurrency(Math.abs(remainingDue))}
-                             </span>
-                        </div>
-                    </div>
-
-                    {isOverRedeemed && (
-                         <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
-                            <AlertCircle className="h-4 w-4 shrink-0" />
-                            <span>
-                                Warning: The {redeemedLabel.toLowerCase()} amount exceeds the total available. This will result in a negative balance.
-                            </span>
-                        </div>
-                    )}
-
-                    {/* Notes */}
-                    <div className="space-y-2">
-                        <Label htmlFor="notes">Notes</Label>
-                        <Textarea
-                            id="notes"
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            className="resize-none h-20"
-                            placeholder="Add details about adjustment or payment..."
+                {/* Row 2: Adjustment */}
+                <div className="flex justify-between items-center text-sm">
+                    <Label htmlFor="adjustment" className="text-slate-500 font-medium flex items-center gap-2">
+                        + Adjustment
+                        <Badge variant="secondary" className="text-[9px] h-4 px-1 py-0 font-normal text-slate-500">Manual</Badge>
+                    </Label>
+                    <div className="w-[140px]">
+                        <Input
+                            id="adjustment"
+                            value={adjustment}
+                            onChange={handleNumberInput(setAdjustment)}
+                            className="h-8 text-right font-mono text-sm bg-white dark:bg-slate-950"
+                            placeholder="0"
                         />
                     </div>
                 </div>
 
-                <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>Cancel</Button>
-                    <Button onClick={handleSave} className="bg-slate-900 dark:bg-slate-100">Save Changes</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                <div className="h-px bg-slate-200 dark:bg-slate-700" />
+
+                {/* Row 3: Total Available */}
+                <div className="flex justify-between items-center text-sm bg-slate-100 dark:bg-slate-800/80 -mx-4 px-4 py-2">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">Total Available</span>
+                    <span className="font-mono font-bold text-base">{formatCurrency(totalAvailable)}</span>
+                </div>
+
+                {/* Row 4: Redeemed/Received */}
+                <div className="flex justify-between items-center text-sm pt-1">
+                    <Label htmlFor="redeemed" className="text-slate-500 font-medium flex items-center gap-2">
+                        - {redeemedLabel}
+                        <Badge variant="secondary" className="text-[9px] h-4 px-1 py-0 font-normal text-slate-500">Paid</Badge>
+                    </Label>
+                    <div className="w-[140px]">
+                        <Input
+                            id="redeemed"
+                            value={amountRedeemed}
+                            onChange={handleNumberInput(setAmountRedeemed)}
+                            className={cn("h-8 text-right font-mono text-sm bg-white dark:bg-slate-950", isOverRedeemed && "border-red-500 focus-visible:ring-red-500")}
+                            placeholder="0"
+                        />
+                    </div>
+                </div>
+
+                <div className="h-px bg-slate-200 dark:bg-slate-700" />
+
+                {/* Row 5: Remaining */}
+                <div className="flex justify-between items-center">
+                     <span className={cn("text-sm font-bold", remainingDue < 0 ? "text-red-600" : "text-emerald-600")}>
+                        {remainingDue < 0 ? "Overpaid / Excess" : "Remaining Due"}
+                     </span>
+                     <span className={cn("font-mono font-bold text-lg", remainingDue < 0 ? "text-red-600" : "text-emerald-600")}>
+                        {remainingDue < 0 ? '-' : ''}{formatCurrency(Math.abs(remainingDue))}
+                     </span>
+                </div>
+            </div>
+
+            {isOverRedeemed && (
+                 <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>
+                        Warning: The {redeemedLabel.toLowerCase()} amount exceeds the total available. This will result in a negative balance.
+                    </span>
+                </div>
+            )}
+
+            {/* Notes */}
+            <div className="space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="resize-none h-20"
+                    placeholder="Add details about adjustment or payment..."
+                />
+            </div>
+        </div>
+    );
+
+    const FooterContent = (
+        <>
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleSave} className="bg-slate-900 dark:bg-slate-100">Save Changes</Button>
+        </>
+    );
+
+    if (isDesktop) {
+        return (
+            <Dialog open={isOpen} onOpenChange={onClose}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle asChild>{TitleContent}</DialogTitle>
+                        <DialogDescription>{DescriptionContent}</DialogDescription>
+                    </DialogHeader>
+                    {MainContent}
+                    <DialogFooter>
+                        {FooterContent}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        );
+    }
+
+    return (
+        <Drawer open={isOpen} onOpenChange={onClose}>
+            <DrawerContent>
+                <DrawerHeader className="text-left">
+                    <DrawerTitle asChild>{TitleContent}</DrawerTitle>
+                    <DrawerDescription>{DescriptionContent}</DrawerDescription>
+                </DrawerHeader>
+                <div className="px-4 pb-4">
+                    {MainContent}
+                    <DrawerFooter className="pt-2 px-0">
+                        {FooterContent}
+                    </DrawerFooter>
+                </div>
+            </DrawerContent>
+        </Drawer>
     );
 }

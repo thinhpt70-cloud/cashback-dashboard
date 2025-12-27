@@ -233,7 +233,30 @@ export const groupRedemptionEvents = (items) => {
     redemptionMap.forEach(event => events.push(event));
 
     // 3. Sort by Date Descending
-    // Note: Earned events date might be YYYYMM or YYYY-MM. Redeemed is YYYY-MM-DD.
-    // We normalize to string comparison which works for YYYY...
-    return events.sort((a, b) => b.date.localeCompare(a.date));
+    return events.sort((a, b) => {
+        // Helper to get comparable timestamp
+        const getTimestamp = (e) => {
+            let dStr = e.date;
+            // Handle YYYYMM (e.g. 202310) -> Treat as start of month 2023-10-01
+            if (!dStr.includes('-') && dStr.length === 6) {
+                const y = dStr.substring(0, 4);
+                const m = dStr.substring(4, 6);
+                dStr = `${y}-${m}-01`;
+            }
+            // Handle YYYY-MM -> Treat as start of month
+            else if (dStr.length === 7) {
+                dStr = `${dStr}-01`;
+            }
+            // Handle YYYY-MM-DD or YYYY-MM-DD HH:MM
+            // Replace space with T for Safari/Standard ISO parsing if needed, though usually standard works
+            // But new Date('2023-10-10 10:10') works in most modern JS, but T is safer.
+            // However, we want to ensure time is considered.
+            if (dStr.includes(' ')) {
+                dStr = dStr.replace(' ', 'T');
+            }
+            return new Date(dStr).getTime();
+        };
+
+        return getTimestamp(b) - getTimestamp(a);
+    });
 };
