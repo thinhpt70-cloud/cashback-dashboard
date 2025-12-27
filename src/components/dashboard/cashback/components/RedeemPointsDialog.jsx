@@ -178,7 +178,7 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
                             type="datetime-local"
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
-                            className="text-sm w-full appearance-none block min-w-0" // Fixed for iOS
+                            className="text-base md:text-sm w-full appearance-none block min-w-0" // Fixed for iOS
                         />
                     </div>
                         <div className="space-y-2">
@@ -193,7 +193,7 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
                                 e.target.style.height = e.target.scrollHeight + 'px';
                             }}
                             placeholder="e.g. Voucher"
-                            className="text-sm min-h-[80px] resize-none overflow-hidden"
+                            className="text-base md:text-sm min-h-[80px] resize-none overflow-hidden"
                         />
                     </div>
                 </div>
