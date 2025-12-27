@@ -192,11 +192,20 @@ export function UpdateDetailsDialog({ isOpen, onClose, onSave, item }) {
         </div>
     );
 
-    const FooterContent = (
-        <>
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} className="bg-slate-900 dark:bg-slate-100">Save Changes</Button>
-        </>
+    const ConfirmButton = (
+        <Button onClick={handleSave} className="bg-slate-900 dark:bg-slate-100 w-full md:w-auto">
+            Save Changes
+        </Button>
+    );
+
+    const CancelButton = (
+        <Button
+            variant="ghost"
+            onClick={onClose}
+            className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full md:w-auto mt-2 md:mt-0"
+        >
+            Cancel
+        </Button>
     );
 
     if (isDesktop) {
@@ -209,7 +218,8 @@ export function UpdateDetailsDialog({ isOpen, onClose, onSave, item }) {
                     </DialogHeader>
                     {MainContent}
                     <DialogFooter>
-                        {FooterContent}
+                        {CancelButton}
+                        {ConfirmButton}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -225,8 +235,9 @@ export function UpdateDetailsDialog({ isOpen, onClose, onSave, item }) {
                 </DrawerHeader>
                 <div className="px-4 pb-4">
                     {MainContent}
-                    <DrawerFooter className="pt-2 px-0">
-                        {FooterContent}
+                    <DrawerFooter className="pt-2 px-0 flex-col">
+                        {ConfirmButton}
+                        {CancelButton}
                     </DrawerFooter>
                 </div>
             </DrawerContent>

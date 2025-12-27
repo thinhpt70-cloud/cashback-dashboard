@@ -136,7 +136,7 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
                             onChange={handleAmountChange}
                             placeholder="0"
                             className={cn("pl-4 pr-12 text-lg font-semibold", error && "border-red-500 focus-visible:ring-red-500")}
-                            autoFocus
+                            autoFocus={isDesktop}
                         />
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">pts</div>
                     </div>
@@ -205,17 +205,24 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
         </div>
     );
 
-    const FooterContent = (
-        <>
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button
-                onClick={handleSubmit}
-                disabled={!isValid || !!error}
-                className={cn("min-w-[100px]", isValid ? "bg-indigo-600 hover:bg-indigo-700" : "")}
-            >
-                Confirm
-            </Button>
-        </>
+    const ConfirmButton = (
+        <Button
+            onClick={handleSubmit}
+            disabled={!isValid || !!error}
+            className={cn("min-w-[100px] w-full md:w-auto", isValid ? "bg-indigo-600 hover:bg-indigo-700" : "")}
+        >
+            Confirm
+        </Button>
+    );
+
+    const CancelButton = (
+        <Button
+            variant="ghost"
+            onClick={onClose}
+            className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full md:w-auto mt-2 md:mt-0"
+        >
+            Cancel
+        </Button>
     );
 
     if (isDesktop) {
@@ -228,7 +235,8 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
                     </DialogHeader>
                     {MainContent}
                     <DialogFooter>
-                        {FooterContent}
+                        {CancelButton}
+                        {ConfirmButton}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -244,8 +252,9 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
                 </DrawerHeader>
                 <div className="px-4 pb-4">
                     {MainContent}
-                    <DrawerFooter className="pt-2 px-0">
-                        {FooterContent}
+                    <DrawerFooter className="pt-2 px-0 flex-col">
+                        {ConfirmButton}
+                        {CancelButton}
                     </DrawerFooter>
                 </div>
             </DrawerContent>
