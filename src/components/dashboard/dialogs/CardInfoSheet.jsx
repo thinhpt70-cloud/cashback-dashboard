@@ -5,7 +5,6 @@ import { Badge } from '../../ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../../ui/sheet';
 import { Info, Search, ChevronDown } from 'lucide-react';
 import { cn } from '../../../lib/utils';
-import useIOSKeyboardGapFix from '../../../hooks/useIOSKeyboardGapFix';
 
 export default function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
     // --- State for search and expansion ---
@@ -14,7 +13,6 @@ export default function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
     // --- HOOKS & HELPERS ---
-    useIOSKeyboardGapFix();
     const side = isDesktop ? 'right' : 'bottom';
     
     // This variable prevents auto-focus on mobile and will be spread onto the component

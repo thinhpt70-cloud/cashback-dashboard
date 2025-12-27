@@ -183,10 +183,8 @@ export default function BestCardFinderDialog({
     activeMonth,
     getCurrentCashbackMonthForCard,
     isDesktop, // Assuming these props are passed down
-    useIOSKeyboardGapFix // Assuming these props are passed down
 }) {
     const side = isDesktop ? 'left' : 'bottom';
-    useIOSKeyboardGapFix();
 
     // --- STATE MANAGEMENT ---
     const [view, setView] = useState('initial');

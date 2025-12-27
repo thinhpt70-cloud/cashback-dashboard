@@ -54,7 +54,6 @@ import SharedTransactionsDialog from "./components/shared/SharedTransactionsDial
 
 // Import custom hooks
 import useMediaQuery from "./hooks/useMediaQuery";
-import useIOSKeyboardGapFix from "./hooks/useIOSKeyboardGapFix";
 import useCashbackData from "./hooks/useCashbackData";
 
 // Import constants and utilities
@@ -1057,7 +1056,6 @@ export default function CashbackDashboard() {
                 activeMonth={activeMonth}
                 getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
                 isDesktop={isDesktop}
-                useIOSKeyboardGapFix={useIOSKeyboardGapFix}
             />
             <SharedTransactionsDialog
                 isOpen={!!dialogDetails}
