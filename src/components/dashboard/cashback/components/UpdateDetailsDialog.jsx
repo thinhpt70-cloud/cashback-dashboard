@@ -234,7 +234,7 @@ export function UpdateDetailsDialog({ isOpen, onClose, onSave, item }) {
                         <DrawerTitle asChild>{TitleContent}</DrawerTitle>
                         <DrawerDescription>{DescriptionContent}</DrawerDescription>
                     </DrawerHeader>
-                    <div className="px-4 overflow-y-auto max-h-[60vh]">
+                    <div className="px-4">
                         {MainContent}
                     </div>
                     <DrawerFooter className="pt-4 px-4 pb-8 flex-col">
