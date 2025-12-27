@@ -32,6 +32,27 @@ const monthlySummaryDbId = process.env.NOTION_MONTHLY_SUMMARY_DB_ID; // ADDED: F
 const monthlyCategoryDbId = process.env.NOTION_MONTHLY_CATEGORY_DB_ID;
 const vendorsDbId = process.env.NOTION_VENDORS_DB_ID;
 
+// NEW: Simple in-memory cache for transaction DB schema to avoid redundant fetches
+let transactionDbSchemaCache = {
+    data: null,
+    timestamp: 0,
+    ttl: 60 * 1000 // 60 seconds
+};
+
+const getTransactionDatabaseSchema = async () => {
+    const now = Date.now();
+    if (transactionDbSchemaCache.data && (now - transactionDbSchemaCache.timestamp < transactionDbSchemaCache.ttl)) {
+        return transactionDbSchemaCache.data;
+    }
+    const db = await notion.databases.retrieve({ database_id: transactionsDbId });
+    transactionDbSchemaCache = {
+        data: db,
+        timestamp: now,
+        ttl: 60 * 1000 // Reset TTL
+    };
+    return db;
+};
+
 // Helper function to map Notion transaction page to a simpler object
 const mapTransaction = (tx) => {
     const props = parseNotionPageProperties(tx);
@@ -202,7 +223,7 @@ const parseNotionPageProperties = (page) => {
 };
 
 const getSelectOptions = async (propertyName) => {
-    const db = await notion.databases.retrieve({ database_id: transactionsDbId });
+    const db = await getTransactionDatabaseSchema();
     return db.properties[propertyName].select.options;
 };
 
@@ -219,6 +240,8 @@ const addSelectOption = async (propertyName, optionName) => {
             },
         },
     });
+    // Invalidate cache
+    transactionDbSchemaCache.data = null;
 };
 
 // --- SHARED SMART LOGIC HELPERS ---
@@ -955,7 +978,7 @@ app.patch('/api/transactions/:id', async (req, res) => {
         // 5. Check for new 'Sub Category' (multi-select)
         if (subCategory && subCategory.length > 0) {
             // Get the database's current sub-category properties
-            const db = await notion.databases.retrieve({ database_id: transactionsDbId });
+            const db = await getTransactionDatabaseSchema();
             const subCategoryProperty = db.properties['Sub Category'];
             const existingOptions = subCategoryProperty.multi_select.options;
             const existingOptionNames = new Set(existingOptions.map(o => o.name));
@@ -978,6 +1001,8 @@ app.patch('/api/transactions/:id', async (req, res) => {
                         }
                     }
                 });
+                // Invalidate cache
+                transactionDbSchemaCache.data = null;
             }
         }
         // --- END: NEW "Find-or-Create" Logic ---
@@ -1431,7 +1456,7 @@ app.post('/api/transactions', async (req, res) => {
 app.get('/api/categories', async (req, res) => {
     try {
         // Retrieve the database's schema information
-        const database = await notion.databases.retrieve({ database_id: transactionsDbId });
+        const database = await getTransactionDatabaseSchema();
         
         // Get the specific property for "Category"
         const categoryProperty = database.properties['Category'];
