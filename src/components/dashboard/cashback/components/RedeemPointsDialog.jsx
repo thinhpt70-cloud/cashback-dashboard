@@ -246,13 +246,15 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
     return (
         <Drawer open={isOpen} onOpenChange={onClose}>
             <DrawerContent>
-                <DrawerHeader className="text-left">
-                    <DrawerTitle>{TitleContent}</DrawerTitle>
-                    <DrawerDescription>{DescriptionContent}</DrawerDescription>
-                </DrawerHeader>
-                <div className="px-4 pb-4">
-                    {MainContent}
-                    <DrawerFooter className="pt-2 px-0 flex-col">
+                <div className="mx-auto w-full max-w-sm">
+                    <DrawerHeader className="text-left">
+                        <DrawerTitle>{TitleContent}</DrawerTitle>
+                        <DrawerDescription>{DescriptionContent}</DrawerDescription>
+                    </DrawerHeader>
+                    <div className="px-4 overflow-y-auto max-h-[60vh]">
+                        {MainContent}
+                    </div>
+                    <DrawerFooter className="pt-4 px-4 pb-8 flex-col">
                         {ConfirmButton}
                         {CancelButton}
                     </DrawerFooter>
