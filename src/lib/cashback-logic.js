@@ -152,9 +152,10 @@ export const RE_REDEMPTION_LOG = /\[Redeemed\s+([\d,]+(?:\.\d+)?)(?:\s+on\s+(\d{
  * Groups monthly summary items into a unified history timeline.
  *
  * @param {Array} items - Array of monthly summary items (from cardData.items)
+ * @param {number} [statementDay] - Optional statement day to determine the exact earn date
  * @returns {Array} - Sorted array of events { type: 'earned'|'redeemed', date, amount, ... }
  */
-export const groupRedemptionEvents = (items) => {
+export const groupRedemptionEvents = (items, statementDay) => {
     const events = [];
     const redemptionMap = new Map(); // Key: "date-note", Value: { totalAmount, contributors: [] }
 
@@ -164,10 +165,27 @@ export const groupRedemptionEvents = (items) => {
     items.forEach(item => {
         // A. Earned Events
         if (item.totalEarned > 0) {
+            // Determine date string YYYY-MM-DD
+            let dateStr;
+            let year, month;
+            if (item.month.includes('-')) {
+                 const p = item.month.split('-');
+                 year = parseInt(p[0], 10);
+                 month = parseInt(p[1], 10);
+            } else {
+                 year = parseInt(item.month.substring(0, 4), 10);
+                 month = parseInt(item.month.substring(4, 6), 10);
+            }
+
+            // Use statement day if available, otherwise 1st of month
+            const day = statementDay || 1;
+            // Basic YYYY-MM-DD formatting
+            dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
             events.push({
                 type: 'earned',
                 id: `earned-${item.id}`,
-                date: item.month, // This will be formatted later, keep sortable YYYYMM or YYYY-MM
+                date: dateStr,
                 amount: item.totalEarned,
                 month: item.month,
                 item: item

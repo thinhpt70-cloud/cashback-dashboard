@@ -26,7 +26,7 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
 
     const historyEvents = useMemo(() => {
         if (!cardData || viewMode !== 'history') return [];
-        return groupRedemptionEvents(cardData.items);
+        return groupRedemptionEvents(cardData.items, cardData.statementDay);
     }, [cardData, viewMode]);
 
     if (!cardData) return null;
@@ -43,6 +43,9 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                 const hasNotes = item.notes && item.notes.trim().length > 0;
                 const isReviewed = item.reviewed;
                 const isStatementFinished = isStatementFinalized(item.month, cardData.statementDay);
+
+                // Calculate base earned (Option A: Display base earned separate from adjustment)
+                const baseEarned = earned - adjustment;
 
                 return (
                     <div key={item.id} className="group relative border border-slate-200 dark:border-slate-800 rounded-lg p-3 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors bg-white dark:bg-slate-950">
@@ -89,15 +92,15 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
 
                         <div className="grid grid-cols-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
                             <div className="flex justify-between pr-2">
-                                <span>Earned:</span>
-                                <span className="font-medium">{currencyFn(earned)}</span>
+                                <span>Base Earned:</span>
+                                <span className="font-medium">{currencyFn(baseEarned)}</span>
                             </div>
                             <div className="flex justify-between pl-2 border-l border-slate-100 dark:border-slate-800">
                                 <span>Redeemed:</span>
                                 <span className={cn("font-medium", redeemed > 0 ? "text-indigo-600" : "")}>{currencyFn(redeemed)}</span>
                             </div>
                             <div className="flex justify-between pr-2">
-                                <span>Adj:</span>
+                                <span>Adjustment:</span>
                                 <span className={cn("font-medium", adjustment !== 0 ? "text-orange-600" : "")}>{currencyFn(adjustment)}</span>
                             </div>
                             <div className="flex justify-between pl-2 border-l border-slate-100 dark:border-slate-800">
@@ -226,57 +229,54 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
     );
 
     const Content = (
-        <div className="space-y-6 flex-1 min-h-0 flex flex-col">
-            {/* Header Stats */}
-            <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <p className="text-xs text-slate-500 uppercase font-semibold">Current Balance</p>
-                        <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                            {currencyFn(cardData.totalPoints)}
-                        </p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <p className="text-xs text-slate-500 uppercase font-semibold">Amount Redeemed</p>
-                        <p className="text-2xl font-bold text-slate-700 dark:text-slate-300">
-                            {cardData.totalAmountRedeemed ? currencyFn(cardData.totalAmountRedeemed) : '0'}
-                        </p>
-                    </div>
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between mb-2 px-1 shrink-0">
+                <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                    <button
+                        onClick={() => setViewMode('monthly')}
+                        className={cn("px-2 py-1 text-xs rounded-md transition-all font-medium", viewMode === 'monthly' ? "bg-white dark:bg-slate-950 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500 hover:text-slate-700")}
+                    >
+                        Monthly
+                    </button>
+                    <button
+                        onClick={() => setViewMode('history')}
+                        className={cn("px-2 py-1 text-xs rounded-md transition-all font-medium", viewMode === 'history' ? "bg-white dark:bg-slate-950 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500 hover:text-slate-700")}
+                    >
+                        History
+                    </button>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center gap-2">
-                    <p className="text-xs text-slate-500 uppercase font-semibold">Minimum Redemption:</p>
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                        {cardData.minPointsRedeem ? currencyFn(cardData.minPointsRedeem) : '0'}
-                    </p>
-                </div>
+                <span className="text-xs text-slate-500">
+                    {viewMode === 'monthly' ? `${cardData.items.length} records` : `${historyEvents.length} events`}
+                </span>
             </div>
 
-            {/* History List */}
-            <div className="flex-1 overflow-hidden flex flex-col">
-                <div className="flex items-center justify-between mb-2 px-1">
-                     <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                        <button
-                            onClick={() => setViewMode('monthly')}
-                            className={cn("px-2 py-1 text-xs rounded-md transition-all font-medium", viewMode === 'monthly' ? "bg-white dark:bg-slate-950 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500 hover:text-slate-700")}
-                        >
-                            Monthly
-                        </button>
-                        <button
-                            onClick={() => setViewMode('history')}
-                            className={cn("px-2 py-1 text-xs rounded-md transition-all font-medium", viewMode === 'history' ? "bg-white dark:bg-slate-950 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500 hover:text-slate-700")}
-                        >
-                            History
-                        </button>
-                     </div>
-                     <span className="text-xs text-slate-500">
-                        {viewMode === 'monthly' ? `${cardData.items.length} records` : `${historyEvents.length} events`}
-                     </span>
+            <ScrollArea className="flex-1 pr-4 -mr-4">
+                <div className="flex flex-col gap-4 mb-4">
+                    {/* Header Stats - Now inside scroll */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <p className="text-xs text-slate-500 uppercase font-semibold">Current Balance</p>
+                            <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                                {currencyFn(cardData.totalPoints)}
+                            </p>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <p className="text-xs text-slate-500 uppercase font-semibold">Amount Redeemed</p>
+                            <p className="text-2xl font-bold text-slate-700 dark:text-slate-300">
+                                {cardData.totalAmountRedeemed ? currencyFn(cardData.totalAmountRedeemed) : '0'}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                        <p className="text-xs text-slate-500 uppercase font-semibold">Minimum Redemption:</p>
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                            {cardData.minPointsRedeem ? currencyFn(cardData.minPointsRedeem) : '0'}
+                        </p>
+                    </div>
                 </div>
 
-                <ScrollArea className="flex-1 pr-4 -mr-4">
-                    {viewMode === 'monthly' ? renderMonthlyView() : renderHistoryView()}
-                </ScrollArea>
-            </div>
+                {viewMode === 'monthly' ? renderMonthlyView() : renderHistoryView()}
+            </ScrollArea>
         </div>
     );
 
