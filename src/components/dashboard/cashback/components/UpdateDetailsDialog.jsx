@@ -121,7 +121,7 @@ export function UpdateDetailsDialog({ isOpen, onClose, onSave, item }) {
                             id="adjustment"
                             value={adjustment}
                             onChange={handleNumberInput(setAdjustment)}
-                            className="h-8 text-right font-mono text-sm bg-white dark:bg-slate-950"
+                            className="h-8 text-right font-mono text-base md:text-sm bg-white dark:bg-slate-950"
                             placeholder="0"
                             autoFocus={isDesktop}
                         />
@@ -147,7 +147,7 @@ export function UpdateDetailsDialog({ isOpen, onClose, onSave, item }) {
                             id="redeemed"
                             value={amountRedeemed}
                             onChange={handleNumberInput(setAmountRedeemed)}
-                            className={cn("h-8 text-right font-mono text-sm bg-white dark:bg-slate-950", isOverRedeemed && "border-red-500 focus-visible:ring-red-500")}
+                            className={cn("h-8 text-right font-mono text-base md:text-sm bg-white dark:bg-slate-950", isOverRedeemed && "border-red-500 focus-visible:ring-red-500")}
                             placeholder="0"
                         />
                     </div>
