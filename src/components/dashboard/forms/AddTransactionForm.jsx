@@ -13,7 +13,6 @@ import { Combobox } from '../../ui/combobox';
 import { TagsInputField } from '../../ui/tag-input';
 import QuickAddButtons from './QuickAddButtons';
 import CardRecommendations from './CardRecommendations';
-import useIOSKeyboardGapFix from '../../../hooks/useIOSKeyboardGapFix';
 import MccSearchResultsDialog from './MccSearchResultsDialog';
 import useCardRecommendations from '../../../hooks/useCardRecommendations';
 import { useForm, FormProvider } from 'react-hook-form';
@@ -55,8 +54,6 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     const [fees, setFees] = useState([]);
     const [foreignInputMode, setForeignInputMode] = useState('vnd_known');
 
-
-    useIOSKeyboardGapFix();
 
     const amountInputRef = useRef(null);
 

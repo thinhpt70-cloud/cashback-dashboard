@@ -9,11 +9,6 @@ jest.mock('../../../hooks/useCardRecommendations', () => ({
     default: () => [],
 }));
 
-jest.mock('../../../hooks/useIOSKeyboardGapFix', () => ({
-    __esModule: true,
-    default: jest.fn(),
-}));
-
 describe('AddTransactionForm Edit Logic', () => {
     const mockCards = [
         { id: 'card1', name: 'Test Card', bank: 'Bank A' }
