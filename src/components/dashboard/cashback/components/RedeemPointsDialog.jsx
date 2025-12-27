@@ -180,7 +180,7 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
                                 type="datetime-local"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="text-sm w-full block min-w-0"
+                                className="text-base md:text-sm w-full block min-w-0"
                                 style={{ WebkitAppearance: 'none' }}
                             />
                         </div>
@@ -197,7 +197,7 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
                                 e.target.style.height = e.target.scrollHeight + 'px';
                             }}
                             placeholder="e.g. Voucher"
-                            className="text-sm min-h-[80px] resize-none overflow-hidden"
+                            className="text-base md:text-sm min-h-[80px] resize-none overflow-hidden"
                         />
                     </div>
                 </div>
