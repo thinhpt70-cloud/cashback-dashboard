@@ -163,24 +163,25 @@ export const groupRedemptionEvents = (items, statementDay) => {
 
     // 1. Process Items
     items.forEach(item => {
+        let loggedRedemption = 0; // Track logged amount to detect manual adjustments
+
+        // Parse month info once
+        let year, month;
+        if (item.month.includes('-')) {
+             const p = item.month.split('-');
+             year = parseInt(p[0], 10);
+             month = parseInt(p[1], 10);
+        } else {
+             year = parseInt(item.month.substring(0, 4), 10);
+             month = parseInt(item.month.substring(4, 6), 10);
+        }
+
         // A. Earned Events
         if (item.totalEarned > 0) {
-            // Determine date string YYYY-MM-DD
-            let dateStr;
-            let year, month;
-            if (item.month.includes('-')) {
-                 const p = item.month.split('-');
-                 year = parseInt(p[0], 10);
-                 month = parseInt(p[1], 10);
-            } else {
-                 year = parseInt(item.month.substring(0, 4), 10);
-                 month = parseInt(item.month.substring(4, 6), 10);
-            }
-
             // Use statement day if available, otherwise 1st of month
             const day = statementDay || 1;
             // Basic YYYY-MM-DD formatting
-            dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
             events.push({
                 type: 'earned',
@@ -200,6 +201,8 @@ export const groupRedemptionEvents = (items, statementDay) => {
 
             while ((match = RE_REDEMPTION_LOG.exec(item.notes)) !== null) {
                 const amount = Number(match[1].replace(/,/g, ''));
+                loggedRedemption += amount;
+
                 let dateStr = match[2];
                 let note = match[3] ? match[3].trim() : '';
                 const fullLog = match[0];
@@ -207,19 +210,8 @@ export const groupRedemptionEvents = (items, statementDay) => {
                 // Legacy format handling (if needed, copying logic from CashbackTracker)
                 if (!dateStr) {
                     // Fallback to item month end if date missing
-                    // We assume item.month is YYYYMM or YYYY-MM
-                    let y, m;
-                     if (item.month.includes('-')) {
-                        const p = item.month.split('-');
-                        y = parseInt(p[0], 10);
-                        m = parseInt(p[1], 10);
-                    } else {
-                        y = parseInt(item.month.substring(0, 4), 10);
-                        m = parseInt(item.month.substring(4, 6), 10);
-                    }
-                    // Last day of month
-                    const d = new Date(y, m, 0).getDate();
-                    dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const d = new Date(year, month, 0).getDate();
+                    dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 }
 
                 const key = `${dateStr}|${note || 'Redemption'}`;
@@ -244,6 +236,39 @@ export const groupRedemptionEvents = (items, statementDay) => {
                     originalLog: fullLog
                 });
             }
+        }
+
+        // C. Detect Manual/Unlogged Redemptions
+        // If the total Amount Redeemed is greater than what's logged in notes, capture the difference.
+        const totalRedeemed = Number(item.amountRedeemed) || 0;
+        if (totalRedeemed > loggedRedemption + 0.01) {
+             const diff = totalRedeemed - loggedRedemption;
+
+             // Default to End of Month for manual adjustments
+             const lastDay = new Date(year, month, 0).getDate();
+             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+             const note = "Manual Redemption";
+
+             const key = `${dateStr}|${note}`;
+
+             if (!redemptionMap.has(key)) {
+                  redemptionMap.set(key, {
+                      type: 'redeemed',
+                      id: `redeem-manual-${dateStr}`,
+                      date: dateStr,
+                      note: note,
+                      amount: 0,
+                      contributors: []
+                  });
+             }
+             const event = redemptionMap.get(key);
+             event.amount += diff;
+             event.contributors.push({
+                 itemId: item.id,
+                 month: item.month,
+                 amount: diff,
+                 originalLog: "(Manual Adjustment)"
+             });
         }
     });
 
