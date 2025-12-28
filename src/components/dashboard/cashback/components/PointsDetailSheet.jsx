@@ -133,7 +133,8 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                 // For redeemed: event.date might contain time (YYYY-MM-DD HH:MM)
                 let dateDisplay;
                 if (isEarned) {
-                     dateDisplay = fmtYMShort(event.date);
+                     const d = new Date(event.date);
+                     dateDisplay = d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
                 } else {
                      // Check if it has time
                      const hasTime = event.date && event.date.includes(':');
