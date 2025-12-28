@@ -244,9 +244,9 @@ export const groupRedemptionEvents = (items, statementDay) => {
         if (totalRedeemed > loggedRedemption + 0.01) {
              const diff = totalRedeemed - loggedRedemption;
 
-             // Default to End of Month for manual adjustments
-             const lastDay = new Date(year, month, 0).getDate();
-             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+             // Default to Statement Date for manual adjustments
+             const day = statementDay || 1;
+             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
              const note = "Manual Redemption";
 
              const key = `${dateStr}|${note}`;
