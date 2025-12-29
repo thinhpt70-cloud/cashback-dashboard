@@ -1231,6 +1231,9 @@ app.get('/api/rules', async (req, res) => {
                 tier2Rate: parsed['Tier 2 Cashback Rate'],
                 tier2CategoryLimit: parsed['Tier 2 Category Limit'],
                 method: parsed['Method'],
+                // NEW: Default flag and Excluded MCC Codes
+                isDefault: parsed['Default'] || false,
+                excludedMccCodes: parsed['Excluded MCC Code'] ? parsed['Excluded MCC Code'].split(',').map(c => c.trim()) : [],
             };
         });
         res.json(results);

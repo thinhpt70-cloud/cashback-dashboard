@@ -11,6 +11,13 @@ import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
 import { Skeleton } from '../../ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../ui/select";
 import { cn } from '../../../lib/utils'; // Adjust path if needed
 import {
   Search,
@@ -192,6 +199,7 @@ export default function BestCardFinderDialog({
     const [searchTerm, setSearchTerm] = useState('');
     const [searchedTerm, setSearchedTerm] = useState('');
     const [amount, setAmount] = useState('');
+    const [method, setMethod] = useState('POS'); // Default to POS
     const [searchResult, setSearchResult] = useState(null);
     const [selectedMcc, setSelectedMcc] = useState(null);
     const [selectedMerchantDetails, setSelectedMerchantDetails] = useState(null);
@@ -210,6 +218,7 @@ export default function BestCardFinderDialog({
                 setSearchResult(null);
                 setSelectedMcc(null);
                 setAmount('');
+                setMethod('POS');
             }, 300);
             return () => clearTimeout(timer);
         } else {
@@ -306,8 +315,32 @@ export default function BestCardFinderDialog({
         const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
         const isLiveView = activeMonth === 'live';
 
-        return allRules
-            .filter(rule => rule.mccCodes && rule.mccCodes.split(',').map(c => c.trim()).includes(selectedMcc))
+        // 1. Calculate Cashback for ALL matching rules first
+        const allCandidates = allRules
+            .filter(rule => {
+                // Method Check: Case-insensitive and robust handling for Array/String
+                const ruleMethodsRaw = Array.isArray(rule.method) ? rule.method : (rule.method ? [rule.method] : []);
+                const ruleMethods = ruleMethodsRaw.map(m => m.toLowerCase());
+                const currentMethod = method.toLowerCase();
+
+                // Valid if: Method list is empty, contains "all", or contains the selected method
+                const isMethodValid = ruleMethods.length === 0 || ruleMethods.includes('all') || ruleMethods.includes(currentMethod);
+                if (!isMethodValid) return false;
+
+                // MCC Check
+                const ruleMccCodes = Array.isArray(rule.mccCodes) ? rule.mccCodes : (rule.mccCodes ? rule.mccCodes.split(',').map(c => c.trim()) : []);
+                const ruleExcludedCodes = Array.isArray(rule.excludedMccCodes) ? rule.excludedMccCodes : (rule.excludedMccCodes ? rule.excludedMccCodes.split(',').map(c => c.trim()) : []);
+
+                // 1. Specific Match: The rule explicitly lists this MCC
+                const isSpecificMatch = ruleMccCodes.includes(selectedMcc);
+
+                // 2. Broad Match: The rule is a "Default" rule OR has empty MCCs (Category/Method based rule)
+                // Broad rules apply unless the MCC is specifically excluded.
+                const isBroadRule = rule.isDefault || ruleMccCodes.length === 0;
+                const isBroadMatch = isBroadRule && !ruleExcludedCodes.includes(selectedMcc);
+
+                return isSpecificMatch || isBroadMatch;
+            })
             .map(rule => {
                 const card = cardMap.get(rule.cardId);
                 if (!card || card.status !== 'Active') return null;
@@ -342,7 +375,33 @@ export default function BestCardFinderDialog({
                     remainingCategoryCashback,
                 };
             })
-            .filter(Boolean)
+            .filter(Boolean);
+
+        // 2. Group by Card and pick the BEST rule (Highest Cashback Amount > Highest Rate)
+        const bestRulePerCard = new Map();
+
+        allCandidates.forEach(item => {
+            const existing = bestRulePerCard.get(item.card.id);
+            if (!existing) {
+                bestRulePerCard.set(item.card.id, item);
+                return;
+            }
+
+            // Comparison:
+            // 1. Calculated Amount (if amount entered)
+            if (item.calculatedCashback !== null && existing.calculatedCashback !== null) {
+                if (item.calculatedCashback > existing.calculatedCashback) {
+                    bestRulePerCard.set(item.card.id, item);
+                }
+            }
+            // 2. Rate (if no amount or equal amount)
+            else if (item.rule.rate > existing.rule.rate) {
+                 bestRulePerCard.set(item.card.id, item);
+            }
+        });
+
+        // 3. Sort the unique best rules
+        return Array.from(bestRulePerCard.values())
             .sort((a, b) => {
                 const isAActive = a.rule.status === 'Active';
                 const isBActive = b.rule.status === 'Active';
@@ -360,7 +419,7 @@ export default function BestCardFinderDialog({
                 }
                 return b.rule.rate - a.rule.rate;
             })
-    }, [selectedMcc, amount, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard]);
+    }, [selectedMcc, amount, method, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard]);
     
     // --- RENDER LOGIC ---
     const renderContent = () => {
@@ -488,6 +547,19 @@ export default function BestCardFinderDialog({
                                             onChange={handleAmountChange}
                                             inputMode="numeric"
                                         />
+                                    </div>
+                                    <div className="md:col-span-3 space-y-1.5">
+                                        <label className="text-sm font-medium">Payment Method</label>
+                                        <Select value={method} onValueChange={setMethod}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select Method" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="POS">In-Store (POS)</SelectItem>
+                                                <SelectItem value="eCom">Online (eCom)</SelectItem>
+                                                <SelectItem value="International">International</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
                                 <Button type="submit" disabled={isLoading || !searchTerm.trim()} className="w-full">
