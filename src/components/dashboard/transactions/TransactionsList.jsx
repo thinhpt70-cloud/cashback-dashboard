@@ -13,7 +13,8 @@ import {
     CreditCard,
     ArrowUpDown,
     ChevronDown,
-    Eye
+    Eye,
+    Inbox
 } from "lucide-react";
 
 import { cn } from "../../../lib/utils";
@@ -621,7 +622,7 @@ export default function TransactionsList({
                         <TableHeader>
                              <TableRow>
                                 <TableHead className="w-[30px] p-2">
-                                    <Checkbox />
+                                    <Checkbox aria-label="Select all rows" />
                                 </TableHead>
                                 <TableHead className="w-[30px]"></TableHead>
                                 {Array.from({ length: 5 }).map((_, i) => (
@@ -648,7 +649,30 @@ export default function TransactionsList({
         }
 
         if (filteredData.length === 0) {
-            return <div className="text-center h-24 flex items-center justify-center text-muted-foreground"><p>No transactions found.</p></div>;
+            return (
+                <div className="flex flex-col items-center justify-center py-12 text-center animate-in fade-in duration-300">
+                    <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-full mb-3">
+                        <Inbox className="h-8 w-8 text-slate-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">No transactions found</h3>
+                    <p className="text-sm text-slate-500 max-w-sm mt-1 mb-4">
+                        We couldn't find any transactions matching your current filters.
+                    </p>
+                    {(searchTerm || cardFilter !== 'all' || categoryFilter !== 'all' || methodFilter !== 'all') && (
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setSearchTerm('');
+                                setCardFilter('all');
+                                setCategoryFilter('all');
+                                setMethodFilter('all');
+                            }}
+                        >
+                            Clear all filters
+                        </Button>
+                    )}
+                </div>
+            );
         }
 
         if (!isDesktop) {
@@ -668,6 +692,7 @@ export default function TransactionsList({
                                 <Checkbox
                                     checked={selectedIds.length > 0 && selectedIds.length === filteredData.length}
                                     onCheckedChange={handleSelectAll}
+                                    aria-label="Select all transactions"
                                     className={cn("h-5 w-5 rounded border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 bg-white border-slate-300")}
                                 />
                                 <span className="text-xs font-medium text-slate-500">Select All</span>
@@ -791,6 +816,7 @@ export default function TransactionsList({
                                                             className="h-7 w-7 text-slate-500 hover:text-slate-700"
                                                             onClick={() => onViewDetails(tx)}
                                                             title="View Details"
+                                                            aria-label={`View details for ${tx['Transaction Name']}`}
                                                         >
                                                             <Eye className="h-4 w-4" />
                                                         </Button>
@@ -801,6 +827,7 @@ export default function TransactionsList({
                                                             className="h-7 w-7 text-slate-500 hover:text-slate-700"
                                                             onClick={() => handleEdit(tx)}
                                                             title="Edit"
+                                                            aria-label={`Edit ${tx['Transaction Name']}`}
                                                         >
                                                             <FilePenLine className="h-4 w-4" />
                                                         </Button>
@@ -811,6 +838,7 @@ export default function TransactionsList({
                                                             className="h-7 w-7 text-destructive hover:text-destructive/90"
                                                             onClick={() => handleDelete(tx.id, tx['Transaction Name'])}
                                                             title="Delete"
+                                                            aria-label={`Delete ${tx['Transaction Name']}`}
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
@@ -834,7 +862,13 @@ export default function TransactionsList({
         )}>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pl-1 w-full sm:w-auto">
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-white shrink-0" onClick={() => setSelectedIds([])}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-300 hover:text-white shrink-0"
+                        onClick={() => setSelectedIds([])}
+                        aria-label="Clear selection"
+                    >
                         <X className="h-4 w-4" />
                     </Button>
                     <span className="text-sm font-medium whitespace-nowrap">{selectedIds.length} Selected</span>
