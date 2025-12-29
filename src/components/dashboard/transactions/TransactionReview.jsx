@@ -254,18 +254,31 @@ export default function TransactionReview({
                 const analysis = await res.json();
                 const result = analysis[0];
 
-                if (result.status === 'approved') {
-                    // APPLY THE MATCH
+                // Check if we have ANY updates to apply (even if status != approved)
+                // e.g. Name cleaning, MCC update (Partial Match)
+                const hasUpdates = result.updates && Object.keys(result.updates).length > 0;
+
+                if (hasUpdates) {
+                    // APPLY UPDATES (Full or Partial)
                     const applyRes = await fetch('/api/transactions/bulk-approve', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ items: [{ id: result.id, updates: result.updates }] })
                     });
                     if (!applyRes.ok) throw new Error("Apply failed");
-                    toast.success("Match found and applied.");
+
+                    if (result.status === 'approved') {
+                        toast.success("Match found and applied.");
+                    } else {
+                        // PARTIAL MATCH (e.g. MCC found but no rule)
+                        // Don't add to manualReviewIds yet, let it refresh and show new status (e.g. Missing Rule)
+                        toast.info("Partial info found (Name/MCC). Please review Rule manually.");
+                        // Force manual review mode for next click if it's still not green
+                        setManualReviewIds(prev => new Set(prev).add(tx.id));
+                    }
                     onRefresh();
                 } else {
-                    // NO MATCH FOUND
+                    // NO MATCH FOUND AT ALL
                     setManualReviewIds(prev => new Set(prev).add(tx.id));
                     toast.info("No smart match found. Click again to edit manually.");
                 }
@@ -312,8 +325,10 @@ export default function TransactionReview({
                 });
                 const analysis = await res.json();
 
-                const toApply = analysis.filter(a => a.status === 'approved');
-                const toReview = analysis.filter(a => a.status !== 'approved');
+                // Apply ALL updates (Approved OR Partial)
+                // Filter out items that have NO updates at all
+                const toApply = analysis.filter(a => a.updates && Object.keys(a.updates).length > 0);
+                const completelyFailed = analysis.filter(a => !a.updates || Object.keys(a.updates).length === 0);
 
                 if (toApply.length > 0) {
                      await fetch('/api/transactions/bulk-approve', {
@@ -321,11 +336,19 @@ export default function TransactionReview({
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ items: toApply.map(a => ({ id: a.id, updates: a.updates })) })
                     });
-                    successCount += toApply.length;
+
+                    // Only count as "Fully Success" if status was approved (removed from list)
+                    // But for user feedback, we might want to know partials too.
+                    const approvedCount = toApply.filter(a => a.status === 'approved').length;
+                    successCount += approvedCount;
                 }
 
-                // Add failed ones to manual review list
-                toReview.forEach(a => newManualIds.add(a.id));
+                // Add completely failed ones to manual review list
+                // (Partial ones will stay in list but hopefully with better status)
+                completelyFailed.forEach(a => newManualIds.add(a.id));
+
+                // Also add partials to manual list so next click opens edit dialog
+                toApply.filter(a => a.status !== 'approved').forEach(a => newManualIds.add(a.id));
             }
 
             toast.success(`Processed ${txsToProcess.length} items: ${successCount} finalized, ${txsToProcess.length - successCount} require manual review.`);

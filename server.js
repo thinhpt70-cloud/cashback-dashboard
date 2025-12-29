@@ -252,7 +252,8 @@ const searchInternalTransactions = async (keyword, excludeId = null) => {
     if (!trimmedKeyword) return [];
 
     try {
-        const response = await notion.databases.query({
+        // 1. Try EXACT/Strict Contains Search first (Existing Logic)
+        let response = await notion.databases.query({
             database_id: transactionsDbId,
             page_size: 100,
             filter: {
@@ -264,10 +265,41 @@ const searchInternalTransactions = async (keyword, excludeId = null) => {
             sorts: [{ property: 'Transaction Date', direction: 'descending' }],
         });
 
+        let results = response.results;
+
+        // 2. Fallback: Tokenized Broad Search (New Logic)
+        if (results.length === 0) {
+            // Split into tokens, ignoring short words/numbers to avoid noise
+            const tokens = trimmedKeyword.split(/[\s,.-]+/)
+                .filter(t => t.length > 2 && isNaN(t)); // >2 chars, not a number
+
+            if (tokens.length > 0) {
+                // Limit to first 3 significant tokens to avoid massive queries
+                const searchTokens = tokens.slice(0, 3);
+
+                const orConditions = [];
+                searchTokens.forEach(token => {
+                    orConditions.push({ property: 'Transaction Name', title: { contains: token } });
+                    orConditions.push({ property: 'Merchant', rich_text: { contains: token } });
+                });
+
+                if (orConditions.length > 0) {
+                    const tokenResponse = await notion.databases.query({
+                        database_id: transactionsDbId,
+                        page_size: 100,
+                        filter: { or: orConditions },
+                        sorts: [{ property: 'Transaction Date', direction: 'descending' }],
+                    });
+                    results = tokenResponse.results;
+                }
+            }
+        }
+
         // Filter out the excluded ID if provided
-        return response.results
+        return results
             .filter(r => !excludeId || r.id !== excludeId)
             .map(page => mapTransaction(page));
+
     } catch (error) {
         console.error("Error in searchInternalTransactions:", error);
         return [];
@@ -350,7 +382,33 @@ const searchExternalMccFallback = async (keyword) => {
 // Wrapper for single best match (backward compatibility / specific use)
 const findBestMatchTransaction = async (cleanName, currentId) => {
     const results = await searchInternalTransactions(cleanName, currentId);
-    return results.length > 0 ? results[0] : null;
+
+    // Bidirectional Filter:
+    // 1. History contains CleanName (Standard)
+    // 2. CleanName contains History (New "Smarter" Logic)
+
+    const validMatches = results.filter(tx => {
+        const historyName = (tx['Transaction Name'] || '').toLowerCase();
+        const searchName = cleanName.toLowerCase();
+
+        // Skip empty history names
+        if (!historyName) return false;
+
+        return historyName.includes(searchName) || searchName.includes(historyName);
+    });
+
+    if (validMatches.length === 0) return null;
+
+    // Sort by "Quality": Priority to matches that are "closer" in length to the search term
+    // Ideally, the longest history name that matches is the most specific one.
+    validMatches.sort((a, b) => {
+        const lenA = (a['Transaction Name'] || '').length;
+        const lenB = (b['Transaction Name'] || '').length;
+        // Sort descending by length (pick the longest matching history title)
+        return lenB - lenA;
+    });
+
+    return validMatches[0];
 };
 
 // Helper to fetch all active rules (for smart matching)
@@ -1883,4 +1941,4 @@ if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
     });
 }
 
-module.exports = { app };
+module.exports = { app, findBestMatchTransaction, searchInternalTransactions, calculateSmartUpdates };
