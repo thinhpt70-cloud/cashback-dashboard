@@ -268,11 +268,15 @@ export default function TransactionsList({
         return ["all", ...uniqueCategories];
     }, [transactions]);
 
-    const filteredData = useMemo(() => {
-        let items = [...transactions].map(tx => ({
+    const enrichedTransactions = useMemo(() => {
+        return transactions.map(tx => ({
             ...tx,
             rate: (tx['Amount'] && tx['Amount'] > 0) ? (tx.estCashback / tx['Amount']) : 0
         }));
+    }, [transactions]);
+
+    const filteredData = useMemo(() => {
+        let items = enrichedTransactions;
 
         items = items.filter(tx => {
             if (!searchTerm) return true;
@@ -290,7 +294,8 @@ export default function TransactionsList({
         .filter(tx => methodFilter === "all" || tx['Method'] === methodFilter);
 
         if (sortConfig.key !== null) {
-            items.sort((a, b) => {
+            // We create a shallow copy before sorting to avoid mutating the enrichedTransactions array
+            items = [...items].sort((a, b) => {
                 const aValue = a[sortConfig.key];
                 const bValue = b[sortConfig.key];
                 if (aValue === null || aValue === undefined) return 1;
@@ -309,7 +314,7 @@ export default function TransactionsList({
             });
         }
         return items;
-    }, [transactions, searchTerm, cardFilter, categoryFilter, sortConfig, methodFilter]);
+    }, [enrichedTransactions, searchTerm, cardFilter, categoryFilter, sortConfig, methodFilter]);
 
     useEffect(() => {
         setVisibleCount(15);
