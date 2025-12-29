@@ -318,42 +318,28 @@ export default function BestCardFinderDialog({
         // 1. Calculate Cashback for ALL matching rules first
         const allCandidates = allRules
             .filter(rule => {
-                // Method Check: Rule method must include the selected method OR be empty/"All"
-                const ruleMethods = rule.method || [];
-                const isMethodValid = ruleMethods.length === 0 || ruleMethods.includes('All') || ruleMethods.includes(method);
+                // Method Check: Case-insensitive and robust handling for Array/String
+                const ruleMethodsRaw = Array.isArray(rule.method) ? rule.method : (rule.method ? [rule.method] : []);
+                const ruleMethods = ruleMethodsRaw.map(m => m.toLowerCase());
+                const currentMethod = method.toLowerCase();
+
+                // Valid if: Method list is empty, contains "all", or contains the selected method
+                const isMethodValid = ruleMethods.length === 0 || ruleMethods.includes('all') || ruleMethods.includes(currentMethod);
                 if (!isMethodValid) return false;
 
-                // MCC Check: Direct Match OR (Default AND NOT Excluded)
-                // Note: mccCodes is already an array in server.js/frontend logic now?
-                // Wait, in server.js we split it. But here in frontend we receive whatever server sends.
-                // Current frontend code did: rule.mccCodes.split(',')...
-                // I need to check if existing `mccCodes` in `allRules` is string or array.
-                // Looking at `server.js` previously, it was `parsed['MCC Code'] ? ...split... : []`.
-                // So it is ALREADY an array in the backend response.
-                // BUT the previous frontend code was `rule.mccCodes.split(',')`.
-                // This implies previous backend sent a string?
-                // Let's re-read server.js BEFORE my change.
-                // Old server.js: `mccCodes: parsed['MCC Code'] ? parsed['MCC Code'].split(',').map(c => c.trim()) : [],`
-                // So it returns an ARRAY.
-                // Why did frontend do `.split`? `rule.mccCodes && rule.mccCodes.split(',')`.
-                // If `rule.mccCodes` is an array, `split` will fail.
-                // Checking previous `server.js` code again.
-                // `mccCodes: parsed['MCC Code']` (without split) ? NO.
-                // In `server.js` BEFORE my edit:
-                // `mccCodes: parsed['MCC Code'] ? parsed['MCC Code'].split(',').map(c => c.trim()) : [],`
-                // Wait, if backend sends array, frontend `rule.mccCodes.split` would throw error.
-                // Maybe frontend `allRules` prop comes from somewhere else or my read of server.js was partial?
-                // Let's assume standard array behavior now as my server.js definitely returns array.
-                // I will handle both string/array just in case to be safe, or just Array if I trust my server.js change.
-
+                // MCC Check
                 const ruleMccCodes = Array.isArray(rule.mccCodes) ? rule.mccCodes : (rule.mccCodes ? rule.mccCodes.split(',').map(c => c.trim()) : []);
                 const ruleExcludedCodes = Array.isArray(rule.excludedMccCodes) ? rule.excludedMccCodes : (rule.excludedMccCodes ? rule.excludedMccCodes.split(',').map(c => c.trim()) : []);
 
+                // 1. Specific Match: The rule explicitly lists this MCC
                 const isSpecificMatch = ruleMccCodes.includes(selectedMcc);
-                // "Default" rule matches if it is Default AND the current MCC is NOT in excluded list
-                const isDefaultMatch = rule.isDefault && !ruleExcludedCodes.includes(selectedMcc);
 
-                return isSpecificMatch || isDefaultMatch;
+                // 2. Broad Match: The rule is a "Default" rule OR has empty MCCs (Category/Method based rule)
+                // Broad rules apply unless the MCC is specifically excluded.
+                const isBroadRule = rule.isDefault || ruleMccCodes.length === 0;
+                const isBroadMatch = isBroadRule && !ruleExcludedCodes.includes(selectedMcc);
+
+                return isSpecificMatch || isBroadMatch;
             })
             .map(rule => {
                 const card = cardMap.get(rule.cardId);
