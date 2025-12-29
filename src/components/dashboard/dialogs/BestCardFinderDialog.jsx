@@ -11,6 +11,13 @@ import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
 import { Skeleton } from '../../ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../ui/select";
 import { cn } from '../../../lib/utils'; // Adjust path if needed
 import {
   Search,
@@ -192,6 +199,7 @@ export default function BestCardFinderDialog({
     const [searchTerm, setSearchTerm] = useState('');
     const [searchedTerm, setSearchedTerm] = useState('');
     const [amount, setAmount] = useState('');
+    const [method, setMethod] = useState('POS'); // Default to POS
     const [searchResult, setSearchResult] = useState(null);
     const [selectedMcc, setSelectedMcc] = useState(null);
     const [selectedMerchantDetails, setSelectedMerchantDetails] = useState(null);
@@ -210,6 +218,7 @@ export default function BestCardFinderDialog({
                 setSearchResult(null);
                 setSelectedMcc(null);
                 setAmount('');
+                setMethod('POS');
             }, 300);
             return () => clearTimeout(timer);
         } else {
@@ -306,8 +315,46 @@ export default function BestCardFinderDialog({
         const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
         const isLiveView = activeMonth === 'live';
 
-        return allRules
-            .filter(rule => rule.mccCodes && rule.mccCodes.split(',').map(c => c.trim()).includes(selectedMcc))
+        // 1. Calculate Cashback for ALL matching rules first
+        const allCandidates = allRules
+            .filter(rule => {
+                // Method Check: Rule method must include the selected method OR be empty/"All"
+                const ruleMethods = rule.method || [];
+                const isMethodValid = ruleMethods.length === 0 || ruleMethods.includes('All') || ruleMethods.includes(method);
+                if (!isMethodValid) return false;
+
+                // MCC Check: Direct Match OR (Default AND NOT Excluded)
+                // Note: mccCodes is already an array in server.js/frontend logic now?
+                // Wait, in server.js we split it. But here in frontend we receive whatever server sends.
+                // Current frontend code did: rule.mccCodes.split(',')...
+                // I need to check if existing `mccCodes` in `allRules` is string or array.
+                // Looking at `server.js` previously, it was `parsed['MCC Code'] ? ...split... : []`.
+                // So it is ALREADY an array in the backend response.
+                // BUT the previous frontend code was `rule.mccCodes.split(',')`.
+                // This implies previous backend sent a string?
+                // Let's re-read server.js BEFORE my change.
+                // Old server.js: `mccCodes: parsed['MCC Code'] ? parsed['MCC Code'].split(',').map(c => c.trim()) : [],`
+                // So it returns an ARRAY.
+                // Why did frontend do `.split`? `rule.mccCodes && rule.mccCodes.split(',')`.
+                // If `rule.mccCodes` is an array, `split` will fail.
+                // Checking previous `server.js` code again.
+                // `mccCodes: parsed['MCC Code']` (without split) ? NO.
+                // In `server.js` BEFORE my edit:
+                // `mccCodes: parsed['MCC Code'] ? parsed['MCC Code'].split(',').map(c => c.trim()) : [],`
+                // Wait, if backend sends array, frontend `rule.mccCodes.split` would throw error.
+                // Maybe frontend `allRules` prop comes from somewhere else or my read of server.js was partial?
+                // Let's assume standard array behavior now as my server.js definitely returns array.
+                // I will handle both string/array just in case to be safe, or just Array if I trust my server.js change.
+
+                const ruleMccCodes = Array.isArray(rule.mccCodes) ? rule.mccCodes : (rule.mccCodes ? rule.mccCodes.split(',').map(c => c.trim()) : []);
+                const ruleExcludedCodes = Array.isArray(rule.excludedMccCodes) ? rule.excludedMccCodes : (rule.excludedMccCodes ? rule.excludedMccCodes.split(',').map(c => c.trim()) : []);
+
+                const isSpecificMatch = ruleMccCodes.includes(selectedMcc);
+                // "Default" rule matches if it is Default AND the current MCC is NOT in excluded list
+                const isDefaultMatch = rule.isDefault && !ruleExcludedCodes.includes(selectedMcc);
+
+                return isSpecificMatch || isDefaultMatch;
+            })
             .map(rule => {
                 const card = cardMap.get(rule.cardId);
                 if (!card || card.status !== 'Active') return null;
@@ -342,7 +389,33 @@ export default function BestCardFinderDialog({
                     remainingCategoryCashback,
                 };
             })
-            .filter(Boolean)
+            .filter(Boolean);
+
+        // 2. Group by Card and pick the BEST rule (Highest Cashback Amount > Highest Rate)
+        const bestRulePerCard = new Map();
+
+        allCandidates.forEach(item => {
+            const existing = bestRulePerCard.get(item.card.id);
+            if (!existing) {
+                bestRulePerCard.set(item.card.id, item);
+                return;
+            }
+
+            // Comparison:
+            // 1. Calculated Amount (if amount entered)
+            if (item.calculatedCashback !== null && existing.calculatedCashback !== null) {
+                if (item.calculatedCashback > existing.calculatedCashback) {
+                    bestRulePerCard.set(item.card.id, item);
+                }
+            }
+            // 2. Rate (if no amount or equal amount)
+            else if (item.rule.rate > existing.rule.rate) {
+                 bestRulePerCard.set(item.card.id, item);
+            }
+        });
+
+        // 3. Sort the unique best rules
+        return Array.from(bestRulePerCard.values())
             .sort((a, b) => {
                 const isAActive = a.rule.status === 'Active';
                 const isBActive = b.rule.status === 'Active';
@@ -360,7 +433,7 @@ export default function BestCardFinderDialog({
                 }
                 return b.rule.rate - a.rule.rate;
             })
-    }, [selectedMcc, amount, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard]);
+    }, [selectedMcc, amount, method, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard]);
     
     // --- RENDER LOGIC ---
     const renderContent = () => {
@@ -488,6 +561,19 @@ export default function BestCardFinderDialog({
                                             onChange={handleAmountChange}
                                             inputMode="numeric"
                                         />
+                                    </div>
+                                    <div className="md:col-span-3 space-y-1.5">
+                                        <label className="text-sm font-medium">Payment Method</label>
+                                        <Select value={method} onValueChange={setMethod}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select Method" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="POS">In-Store (POS)</SelectItem>
+                                                <SelectItem value="eCom">Online (eCom)</SelectItem>
+                                                <SelectItem value="International">International</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
                                 <Button type="submit" disabled={isLoading || !searchTerm.trim()} className="w-full">
