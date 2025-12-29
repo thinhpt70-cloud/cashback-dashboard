@@ -100,11 +100,19 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             setBillingDate(sourceData['billingDate'] || '');
 
             if (sourceData.foreignCurrencyAmount) {
-                setMethod('International');
                 setForeignCurrencyAmount(sourceData.foreignCurrencyAmount.toLocaleString('en-US'));
                 setConversionFee(sourceData.conversionFee.toLocaleString('en-US'));
                 if (sourceData.exchangeRate) setConversionRate(sourceData.exchangeRate.toLocaleString('en-US'));
                 if (sourceData.foreignCurrency) setForeignCurrency(sourceData.foreignCurrency);
+            }
+
+            // Set Method: Prioritize existing 'Method' field, then infer from Foreign Amount, else Default 'POS'
+            if (sourceData['Method']) {
+                setMethod(sourceData['Method']);
+            } else if (sourceData.foreignCurrencyAmount) {
+                setMethod('International');
+            } else {
+                setMethod('POS');
             }
         }
     }, [initialData, prefillData, form]);

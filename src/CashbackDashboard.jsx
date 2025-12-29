@@ -377,6 +377,7 @@ export default function CashbackDashboard() {
                                 paidFor: transaction['paidFor'],
                                 subCategory: transaction['subCategory'],
                                 billingDate: transaction['billingDate'],
+                                method: transaction['Method'], // Pass the method field
                             };
                             // --- END: FIX 1 ---
 
