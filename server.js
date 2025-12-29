@@ -1016,10 +1016,10 @@ app.patch('/api/transactions/:id', async (req, res) => {
         if (date) propertiesToUpdate['Transaction Date'] = { date: { start: date } };
         if (cardId) propertiesToUpdate['Card'] = { relation: [{ id: cardId }] };
         if (category !== undefined) propertiesToUpdate['Category'] = category ? { select: { name: category } } : { select: null };
-        if (mccCode !== undefined) propertiesToUpdate['MCC Code'] = { rich_text: [{ text: { content: String(mccCode) } }] };
-        if (merchantLookup !== undefined) propertiesToUpdate['Merchant'] = { rich_text: [{ text: { content: merchantLookup } }] };
+        if (mccCode !== undefined) propertiesToUpdate['MCC Code'] = { rich_text: mccCode ? [{ text: { content: String(mccCode) } }] : [] };
+        if (merchantLookup !== undefined) propertiesToUpdate['Merchant'] = { rich_text: merchantLookup ? [{ text: { content: merchantLookup } }] : [] };
         if (notes !== undefined) propertiesToUpdate['Notes'] = { rich_text: [{ text: { content: notes || "" } }] };
-        if (subCategory !== undefined) propertiesToUpdate['Sub Category'] = { multi_select: subCategory.map(s => ({ name: s })) };
+        if (subCategory !== undefined) propertiesToUpdate['Sub Category'] = { multi_select: (subCategory || []).map(s => ({ name: s })) };
         if (paidFor !== undefined) propertiesToUpdate['Paid for'] = paidFor ? { select: { name: paidFor } } : { select: null };
         if (billingDate !== undefined) propertiesToUpdate['Billing Date'] = billingDate ? { date: { start: billingDate } } : { date: null };
         if (typeof otherDiscounts === 'number') propertiesToUpdate['Other Discounts'] = { number: otherDiscounts };
