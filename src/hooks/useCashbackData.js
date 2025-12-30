@@ -19,83 +19,111 @@ export default function useCashbackData(isAuthenticated) {
     const [reviewTransactions, setReviewTransactions] = useState([]);
     const [reviewLoading, setReviewLoading] = useState(false); // Separate loading state
 
+    // --- NEW LOADING STATES ---
+    const [isShellReady, setIsShellReady] = useState(false); // Critical data for UI shell
+    const [isDashboardLoading, setIsDashboardLoading] = useState(true); // Data for dashboard content
+
+    // Kept for backwards compatibility if needed, or mapped to !isShellReady
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     // --- DATA FETCHING ---
     const fetchData = useCallback(async (isSilent = false) => {
+        let hasShellLoaded = false; // Local variable to track shell loading status
+
         if (!isSilent) {
             setLoading(true);
+            setIsDashboardLoading(true);
+            setIsShellReady(false);
         }
         setError(null);
+
         try {
-            // Calculate the recent window (current + last 3 months)
+            // --- STAGE 1: CRITICAL SHELL DATA ---
+            // Fetch minimal data required to render the Sidebar, Header, and basic actions (Add Tx, Finder)
+            const [cardsRes, rulesRes, mccRes, categoriesRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/cards?includeClosed=true`),
+                fetch(`${API_BASE_URL}/rules`),
+                fetch(`${API_BASE_URL}/mcc-codes`),
+                fetch(`${API_BASE_URL}/categories`),
+            ]);
+
+            if (!cardsRes.ok || !rulesRes.ok || !mccRes.ok || !categoriesRes.ok) {
+                throw new Error('Failed to fetch critical shell data.');
+            }
+
+            const cardsData = await cardsRes.json();
+            const rulesData = await rulesRes.json();
+            const mccData = await mccRes.json();
+            const categoriesData = await categoriesRes.json();
+
+            setAllCards(cardsData);
+            setCards(cardsData.filter(c => c.status !== 'Closed'));
+            setRules(rulesData);
+            setMccMap(mccData.mccDescriptionMap || {});
+            setAllCategories(categoriesData);
+
+            // Shell is ready! The UI can render now.
+            hasShellLoaded = true;
+            if (!isSilent) {
+                setIsShellReady(true);
+                setLoading(false); // Dismiss full-screen skeleton
+            }
+
+            // --- STAGE 2: DASHBOARD CONTENT ---
+            // Fetch data needed for Overview charts, StatCards, and Activity Feed
             const currentMonth = getTodaysMonth();
-            const pastMonths = getPastNMonths(currentMonth, 3); // ['202408', '202409', '202410']
+            const pastMonths = getPastNMonths(currentMonth, 3);
             const monthsToFetch = [...new Set([...pastMonths, currentMonth])].join(',');
 
-            // This array now includes the new '/api/monthly-category-summary' endpoint
-            const [
-                cardsRes, 
-                rulesRes, 
-                monthlyRes, 
-                mccRes, 
-                monthlyCatRes,
-                recentTxRes,
-                categoriesRes,
-                commonVendorsRes,
-            ] = await Promise.all([
-                fetch(`${API_BASE_URL}/cards?includeClosed=true`), // UPDATED: Fetch all cards
-                fetch(`${API_BASE_URL}/rules`),
+            // MOVED: monthly-category-summary is now fetched here to prevent empty state flash in widgets
+            const [monthlyRes, recentTxRes, monthlyCatRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/monthly-summary`),
-                fetch(`${API_BASE_URL}/mcc-codes`),
-                fetch(`${API_BASE_URL}/monthly-category-summary?months=${monthsToFetch}`), // Fetches data for the optimized overview
                 fetch(`${API_BASE_URL}/recent-transactions`),
-                fetch(`${API_BASE_URL}/categories`),
+                fetch(`${API_BASE_URL}/monthly-category-summary?months=${monthsToFetch}`),
+            ]);
+
+             if (!monthlyRes.ok || !recentTxRes.ok || !monthlyCatRes.ok) {
+                throw new Error('Failed to fetch dashboard content.');
+            }
+
+            const monthlyData = await monthlyRes.json();
+            const recentTxData = await recentTxRes.json();
+            const monthlyCatData = await monthlyCatRes.json();
+
+            setMonthlySummary(monthlyData);
+            setRecentTransactions(recentTxData);
+            setMonthlyCategorySummary(monthlyCatData);
+
+            if (!isSilent) {
+                setIsDashboardLoading(false); // Dashboard widgets can now replace skeletons
+            }
+
+            // --- STAGE 3: BACKGROUND DATA ---
+            // Fetch heavy or secondary data that isn't immediately critical
+            const [commonVendorsRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/common-vendors`),
             ]);
 
-            // Check if all network responses are successful
-            if (!cardsRes.ok || !rulesRes.ok || !monthlyRes.ok || !mccRes.ok || !monthlyCatRes.ok || !recentTxRes.ok || !categoriesRes.ok || !commonVendorsRes.ok) {
-                throw new Error('A network response was not ok. Please check the server.');
+            if (commonVendorsRes.ok) {
+                const commonVendorsData = await commonVendorsRes.json();
+                setCommonVendors(commonVendorsData);
             }
 
-            // Parse all JSON data from the responses
-            const cardsData = await cardsRes.json();
-            const rulesData = await rulesRes.json();
-            const monthlyData = await monthlyRes.json();
-            const mccData = await mccRes.json();
-            const monthlyCatData = await monthlyCatRes.json();
-            const recentTxData = await recentTxRes.json(); 
-            const categoriesData = await categoriesRes.json(); 
-            const commonVendorsData = await commonVendorsRes.json();
-
-            // Set all the state variables for the application
-            setAllCards(cardsData);
-            // Filter out 'Closed' cards for the main 'cards' state used by most of the app
-            setCards(cardsData.filter(c => c.status !== 'Closed'));
-
-            setRules(rulesData);
-            setMonthlySummary(monthlyData);
-            setMccMap(mccData.mccDescriptionMap || {});
-            setMonthlyCategorySummary(monthlyCatData); // Set the new state for the overview tab
-            setRecentTransactions(recentTxData); // Set the new state
-            setAllCategories(categoriesData); // Set the new state for all categories
-            setCommonVendors(commonVendorsData);
-
-        } catch (err)
- {
-            setError("Failed to fetch data. Please check the backend, .env configuration, and Notion permissions.");
+        } catch (err) {
+            setError("Failed to fetch data. Please check the backend.");
             console.error(err);
-            if (isSilent) { // Only show toast on background refresh fails
-                toast.error("Failed to refresh data in the background.");
+            if (isSilent) {
+                toast.error("Failed to refresh data.");
             }
-        } finally {
-            if (!isSilent) {
-                setLoading(false);
+            // Even if Stage 2/3 fails, ensure we unblock the UI if Stage 1 succeeded (using local variable)
+            if (hasShellLoaded) {
+                 setIsShellReady(true);
+                 setLoading(false);
+                 setIsDashboardLoading(false);
             }
         }
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // New dedicated function to lazy load category summaries for a specific month
     const fetchCategorySummaryForMonth = useCallback(async (month) => {
@@ -145,6 +173,7 @@ export default function useCashbackData(isAuthenticated) {
         } else {
             // If the user logs out, we can clear the data and set loading to false.
             setLoading(false);
+            setIsShellReady(false);
         }
     }, [isAuthenticated, fetchData]); // It runs when auth status changes.
 
@@ -212,7 +241,9 @@ export default function useCashbackData(isAuthenticated) {
         setReviewTransactions,
         
         // Status states
-        loading,
+        loading, // Kept for backward compatibility, same as !isShellReady
+        isShellReady, // NEW: Use this to unblock the main UI
+        isDashboardLoading, // NEW: Use this for widget loading skeletons
         error,
         reviewLoading,
         

@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '@/lib/date';
 
 import { toast } from 'sonner';
@@ -280,7 +281,8 @@ export default function CardSpendsCap({
     onTransactionDeleted,
     onBulkDelete,
     onViewTransactionDetails,
-    cardMap
+    cardMap,
+    isLoading // NEW PROP
 }) {
     const [expandedCardId, setExpandedCardId] = useState(null);
     const [dialogState, setDialogState] = useState({
@@ -439,7 +441,29 @@ export default function CardSpendsCap({
 
             {/* This div replaces the original <CardContent> */}
             <div>
-                {cardSpendsCapProgress.length > 0 ? (
+                 {/* SKELETON LOADING STATE */}
+                {isLoading ? (
+                    <div className="space-y-4">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="rounded-xl border bg-card text-card-foreground shadow-sm p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <Skeleton className="h-2 w-2 rounded-full" />
+                                        <Skeleton className="h-4 w-32" />
+                                    </div>
+                                    <Skeleton className="h-5 w-20 rounded-full" />
+                                </div>
+                                <div className="space-y-2">
+                                     <div className="flex justify-between">
+                                         <Skeleton className="h-3 w-16" />
+                                         <Skeleton className="h-3 w-24" />
+                                     </div>
+                                     <Skeleton className="h-1.5 w-full rounded-full" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : cardSpendsCapProgress.length > 0 ? (
                     <div className="space-y-4"> {/* This stacks the new <SingleCapCard> components */}
                         {cardSpendsCapProgress.map(p => (
                             <SingleCapCard

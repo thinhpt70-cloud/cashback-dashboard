@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ChevronDown, History } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 import { 
     subWeeks, 
     startOfDay, 
@@ -17,7 +18,7 @@ import {
     isWithinInterval 
 } from 'date-fns';
 
-export default function RecentTransactions({ transactions, cardMap, currencyFn }) {
+export default function RecentTransactions({ transactions, cardMap, currencyFn, isLoading }) { // NEW PROP
     const [activityFilter, setActivityFilter] = useState('thisWeek'); // 'thisWeek', 'lastWeek', 'thisMonth'
 
     const filterLabels = {
@@ -72,7 +73,7 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
         }
     };
 
-    if (!transactions) return null;
+    if (!transactions && !isLoading) return null;
 
     return (
         <Card className="flex flex-col lg:flex-1 lg:min-h-0 max-h-[600px]">
@@ -108,8 +109,26 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn }
                     <div className="w-28 text-left px-2 flex-shrink-0 hidden sm:block">Date</div>
                     <div className="w-28 text-right flex-shrink-0">Amount</div>
                 </div>
+
                 <div className="space-y-2 flex-1 overflow-y-auto">
-                    {filteredTransactions.length === 0 ? (
+                    {/* SKELETON LOADING STATE */}
+                    {isLoading ? (
+                        [1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="flex items-center p-2 rounded-md border border-slate-100 dark:border-slate-800">
+                                <div className="flex-1 space-y-2">
+                                    <Skeleton className="h-4 w-32" />
+                                    <Skeleton className="h-3 w-24" />
+                                </div>
+                                <div className="hidden sm:block w-28 px-2">
+                                    <Skeleton className="h-4 w-20" />
+                                </div>
+                                <div className="w-28 flex flex-col items-end space-y-1">
+                                    <Skeleton className="h-4 w-16" />
+                                    <Skeleton className="h-3 w-12" />
+                                </div>
+                            </div>
+                        ))
+                    ) : filteredTransactions.length === 0 ? (
                         <div className="text-center text-sm text-slate-500 dark:text-slate-400 py-8">
                             No activity for this period.
                         </div>
