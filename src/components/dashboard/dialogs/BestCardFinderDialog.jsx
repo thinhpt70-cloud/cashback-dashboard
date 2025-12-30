@@ -34,7 +34,8 @@ import {
   ChevronUp,
   CreditCard,
   Layers,
-  X
+  X,
+  Plane
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -45,7 +46,7 @@ function MethodSelector({ method, setMethod }) {
         { id: 'All', label: 'All', icon: Layers },
         { id: 'POS', label: 'POS', icon: Store },
         { id: 'eCom', label: 'eCom', icon: Globe },
-        { id: 'International', label: 'Int.', icon: PlaneIcon },
+        { id: 'International', label: 'Int.', icon: Plane },
     ];
 
     return (
@@ -106,33 +107,19 @@ function QuickAmounts({ selected, onSelect }) {
     );
 }
 
-// Simple plane icon component since Lucide might export it as Plane
-function PlaneIcon(props) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M2 12h20" />
-            <path d="M13 2l9 10-9 10" />
-        </svg>
-    )
-}
 
-
-function CapProgressBar({ current, limit, label, icon: Icon, currencyFn }) {
+function CapProgressBar({ current, limit, label, icon: Icon, currencyFn, rate }) {
     if (!limit || limit === Infinity) return null;
-    const remaining = Math.max(0, limit - current);
+    const remainingCashback = Math.max(0, limit - current);
     const percent = Math.min(100, Math.max(0, (current / limit) * 100));
     const isNearCap = percent > 85;
+
+    // If rate is provided, show spend left. Otherwise show cashback left.
+    let displayText = `${currencyFn(remainingCashback)} left`;
+    if (rate && rate > 0) {
+        const remainingSpend = remainingCashback / rate;
+        displayText = `${currencyFn(remainingSpend)} spend left`;
+    }
 
     return (
         <div className="space-y-1">
@@ -142,7 +129,7 @@ function CapProgressBar({ current, limit, label, icon: Icon, currencyFn }) {
                     {label}
                 </span>
                 <span className={cn("font-medium", isNearCap ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-300")}>
-                    {currencyFn(remaining)} left
+                    {displayText}
                 </span>
             </div>
             <Progress value={percent} className="h-1.5" indicatorClassName={isNearCap ? "bg-red-500" : "bg-sky-500"} />
@@ -151,10 +138,14 @@ function CapProgressBar({ current, limit, label, icon: Icon, currencyFn }) {
 }
 
 function RankingCard({ rank, item, currencyFn, isExpanded, onToggle }) {
-    const { card, rule, calculatedCashback, isMinSpendMet, remainingCategoryCashback, monthlyLimit, monthlyCashback } = item;
+    // UPDATED: Destructure isInactive and isCapped from item to be explicit, though local calculation also works
+    const { card, rule, calculatedCashback, isMinSpendMet, remainingCategoryCashback, monthlyLimit, monthlyCashback, isInactive, isMonthlyCapReached, isCategoryCapReached, effectiveMethod } = item;
+
+    // Fallback if not passed in item (safety)
+    const _isInactive = isInactive ?? (rule.status !== 'Active');
+    const _isCapped = (isMonthlyCapReached || isCategoryCapReached);
+
     const isWinner = rank === 1;
-    const isCapped = item.isMonthlyCapReached || item.isCategoryCapReached;
-    const isInactive = rule.status !== 'Active';
 
     // Rate Badge Color Logic
     const getRateColor = (rate) => {
@@ -164,48 +155,71 @@ function RankingCard({ rank, item, currencyFn, isExpanded, onToggle }) {
         return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700';
     };
 
+    // Construct match description
+    let matchDesc = "Match: Payment Method";
+    if (rule.mccCodes?.length > 0) {
+        matchDesc = "Match: MCC Code";
+    } else if (rule.isDefault) {
+        matchDesc = "Match: Default Cashback";
+    }
+
+    // Append method info if relevant
+    if (effectiveMethod && effectiveMethod !== 'All') {
+        matchDesc += ` (${effectiveMethod})`;
+    }
+
     return (
         <div className={cn(
             "rounded-xl border transition-all overflow-hidden",
             isWinner
                 ? "bg-white dark:bg-slate-900 border-emerald-200 dark:border-emerald-800 shadow-sm"
                 : "bg-slate-50 dark:bg-slate-900/50 border-transparent hover:border-slate-200 dark:hover:border-slate-700",
-            (isCapped || isInactive) && !isWinner && "opacity-70 bg-slate-100 dark:bg-slate-900"
+            (_isCapped || _isInactive) && !isWinner && "opacity-70 bg-slate-100 dark:bg-slate-900"
         )}>
             {/* --- CARD HEADER --- */}
             <div
                 className={cn("p-4 flex items-center justify-between cursor-pointer select-none", isWinner ? "py-5" : "py-3")}
                 onClick={onToggle}
             >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-1">
                     {/* Visual Hierarchy: Rank Indicator */}
                     {!isWinner && (
-                         <div className="w-6 text-center text-sm font-bold text-slate-300 dark:text-slate-600">
+                         <div className="w-6 text-center text-sm font-bold text-slate-300 dark:text-slate-600 shrink-0">
                              {rank}
                          </div>
                     )}
                     {isWinner && (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
                             <Sparkles className="h-5 w-5 fill-current" />
                         </div>
                     )}
 
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h3 className={cn("font-bold text-slate-900 dark:text-slate-100 leading-none", isWinner ? "text-lg" : "text-base")}>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h3 className={cn("font-bold text-slate-900 dark:text-slate-100 leading-tight", isWinner ? "text-lg" : "text-base")}>
                                 {card.name}
                             </h3>
-                            {isWinner && <Badge className="bg-emerald-500 hover:bg-emerald-600 border-none text-white text-[10px] px-1.5 h-5">Best Choice</Badge>}
-                            {isCapped && !isWinner && <Badge variant="secondary" className="text-[10px] h-5 px-1.5">Capped</Badge>}
+                            {isWinner && <Badge className="bg-emerald-500 hover:bg-emerald-600 border-none text-white text-[10px] px-1.5 h-5 shrink-0">Best Choice</Badge>}
+
+                            {/* Status Badges */}
+                            {_isInactive && (
+                                <Badge variant="destructive" className="text-[10px] h-5 px-1.5 shrink-0">Inactive</Badge>
+                            )}
+                            {_isCapped && (
+                                <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 shrink-0">Maxed Out</Badge>
+                            )}
+                            {!isMinSpendMet && (
+                                <Badge variant="outline" className="text-[10px] h-5 px-1.5 text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800 shrink-0">Min Spend</Badge>
+                            )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                           <span className={cn("h-1.5 w-1.5 rounded-full", rule.status === 'Active' ? "bg-emerald-500" : "bg-slate-300")} />
-                           {rule.ruleName}
+                           <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", rule.status === 'Active' ? "bg-emerald-500" : "bg-slate-300")} />
+                           <span className="truncate">{rule.ruleName}</span>
                         </p>
                     </div>
                 </div>
 
-                <div className="text-right">
+                <div className="text-right pl-2 shrink-0">
                     <Badge variant="outline" className={cn("font-extrabold text-sm border", getRateColor(rule.rate))}>
                         {(rule.rate * 100).toFixed(1)}%
                     </Badge>
@@ -230,10 +244,7 @@ function RankingCard({ rank, item, currencyFn, isExpanded, onToggle }) {
                         <div className="p-4 space-y-4">
                              {/* Criteria Display (Simplified) */}
                              <div className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 p-2 rounded-md border border-slate-200 dark:border-slate-700">
-                                {rule.mccCodes?.length > 0
-                                    ? `Match: MCC Code (${rule.mccCodes})`
-                                    : (rule.isDefault ? "Match: Default Cashback" : "Match: Payment Method")
-                                }
+                                {matchDesc}
                              </div>
 
                              {/* Warnings */}
@@ -253,6 +264,7 @@ function RankingCard({ rank, item, currencyFn, isExpanded, onToggle }) {
                                         limit={item.categoryLimit}
                                         icon={Wallet}
                                         currencyFn={currencyFn}
+                                        rate={rule.rate}
                                     />
                                 )}
                                 {monthlyLimit > 0 && (
@@ -262,6 +274,7 @@ function RankingCard({ rank, item, currencyFn, isExpanded, onToggle }) {
                                         limit={monthlyLimit}
                                         icon={CreditCard}
                                         currencyFn={currencyFn}
+                                        rate={rule.rate}
                                     />
                                 )}
                                 {rule.capPerTransaction > 0 && (
@@ -307,7 +320,7 @@ function FinderOptionItem({ item, mccMap, onSelect, icon }) {
 
     return (
         <button
-            onClick={() => onSelect(item.mcc, item.merchant)}
+            onClick={() => onSelect(item.mcc, item.merchant, item.method)} // UPDATED: Pass method
             className="w-full text-left p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700 group"
         >
             <div className="flex items-start gap-3">
@@ -384,6 +397,14 @@ function CardFinderContent({
 
     // --- LOGIC: Quick Amount Selection ---
     const handleQuickAmountSelect = (value) => {
+        // Toggle off if same amount selected
+        if (selectedQuickAmount === value) {
+            setShowAmountInput(false);
+            setAmount('');
+            setSelectedQuickAmount(null);
+            return;
+        }
+
         if (value === 'other') {
             setShowAmountInput(true);
             setSelectedQuickAmount('other');
@@ -421,7 +442,8 @@ function CardFinderContent({
             setSelectedMerchantDetails({
                 merchant: info ? info.en : `MCC ${term}`,
                 vnDesc: info ? info.vn : 'Unknown Category',
-                isDirectMcc: true
+                isDirectMcc: true,
+                method: null // Direct MCC has no inherent method
             });
             setView('results');
             setIsLoading(false);
@@ -442,13 +464,14 @@ function CardFinderContent({
         }
     };
 
-    const handleOptionSelect = (mcc, merchantName) => {
+    const handleOptionSelect = (mcc, merchantName, merchantMethod = null) => { // UPDATED: Accept method
         setSelectedMcc(mcc);
         const info = mccMap[mcc];
         setSelectedMerchantDetails({
             merchant: merchantName,
             enDesc: info?.en,
-            vnDesc: info?.vn
+            vnDesc: info?.vn,
+            method: merchantMethod // Store method from history
         });
         setView('results');
     };
@@ -468,17 +491,39 @@ function CardFinderContent({
         const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
         const isLiveView = activeMonth === 'live';
 
+        // Determine Effective Method
+        // If UI method is 'All', use the merchant's method if available.
+        // If UI method is specific (POS/eCom/Int), it overrides everything.
+        let effectiveMethod = 'All';
+        if (method !== 'All') {
+            effectiveMethod = method;
+        } else if (selectedMerchantDetails?.method) {
+            effectiveMethod = selectedMerchantDetails.method;
+        }
+
         const allCandidates = allRules
             .filter(rule => {
                 const ruleMethodsRaw = Array.isArray(rule.method) ? rule.method : (rule.method ? [rule.method] : []);
                 const ruleMethods = ruleMethodsRaw.map(m => m.toLowerCase());
-                const currentMethod = method.toLowerCase();
+
+                // Use effectiveMethod for matching
+                const targetMethod = effectiveMethod.toLowerCase();
 
                 const isMethodValid =
-                    currentMethod === 'all' ||
+                    targetMethod === 'all' || // Should effectively never happen for strict rules unless rule allows All
                     ruleMethods.length === 0 ||
                     ruleMethods.includes('all') ||
-                    ruleMethods.includes(currentMethod);
+                    ruleMethods.includes(targetMethod);
+
+                // Note: If effectiveMethod is 'eCom', and rule is 'POS', isMethodValid is false.
+                // If effectiveMethod is 'All' (no history, UI All), and rule is 'POS', isMethodValid is true (matches 'all' logic in current code? wait)
+
+                // Re-evaluating existing logic:
+                // Old logic: currentMethod === 'all' || ... || ruleMethods.includes(currentMethod)
+                // If I select 'All' in UI, I want to see everything.
+                // But the user says: "if I search... Shopee & method is 'All', then... should be shown for corresponding method"
+                // This means we are FILTERING by the historical method implicitly.
+                // So if history says 'eCom', we act as if 'eCom' was selected.
 
                 if (!isMethodValid) return false;
 
@@ -507,25 +552,45 @@ function CardFinderContent({
                 const effectiveMonthlyLimit = dynamicLimit > 0 ? dynamicLimit : card.overallMonthlyLimit;
                 const monthlyCashback = cardMonthSummary?.cashback || 0;
 
+                // Calculate remaining monthly cashback cap
+                const remainingMonthlyCashback = effectiveMonthlyLimit > 0 ? (effectiveMonthlyLimit - monthlyCashback) : Infinity;
+
                 let calculatedCashback = null;
                 if (!isNaN(numericAmount) && numericAmount > 0) {
                     calculatedCashback = numericAmount * rule.rate;
+
+                    // Cap per transaction
                     if (rule.capPerTransaction > 0) {
                         calculatedCashback = Math.min(calculatedCashback, rule.capPerTransaction);
                     }
+
+                    // Cap by remaining category limit
+                    if (isFinite(remainingCategoryCashback)) {
+                         calculatedCashback = Math.min(calculatedCashback, Math.max(0, remainingCategoryCashback));
+                    }
+
+                    // Cap by remaining monthly limit
+                    if (isFinite(remainingMonthlyCashback)) {
+                        calculatedCashback = Math.min(calculatedCashback, Math.max(0, remainingMonthlyCashback));
+                    }
                 }
+
+                const isCategoryCapReached = isFinite(remainingCategoryCashback) && remainingCategoryCashback <= 0;
+                const isMonthlyCapReached = effectiveMonthlyLimit > 0 && remainingMonthlyCashback <= 0; // Updated logic
 
                 return { 
                     rule, 
                     card, 
                     calculatedCashback, 
                     isMinSpendMet: card.minimumMonthlySpend > 0 ? (cardMonthSummary?.spend || 0) >= card.minimumMonthlySpend : true,
-                    isCategoryCapReached: isFinite(remainingCategoryCashback) && remainingCategoryCashback <= 0,
-                    isMonthlyCapReached: effectiveMonthlyLimit > 0 && monthlyCashback >= effectiveMonthlyLimit,
+                    isCategoryCapReached,
+                    isMonthlyCapReached,
+                    isInactive: rule.status !== 'Active', // Explicitly passed
                     remainingCategoryCashback,
                     categoryLimit,
                     monthlyLimit: effectiveMonthlyLimit,
-                    monthlyCashback
+                    monthlyCashback,
+                    effectiveMethod // Pass this down for display
                 };
             })
             .filter(Boolean);
@@ -576,13 +641,18 @@ function CardFinderContent({
 
         return { rankedSuggestions: activeAndGood, otherSuggestions: others };
 
-    }, [selectedMcc, amount, method, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard]);
+    }, [selectedMcc, amount, method, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard, selectedMerchantDetails]); // Added selectedMerchantDetails to deps
 
 
     // --- RENDERING ---
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
+            {/* Header */}
+            <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 font-semibold bg-white dark:bg-slate-900">
+                Card Lookup
+            </div>
+
             {/* --- TOP: QUERY BAR --- */}
             <div className="p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-10 sticky top-0">
                 <form onSubmit={handleSearch} className="space-y-4">
@@ -628,7 +698,7 @@ function CardFinderContent({
                                                 value={amount}
                                                 onChange={handleAmountChange}
                                                 inputMode="numeric"
-                                                className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 pr-8"
+                                                className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 pr-8 focus-visible:ring-emerald-500"
                                             />
                                             {amount && (
                                                 <button
