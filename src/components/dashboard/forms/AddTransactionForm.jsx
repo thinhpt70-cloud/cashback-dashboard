@@ -719,6 +719,14 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                         </PopoverContent>
                                     </Popover>
                                 </div>
+                                {selectedRule && estimatedCashbackAndWarnings.cashback > 0 && (
+                                    <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/20 p-2 rounded-md border border-emerald-100 dark:border-emerald-900/50 mt-2">
+                                        <span className="text-xs font-medium text-emerald-800 dark:text-emerald-400">Estimated Cashback:</span>
+                                        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-500">
+                                            {currencyFn(estimatedCashbackAndWarnings.cashback)}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </AccordionContent>
                     </AccordionItem>
