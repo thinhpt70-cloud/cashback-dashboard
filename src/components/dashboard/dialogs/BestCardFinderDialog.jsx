@@ -72,26 +72,35 @@ function MethodSelector({ method, setMethod }) {
     );
 }
 
-function QuickAmounts({ onSelect }) {
+function QuickAmounts({ selected, onSelect }) {
     const amounts = [
         { label: '100k', value: '100,000' },
         { label: '200k', value: '200,000' },
         { label: '500k', value: '500,000' },
         { label: '1m', value: '1,000,000' },
+        { label: 'Other', value: 'other' },
     ];
 
     return (
         <div className="flex gap-2 mt-2 overflow-x-auto pb-1 no-scrollbar">
-            {amounts.map((amt) => (
-                <button
-                    key={amt.label}
-                    type="button"
-                    onClick={() => onSelect(amt.value)}
-                    className="flex-shrink-0 px-2.5 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-md transition-colors border border-transparent hover:border-slate-300 dark:hover:border-slate-600"
-                >
-                    {amt.label}
-                </button>
-            ))}
+            {amounts.map((amt) => {
+                const isActive = selected === amt.value || (amt.value === 'other' && selected === 'other');
+                return (
+                    <button
+                        key={amt.label}
+                        type="button"
+                        onClick={() => onSelect(amt.value)}
+                        className={cn(
+                            "flex-shrink-0 px-2.5 py-1 text-xs font-medium rounded-md transition-colors border",
+                            isActive
+                                ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 border-transparent"
+                                : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border-transparent hover:border-slate-300 dark:hover:border-slate-600"
+                        )}
+                    >
+                        {amt.label}
+                    </button>
+                );
+            })}
         </div>
     );
 }
@@ -339,7 +348,12 @@ function CardFinderContent({
     const [expandedCardId, setExpandedCardId] = useState(null);
     const [recentSearches, setRecentSearches] = useState([]);
 
+    // NEW STATE for Quick Amounts
+    const [selectedQuickAmount, setSelectedQuickAmount] = useState(null); // 'other' or value
+    const [showAmountInput, setShowAmountInput] = useState(false);
+
     const inputRef = useRef(null);
+    const amountInputRef = useRef(null); // Ref for amount input focus
 
     // --- EFFECT: Load Recent Searches & Focus ---
     useEffect(() => {
@@ -353,6 +367,20 @@ function CardFinderContent({
     // --- HELPERS ---
     const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
     const cardMap = useMemo(() => new Map(allCards.map(c => [c.id, c])), [allCards]);
+
+    // --- LOGIC: Quick Amount Selection ---
+    const handleQuickAmountSelect = (value) => {
+        if (value === 'other') {
+            setShowAmountInput(true);
+            setSelectedQuickAmount('other');
+            // Focus amount input after render
+            setTimeout(() => amountInputRef.current?.focus(), 50);
+        } else {
+            setShowAmountInput(false);
+            setAmount(value);
+            setSelectedQuickAmount(value);
+        }
+    };
 
     // --- LOGIC: Handle Search ---
     const handleSearch = async (e) => {
@@ -562,14 +590,27 @@ function CardFinderContent({
 
                     <div className="space-y-2">
                         <div>
-                            <Input
-                                placeholder="Amount (Optional)"
-                                value={amount}
-                                onChange={handleAmountChange}
-                                inputMode="numeric"
-                                className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-                            />
-                            <QuickAmounts onSelect={setAmount} />
+                            {/* Conditional Amount Input */}
+                            <AnimatePresence>
+                                {showAmountInput && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <Input
+                                            ref={amountInputRef}
+                                            placeholder="Enter amount (e.g., 1,000,000)"
+                                            value={amount}
+                                            onChange={handleAmountChange}
+                                            inputMode="numeric"
+                                            className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 mb-2"
+                                        />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                            <QuickAmounts selected={selectedQuickAmount} onSelect={handleQuickAmountSelect} />
                         </div>
                         <MethodSelector method={method} setMethod={setMethod} />
                     </div>
