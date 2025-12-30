@@ -98,7 +98,7 @@ export default function CashbackDashboard() {
     const {
         cards, allCards, rules, monthlySummary, mccMap, monthlyCategorySummary,
         recentTransactions, allCategories, commonVendors, reviewTransactions,
-        loading, error, refreshData,
+        loading, error, refreshData, isShellReady, isDashboardLoading,
         setRecentTransactions, setReviewTransactions,
         cashbackRules, monthlyCashbackCategories, liveSummary,
         fetchReviewTransactions, reviewLoading, fetchCategorySummaryForMonth
@@ -471,7 +471,8 @@ export default function CashbackDashboard() {
         // In Live View, default to the most recent month. Otherwise, use the selected month.
         const monthToFetch = isLiveView ? statementMonths[0] : activeMonth;
 
-        if (monthToFetch) {
+        // NEW: Lazy loading - only fetch full transactions if the tab is active
+        if (monthToFetch && activeView === 'transactions') {
             const fetchMonthlyTransactions = async () => {
                 setIsMonthlyTxLoading(true);
                 try {
@@ -491,7 +492,7 @@ export default function CashbackDashboard() {
             };
             fetchMonthlyTransactions();
         }
-    }, [activeMonth, transactionFilterType, statementMonths]);
+    }, [activeMonth, transactionFilterType, statementMonths, activeView]);
 
     // --------------------------
     // 2) HELPERS & CALCULATIONS
@@ -688,7 +689,7 @@ export default function CashbackDashboard() {
         setNeedsSyncing(updatedQueue);
     };
 
-    if (loading) {
+    if (!isShellReady) {
         return <AppSkeleton />;
     }
 
@@ -888,7 +889,7 @@ export default function CashbackDashboard() {
                         <div className="flex flex-col lg:flex-row gap-4">
                             {/* LEFT COLUMN */}
                             <div className="lg:w-7/12 flex flex-col gap-4">
-                                <StatCards stats={displayStats} currencyFn={currency} />
+                                <StatCards stats={displayStats} currencyFn={currency} isLoading={isDashboardLoading} />
 
                                 <CardSpendsCap
                                     cards={cards}
@@ -903,6 +904,7 @@ export default function CashbackDashboard() {
                                     onBulkDelete={handleBulkDelete}
                                     onViewTransactionDetails={handleViewTransactionDetails}
                                     cardMap={cardMap}
+                                    isLoading={isDashboardLoading}
                                 />
                             </div>
 
@@ -918,6 +920,7 @@ export default function CashbackDashboard() {
                                     currencyFn={currency}
                                     getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
                                     className="lg:max-h-[800px]"
+                                    isLoading={isDashboardLoading}
                                 />
 
                                 {/* RecentTransactions is second, and will fill remaining space */}
@@ -925,6 +928,7 @@ export default function CashbackDashboard() {
                                     transactions={recentTransactions}
                                     cardMap={cardMap}
                                     currencyFn={currency}
+                                    isLoading={isDashboardLoading}
                                 />
                             </div>
                         </div>
