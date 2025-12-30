@@ -139,7 +139,7 @@ function CapProgressBar({ current, limit, label, icon: Icon, currencyFn, rate })
 
 function RankingCard({ rank, item, currencyFn, isExpanded, onToggle }) {
     // UPDATED: Destructure isInactive and isCapped from item to be explicit, though local calculation also works
-    const { card, rule, calculatedCashback, isMinSpendMet, remainingCategoryCashback, monthlyLimit, monthlyCashback, isInactive, isMonthlyCapReached, isCategoryCapReached } = item;
+    const { card, rule, calculatedCashback, isMinSpendMet, remainingCategoryCashback, monthlyLimit, monthlyCashback, isInactive, isMonthlyCapReached, isCategoryCapReached, effectiveMethod } = item;
 
     // Fallback if not passed in item (safety)
     const _isInactive = isInactive ?? (rule.status !== 'Active');
@@ -154,6 +154,19 @@ function RankingCard({ rank, item, currencyFn, isExpanded, onToggle }) {
         if (rate >= 0.05) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800';
         return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700';
     };
+
+    // Construct match description
+    let matchDesc = "Match: Payment Method";
+    if (rule.mccCodes?.length > 0) {
+        matchDesc = "Match: MCC Code";
+    } else if (rule.isDefault) {
+        matchDesc = "Match: Default Cashback";
+    }
+
+    // Append method info if relevant
+    if (effectiveMethod && effectiveMethod !== 'All') {
+        matchDesc += ` (${effectiveMethod})`;
+    }
 
     return (
         <div className={cn(
@@ -231,10 +244,7 @@ function RankingCard({ rank, item, currencyFn, isExpanded, onToggle }) {
                         <div className="p-4 space-y-4">
                              {/* Criteria Display (Simplified) */}
                              <div className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 p-2 rounded-md border border-slate-200 dark:border-slate-700">
-                                {rule.mccCodes?.length > 0
-                                    ? "Match: MCC Code"
-                                    : (rule.isDefault ? "Match: Default Cashback" : "Match: Payment Method")
-                                }
+                                {matchDesc}
                              </div>
 
                              {/* Warnings */}
@@ -310,7 +320,7 @@ function FinderOptionItem({ item, mccMap, onSelect, icon }) {
 
     return (
         <button
-            onClick={() => onSelect(item.mcc, item.merchant)}
+            onClick={() => onSelect(item.mcc, item.merchant, item.method)} // UPDATED: Pass method
             className="w-full text-left p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700 group"
         >
             <div className="flex items-start gap-3">
@@ -432,7 +442,8 @@ function CardFinderContent({
             setSelectedMerchantDetails({
                 merchant: info ? info.en : `MCC ${term}`,
                 vnDesc: info ? info.vn : 'Unknown Category',
-                isDirectMcc: true
+                isDirectMcc: true,
+                method: null // Direct MCC has no inherent method
             });
             setView('results');
             setIsLoading(false);
@@ -453,13 +464,14 @@ function CardFinderContent({
         }
     };
 
-    const handleOptionSelect = (mcc, merchantName) => {
+    const handleOptionSelect = (mcc, merchantName, merchantMethod = null) => { // UPDATED: Accept method
         setSelectedMcc(mcc);
         const info = mccMap[mcc];
         setSelectedMerchantDetails({
             merchant: merchantName,
             enDesc: info?.en,
-            vnDesc: info?.vn
+            vnDesc: info?.vn,
+            method: merchantMethod // Store method from history
         });
         setView('results');
     };
@@ -479,17 +491,39 @@ function CardFinderContent({
         const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
         const isLiveView = activeMonth === 'live';
 
+        // Determine Effective Method
+        // If UI method is 'All', use the merchant's method if available.
+        // If UI method is specific (POS/eCom/Int), it overrides everything.
+        let effectiveMethod = 'All';
+        if (method !== 'All') {
+            effectiveMethod = method;
+        } else if (selectedMerchantDetails?.method) {
+            effectiveMethod = selectedMerchantDetails.method;
+        }
+
         const allCandidates = allRules
             .filter(rule => {
                 const ruleMethodsRaw = Array.isArray(rule.method) ? rule.method : (rule.method ? [rule.method] : []);
                 const ruleMethods = ruleMethodsRaw.map(m => m.toLowerCase());
-                const currentMethod = method.toLowerCase();
+
+                // Use effectiveMethod for matching
+                const targetMethod = effectiveMethod.toLowerCase();
 
                 const isMethodValid =
-                    currentMethod === 'all' ||
+                    targetMethod === 'all' || // Should effectively never happen for strict rules unless rule allows All
                     ruleMethods.length === 0 ||
                     ruleMethods.includes('all') ||
-                    ruleMethods.includes(currentMethod);
+                    ruleMethods.includes(targetMethod);
+
+                // Note: If effectiveMethod is 'eCom', and rule is 'POS', isMethodValid is false.
+                // If effectiveMethod is 'All' (no history, UI All), and rule is 'POS', isMethodValid is true (matches 'all' logic in current code? wait)
+
+                // Re-evaluating existing logic:
+                // Old logic: currentMethod === 'all' || ... || ruleMethods.includes(currentMethod)
+                // If I select 'All' in UI, I want to see everything.
+                // But the user says: "if I search... Shopee & method is 'All', then... should be shown for corresponding method"
+                // This means we are FILTERING by the historical method implicitly.
+                // So if history says 'eCom', we act as if 'eCom' was selected.
 
                 if (!isMethodValid) return false;
 
@@ -555,7 +589,8 @@ function CardFinderContent({
                     remainingCategoryCashback,
                     categoryLimit,
                     monthlyLimit: effectiveMonthlyLimit,
-                    monthlyCashback
+                    monthlyCashback,
+                    effectiveMethod // Pass this down for display
                 };
             })
             .filter(Boolean);
@@ -606,7 +641,7 @@ function CardFinderContent({
 
         return { rankedSuggestions: activeAndGood, otherSuggestions: others };
 
-    }, [selectedMcc, amount, method, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard]);
+    }, [selectedMcc, amount, method, allRules, cardMap, monthlySummary, monthlyCategorySummary, activeMonth, getCurrentCashbackMonthForCard, selectedMerchantDetails]); // Added selectedMerchantDetails to deps
 
 
     // --- RENDERING ---
