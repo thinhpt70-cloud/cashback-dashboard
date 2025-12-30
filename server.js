@@ -8,6 +8,7 @@ const path = require('path'); // ADDED: To help locate the MCC.json file
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const cheerio = require('cheerio'); // ADDED: for scraping rcgv.vn
+const helmet = require('helmet');
 require('dotenv').config();
 
 const mccDataPath = path.join(__dirname, 'MCC.json');
@@ -18,6 +19,7 @@ app.use(cors({
     origin: 'http://localhost:3000', // Or your frontend URL
     credentials: true
 }));
+app.use(helmet());
 app.use(express.json());
 app.use(cookieParser());
 const port = process.env.PORT || 3001;

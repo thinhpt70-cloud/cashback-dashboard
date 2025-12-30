@@ -30,6 +30,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "framer-motion": "^12.23.24",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.372.0",
     "node-fetch": "^3.3.2",
