@@ -446,7 +446,15 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                     <div className="relative flex items-center">
                         <Input id="merchant" value={merchant} onChange={(e) => { setMerchant(e.target.value); setShowLookupButton(false); }} required className="pr-12" />
                         <div className="absolute right-2 flex items-center gap-2">
-                            <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={handleMerchantLookup} disabled={!merchant || isLookingUp}>
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={handleMerchantLookup}
+                                disabled={!merchant || isLookingUp}
+                                aria-label="Lookup merchant details"
+                            >
                                 {isLookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                             </Button>
                         </div>
@@ -624,7 +632,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                         </Select>
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button type="button" variant="ghost" size="icon" disabled={!selectedRule}>
+                                <Button type="button" variant="ghost" size="icon" disabled={!selectedRule} aria-label="View rule details">
                                     <Info className="h-4 w-4" />
                                 </Button>
                             </PopoverTrigger>
@@ -652,9 +660,9 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                 {estimatedCashbackAndWarnings.warnings.length > 0 && (
                                     <Popover>
                                         <PopoverTrigger asChild>
-                                            <button type="button" className="focus:outline-none">
+                                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6" aria-label="View warnings">
                                                 <AlertTriangle className="h-4 w-4 text-orange-500" />
-                                            </button>
+                                            </Button>
                                         </PopoverTrigger>
                                         <PopoverContent>
                                             <div className="space-y-2 text-sm">
@@ -687,7 +695,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                         setDiscounts(newDiscounts);
                                     });
                                 }} />
-                                <Button type="button" variant="ghost" size="icon" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))}>
+                                <Button type="button" variant="ghost" size="icon" aria-label="Remove discount" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))}>
                                     <X className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -706,7 +714,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                         setFees(newFees);
                                     });
                                 }} />
-                                <Button type="button" variant="ghost" size="icon" onClick={() => setFees(fees.filter((_, i) => i !== index))}>
+                                <Button type="button" variant="ghost" size="icon" aria-label="Remove fee" onClick={() => setFees(fees.filter((_, i) => i !== index))}>
                                     <X className="h-4 w-4" />
                                 </Button>
                             </div>
