@@ -52,7 +52,7 @@ describe('AddTransactionForm Edit Logic', () => {
         );
 
         // Check the Amount input value. It should be 100 (formatted).
-        const amountInput = screen.getByLabelText('Amount');
+        const amountInput = screen.getByPlaceholderText('0');
         expect(amountInput).toHaveValue('100');
     });
 
@@ -89,7 +89,7 @@ describe('AddTransactionForm Edit Logic', () => {
             />
         );
 
-        const amountInput = screen.getByLabelText('Amount');
+        const amountInput = screen.getByPlaceholderText('0');
         expect(amountInput).toHaveValue('50');
     });
 });

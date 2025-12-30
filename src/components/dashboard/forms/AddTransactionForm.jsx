@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Sparkles, CalendarClock, AlertTriangle, Info, X } from 'lucide-react';
+import { Loader2, Sparkles, CalendarClock, AlertTriangle, Info, X, DollarSign, Wallet, Store, Tag, Globe, Laptop, CreditCard, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
 import { Button } from '../../ui/button';
@@ -16,6 +16,7 @@ import CardRecommendations from './CardRecommendations';
 import MccSearchResultsDialog from './MccSearchResultsDialog';
 import useCardRecommendations from '../../../hooks/useCardRecommendations';
 import { useForm, FormProvider } from 'react-hook-form';
+import { cn } from '@/lib/utils';
 
 
 export default function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, prefillData, onClose, needsSyncing, setNeedsSyncing }) {
@@ -56,6 +57,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
 
 
     const amountInputRef = useRef(null);
+    const dateInputRef = useRef(null);
 
     useEffect(() => {
         if (mccMap && mccCode && mccMap[mccCode]) {
@@ -224,10 +226,6 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         if (filteredSummaries.length > 0) setCardSummaryCategoryId(filteredSummaries[0].id);
         else setCardSummaryCategoryId('new');
     }, [filteredSummaries]);
-
-    // FIX: The validation useEffect was deleted here.
-    // The handleCardSelect function below correctly handles resetting logic, 
-    // so the useEffect was redundant and causing the double-click race condition.
 
     useEffect(() => {
         if (method !== 'International' || !selectedCard) return;
@@ -436,139 +434,219 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
         setApplicableRuleId(selectedRuleId || ''); 
     };
 
+    // --- Render Helpers ---
+
+    const renderMethodSelector = () => (
+        <div className="grid grid-cols-3 gap-1 p-1 bg-muted/50 rounded-lg">
+             <button
+                type="button"
+                onClick={() => setMethod('POS')}
+                className={cn(
+                    "flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all",
+                    method === 'POS'
+                        ? "bg-white dark:bg-slate-800 shadow-sm text-sky-600 dark:text-sky-400"
+                        : "text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-800/50"
+                )}
+            >
+                <Store className="h-4 w-4" />
+                POS
+            </button>
+            <button
+                type="button"
+                onClick={() => setMethod('eCom')}
+                className={cn(
+                    "flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all",
+                    method === 'eCom'
+                        ? "bg-white dark:bg-slate-800 shadow-sm text-emerald-600 dark:text-emerald-400"
+                        : "text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-800/50"
+                )}
+            >
+                <Laptop className="h-4 w-4" />
+                eCom
+            </button>
+            <button
+                type="button"
+                onClick={() => setMethod('International')}
+                className={cn(
+                    "flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all",
+                    method === 'International'
+                        ? "bg-white dark:bg-slate-800 shadow-sm text-orange-600 dark:text-orange-400"
+                        : "text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-800/50"
+                )}
+            >
+                <Globe className="h-4 w-4" />
+                Int'l
+            </button>
+        </div>
+    );
+
     return (
         <FormProvider {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 py-4">
-                <QuickAddButtons vendors={commonVendors} onSelect={handleVendorSelect} />
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 pb-20">
 
-                <div className="space-y-2">
-                    <label htmlFor="merchant">Transaction Name</label>
-                    <div className="relative flex items-center">
-                        <Input id="merchant" value={merchant} onChange={(e) => { setMerchant(e.target.value); setShowLookupButton(false); }} required className="pr-12" />
-                        <div className="absolute right-2 flex items-center gap-2">
-                            <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={handleMerchantLookup} disabled={!merchant || isLookingUp}>
-                                {isLookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                            </Button>
-                        </div>
-                    </div>
-                    {showLookupButton && (
-                        <div className="pt-2">
-                            <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setIsLookupDialogOpen(true)}>
-                                View Other Suggestions
-                            </Button>
-                        </div>
-                    )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <label htmlFor="merchantLookup">Merchant Name</label>
-                        <Input
-                            id="merchantLookup"
-                            value={merchantLookup}
-                            onChange={(e) => setMerchantLookup(e.target.value)}
-                            placeholder="e.g., GRAB, SHOPEE"
+                {/* --- 1. HERO AMOUNT & DATE --- */}
+                <div className="flex flex-col items-center justify-center space-y-3 pt-2">
+                    <div className="relative w-full max-w-[280px]">
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 text-3xl font-bold text-muted-foreground/50">₫</span>
+                        <input
+                            ref={amountInputRef}
+                            type="text"
+                            inputMode="numeric"
+                            value={amount}
+                            onChange={handleAmountChange}
+                            placeholder="0"
+                            className="w-full bg-transparent text-center text-5xl font-bold placeholder:text-muted-foreground/30 focus:outline-none focus:ring-0"
+                            required
                         />
                     </div>
-                    <div className="space-y-2">
-                        <label htmlFor="mcc">MCC Code</label>
-                        <Input
-                            id="mcc"
-                            value={mccCode}
-                            onChange={(e) => setMccCode(e.target.value)}
-                            placeholder="e.g., 5411"
-                            type="number"
+
+                    {/* Date Pill */}
+                     <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => dateInputRef.current?.showPicker()}
+                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-sm font-medium transition-colors"
+                        >
+                            <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                            {new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </button>
+                        <input
+                            ref={dateInputRef}
+                            type="date"
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            required
                         />
-                        {mccName && <p className="text-xs text-muted-foreground pt-1">{mccName}</p>}
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* --- 2. QUICK ADD --- */}
+                 <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
+                    <QuickAddButtons vendors={commonVendors} onSelect={handleVendorSelect} />
+                </div>
+
+
+                {/* --- 3. MAIN INPUTS & METHOD --- */}
+                <div className="space-y-4">
+                    {/* Method Selector */}
+                    {renderMethodSelector()}
+
+                    {/* Merchant & Lookup */}
                     <div className="space-y-2">
-                        <label htmlFor="amount">Amount</label>
-                        <Input ref={amountInputRef} id="amount" type="text" inputMode="numeric" value={amount} onChange={handleAmountChange} required />
-                    </div>
-                    <div className="space-y-2">
-                        <label htmlFor="date">Date</label>
-                        <div className="relative flex items-center">
-                            <CalendarClock className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center justify-between">
+                             <label htmlFor="merchant" className="text-sm font-semibold text-muted-foreground">Merchant</label>
+                             {isLookingUp && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                        </div>
+                        <div className="relative">
                             <Input 
-                                id="date"
-                                type="date"
-                                className="w-full pl-10"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
+                                id="merchant"
+                                value={merchant}
+                                onChange={(e) => { setMerchant(e.target.value); setShowLookupButton(false); }}
                                 required
+                                className="pr-10 h-12 text-lg"
+                                placeholder="e.g. Starbucks, Grab..."
                             />
+                             <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="absolute right-1 top-1 h-10 w-10 text-muted-foreground hover:text-primary"
+                                onClick={handleMerchantLookup}
+                                disabled={!merchant || isLookingUp}
+                            >
+                                <Sparkles className="h-5 w-5" />
+                            </Button>
                         </div>
+                        {showLookupButton && (
+                            <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setIsLookupDialogOpen(true)}>
+                                View suggestions found for "{merchant}"
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* Category - Promoted to main view */}
+                    <div className="space-y-2">
+                         <label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</label>
+                        <Combobox
+                            options={categories.map(c => ({ value: c, label: c }))}
+                            value={category}
+                            onChange={setCategory}
+                            placeholder="Select category"
+                            searchPlaceholder="Search..."
+                            className="h-12"
+                        />
                     </div>
                 </div>
 
-                <div className="space-y-2">
-                    <label>Method</label>
-                    <div className="flex space-x-2">
-                        <Button type="button" variant={method === 'POS' ? 'secondary' : 'outline'} onClick={() => setMethod('POS')}>POS</Button>
-                        <Button type="button" variant={method === 'eCom' ? 'secondary' : 'outline'} onClick={() => setMethod('eCom')}>eCommerce</Button>
-                        <Button type="button" variant={method === 'International' ? 'secondary' : 'outline'} onClick={() => setMethod('International')}>International</Button>
-                    </div>
-                </div>
 
+                {/* --- 4. INTERNATIONAL DETAILS (Conditional) --- */}
                 {method === 'International' && (
-                    <div className="bg-muted/50 p-4 rounded-lg space-y-4">
-                        <div className="flex items-center space-x-2">
-                            <label htmlFor="foreign-input-mode" className="text-sm font-medium">VND Amount Known</label>
-                            <Switch
-                                id="foreign-input-mode"
-                                checked={foreignInputMode === 'vnd_unknown'}
-                                onCheckedChange={(checked) => setForeignInputMode(checked ? 'vnd_unknown' : 'vnd_known')}
-                            />
-                            <label htmlFor="foreign-input-mode" className="text-sm font-medium">VND Amount Unknown</label>
+                    <div className="bg-orange-50 dark:bg-orange-950/20 p-4 rounded-xl border border-orange-100 dark:border-orange-900/50 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold text-orange-700 dark:text-orange-400 flex items-center gap-2">
+                                <Globe className="h-4 w-4" />
+                                Foreign Currency
+                            </span>
+                            <div className="flex items-center space-x-2">
+                                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Input Mode</span>
+                                <Switch
+                                    checked={foreignInputMode === 'vnd_unknown'}
+                                    onCheckedChange={(checked) => setForeignInputMode(checked ? 'vnd_unknown' : 'vnd_known')}
+                                />
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label htmlFor="foreignCurrencyAmount">Foreign Amount</label>
-                                <Input id="foreignCurrencyAmount" type="text" inputMode="decimal" value={foreignCurrencyAmount} onChange={(e) => handleFormattedNumericInput(e.target.value, setForeignCurrencyAmount, true)} placeholder="e.g., 100.00" />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Amount</label>
+                                <Input
+                                    inputMode="decimal"
+                                    value={foreignCurrencyAmount}
+                                    onChange={(e) => handleFormattedNumericInput(e.target.value, setForeignCurrencyAmount, true)}
+                                    className="bg-white dark:bg-slate-900"
+                                />
                             </div>
-                            <div className="space-y-2">
-                                <label htmlFor="foreignCurrency">Foreign Currency</label>
+                            <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Currency</label>
                                 <Select value={foreignCurrency} onValueChange={setForeignCurrency}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select currency" />
+                                    <SelectTrigger className="bg-white dark:bg-slate-900">
+                                        <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'SGD'].map(curr => (
+                                        {['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'SGD', 'THB', 'KRW'].map(curr => (
                                             <SelectItem key={curr} value={curr}>{curr}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label htmlFor="conversionRate">Exchange Rate</label>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Ex. Rate</label>
                                 <Input 
-                                    id="conversionRate" 
-                                    type="text" 
                                     inputMode="decimal" 
                                     value={conversionRate} 
                                     onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionRate, true)} 
-                                    placeholder={foreignInputMode === 'vnd_known' ? 'Auto-calculated' : 'e.g., 23000'}
                                     readOnly={foreignInputMode === 'vnd_known'}
-                                    className={foreignInputMode === 'vnd_known' ? 'bg-muted/50 focus-visible:ring-offset-0 focus-visible:ring-0' : ''}
+                                    className={cn("bg-white dark:bg-slate-900", foreignInputMode === 'vnd_known' && "bg-muted text-muted-foreground")}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label htmlFor="conversionFee">Conversion Fee (VND)</label>
-                                <Input id="conversionFee" type="text" inputMode="numeric" value={conversionFee} onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionFee)} />
-                                {selectedCard && selectedCard.foreignFee > 0 && (
-                                    <p className="text-xs text-muted-foreground pt-1">Foreign Fee: {(selectedCard.foreignFee * 100).toFixed(1)}%</p>
-                                )}
+                             <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Fee (VND)</label>
+                                <Input
+                                    value={conversionFee}
+                                    onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionFee)}
+                                    className="bg-white dark:bg-slate-900"
+                                />
                             </div>
                         </div>
                     </div>
                 )}
 
+
+                {/* --- 5. SMART CARD RECOMMENDATIONS --- */}
                 <CardRecommendations
                     recommendations={rankedCards}
                     onSelectCard={handleCardSelect}
@@ -576,202 +654,126 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                     selectedCardId={cardId}
                 />
 
-                <div className="space-y-4 border-t pt-6">
-                    <div className="space-y-2">
-                        <label htmlFor="card">Card</label>
-                        <Select value={cardId} onValueChange={(value) => { handleCardSelect(value); localStorage.setItem('lastUsedCardId', value); }} required>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a card..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(card => (
-                                    <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                {/* --- 6. MANUAL OVERRIDES (Collapsible) --- */}
+                 <Accordion type="single" collapsible className="w-full border rounded-lg bg-card">
+                    <AccordionItem value="card-override" className="border-none">
+                        <AccordionTrigger className="px-4 py-3 text-sm font-medium text-muted-foreground hover:no-underline hover:bg-muted/50 rounded-lg">
+                            <div className="flex items-center gap-2">
+                                <CreditCard className="h-4 w-4" />
+                                Manual Card Selection
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pb-4 space-y-4 pt-2">
+                             <div className="space-y-2">
+                                <label htmlFor="card" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Card</label>
+                                <Select value={cardId} onValueChange={(value) => { handleCardSelect(value); localStorage.setItem('lastUsedCardId', value); }}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a card..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(card => (
+                                            <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
-                    <div className="space-y-2">
-                        <label htmlFor="rule">Applicable Cashback Rule</label>
-                        <div className="flex items-center gap-2">
-                        <Select value={applicableRuleId} onValueChange={(val) => val && setApplicableRuleId(val)} disabled={filteredRules.length === 0}>
-                            <SelectTrigger>
-                                <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules for this card' : 'None'} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {filteredRules.map(rule => (
-                                    <SelectItem key={rule.id} value={rule.id} disabled={rule.status === 'Inactive'}>
-                                        {/* WRAPPER DIV: Forces row layout for everything inside ItemText */}
-                                        <div className="flex w-full items-center gap-2">
-                                            {/* Name: Takes available space */}
-                                            <span className="truncate flex-1 text-left">
-                                                {rule.ruleName} {rule.status === 'Inactive' && '(Inactive)'}
-                                            </span>
-                                            
-                                            {/* Badges: Stays on the same line, doesn't shrink */}
-                                            <div className="flex shrink-0 items-center gap-2">
-                                                <Badge variant="outline" className="text-emerald-600">
-                                                    {(rule.rate * 100).toFixed(1)}%
-                                                </Badge>
-                                                <Badge variant="secondary">
-                                                    {currencyFn(rule.categoryLimit)}
-                                                </Badge>
-                                            </div>
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button type="button" variant="ghost" size="icon" disabled={!selectedRule}>
-                                    <Info className="h-4 w-4" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent>
-                                {selectedRule && (
-                                    <div className="space-y-2 text-sm">
-                                        <p className="font-bold">{selectedRule.ruleName}</p>
-                                        <p><strong>Rate:</strong> {(selectedRule.rate * 100).toFixed(1)}% {selectedRule.tier2Rate ? `(Tier 2: ${(selectedRule.tier2Rate * 100).toFixed(1)}%)` : ''}</p>
-                                        <p><strong>Category Cap:</strong> {currencyFn(selectedRule.categoryLimit)}</p>
-                                        {selectedRule.transactionLimit > 0 && <p><strong>Transaction Cap:</strong> {currencyFn(selectedRule.transactionLimit)}</p>}
-                                    </div>
-                                )}
-                            </PopoverContent>
-                        </Popover>
-                        </div>
-                        {selectedRule && (
-                            <div className="flex items-center gap-2 pt-2">
-                                <Badge variant="secondary">Rate: {(selectedRule.rate * 100).toFixed(1)}%</Badge>
-                                {selectedRule.tier2Rate && <Badge variant="outline">Tier 2: {(selectedRule.tier2Rate * 100).toFixed(1)}%</Badge>}
-                                {estimatedCashbackAndWarnings.cashback > 0 && (
-                                    <Badge variant="outline" className="text-emerald-600">
-                                        Est: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedCashbackAndWarnings.cashback)}
-                                    </Badge>
-                                )}
-                                {estimatedCashbackAndWarnings.warnings.length > 0 && (
-                                    <Popover>
+                            <div className="space-y-2">
+                                <label htmlFor="rule" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rule</label>
+                                <div className="flex items-center gap-2">
+                                    <Select value={applicableRuleId} onValueChange={(val) => val && setApplicableRuleId(val)} disabled={filteredRules.length === 0}>
+                                        <SelectTrigger className="flex-1">
+                                            <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules' : 'Select rule...'} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {filteredRules.map(rule => (
+                                                <SelectItem key={rule.id} value={rule.id} disabled={rule.status === 'Inactive'}>
+                                                    <div className="flex w-full items-center justify-between gap-4">
+                                                        <span>{rule.ruleName}</span>
+                                                        <Badge variant="secondary" className="ml-auto text-xs">{(rule.rate * 100).toFixed(1)}%</Badge>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                     <Popover>
                                         <PopoverTrigger asChild>
-                                            <button type="button" className="focus:outline-none">
-                                                <AlertTriangle className="h-4 w-4 text-orange-500" />
-                                            </button>
+                                            <Button type="button" variant="ghost" size="icon" disabled={!selectedRule}>
+                                                <Info className="h-4 w-4" />
+                                            </Button>
                                         </PopoverTrigger>
-                                        <PopoverContent>
-                                            <div className="space-y-2 text-sm">
-                                                <p className="font-bold text-orange-600">Warnings</p>
-                                                <ul className="list-disc pl-4 space-y-1">
-                                                    {estimatedCashbackAndWarnings.warnings.map((warning, i) => (
-                                                        <li key={i}>{warning}</li>
-                                                    ))}
-                                                </ul>
-                                            </div>
+                                        <PopoverContent className="w-80">
+                                            {selectedRule && (
+                                                <div className="space-y-2 text-sm">
+                                                    <h4 className="font-bold border-b pb-1 mb-2">{selectedRule.ruleName}</h4>
+                                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                                        <div className="text-muted-foreground">Rate:</div>
+                                                        <div className="font-medium text-right">{(selectedRule.rate * 100).toFixed(1)}%</div>
+                                                        <div className="text-muted-foreground">Monthly Cap:</div>
+                                                        <div className="font-medium text-right">{currencyFn(selectedRule.categoryLimit)}</div>
+                                                        <div className="text-muted-foreground">Transaction Cap:</div>
+                                                        <div className="font-medium text-right">{selectedRule.transactionLimit > 0 ? currencyFn(selectedRule.transactionLimit) : 'None'}</div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </PopoverContent>
                                     </Popover>
-                                )}
+                                </div>
                             </div>
-                        )}
-                    </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                 </Accordion>
 
-                    <div className="space-y-2">
-                        {discounts.map((discount, index) => (
-                            <div key={`d-${index}`} className="flex items-center gap-2">
-                                <Input placeholder="Discount Description" value={discount.description} onChange={(e) => {
-                                    const newDiscounts = [...discounts];
-                                    newDiscounts[index].description = e.target.value;
-                                    setDiscounts(newDiscounts);
-                                }} />
-                                <Input placeholder="Amount" value={discount.amount} onChange={(e) => {
-                                    const newDiscounts = [...discounts];
-                                    handleFormattedNumericInput(e.target.value, (val) => {
-                                        newDiscounts[index].amount = val;
-                                        setDiscounts(newDiscounts);
-                                    });
-                                }} />
-                                <Button type="button" variant="ghost" size="icon" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))}>
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                        {fees.map((fee, index) => (
-                            <div key={`f-${index}`} className="flex items-center gap-2">
-                                <Input placeholder="Fee Description" value={fee.description} onChange={(e) => {
-                                    const newFees = [...fees];
-                                    newFees[index].description = e.target.value;
-                                    setFees(newFees);
-                                }} />
-                                <Input placeholder="Amount" value={fee.amount} onChange={(e) => {
-                                    const newFees = [...fees];
-                                    handleFormattedNumericInput(e.target.value, (val) => {
-                                        newFees[index].amount = val;
-                                        setFees(newFees);
-                                    });
-                                }} />
-                                <Button type="button" variant="ghost" size="icon" onClick={() => setFees(fees.filter((_, i) => i !== index))}>
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                        <div className="flex items-center gap-2 pt-2">
-                            <Button type="button" variant="outline" size="sm" onClick={() => setDiscounts([...discounts, { description: '', amount: '' }])}>Add Discount</Button>
-                            <Button type="button" variant="outline" size="sm" onClick={() => setFees([...fees, { description: '', amount: '' }])}>Add Fee</Button>
-                        </div>
-                    </div>
 
-                    <div className="space-y-2">
-                        <label>Final Amount</label>
-                        <div className="text-xl font-bold p-4 rounded-lg bg-muted">
-                            {currencyFn(parseFloat(String(amount || '0').replace(/,/g, '')) - discounts.reduce((acc, d) => acc + parseFloat(String(d.amount || '0').replace(/,/g, '')), 0) + fees.reduce((acc, f) => acc + parseFloat(String(f.amount || '0').replace(/,/g, '')), 0) + parseFloat(String(conversionFee || '0').replace(/,/g, '')))}
-                        </div>
-                    </div>
-                </div>
-
+                {/* --- 7. ADDITIONAL DETAILS (Collapsible) --- */}
                 <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="more-details">
-                        <AccordionTrigger className="text-sm font-semibold">More Details</AccordionTrigger>
-                        <AccordionContent className="pt-4 space-y-4 px-1">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <AccordionItem value="more-details" className="border-none">
+                         <AccordionTrigger className="py-2 text-sm text-muted-foreground hover:no-underline">
+                            More Details (Sub-category, Paid For, Notes)
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-2 space-y-4">
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label htmlFor="category">Internal Category</label>
-                                    <Combobox
-                                        options={categories.map(c => ({ value: c, label: c }))}
-                                        value={category}
-                                        onChange={setCategory}
-                                        placeholder="Select a category"
-                                        searchPlaceholder="Search categories..."
+                                    <label htmlFor="merchantLookup">Merchant Name (Clean)</label>
+                                    <Input
+                                        id="merchantLookup"
+                                        value={merchantLookup}
+                                        onChange={(e) => setMerchantLookup(e.target.value)}
+                                        placeholder="Optional override"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <TagsInputField
-                                        name="subCategory"
-                                        label="Sub Category"
-                                        placeholder="Enter sub-categories"
-                                    />
+                                    <label htmlFor="mcc">MCC Code</label>
+                                    <div className="relative">
+                                        <Input
+                                            id="mcc"
+                                            value={mccCode}
+                                            onChange={(e) => setMccCode(e.target.value)}
+                                            placeholder="e.g. 5411"
+                                            type="number"
+                                        />
+                                        {mccName && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground bg-background px-1">{mccName}</span>}
+                                    </div>
                                 </div>
                             </div>
 
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <TagsInputField
+                                        name="subCategory"
+                                        label="Sub Category"
+                                        placeholder="Add tags..."
+                                    />
+                                </div>
                                 <div className="space-y-2">
                                     <label htmlFor="paidFor">Paid For</label>
                                     <Combobox
                                         options={['Personal', 'Family', 'Work'].map(c => ({ value: c, label: c }))}
                                         value={paidFor}
                                         onChange={setPaidFor}
-                                        placeholder="Select who this was for"
+                                        placeholder="Who is this for?"
                                         searchPlaceholder="Search..."
                                     />
-                                </div>
-                                <div className="space-y-2">
-                                    <label htmlFor="billingDate">Billing Date</label>
-                                    <div className="relative flex items-center">
-                                        <CalendarClock className="absolute left-3 z-10 h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                            id="billingDate"
-                                            type="date"
-                                            className="w-full pl-10"
-                                            value={billingDate}
-                                            onChange={(e) => setBillingDate(e.target.value)}
-                                        />
-                                    </div>
                                 </div>
                             </div>
 
@@ -782,15 +784,63 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
                                     className="min-h-[80px]"
-                                    placeholder="Add any relevant notes here..."
+                                    placeholder="Add details..."
                                 />
+                            </div>
+
+                            {/* Discounts & Fees */}
+                             <div className="space-y-2 pt-2 border-t">
+                                <label className="text-sm font-medium">Adjustments</label>
+                                {discounts.map((discount, index) => (
+                                    <div key={`d-${index}`} className="flex items-center gap-2">
+                                        <Input placeholder="Discount Desc" className="text-xs" value={discount.description} onChange={(e) => {
+                                            const newDiscounts = [...discounts];
+                                            newDiscounts[index].description = e.target.value;
+                                            setDiscounts(newDiscounts);
+                                        }} />
+                                        <Input placeholder="Amount" className="text-xs w-24" value={discount.amount} onChange={(e) => {
+                                            const newDiscounts = [...discounts];
+                                            handleFormattedNumericInput(e.target.value, (val) => {
+                                                newDiscounts[index].amount = val;
+                                                setDiscounts(newDiscounts);
+                                            });
+                                        }} />
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))}>
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {fees.map((fee, index) => (
+                                    <div key={`f-${index}`} className="flex items-center gap-2">
+                                        <Input placeholder="Fee Desc" className="text-xs" value={fee.description} onChange={(e) => {
+                                            const newFees = [...fees];
+                                            newFees[index].description = e.target.value;
+                                            setFees(newFees);
+                                        }} />
+                                        <Input placeholder="Amount" className="text-xs w-24" value={fee.amount} onChange={(e) => {
+                                            const newFees = [...fees];
+                                            handleFormattedNumericInput(e.target.value, (val) => {
+                                                newFees[index].amount = val;
+                                                setFees(newFees);
+                                            });
+                                        }} />
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => setFees(fees.filter((_, i) => i !== index))}>
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                <div className="flex gap-2">
+                                    <Button type="button" variant="outline" size="sm" className="text-xs h-7" onClick={() => setDiscounts([...discounts, { description: '', amount: '' }])}>+ Discount</Button>
+                                    <Button type="button" variant="outline" size="sm" className="text-xs h-7" onClick={() => setFees([...fees, { description: '', amount: '' }])}>+ Fee</Button>
+                                </div>
                             </div>
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>
                 
-                <div className="pt-2">
-                    <Button type="submit" disabled={isSubmitting} size="lg" className="w-full">
+                {/* --- 8. SUBMIT --- */}
+                <div className="sticky bottom-0 bg-background/95 backdrop-blur pt-4 pb-4 border-t mt-8">
+                     <Button type="submit" disabled={isSubmitting} size="lg" className="w-full text-lg h-12 shadow-lg">
                         {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : (initialData ? "Update Transaction" : "Add Transaction")}
                     </Button>
                 </div>

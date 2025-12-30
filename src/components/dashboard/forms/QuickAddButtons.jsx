@@ -9,14 +9,14 @@ export default function QuickAddButtons({ vendors, onSelect }) {
     return (
         <div className="mb-4 space-y-2">
             <label className="text-sm font-medium">Quick Add</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-nowrap overflow-x-auto gap-2 pb-2 -mx-4 px-4 scrollbar-hide">
                 {vendors.map(vendor => (
                     <Button
                         key={vendor.id}
                         variant="outline"
                         size="sm"
                         onClick={() => onSelect(vendor)}
-                        className="h-8"
+                        className="h-8 flex-shrink-0"
                     >
                         {vendor.name}
                     </Button>
@@ -24,5 +24,4 @@ export default function QuickAddButtons({ vendors, onSelect }) {
             </div>
         </div>
     );
-
 }
