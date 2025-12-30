@@ -1,24 +1,14 @@
 import React from 'react';
-import { AlertTriangle, Wallet, Snowflake, Trophy, Star } from 'lucide-react';
+import { Wallet, Snowflake, Trophy, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
 
 // Helper to determine the color of the rate badge
 const getRateBadgeClass = (rate) => {
     if (rate >= 0.15) return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800';
     if (rate >= 0.10) return 'bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800';
     return 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700';
-};
-
-// Helper to get specific warning text
-const getWarningText = (item) => {
-    if (item.rule.status === 'Inactive') return "Rule is inactive";
-    if (!item.isMinSpendMet) return "Minimum spend not met";
-    if (item.isCategoryCapReached) return "Category cap reached";
-    if (item.isMonthlyCapReached) return "Monthly cap reached";
-    return "A limit has been reached"; // Fallback
 };
 
 // --- WINNER CARD COMPONENT ---
@@ -83,7 +73,7 @@ const WinnerCard = ({ item, onSelectCard, selectedCardId, currencyFn }) => {
 
 // Sub-component for rendering other recommendation items
 const RecommendationItem = ({ item, rank, onSelectCard, selectedCardId, currencyFn }) => {
-    const { card, rule, calculatedCashback, remainingCategoryCashback } = item;
+    const { card, rule, calculatedCashback } = item;
     const isSelected = card.id === selectedCardId;
 
     const isFrozen = item.rule.status === 'Inactive';
