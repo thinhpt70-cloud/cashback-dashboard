@@ -362,7 +362,7 @@ const searchExternalMcc = async (keyword) => {
             return (data.results || []).map(result => ({
                 merchant: result[1], // Merchant name
                 mcc: result[2],      // MCC code
-                method: result[4]
+                method: result[3]
             }));
         }
         return [];
@@ -1391,6 +1391,7 @@ app.get('/api/lookup-merchant', async (req, res) => {
             bestMatch = {
                 mcc: validHistory['MCC Code'],
                 merchant: validHistory['merchantLookup'],
+                method: validHistory['Method'],
                 source: 'history'
             };
         } 
@@ -1399,6 +1400,7 @@ app.get('/api/lookup-merchant', async (req, res) => {
             bestMatch = {
                 mcc: externalResults[0].mcc,
                 merchant: externalResults[0].merchant,
+                method: externalResults[0].method,
                 source: 'external'
             };
         }
@@ -1430,7 +1432,7 @@ app.get('/api/lookup-merchant', async (req, res) => {
             if (tx['merchantLookup'] && tx['MCC Code']) {
                 const key = `${tx['merchantLookup']}|${tx['MCC Code']}`;
                 if (!uniqueHistory.has(key)) {
-                    uniqueHistory.set(key, { merchant: tx['merchantLookup'], mcc: tx['MCC Code'] });
+                    uniqueHistory.set(key, { merchant: tx['merchantLookup'], mcc: tx['MCC Code'], method: tx['Method'] });
                 }
             }
         });
