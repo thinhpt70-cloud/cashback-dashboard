@@ -32,7 +32,8 @@ import {
   Store,
   ChevronDown,
   ChevronUp,
-  CreditCard
+  CreditCard,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -40,6 +41,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 function MethodSelector({ method, setMethod }) {
     const methods = [
+        { id: 'All', label: 'All', icon: Layers },
         { id: 'POS', label: 'In-Store', icon: Store },
         { id: 'eCom', label: 'Online', icon: Globe },
         { id: 'International', label: 'Intl', icon: PlaneIcon },
@@ -66,6 +68,30 @@ function MethodSelector({ method, setMethod }) {
                     </button>
                 );
             })}
+        </div>
+    );
+}
+
+function QuickAmounts({ onSelect }) {
+    const amounts = [
+        { label: '100k', value: '100,000' },
+        { label: '200k', value: '200,000' },
+        { label: '500k', value: '500,000' },
+        { label: '1m', value: '1,000,000' },
+    ];
+
+    return (
+        <div className="flex gap-2 mt-2 overflow-x-auto pb-1 no-scrollbar">
+            {amounts.map((amt) => (
+                <button
+                    key={amt.label}
+                    type="button"
+                    onClick={() => onSelect(amt.value)}
+                    className="flex-shrink-0 px-2.5 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-md transition-colors border border-transparent hover:border-slate-300 dark:hover:border-slate-600"
+                >
+                    {amt.label}
+                </button>
+            ))}
         </div>
     );
 }
@@ -266,7 +292,15 @@ function FinderOptionItem({ item, mccMap, onSelect, icon }) {
                 <div className="flex-1 min-w-0 space-y-0.5">
                     <div className="flex justify-between items-center">
                         <p className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{item.merchant}</p>
-                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono text-slate-500">{item.mcc}</Badge>
+                        <div className="flex items-center gap-2">
+                            {/* Display Method Badge if available */}
+                            {item.method && (
+                                <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                    {item.method}
+                                </Badge>
+                            )}
+                            <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono text-slate-500">{item.mcc}</Badge>
+                        </div>
                     </div>
                     {mccInfo ? (
                         <div className="text-xs text-muted-foreground">
@@ -296,7 +330,7 @@ function CardFinderContent({
     // --- STATE ---
     const [searchTerm, setSearchTerm] = useState('');
     const [amount, setAmount] = useState('');
-    const [method, setMethod] = useState('POS');
+    const [method, setMethod] = useState('All');
     const [view, setView] = useState('initial'); // 'initial', 'options', 'results'
     const [isLoading, setIsLoading] = useState(false);
     const [searchResult, setSearchResult] = useState(null);
@@ -398,7 +432,14 @@ function CardFinderContent({
                 const ruleMethodsRaw = Array.isArray(rule.method) ? rule.method : (rule.method ? [rule.method] : []);
                 const ruleMethods = ruleMethodsRaw.map(m => m.toLowerCase());
                 const currentMethod = method.toLowerCase();
-                const isMethodValid = ruleMethods.length === 0 || ruleMethods.includes('all') || ruleMethods.includes(currentMethod);
+
+                // NEW: Allow "All" to match everything
+                const isMethodValid =
+                    currentMethod === 'all' ||
+                    ruleMethods.length === 0 ||
+                    ruleMethods.includes('all') ||
+                    ruleMethods.includes(currentMethod);
+
                 if (!isMethodValid) return false;
 
                 // 2. MCC Match
@@ -497,7 +538,7 @@ function CardFinderContent({
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
             {/* --- TOP: QUERY BAR --- */}
             <div className="p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-10 sticky top-0">
-                <form onSubmit={handleSearch} className="space-y-3">
+                <form onSubmit={handleSearch} className="space-y-4">
                     <div className="relative">
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                         <Input
@@ -519,19 +560,18 @@ function CardFinderContent({
                         )}
                     </div>
 
-                    <div className="flex gap-2">
-                        <div className="w-1/2">
+                    <div className="space-y-2">
+                        <div>
                             <Input
-                                placeholder="Amount (Opt)"
+                                placeholder="Amount (Optional)"
                                 value={amount}
                                 onChange={handleAmountChange}
                                 inputMode="numeric"
                                 className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
                             />
+                            <QuickAmounts onSelect={setAmount} />
                         </div>
-                        <div className="w-1/2">
-                            <MethodSelector method={method} setMethod={setMethod} />
-                        </div>
+                        <MethodSelector method={method} setMethod={setMethod} />
                     </div>
 
                     <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold" disabled={isLoading || !searchTerm.trim()}>
