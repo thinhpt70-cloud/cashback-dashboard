@@ -3,7 +3,7 @@ import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
 import MethodIndicator from "./MethodIndicator";
 
-const MobileTransactionItem = ({
+const MobileTransactionItem = React.memo(({
     transaction,
     isSelected,
     onSelect,
@@ -75,6 +75,6 @@ const MobileTransactionItem = ({
             </div>
         </div>
     );
-};
+});
 
 export default MobileTransactionItem;
