@@ -7,8 +7,7 @@ export default function ResultItem({ result, onSelect, isHistory }) {
     const merchantName = result[1];
     const mcc = result[2];
     const vietnameseCategory = result[4];
-    // English category only exists for history items
-    const englishCategory = isHistory ? result[3] : null;
+    const englishCategory = result[3];
 
     return (
         <div
