@@ -272,24 +272,32 @@ export default function TransactionsList({
     const enrichedTransactions = useMemo(() => {
         return transactions.map(tx => ({
             ...tx,
-            rate: (tx['Amount'] && tx['Amount'] > 0) ? (tx.estCashback / tx['Amount']) : 0
+            rate: (tx['Amount'] && tx['Amount'] > 0) ? (tx.estCashback / tx['Amount']) : 0,
+            // ⚡ Bolt Optimization: Pre-calculate lowercased search strings to avoid repeated ops in filter loop
+            _searchName: (tx['Transaction Name'] || '').toLowerCase(),
+            _searchMerchant: (tx.merchantLookup || '').toLowerCase(),
+            _searchAmount: String(tx['Amount'] ?? ''),
+            _searchDate: tx['Transaction Date'] || '',
+            _searchMcc: String(tx['MCC Code'] ?? '')
         }));
     }, [transactions]);
 
     const filteredData = useMemo(() => {
         let items = enrichedTransactions;
 
-        items = items.filter(tx => {
-            if (!searchTerm) return true;
+        // ⚡ Bolt Optimization: Hoist toLowerCase out of loop and use pre-calculated fields
+        if (searchTerm) {
             const lowerCaseSearch = searchTerm.toLowerCase();
-            return (
-                tx['Transaction Name']?.toLowerCase().includes(lowerCaseSearch) ||
-                tx['merchantLookup']?.toLowerCase().includes(lowerCaseSearch) ||
-                String(tx['Amount']).includes(lowerCaseSearch) ||
-                tx['Transaction Date']?.includes(lowerCaseSearch) ||
-                String(tx['MCC Code']).includes(lowerCaseSearch)
+            items = items.filter(tx =>
+                tx._searchName.includes(lowerCaseSearch) ||
+                tx._searchMerchant.includes(lowerCaseSearch) ||
+                tx._searchAmount.includes(lowerCaseSearch) ||
+                tx._searchDate.includes(lowerCaseSearch) ||
+                tx._searchMcc.includes(lowerCaseSearch)
             );
-        })
+        }
+
+        items = items
         .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
         .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter)
         .filter(tx => methodFilter === "all" || tx['Method'] === methodFilter);

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 import { cn } from '@/lib/utils'; // Import cn utility
 
 // --- ADDED: Date calculation utilities ---
@@ -195,7 +196,7 @@ function SuggestionDetails({ suggestion, currencyFn }) {
 
 
 // --- REFACTORED MAIN COMPONENT ---
-export default function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard }) {
+export default function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard, isLoading }) { // NEW PROP
     
     // --- UPDATED: Core logic hook ---
     const suggestions = useMemo(() => {
@@ -323,150 +324,176 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
             </CardHeader>
             
             <CardContent className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-                {/* Scenario 1: No suggestions */}
-                {suggestions.length === 0 && (
-                    <div className="flex flex-col items-center justify-center text-center p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/50 h-full min-h-[200px]">
-                        <Sparkles className="h-8 w-8 text-emerald-500 mb-2" />
-                        <p className="font-semibold text-emerald-800 dark:text-emerald-300">All Qualified Tiers Maxed Out!</p>
-                        <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">No high-tier opportunities are available on cards that have met their minimum spend.</p>
-                    </div>
-                )}
-
-                {/* Scenarios 2 & 3: At least one suggestion exists */}
-                {suggestions.length > 0 && (
-                    // --- MODIFIED: Removed min-h-0 to allow full scrolling ---
-                    <div className="space-y-3 flex flex-col flex-1">
-                        
-                        {/* --- MODIFIED: Top Pick is now an Accordion --- */}
-                        <Accordion type="single" collapsible className="w-full">
-                            <AccordionItem 
-                                value="top-pick"
-                                className="border-2 border-sky-500 bg-sky-50 dark:bg-sky-900/40 dark:border-sky-700 shadow-md rounded-lg overflow-hidden"
-                            >
-                                <AccordionTrigger className="p-4 hover:no-underline hover:bg-sky-100/50 dark:hover:bg-sky-900/60 data-[state=open]:border-b border-sky-200 dark:border-sky-800 items-start">
-                                    <div className="w-full space-y-3">
-                                        {/* Header: Top Pick Badge + Card Name */}
-                                        <div className="flex items-center justify-between gap-2">
-                                            <Badge variant="default" className="bg-sky-600 dark:bg-sky-600 w-fit">
-                                                <Award className="h-4 w-4 mr-1.5" />
-                                                TOP PICK
-                                            </Badge>
-                                            <span className="text-sm font-medium text-slate-600 dark:text-slate-400 truncate" title={topSuggestion.cardName}>{topSuggestion.cardName}</span>
-                                        </div>
-
-                                        {/* Body: Split into two columns */}
-                                         <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-                                            {/* Left Column: Info */}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-1.5">
-                                                    {!topSuggestion.hasMetMinSpend && (
-                                                        <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0" />
-                                                    )}
-                                                    {topSuggestion.hasBetterChallenger && (
-                                                        <ArrowUpCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
-                                                    )}
-                                                     <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 break-words" title={topSuggestion.suggestionFor}>
-                                                        {topSuggestion.suggestionFor}
-                                                    </h3>
-                                                </div>
-                                                <div className="mt-1.5 flex gap-2 items-center">
-                                                    {/* Badge only shows for special cases */}
-                                                    {(topSuggestion.isBoosted || topSuggestion.hasTier2) && (
-                                                        <RateStatusBadge suggestion={topSuggestion} />
-                                                    )}
-                                                </div>
-                                            </div>
-                                            {/* Right Column: Rate */}
-                                            <div className="flex-shrink-0 sm:text-right">
-                                                <p className="text-4xl font-bold text-sky-700 dark:text-sky-400">
-                                                    {(topSuggestion.rate * 100).toFixed(1)}%
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {/* Footer: Stats */}
-                                        <div className="pt-3 border-t border-sky-200 dark:border-sky-800 text-xs text-slate-600 dark:text-slate-400 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-x-4 gap-y-1">
-                                            <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700 dark:text-emerald-400">{topSuggestion.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(topSuggestion.remainingCategoryCap)}</span><span>left</span></span>
-                                            <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800 dark:text-slate-200">{topSuggestion.spendingNeeded === Infinity ? 'N/A' : currencyFn(topSuggestion.spendingNeeded)}</span></span>
-                                        </div>
-                                    </div>
-                                </AccordionTrigger>
-                                <AccordionContent className="p-4 pt-3 bg-white dark:bg-slate-900 max-h-[400px] overflow-y-auto">
-                                    <SuggestionDetails 
-                                        suggestion={topSuggestion}
-                                        currencyFn={currencyFn}
-                                    />
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Accordion>
-                        
-
-                        {/* Scenario 3: More than one suggestion */}
-                        {otherSuggestions.length > 0 && (
-                            <div className="flex flex-col flex-1">
-                                <div className="flex items-center gap-3 my-3">
-                                    <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">Other Suggestions</h4>
-                                    <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
-                                </div>
-                                
-                                <Accordion type="single" collapsible className="flex-1 space-y-2">
-                                    {otherSuggestions.map((s, index) => {
-                                        return (
-                                            <AccordionItem 
-                                                key={`${s.id}-${s.suggestionFor}`} 
-                                                value={s.suggestionFor}
-                                                className="rounded-lg border bg-card shadow-sm overflow-hidden" // Item is styled as a card
-                                            >
-                                                <AccordionTrigger className="p-3 hover:no-underline hover:bg-slate-50 dark:hover:bg-slate-800/60 w-full text-left data-[state=open]:border-b border-slate-200 dark:border-slate-700 items-start">
-                                                    <div className="w-full space-y-2">
-                                                        {/* --- MODIFIED: Main Info Row --- */}
-                                                        <div className="flex justify-between items-center gap-3">
-                                                            {/* Left side: Rank, Icons, Category, Badge */}
-                                                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                                <span className="text-sm font-semibold text-sky-600 dark:text-sky-400">#{index + 2}</span>
-                                                                {!s.hasMetMinSpend && (
-                                                                    <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
-                                                                )}
-                                                                {s.hasBetterChallenger && (
-                                                                    <ArrowUpCircle className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                                                                )}
-                                                                <p className="font-medium text-slate-800 dark:text-slate-200 truncate" title={s.suggestionFor}>{s.suggestionFor}</p>
-                                                                {/* --- MODIFIED: Badge is here, and conditional --- */}
-                                                                {(s.isBoosted || s.hasTier2) && (
-                                                                    <RateStatusBadge suggestion={s} />
-                                                                )}
-                                                            </div>
-                                                            {/* Right side: Card Name, Rate */}
-                                                            <div className="flex items-center gap-2 flex-shrink-0">
-                                                                <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">{s.cardName}</span>
-                                                                <Badge variant="outline" className="text-base font-bold text-sky-700 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/50 border-sky-200 dark:border-sky-800">
-                                                                    {(s.rate * 100).toFixed(1)}%
-                                                                </Badge>
-                                                            </div>
-                                                        </div>
-                                                        <span className="text-xs text-slate-500 dark:text-slate-400 sm:hidden ml-7 -mt-1 block">{s.cardName}</span>
-
-                                                        {/* --- MOVED: Stats Footer is now in the trigger --- */}
-                                                        <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
-                                                            <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700 dark:text-emerald-400">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
-                                                            <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800 dark:text-slate-200">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
-                                                        </div>
-                                                    </div>
-                                                </AccordionTrigger>
-                                                
-                                                <AccordionContent className="p-4 pt-3 bg-white dark:bg-slate-900 max-h-[400px] overflow-y-auto">
-                                                    <SuggestionDetails 
-                                                        suggestion={s}
-                                                        currencyFn={currencyFn}
-                                                    />
-                                                </AccordionContent>
-                                            </AccordionItem>
-                                        )
-                                    })}
-                                </Accordion>
+                {/* SKELETON LOADING STATE */}
+                {isLoading ? (
+                    <div className="space-y-4">
+                        <div className="border border-sky-100 dark:border-sky-900 rounded-lg p-4 space-y-3">
+                            <div className="flex justify-between">
+                                <Skeleton className="h-6 w-24" />
+                                <Skeleton className="h-4 w-32" />
                             </div>
-                        )}
+                            <div className="flex gap-4">
+                                <div className="space-y-2 flex-1">
+                                    <Skeleton className="h-6 w-48" />
+                                    <Skeleton className="h-4 w-32" />
+                                </div>
+                                <Skeleton className="h-10 w-20" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                             {[1, 2, 3].map(i => (
+                                <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                             ))}
+                        </div>
                     </div>
+                ) : (
+                    <>
+                    {/* Scenario 1: No suggestions */}
+                    {suggestions.length === 0 && (
+                        <div className="flex flex-col items-center justify-center text-center p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/50 h-full min-h-[200px]">
+                            <Sparkles className="h-8 w-8 text-emerald-500 mb-2" />
+                            <p className="font-semibold text-emerald-800 dark:text-emerald-300">All Qualified Tiers Maxed Out!</p>
+                            <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">No high-tier opportunities are available on cards that have met their minimum spend.</p>
+                        </div>
+                    )}
+
+                    {/* Scenarios 2 & 3: At least one suggestion exists */}
+                    {suggestions.length > 0 && (
+                        // --- MODIFIED: Removed min-h-0 to allow full scrolling ---
+                        <div className="space-y-3 flex flex-col flex-1">
+
+                            {/* --- MODIFIED: Top Pick is now an Accordion --- */}
+                            <Accordion type="single" collapsible className="w-full">
+                                <AccordionItem
+                                    value="top-pick"
+                                    className="border-2 border-sky-500 bg-sky-50 dark:bg-sky-900/40 dark:border-sky-700 shadow-md rounded-lg overflow-hidden"
+                                >
+                                    <AccordionTrigger className="p-4 hover:no-underline hover:bg-sky-100/50 dark:hover:bg-sky-900/60 data-[state=open]:border-b border-sky-200 dark:border-sky-800 items-start">
+                                        <div className="w-full space-y-3">
+                                            {/* Header: Top Pick Badge + Card Name */}
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Badge variant="default" className="bg-sky-600 dark:bg-sky-600 w-fit">
+                                                    <Award className="h-4 w-4 mr-1.5" />
+                                                    TOP PICK
+                                                </Badge>
+                                                <span className="text-sm font-medium text-slate-600 dark:text-slate-400 truncate" title={topSuggestion.cardName}>{topSuggestion.cardName}</span>
+                                            </div>
+
+                                            {/* Body: Split into two columns */}
+                                            <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                                                {/* Left Column: Info */}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-1.5">
+                                                        {!topSuggestion.hasMetMinSpend && (
+                                                            <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                                                        )}
+                                                        {topSuggestion.hasBetterChallenger && (
+                                                            <ArrowUpCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                                                        )}
+                                                        <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 break-words" title={topSuggestion.suggestionFor}>
+                                                            {topSuggestion.suggestionFor}
+                                                        </h3>
+                                                    </div>
+                                                    <div className="mt-1.5 flex gap-2 items-center">
+                                                        {/* Badge only shows for special cases */}
+                                                        {(topSuggestion.isBoosted || topSuggestion.hasTier2) && (
+                                                            <RateStatusBadge suggestion={topSuggestion} />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {/* Right Column: Rate */}
+                                                <div className="flex-shrink-0 sm:text-right">
+                                                    <p className="text-4xl font-bold text-sky-700 dark:text-sky-400">
+                                                        {(topSuggestion.rate * 100).toFixed(1)}%
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Footer: Stats */}
+                                            <div className="pt-3 border-t border-sky-200 dark:border-sky-800 text-xs text-slate-600 dark:text-slate-400 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-x-4 gap-y-1">
+                                                <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700 dark:text-emerald-400">{topSuggestion.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(topSuggestion.remainingCategoryCap)}</span><span>left</span></span>
+                                                <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800 dark:text-slate-200">{topSuggestion.spendingNeeded === Infinity ? 'N/A' : currencyFn(topSuggestion.spendingNeeded)}</span></span>
+                                            </div>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="p-4 pt-3 bg-white dark:bg-slate-900 max-h-[400px] overflow-y-auto">
+                                        <SuggestionDetails
+                                            suggestion={topSuggestion}
+                                            currencyFn={currencyFn}
+                                        />
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Accordion>
+
+
+                            {/* Scenario 3: More than one suggestion */}
+                            {otherSuggestions.length > 0 && (
+                                <div className="flex flex-col flex-1">
+                                    <div className="flex items-center gap-3 my-3">
+                                        <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">Other Suggestions</h4>
+                                        <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                                    </div>
+
+                                    <Accordion type="single" collapsible className="flex-1 space-y-2">
+                                        {otherSuggestions.map((s, index) => {
+                                            return (
+                                                <AccordionItem
+                                                    key={`${s.id}-${s.suggestionFor}`}
+                                                    value={s.suggestionFor}
+                                                    className="rounded-lg border bg-card shadow-sm overflow-hidden" // Item is styled as a card
+                                                >
+                                                    <AccordionTrigger className="p-3 hover:no-underline hover:bg-slate-50 dark:hover:bg-slate-800/60 w-full text-left data-[state=open]:border-b border-slate-200 dark:border-slate-700 items-start">
+                                                        <div className="w-full space-y-2">
+                                                            {/* --- MODIFIED: Main Info Row --- */}
+                                                            <div className="flex justify-between items-center gap-3">
+                                                                {/* Left side: Rank, Icons, Category, Badge */}
+                                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                                    <span className="text-sm font-semibold text-sky-600 dark:text-sky-400">#{index + 2}</span>
+                                                                    {!s.hasMetMinSpend && (
+                                                                        <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                                                                    )}
+                                                                    {s.hasBetterChallenger && (
+                                                                        <ArrowUpCircle className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                                                                    )}
+                                                                    <p className="font-medium text-slate-800 dark:text-slate-200 truncate" title={s.suggestionFor}>{s.suggestionFor}</p>
+                                                                    {/* --- MODIFIED: Badge is here, and conditional --- */}
+                                                                    {(s.isBoosted || s.hasTier2) && (
+                                                                        <RateStatusBadge suggestion={s} />
+                                                                    )}
+                                                                </div>
+                                                                {/* Right side: Card Name, Rate */}
+                                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                                    <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">{s.cardName}</span>
+                                                                    <Badge variant="outline" className="text-base font-bold text-sky-700 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/50 border-sky-200 dark:border-sky-800">
+                                                                        {(s.rate * 100).toFixed(1)}%
+                                                                    </Badge>
+                                                                </div>
+                                                            </div>
+                                                            <span className="text-xs text-slate-500 dark:text-slate-400 sm:hidden ml-7 -mt-1 block">{s.cardName}</span>
+
+                                                            {/* --- MOVED: Stats Footer is now in the trigger --- */}
+                                                            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
+                                                                <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700 dark:text-emerald-400">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
+                                                                <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800 dark:text-slate-200">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
+                                                            </div>
+                                                        </div>
+                                                    </AccordionTrigger>
+
+                                                    <AccordionContent className="p-4 pt-3 bg-white dark:bg-slate-900 max-h-[400px] overflow-y-auto">
+                                                        <SuggestionDetails
+                                                            suggestion={s}
+                                                            currencyFn={currencyFn}
+                                                        />
+                                                    </AccordionContent>
+                                                </AccordionItem>
+                                            )
+                                        })}
+                                    </Accordion>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    </>
                 )}
             </CardContent>
         </Card>

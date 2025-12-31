@@ -2,8 +2,28 @@
 import React from 'react';
 import StatCard from "@/components/shared/StatCard";
 import { Wallet, DollarSign, TrendingUp } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export default function StatCards({ stats, currencyFn }) {
+export default function StatCards({ stats, currencyFn, isLoading }) {
+    if (isLoading) {
+        return (
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
+                         <div className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-4 w-4 rounded-full" />
+                        </div>
+                        <div className="pt-2">
+                             <Skeleton className="h-8 w-32 mb-2" />
+                             <Skeleton className="h-4 w-full" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
     if (!stats) {
         return (
             <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
