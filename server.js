@@ -35,46 +35,48 @@ const monthlyCategoryDbId = process.env.NOTION_MONTHLY_CATEGORY_DB_ID;
 const vendorsDbId = process.env.NOTION_VENDORS_DB_ID;
 
 // --- RATE LIMITING (In-Memory) ---
-const loginAttempts = new Map();
+const createRateLimiter = (windowMs, maxAttempts, message) => {
+    const attempts = new Map();
 
-const loginRateLimiter = (req, res, next) => {
-    // Use X-Forwarded-For if behind a proxy (like Netlify), otherwise req.ip
-    // Handle comma-separated X-Forwarded-For list
-    const xForwardedFor = req.headers['x-forwarded-for'];
-    const ip = xForwardedFor ? xForwardedFor.split(',')[0].trim() : (req.ip || req.connection.remoteAddress);
+    return (req, res, next) => {
+        // Use X-Forwarded-For if behind a proxy (like Netlify), otherwise req.ip
+        // Handle comma-separated X-Forwarded-For list
+        const xForwardedFor = req.headers['x-forwarded-for'];
+        const ip = xForwardedFor ? xForwardedFor.split(',')[0].trim() : (req.ip || req.connection.remoteAddress);
 
-    const windowMs = 15 * 60 * 1000; // 15 minutes
-    const maxAttempts = 5;
+        const current = attempts.get(ip) || { count: 0, windowStart: Date.now() };
 
-    const current = loginAttempts.get(ip) || { count: 0, windowStart: Date.now() };
+        // Reset window if expired
+        if (Date.now() - current.windowStart > windowMs) {
+            current.count = 0;
+            current.windowStart = Date.now();
+        }
 
-    // Reset window if expired
-    if (Date.now() - current.windowStart > windowMs) {
-        current.count = 0;
-        current.windowStart = Date.now();
-    }
+        if (current.count >= maxAttempts) {
+            return res.status(429).json({
+                success: false,
+                message: message
+            });
+        }
 
-    if (current.count >= maxAttempts) {
-        return res.status(429).json({
-            success: false,
-            message: 'Too many login attempts. Please try again later.'
-        });
-    }
+        // Increment count
+        current.count++;
+        attempts.set(ip, current);
 
-    // Increment count
-    current.count++;
-    loginAttempts.set(ip, current);
+        // Memory Cleanup: Delete entry after window expires to prevent memory leaks
+        // Only set timeout if it's a new entry or reset
+        if (current.count === 1) {
+            setTimeout(() => {
+                attempts.delete(ip);
+            }, windowMs);
+        }
 
-    // Memory Cleanup: Delete entry after window expires to prevent memory leaks
-    // Only set timeout if it's a new entry or reset
-    if (current.count === 1) {
-        setTimeout(() => {
-            loginAttempts.delete(ip);
-        }, windowMs);
-    }
-
-    next();
+        next();
+    };
 };
+
+const loginRateLimiter = createRateLimiter(15 * 60 * 1000, 5, 'Too many login attempts. Please try again later.');
+const lookupRateLimiter = createRateLimiter(60 * 1000, 30, 'Too many lookups. Please wait a moment.'); // 30 per min
 
 // NEW: Simple in-memory cache for transaction DB schema to avoid redundant fetches
 let transactionDbSchemaCache = {
@@ -1358,7 +1360,7 @@ app.get('/api/recent-transactions', async (req, res) => {
     }
 });
 
-app.get('/api/lookup-merchant', async (req, res) => {
+app.get('/api/lookup-merchant', lookupRateLimiter, async (req, res) => {
     const { keyword } = req.query;
     if (!keyword || keyword.trim().length < 2) {
         // Return a consistent structure for empty queries
