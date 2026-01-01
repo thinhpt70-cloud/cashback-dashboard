@@ -98,7 +98,7 @@ export default function CashbackDashboard() {
 
     const {
         cards, allCards, rules, monthlySummary, mccMap, monthlyCategorySummary,
-        recentTransactions, allCategories, commonVendors, reviewTransactions,
+        recentTransactions, allCategories, paidForOptions, subCategoryOptions, commonVendors, reviewTransactions,
         loading, error, refreshData, isShellReady, isDashboardLoading,
         setRecentTransactions, setReviewTransactions,
         cashbackRules, monthlyCashbackCategories, liveSummary,
@@ -825,6 +825,8 @@ export default function CashbackDashboard() {
                                     <AddTransactionForm
                                         cards={cards}
                                         categories={allCategories}
+                                        paidForOptions={paidForOptions}
+                                        subCategoryOptions={subCategoryOptions}
                                         rules={cashbackRules}
                                         monthlyCategories={monthlyCashbackCategories}
                                         mccMap={mccMap}
@@ -852,6 +854,8 @@ export default function CashbackDashboard() {
                                     <AddTransactionForm
                                         cards={cards}
                                         categories={allCategories}
+                                        paidForOptions={paidForOptions}
+                                        subCategoryOptions={subCategoryOptions}
                                         rules={cashbackRules}
                                         monthlyCategories={monthlyCashbackCategories}
                                         mccMap={mccMap}
@@ -872,54 +876,10 @@ export default function CashbackDashboard() {
 
                     {/* --- Mobile Controls (hidden on desktop) --- */}
                     <div className="flex items-center gap-2 md:hidden">
-                        {isDesktop ? (
-                             <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
-                                <SheetTrigger asChild>
-                                    <Button variant="default" size="icon" className="h-10 w-10">
-                                        <Plus className="h-4 w-4" />
-                                    </Button>
-                                </SheetTrigger>
-                                <SheetContent
-                                    side="right"
-                                    className="flex flex-col p-0 w-full sm:max-w-2xl"
-                                >
-                                    <SheetHeader className="px-6 pt-6">
-                                        <SheetTitle>Add a New Transaction</SheetTitle>
-                                    </SheetHeader>
-                                    <div className="flex-grow overflow-y-auto px-6 pb-6">
-                                        <AddTransactionForm
-                                            cards={cards}
-                                            categories={allCategories}
-                                            rules={cashbackRules}
-                                            monthlyCategories={monthlyCashbackCategories}
-                                            mccMap={mccMap}
-                                            onTransactionAdded={handleTransactionAdded}
-                                            commonVendors={commonVendors}
-                                            monthlySummary={monthlySummary}
-                                            monthlyCategorySummary={monthlyCategorySummary}
-                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                            needsSyncing={needsSyncing}
-                                            setNeedsSyncing={setNeedsSyncing}
-                                            prefillData={duplicateTransaction}
-                                        />
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
-                        ) : (
-                            <Drawer open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
-                                <DrawerTrigger asChild>
-                                    <Button variant="default" size="icon" className="h-10 w-10 rounded-full shadow-lg">
-                                        <Plus className="h-6 w-6" />
-                                    </Button>
-                                </DrawerTrigger>
-                                <DrawerContent className="h-[90vh]">
-                                    <DrawerHeader>
-                                        <DrawerTitle>Add Transaction</DrawerTitle>
-                                    </DrawerHeader>
-                                    <div className="px-4 pb-4 overflow-y-auto">
-                                        <AddTransactionForm
-                                            cards={cards}
-                                            categories={allCategories}
+                        {/* Mobile Edit Transaction Drawer (Hidden logic for Edit only) */}
+                        {editingTransaction && (
+                                            paidForOptions={paidForOptions}
+                                            subCategoryOptions={subCategoryOptions}
                                             rules={cashbackRules}
                                             monthlyCategories={monthlyCashbackCategories}
                                             mccMap={mccMap}
@@ -1192,6 +1152,48 @@ export default function CashbackDashboard() {
                 onRetry={handleRetrySync}
                 onRemove={handleRemoveFromSync}
             />
+
+            {/* --- MOBILE FLOATING ACTION BUTTON --- */}
+            {!isDesktop && (
+                <div className="fixed bottom-6 right-6 z-50">
+                     <Drawer open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
+                        <DrawerTrigger asChild>
+                            <Button
+                                variant="default"
+                                size="icon"
+                                className="h-14 w-14 rounded-full shadow-xl bg-primary text-primary-foreground hover:scale-105 transition-transform"
+                            >
+                                <Plus className="h-8 w-8" />
+                            </Button>
+                        </DrawerTrigger>
+                        <DrawerContent className="h-[90vh]">
+                            <DrawerHeader>
+                                <DrawerTitle>Add Transaction</DrawerTitle>
+                            </DrawerHeader>
+                            <div className="px-4 pb-4 overflow-y-auto">
+                                <AddTransactionForm
+                                    cards={cards}
+                                    categories={allCategories}
+                                    paidForOptions={paidForOptions}
+                                    subCategoryOptions={subCategoryOptions}
+                                    rules={cashbackRules}
+                                    monthlyCategories={monthlyCashbackCategories}
+                                    mccMap={mccMap}
+                                    onTransactionAdded={handleTransactionAdded}
+                                    commonVendors={commonVendors}
+                                    monthlySummary={monthlySummary}
+                                    monthlyCategorySummary={monthlyCategorySummary}
+                                    getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                    needsSyncing={needsSyncing}
+                                    setNeedsSyncing={setNeedsSyncing}
+                                    prefillData={duplicateTransaction}
+                                    onClose={() => setIsAddTxDialogOpen(false)}
+                                />
+                            </div>
+                        </DrawerContent>
+                    </Drawer>
+                </div>
+            )}
         </div>
         </div>
         </TooltipProvider>

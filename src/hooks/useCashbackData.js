@@ -15,6 +15,8 @@ export default function useCashbackData(isAuthenticated) {
     const [monthlyCategorySummary, setMonthlyCategorySummary] = useState([]);
     const [recentTransactions, setRecentTransactions] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
+    const [paidForOptions, setPaidForOptions] = useState([]);
+    const [subCategoryOptions, setSubCategoryOptions] = useState([]);
     const [commonVendors, setCommonVendors] = useState([]);
     const [reviewTransactions, setReviewTransactions] = useState([]);
     const [reviewLoading, setReviewLoading] = useState(false); // Separate loading state
@@ -41,27 +43,30 @@ export default function useCashbackData(isAuthenticated) {
         try {
             // --- STAGE 1: CRITICAL SHELL DATA ---
             // Fetch minimal data required to render the Sidebar, Header, and basic actions (Add Tx, Finder)
-            const [cardsRes, rulesRes, mccRes, categoriesRes] = await Promise.all([
+            const [cardsRes, rulesRes, mccRes, optionsRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/cards?includeClosed=true`),
                 fetch(`${API_BASE_URL}/rules`),
                 fetch(`${API_BASE_URL}/mcc-codes`),
-                fetch(`${API_BASE_URL}/categories`),
+                fetch(`${API_BASE_URL}/form-options`),
             ]);
 
-            if (!cardsRes.ok || !rulesRes.ok || !mccRes.ok || !categoriesRes.ok) {
+            if (!cardsRes.ok || !rulesRes.ok || !mccRes.ok || !optionsRes.ok) {
                 throw new Error('Failed to fetch critical shell data.');
             }
 
             const cardsData = await cardsRes.json();
             const rulesData = await rulesRes.json();
             const mccData = await mccRes.json();
-            const categoriesData = await categoriesRes.json();
+            const optionsData = await optionsRes.json();
 
             setAllCards(cardsData);
             setCards(cardsData.filter(c => c.status !== 'Closed'));
             setRules(rulesData);
             setMccMap(mccData.mccDescriptionMap || {});
-            setAllCategories(categoriesData);
+
+            setAllCategories(optionsData.categories || []);
+            setPaidForOptions(optionsData.paidFor || []);
+            setSubCategoryOptions(optionsData.subCategories || []);
 
             // Shell is ready! The UI can render now.
             hasShellLoaded = true;
@@ -229,6 +234,8 @@ export default function useCashbackData(isAuthenticated) {
         monthlyCategorySummary,
         recentTransactions,
         allCategories,
+        paidForOptions,
+        subCategoryOptions,
         commonVendors,
         reviewTransactions,
         

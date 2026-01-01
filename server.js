@@ -268,9 +268,23 @@ const parseNotionPageProperties = (page) => {
     return result;
 };
 
-const getSelectOptions = async (propertyName) => {
+const getDatabaseOptions = async (propertyName, type = 'select') => {
     const db = await getTransactionDatabaseSchema();
-    return db.properties[propertyName].select.options;
+    const property = db.properties[propertyName];
+
+    if (!property) return [];
+
+    if (type === 'select' && property.select) {
+        return property.select.options;
+    } else if (type === 'multi_select' && property.multi_select) {
+        return property.multi_select.options;
+    }
+
+    return [];
+};
+
+const getSelectOptions = async (propertyName) => {
+    return getDatabaseOptions(propertyName, 'select');
 };
 
 const addSelectOption = async (propertyName, optionName) => {
@@ -1564,22 +1578,31 @@ app.post('/api/transactions', async (req, res) => {
 // GET /api/categories - Retrieve all unique category options from the Transactions database
 app.get('/api/categories', async (req, res) => {
     try {
-        // Retrieve the database's schema information
-        const database = await getTransactionDatabaseSchema();
-        
-        // Get the specific property for "Category"
-        const categoryProperty = database.properties['Category'];
-
-        // Check if it's a 'select' type and extract the options
-        if (categoryProperty && categoryProperty.type === 'select') {
-            const categories = categoryProperty.select.options.map(option => option.name);
-            res.json(categories);
-        } else {
-            res.status(404).json({ error: 'Category property not found or is not a select property' });
-        }
+        const categories = (await getDatabaseOptions('Category', 'select')).map(o => o.name);
+        res.json(categories);
     } catch (error) {
         console.error('Error fetching categories from Notion:', error);
         res.status(500).json({ error: 'Failed to fetch categories' });
+    }
+});
+
+// GET /api/form-options - Retrieve all dynamic options for the transaction form
+app.get('/api/form-options', async (req, res) => {
+    try {
+        const [categories, paidFor, subCategories] = await Promise.all([
+            getDatabaseOptions('Category', 'select'),
+            getDatabaseOptions('Paid for', 'select'),
+            getDatabaseOptions('Sub Category', 'multi_select')
+        ]);
+
+        res.json({
+            categories: categories.map(o => o.name),
+            paidFor: paidFor.map(o => o.name),
+            subCategories: subCategories.map(o => o.name)
+        });
+    } catch (error) {
+        console.error('Error fetching form options:', error);
+        res.status(500).json({ error: 'Failed to fetch form options' });
     }
 });
 
