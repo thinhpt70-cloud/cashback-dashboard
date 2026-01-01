@@ -46,6 +46,7 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
 
                 // Calculate base earned (Option A: Display base earned separate from adjustment)
                 const baseEarned = earned - adjustment;
+                const finalAmount = baseEarned + adjustment;
 
                 return (
                     <div key={item.id} className="group relative border border-slate-200 dark:border-slate-800 rounded-lg p-3 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors bg-white dark:bg-slate-950">
@@ -96,12 +97,22 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                                 <span className="font-medium">{currencyFn(baseEarned)}</span>
                             </div>
                             <div className="flex justify-between pl-2 border-l border-slate-100 dark:border-slate-800">
-                                <span>Redeemed:</span>
-                                <span className={cn("font-medium", redeemed > 0 ? "text-indigo-600" : "")}>{currencyFn(redeemed)}</span>
-                            </div>
-                            <div className="flex justify-between pr-2">
                                 <span>Adjustment:</span>
                                 <span className={cn("font-medium", adjustment !== 0 ? "text-orange-600" : "")}>{currencyFn(adjustment)}</span>
+                            </div>
+
+                            <div className="col-span-2 border-t border-dashed border-slate-100 dark:border-slate-800 my-1"></div>
+
+                            <div className="flex justify-between pr-2 col-span-2 font-semibold text-slate-700 dark:text-slate-300">
+                                <span>Final Amount:</span>
+                                <span>{currencyFn(finalAmount)}</span>
+                            </div>
+
+                            <div className="col-span-2 border-b border-dashed border-slate-100 dark:border-slate-800 my-1"></div>
+
+                            <div className="flex justify-between pr-2">
+                                <span>Redeemed:</span>
+                                <span className={cn("font-medium", redeemed > 0 ? "text-indigo-600" : "")}>{currencyFn(redeemed)}</span>
                             </div>
                             <div className="flex justify-between pl-2 border-l border-slate-100 dark:border-slate-800">
                                 <span className="font-bold text-slate-900 dark:text-slate-200">Remaining:</span>
@@ -129,19 +140,22 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
             )}
             {historyEvents.map((event) => {
                 const isEarned = event.type === 'earned';
-                // For earned: display date is just Month Year (e.g. Oct 2025)
-                // For redeemed: event.date might contain time (YYYY-MM-DD HH:MM)
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
                 let dateDisplay;
+                let eventDateObj;
+
                 if (isEarned) {
-                     const d = new Date(event.date);
-                     dateDisplay = d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+                     eventDateObj = new Date(event.date);
+                     dateDisplay = eventDateObj.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
                 } else {
                      // Check if it has time
                      const hasTime = event.date && event.date.includes(':');
-                     const d = new Date(event.date.includes(' ') ? event.date.replace(' ', 'T') : event.date);
+                     eventDateObj = new Date(event.date.includes(' ') ? event.date.replace(' ', 'T') : event.date);
 
                      if (hasTime) {
-                         dateDisplay = d.toLocaleString('en-GB', {
+                         dateDisplay = eventDateObj.toLocaleString('en-GB', {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric',
@@ -150,24 +164,35 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                             hour12: false
                         }).replace(',', '');
                      } else {
-                         dateDisplay = d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+                         dateDisplay = eventDateObj.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
                      }
                 }
+
+                const isUpcoming = isEarned && eventDateObj > today;
 
                 if (isEarned) {
                     return (
                         <div key={event.id} className="flex items-center justify-between p-3 border border-slate-100 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950">
                             <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                                <div className={cn(
+                                    "h-8 w-8 rounded-full flex items-center justify-center shrink-0 border",
+                                    isUpcoming
+                                        ? "bg-slate-50 dark:bg-slate-800 text-slate-400 border-dashed border-slate-300 dark:border-slate-700"
+                                        : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-transparent"
+                                )}>
                                     <ArrowDown className="h-4 w-4 rotate-180" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Points Earned</p>
+                                    <p className={cn("text-sm font-semibold", isUpcoming ? "text-slate-500" : "text-slate-900 dark:text-slate-100")}>
+                                        {isUpcoming ? "Expected" : "Points Earned"}
+                                    </p>
                                     <p className="text-[10px] text-slate-500">{dateDisplay}</p>
                                 </div>
                             </div>
                             <div className="text-right">
-                                <p className="text-sm font-bold text-emerald-600">+{currencyFn(event.amount)}</p>
+                                <p className={cn("text-sm font-bold", isUpcoming ? "text-slate-400" : "text-emerald-600")}>
+                                    +{currencyFn(event.amount)}
+                                </p>
                                 <div className="flex justify-end gap-1 mt-1">
                                     <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-300 hover:text-slate-600" onClick={() => onViewTransactions(event.item)}>
                                         <Eye className="h-3 w-3" />
