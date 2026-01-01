@@ -37,6 +37,18 @@ const vendorsDbId = process.env.NOTION_VENDORS_DB_ID;
 // --- RATE LIMITING (In-Memory) ---
 const loginAttempts = new Map();
 
+// 🛡️ SECURITY FIX: Use global cleanup instead of per-request timeouts to prevent DoS via memory/timer exhaustion
+setInterval(() => {
+    const now = Date.now();
+    const windowMs = 15 * 60 * 1000; // 15 minutes
+
+    for (const [ip, data] of loginAttempts.entries()) {
+        if (now - data.windowStart > windowMs) {
+            loginAttempts.delete(ip);
+        }
+    }
+}, 60 * 1000).unref(); // Run every minute, unref to allow process exit
+
 const loginRateLimiter = (req, res, next) => {
     // Use X-Forwarded-For if behind a proxy (like Netlify), otherwise req.ip
     // Handle comma-separated X-Forwarded-For list
@@ -45,6 +57,12 @@ const loginRateLimiter = (req, res, next) => {
 
     const windowMs = 15 * 60 * 1000; // 15 minutes
     const maxAttempts = 5;
+
+    // 🛡️ SECURITY FIX: Limit map size to prevent memory exhaustion DoS
+    if (loginAttempts.size > 10000 && !loginAttempts.has(ip)) {
+        // If map is too full and this is a new IP, clear it to protect server availability
+        loginAttempts.clear();
+    }
 
     const current = loginAttempts.get(ip) || { count: 0, windowStart: Date.now() };
 
@@ -64,14 +82,6 @@ const loginRateLimiter = (req, res, next) => {
     // Increment count
     current.count++;
     loginAttempts.set(ip, current);
-
-    // Memory Cleanup: Delete entry after window expires to prevent memory leaks
-    // Only set timeout if it's a new entry or reset
-    if (current.count === 1) {
-        setTimeout(() => {
-            loginAttempts.delete(ip);
-        }, windowMs);
-    }
 
     next();
 };
@@ -690,8 +700,9 @@ app.get('/api/transactions', async (req, res) => {
     // 'filterBy' defaults to 'date' if not provided.
     const { month, filterBy = 'date', cardId } = req.query;
 
-    // Validate that the 'month' parameter is present and correctly formatted.
-    if (!month || month.length !== 6) {
+    // 🛡️ SECURITY FIX: Validate that the 'month' parameter is a STRING and correctly formatted.
+    // Prevents DoS/Crash via HTTP Parameter Pollution where 'month' could be an array.
+    if (!month || typeof month !== 'string' || month.length !== 6) {
         return res.status(400).json({ error: 'A month query parameter in YYYYMM format is required.' });
     }
 
