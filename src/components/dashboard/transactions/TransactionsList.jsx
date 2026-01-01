@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
     ChevronsUpDown,
     ArrowUp,
@@ -59,6 +59,9 @@ import {
 import MobileTransactionItem from "../../shared/MobileTransactionItem";
 import MethodIndicator from "../../shared/MethodIndicator";
 
+// Moved currency function outside to be stable
+const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+
 export default function TransactionsList({
     transactions,
     isLoading,
@@ -103,8 +106,6 @@ export default function TransactionsList({
         if (ratePercent > 0) return "bg-slate-100 text-slate-700 border-slate-200";
         return "bg-gray-100 text-gray-500 border-gray-200";
     };
-
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
     const columnsConfig = useMemo(() => [
         {
@@ -404,13 +405,14 @@ export default function TransactionsList({
         }
     };
 
-    const handleSelectOne = (txId, checked) => {
+    // Memoized handleSelectOne to prevent re-creating it on every render
+    const handleSelectOne = useCallback((txId, checked) => {
         if (checked) {
             setSelectedIds(prev => prev.includes(txId) ? prev : [...prev, txId]);
         } else {
             setSelectedIds(prev => prev.filter(id => id !== txId));
         }
-    };
+    }, []);
 
     const handleBulkDeleteAction = () => {
         if (onBulkDelete) {
