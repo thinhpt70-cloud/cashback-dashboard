@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
     ChevronsUpDown,
     ArrowUp,
@@ -104,7 +104,8 @@ export default function TransactionsList({
         return "bg-gray-100 text-gray-500 border-gray-200";
     };
 
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+    // ⚡ Bolt Optimization: Use useCallback to stabilize the currency function so it doesn't break React.memo in children
+    const currency = useCallback((n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }), []);
 
     const columnsConfig = useMemo(() => [
         {
@@ -404,13 +405,14 @@ export default function TransactionsList({
         }
     };
 
-    const handleSelectOne = (txId, checked) => {
+    // ⚡ Bolt Optimization: Memoize this handler to prevent unnecessary re-renders of MobileTransactionItem
+    const handleSelectOne = useCallback((txId, checked) => {
         if (checked) {
             setSelectedIds(prev => prev.includes(txId) ? prev : [...prev, txId]);
         } else {
             setSelectedIds(prev => prev.filter(id => id !== txId));
         }
-    };
+    }, []);
 
     const handleBulkDeleteAction = () => {
         if (onBulkDelete) {

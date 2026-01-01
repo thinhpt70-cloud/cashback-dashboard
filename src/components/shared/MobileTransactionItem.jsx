@@ -3,7 +3,7 @@ import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
 import MethodIndicator from "./MethodIndicator";
 
-const MobileTransactionItem = ({
+const MobileTransactionItem = React.memo(({
     transaction,
     isSelected,
     onSelect,
@@ -30,6 +30,7 @@ const MobileTransactionItem = ({
                     checked={isSelected}
                     onCheckedChange={() => onSelect && onSelect(tx.id, !isSelected)}
                     className={cn("h-5 w-5 rounded border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 bg-white border-slate-300")}
+                    aria-label={`Select ${tx['Transaction Name']}`}
                 />
             </div>
 
@@ -75,6 +76,6 @@ const MobileTransactionItem = ({
             </div>
         </div>
     );
-};
+});
 
 export default MobileTransactionItem;

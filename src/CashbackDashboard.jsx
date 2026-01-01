@@ -254,10 +254,11 @@ export default function CashbackDashboard() {
         setIsAddTxDialogOpen(true);
     };
 
-    const handleViewTransactionDetails = (transaction) => {
+    // ⚡ Bolt Optimization: Memoize this handler to allow child components to leverage React.memo
+    const handleViewTransactionDetails = useCallback((transaction) => {
         const cardName = transaction['Card Name'] || (transaction['Card'] && cardMap.get(transaction['Card'][0])?.name);
         setViewingTransaction({ ...transaction, 'Card Name': cardName });
-    };
+    }, [cardMap]);
 
     const handleBulkDelete = async (transactionIds) => {
         if (!window.confirm(`Are you sure you want to delete ${transactionIds.length} transactions? This action cannot be undone.`)) {
