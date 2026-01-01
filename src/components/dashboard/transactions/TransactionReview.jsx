@@ -977,6 +977,7 @@ export default function TransactionReview({
                                                                 <Checkbox
                                                                     checked={isSelected}
                                                                     onCheckedChange={() => handleSelectOne(tx.id)}
+                                                                    aria-label={`Select ${tx['Transaction Name']}`}
                                                                 />
                                                             </div>
                                                             <div className="flex-1 min-w-0">
