@@ -43,6 +43,9 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
     const [mccName, setMccName] = useState('');
     const [method, setMethod] = useState('POS');
 
+    // --- State to control recommendation visibility ---
+    const [showRecommendations, setShowRecommendations] = useState(!initialData);
+
     // --- NEW STATE FOR THE NEW FIELDS ---
     const [notes, setNotes] = useState('');
     const [paidFor, setPaidFor] = useState('');
@@ -646,91 +649,112 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                 )}
 
 
-                {/* --- 5. SMART CARD RECOMMENDATIONS --- */}
-                <CardRecommendations
-                    recommendations={rankedCards}
-                    onSelectCard={handleCardSelect}
-                    currencyFn={currencyFn}
-                    selectedCardId={cardId}
-                />
+                {/* --- 5. CASHBACK DETAILS (Moved from Accordions) --- */}
+                <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
+                     <div className="space-y-2">
+                        <label htmlFor="card" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Card</label>
+                        <Select value={cardId} onValueChange={(value) => { handleCardSelect(value); localStorage.setItem('lastUsedCardId', value); }}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a card..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(card => (
+                                    <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
-                {/* --- 6. MANUAL OVERRIDES (Collapsible) --- */}
-                 <Accordion type="single" collapsible className="w-full border rounded-lg bg-card">
-                    <AccordionItem value="card-override" className="border-none">
-                        <AccordionTrigger className="px-4 py-3 text-sm font-medium text-muted-foreground hover:no-underline hover:bg-muted/50 rounded-lg">
-                            <div className="flex items-center gap-2">
-                                <CreditCard className="h-4 w-4" />
-                                Manual Card Selection
+                    <div className="space-y-2">
+                        <label htmlFor="rule" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rule</label>
+                        <div className="flex items-center gap-2">
+                            <Select value={applicableRuleId} onValueChange={(val) => val && setApplicableRuleId(val)} disabled={filteredRules.length === 0}>
+                                <SelectTrigger className="flex-1">
+                                    <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules' : 'Select rule...'} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {filteredRules.map(rule => (
+                                        <SelectItem key={rule.id} value={rule.id} disabled={rule.status === 'Inactive'}>
+                                            <div className="flex w-full items-center justify-between gap-4">
+                                                <span>{rule.ruleName}</span>
+                                                <Badge variant="secondary" className="ml-auto text-xs">{(rule.rate * 100).toFixed(1)}%</Badge>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button type="button" variant="ghost" size="icon" disabled={!selectedRule}>
+                                        <Info className="h-4 w-4" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80">
+                                    {selectedRule && (
+                                        <div className="space-y-2 text-sm">
+                                            <h4 className="font-bold border-b pb-1 mb-2">{selectedRule.ruleName}</h4>
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <div className="text-muted-foreground">Rate:</div>
+                                                <div className="font-medium text-right">{(selectedRule.rate * 100).toFixed(1)}%</div>
+                                                <div className="text-muted-foreground">Monthly Cap:</div>
+                                                <div className="font-medium text-right">{currencyFn(selectedRule.categoryLimit)}</div>
+                                                <div className="text-muted-foreground">Transaction Cap:</div>
+                                                <div className="font-medium text-right">{selectedRule.transactionLimit > 0 ? currencyFn(selectedRule.transactionLimit) : 'None'}</div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        {selectedRule && estimatedCashbackAndWarnings.cashback > 0 && (
+                            <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/20 p-2 rounded-md border border-emerald-100 dark:border-emerald-900/50 mt-2">
+                                <span className="text-xs font-medium text-emerald-800 dark:text-emerald-400">Estimated Cashback:</span>
+                                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-500">
+                                    {currencyFn(estimatedCashbackAndWarnings.cashback)}
+                                </span>
                             </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="px-4 pb-4 space-y-4 pt-2">
-                             <div className="space-y-2">
-                                <label htmlFor="card" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Card</label>
-                                <Select value={cardId} onValueChange={(value) => { handleCardSelect(value); localStorage.setItem('lastUsedCardId', value); }}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a card..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(card => (
-                                            <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                        )}
+                    </div>
 
-                            <div className="space-y-2">
-                                <label htmlFor="rule" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rule</label>
-                                <div className="flex items-center gap-2">
-                                    <Select value={applicableRuleId} onValueChange={(val) => val && setApplicableRuleId(val)} disabled={filteredRules.length === 0}>
-                                        <SelectTrigger className="flex-1">
-                                            <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules' : 'Select rule...'} />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {filteredRules.map(rule => (
-                                                <SelectItem key={rule.id} value={rule.id} disabled={rule.status === 'Inactive'}>
-                                                    <div className="flex w-full items-center justify-between gap-4">
-                                                        <span>{rule.ruleName}</span>
-                                                        <Badge variant="secondary" className="ml-auto text-xs">{(rule.rate * 100).toFixed(1)}%</Badge>
-                                                    </div>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                     <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button type="button" variant="ghost" size="icon" disabled={!selectedRule}>
-                                                <Info className="h-4 w-4" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-80">
-                                            {selectedRule && (
-                                                <div className="space-y-2 text-sm">
-                                                    <h4 className="font-bold border-b pb-1 mb-2">{selectedRule.ruleName}</h4>
-                                                    <div className="grid grid-cols-2 gap-2 text-xs">
-                                                        <div className="text-muted-foreground">Rate:</div>
-                                                        <div className="font-medium text-right">{(selectedRule.rate * 100).toFixed(1)}%</div>
-                                                        <div className="text-muted-foreground">Monthly Cap:</div>
-                                                        <div className="font-medium text-right">{currencyFn(selectedRule.categoryLimit)}</div>
-                                                        <div className="text-muted-foreground">Transaction Cap:</div>
-                                                        <div className="font-medium text-right">{selectedRule.transactionLimit > 0 ? currencyFn(selectedRule.transactionLimit) : 'None'}</div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                {selectedRule && estimatedCashbackAndWarnings.cashback > 0 && (
-                                    <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/20 p-2 rounded-md border border-emerald-100 dark:border-emerald-900/50 mt-2">
-                                        <span className="text-xs font-medium text-emerald-800 dark:text-emerald-400">Estimated Cashback:</span>
-                                        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-500">
-                                            {currencyFn(estimatedCashbackAndWarnings.cashback)}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </AccordionContent>
-                    </AccordionItem>
-                 </Accordion>
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                             <label htmlFor="mcc" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">MCC Code</label>
+                             {mccName && (
+                                <Badge variant="outline" className="text-[10px] font-normal px-2 py-0 h-5 max-w-[200px] truncate" title={mccName}>
+                                    {mccName}
+                                </Badge>
+                             )}
+                        </div>
+                        <Input
+                            id="mcc"
+                            value={mccCode}
+                            onChange={(e) => setMccCode(e.target.value)}
+                            placeholder="e.g. 5411"
+                            type="number"
+                        />
+                    </div>
+                </div>
+
+
+                {/* --- 6. SMART CARD RECOMMENDATIONS --- */}
+                {showRecommendations ? (
+                    <CardRecommendations
+                        recommendations={rankedCards}
+                        onSelectCard={handleCardSelect}
+                        currencyFn={currencyFn}
+                        selectedCardId={cardId}
+                    />
+                ) : (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setShowRecommendations(true)}
+                        className="w-full"
+                    >
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Show Card Suggestions
+                    </Button>
+                )}
 
 
                 {/* --- 7. ADDITIONAL DETAILS (Collapsible) --- */}
@@ -749,19 +773,6 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                         onChange={(e) => setMerchantLookup(e.target.value)}
                                         placeholder="Optional override"
                                     />
-                                </div>
-                                <div className="space-y-2">
-                                    <label htmlFor="mcc">MCC Code</label>
-                                    <div className="relative">
-                                        <Input
-                                            id="mcc"
-                                            value={mccCode}
-                                            onChange={(e) => setMccCode(e.target.value)}
-                                            placeholder="e.g. 5411"
-                                            type="number"
-                                        />
-                                        {mccName && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground bg-background px-1">{mccName}</span>}
-                                    </div>
                                 </div>
                             </div>
 

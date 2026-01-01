@@ -148,7 +148,7 @@ export default function CardRecommendations({ recommendations, onSelectCard, cur
             <div className="flex items-center justify-between">
                 <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                     <Star className="h-4 w-4 text-emerald-500" />
-                    Recommended Card
+                    Recommended Cards
                 </h4>
             </div>
 
