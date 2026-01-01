@@ -504,6 +504,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                      <div className="relative">
                         <button
                             type="button"
+                                aria-label="Change date"
                             onClick={() => dateInputRef.current?.showPicker()}
                             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-sm font-medium transition-colors"
                         >
@@ -551,6 +552,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                 type="button"
                                 size="icon"
                                 variant="ghost"
+                                aria-label="Look up merchant details"
                                 className="absolute right-1 top-1 h-10 w-10 text-muted-foreground hover:text-primary"
                                 onClick={handleMerchantLookup}
                                 disabled={!merchant || isLookingUp}
@@ -698,7 +700,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                     </Select>
                                      <Popover>
                                         <PopoverTrigger asChild>
-                                            <Button type="button" variant="ghost" size="icon" disabled={!selectedRule}>
+                                            <Button type="button" variant="ghost" size="icon" aria-label="View rule details" disabled={!selectedRule}>
                                                 <Info className="h-4 w-4" />
                                             </Button>
                                         </PopoverTrigger>
@@ -813,7 +815,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                                 setDiscounts(newDiscounts);
                                             });
                                         }} />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))}>
+                                        <Button type="button" variant="ghost" size="icon" aria-label="Remove discount" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))}>
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -832,7 +834,7 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                                 setFees(newFees);
                                             });
                                         }} />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => setFees(fees.filter((_, i) => i !== index))}>
+                                        <Button type="button" variant="ghost" size="icon" aria-label="Remove fee" onClick={() => setFees(fees.filter((_, i) => i !== index))}>
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>

@@ -632,8 +632,17 @@ export default function TransactionReview({
         )}>
             {/* Header */}
             <div
-                className="p-4 bg-orange-50 dark:bg-orange-950/30 border-b border-orange-100 dark:border-orange-900/50 flex justify-between items-center cursor-pointer select-none transition-colors"
+                role="button"
+                tabIndex={0}
+                aria-expanded={isOpen}
+                className="p-4 bg-orange-50 dark:bg-orange-950/30 border-b border-orange-100 dark:border-orange-900/50 flex justify-between items-center cursor-pointer select-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-inset"
                 onClick={() => setIsOpen(!isOpen)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setIsOpen(!isOpen);
+                    }
+                }}
             >
                 <div className="flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-500" />
@@ -1058,7 +1067,7 @@ export default function TransactionReview({
                                                                 </Button>
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild>
-                                                                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="More options">
                                                                             <MoreHorizontal className="h-4 w-4" />
                                                                         </Button>
                                                                     </DropdownMenuTrigger>

@@ -248,7 +248,11 @@ export default function SharedTransactionsDialog({
                             className="w-full h-[30px] pl-8 pr-3 bg-slate-100 dark:bg-slate-900 rounded-full text-base font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-500 transition-all border-none"
                         />
                         {searchTerm && (
-                            <button onClick={() => setSearchTerm('')} className="absolute right-2 p-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500">
+                            <button
+                                aria-label="Clear search"
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-2 p-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500"
+                            >
                                 <X className="w-3 h-3" />
                             </button>
                         )}
@@ -317,7 +321,13 @@ export default function SharedTransactionsDialog({
     const renderBulkBar = () => (
         <div className="fixed bottom-4 left-4 right-4 z-50 shadow-xl rounded-xl flex flex-col items-start gap-2 p-3 bg-slate-900 text-white animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-2 pl-1 w-full">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-white shrink-0" onClick={() => setSelectedRows(new Set())}>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Clear selection"
+                    className="h-8 w-8 text-slate-300 hover:text-white shrink-0"
+                    onClick={() => setSelectedRows(new Set())}
+                >
                     <X className="h-4 w-4" />
                 </Button>
                 <span className="text-sm font-medium whitespace-nowrap">{selectedRows.size} Selected</span>
@@ -496,7 +506,7 @@ export default function SharedTransactionsDialog({
                                                 <td className="text-center p-2">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Actions">
                                                                 <MoreVertical className="h-4 w-4" />
                                                             </Button>
                                                         </DropdownMenuTrigger>
