@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Sparkles, CalendarClock, Info, X, Store, Globe, Laptop, CreditCard } from 'lucide-react';
+import { Loader2, Sparkles, CalendarClock, Info, X, Store, Globe, Laptop } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
 import { Button } from '../../ui/button';
