@@ -99,6 +99,20 @@ const getTransactionDatabaseSchema = async () => {
     return db;
 };
 
+// Helper to resolve property name case-insensitively from schema
+const resolvePropertyName = async (targetName) => {
+    const db = await getTransactionDatabaseSchema();
+    const key = Object.keys(db.properties).find(k => k.toLowerCase() === targetName.toLowerCase());
+    return key || targetName;
+};
+
+// Helper to get property value case-insensitively from object
+const getProp = (obj, key) => {
+    if (obj[key] !== undefined) return obj[key];
+    const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+    return found ? obj[found] : undefined;
+};
+
 // Helper function to map Notion transaction page to a simpler object
 const mapTransaction = (tx) => {
     const props = parseNotionPageProperties(tx);
@@ -106,32 +120,32 @@ const mapTransaction = (tx) => {
     // Map Notion property names to the camelCase keys used in the frontend
     return {
         id: tx.id,
-        'Transaction Name': props['Transaction Name'],
-        'Amount': props['Final Amount'],
-        'grossAmount': props['Amount'],
-        'Transaction Date': props['Transaction Date'],
-        'Card': props['Card'],
-        'Category': props['Category'],
-        'MCC Code': props['MCC Code'],
-        'estCashback': props['Estimated Cashback'] || 0, // Formula field
-        'Cashback Month': props['Cashback Month'], // Formula field
-        'merchantLookup': props['Merchant'], // This is the Merchant Name field
-        'notes': props['Notes'],
-        'otherDiscounts': props['Other Discounts'],
-        'otherFees': props['Other Fees'],
-        'foreignCurrencyAmount': props['Foreign Amount'], // Renamed from Foreign Currency
-        'exchangeRate': props['Exchange Rate'],
-        'foreignCurrency': props['Foreign Currency'],
-        'conversionFee': props['Conversion Fee'],
-        'paidFor': props['Paid for'],
-        'subCategory': props['Sub Category'],
-        'billingDate': props['Billing Date'],
-        'Applicable Rule': props['Applicable Rule'],
-        'Card Summary Category': props['Card Summary Category'],
-        'Match': props['Match'],
-        'Automated': props['Automated'],
-        'Method': props['Method'],
-        'Statement Month': props['Statement Month'],
+        'Transaction Name': getProp(props, 'Transaction Name'),
+        'Amount': getProp(props, 'Final Amount'),
+        'grossAmount': getProp(props, 'Amount'),
+        'Transaction Date': getProp(props, 'Transaction Date'),
+        'Card': getProp(props, 'Card'),
+        'Category': getProp(props, 'Category'),
+        'MCC Code': getProp(props, 'MCC Code'),
+        'estCashback': getProp(props, 'Estimated Cashback') || 0, // Formula field
+        'Cashback Month': getProp(props, 'Cashback Month'), // Formula field
+        'merchantLookup': getProp(props, 'Merchant'), // This is the Merchant Name field
+        'notes': getProp(props, 'Notes'),
+        'otherDiscounts': getProp(props, 'Other Discounts'),
+        'otherFees': getProp(props, 'Other Fees'),
+        'foreignCurrencyAmount': getProp(props, 'Foreign Amount'), // Renamed from Foreign Currency
+        'exchangeRate': getProp(props, 'Exchange Rate'),
+        'foreignCurrency': getProp(props, 'Foreign Currency'),
+        'conversionFee': getProp(props, 'Conversion Fee'),
+        'paidFor': getProp(props, 'Paid for'),
+        'subCategory': getProp(props, 'Sub Category'),
+        'billingDate': getProp(props, 'Billing Date'),
+        'Applicable Rule': getProp(props, 'Applicable Rule'),
+        'Card Summary Category': getProp(props, 'Card Summary Category'),
+        'Match': getProp(props, 'Match'),
+        'Automated': getProp(props, 'Automated'),
+        'Method': getProp(props, 'Method'),
+        'Statement Month': getProp(props, 'Statement Month'),
     };
 };
 
@@ -1596,7 +1610,9 @@ app.get('/api/definitions', async (req, res) => {
         };
 
         const extractOptions = (propName) => {
-            const prop = database.properties[propName];
+            // Use case-insensitive property finding
+            const resolvedKey = Object.keys(database.properties).find(k => k.toLowerCase() === propName.toLowerCase()) || propName;
+            const prop = database.properties[resolvedKey];
             if (prop && prop.select) return prop.select.options.map(o => o.name);
             if (prop && prop.multi_select) return prop.multi_select.options.map(o => o.name);
             return [];
