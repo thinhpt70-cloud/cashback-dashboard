@@ -833,12 +833,12 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                         <AccordionContent className="pt-2 space-y-4">
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label htmlFor="merchantLookup">Merchant Name (Clean)</label>
+                                    <label htmlFor="merchantLookup">Merchant Name</label>
                                     <Input
                                         id="merchantLookup"
                                         value={merchantLookup}
                                         onChange={(e) => setMerchantLookup(e.target.value)}
-                                        placeholder="Optional override"
+                                        placeholder=""
                                     />
                                 </div>
                             </div>
