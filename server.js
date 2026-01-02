@@ -1583,6 +1583,38 @@ app.get('/api/categories', async (req, res) => {
     }
 });
 
+// GET /api/definitions - Retrieve all select options for various fields
+app.get('/api/definitions', async (req, res) => {
+    try {
+        const database = await getTransactionDatabaseSchema();
+        const definitions = {
+            categories: [],
+            methods: [],
+            paidFor: [],
+            foreignCurrencies: [],
+            subCategories: []
+        };
+
+        const extractOptions = (propName) => {
+            const prop = database.properties[propName];
+            if (prop && prop.select) return prop.select.options.map(o => o.name);
+            if (prop && prop.multi_select) return prop.multi_select.options.map(o => o.name);
+            return [];
+        };
+
+        definitions.categories = extractOptions('Category');
+        definitions.methods = extractOptions('Method');
+        definitions.paidFor = extractOptions('Paid for');
+        definitions.foreignCurrencies = extractOptions('Foreign Currency');
+        definitions.subCategories = extractOptions('Sub Category');
+
+        res.json(definitions);
+    } catch (error) {
+        console.error('Error fetching definitions:', error);
+        res.status(500).json({ error: 'Failed to fetch definitions' });
+    }
+});
+
 // POST /api/summaries - Create a new monthly summary category
 app.post('/api/summaries', async (req, res) => {
     try {

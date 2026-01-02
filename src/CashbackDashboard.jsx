@@ -102,7 +102,8 @@ export default function CashbackDashboard() {
         loading, error, refreshData, isShellReady, isDashboardLoading,
         setRecentTransactions, setReviewTransactions,
         cashbackRules, monthlyCashbackCategories, liveSummary,
-        fetchReviewTransactions, reviewLoading, fetchCategorySummaryForMonth
+        fetchReviewTransactions, reviewLoading, fetchCategorySummaryForMonth,
+        definitions
     } = useCashbackData(isAuthenticated);
 
     // Fetch review transactions when tab is active
@@ -825,6 +826,7 @@ export default function CashbackDashboard() {
                                     <AddTransactionForm
                                         cards={cards}
                                         categories={allCategories}
+                                        definitions={definitions}
                                         rules={cashbackRules}
                                         monthlyCategories={monthlyCashbackCategories}
                                         mccMap={mccMap}
@@ -852,6 +854,7 @@ export default function CashbackDashboard() {
                                     <AddTransactionForm
                                         cards={cards}
                                         categories={allCategories}
+                                        definitions={definitions}
                                         rules={cashbackRules}
                                         monthlyCategories={monthlyCashbackCategories}
                                         mccMap={mccMap}
@@ -890,6 +893,7 @@ export default function CashbackDashboard() {
                                         <AddTransactionForm
                                             cards={cards}
                                             categories={allCategories}
+                                            definitions={definitions}
                                             rules={cashbackRules}
                                             monthlyCategories={monthlyCashbackCategories}
                                             mccMap={mccMap}

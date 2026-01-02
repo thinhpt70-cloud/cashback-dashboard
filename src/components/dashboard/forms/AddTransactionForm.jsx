@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Sparkles, CalendarClock, Info, X, Store, Globe, Laptop } from 'lucide-react';
+import { Loader2, Sparkles, CalendarClock, Info, X, Store, Globe, Laptop, Check, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
 import { Button } from '../../ui/button';
@@ -15,20 +15,35 @@ import QuickAddButtons from './QuickAddButtons';
 import CardRecommendations from './CardRecommendations';
 import MccSearchResultsDialog from './MccSearchResultsDialog';
 import useCardRecommendations from '../../../hooks/useCardRecommendations';
+import useMediaQuery from '../../../hooks/useMediaQuery'; // Added useMediaQuery
 import { useForm, FormProvider } from 'react-hook-form';
 import { cn } from '@/lib/utils';
 
 
-export default function AddTransactionForm({ cards, categories, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, prefillData, onClose, needsSyncing, setNeedsSyncing }) {
+export default function AddTransactionForm({ cards, categories, definitions, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, prefillData, onClose, needsSyncing, setNeedsSyncing }) {
+    const isDesktop = useMediaQuery("(min-width: 768px)");
     const form = useForm({
         defaultValues: {
             subCategory: [],
         }
     });
+
     // --- State Management ---
     const [merchant, setMerchant] = useState('');
     const [amount, setAmount] = useState('');
-    const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+
+    // Initialize date state with datetime-local format support (YYYY-MM-DDTHH:mm) or just date (YYYY-MM-DD)
+    const [date, setDate] = useState(() => {
+        // Default to current datetime for new transactions
+        const now = new Date();
+        // Adjust for timezone offset to get local ISO string like 'YYYY-MM-DDTHH:mm'
+        const offset = now.getTimezoneOffset() * 60000;
+        const localIso = new Date(now.getTime() - offset).toISOString().slice(0, 16);
+        return localIso;
+    });
+
+    const [hasTime, setHasTime] = useState(true); // Default to including time for new transactions
+
     const [cardId, setCardId] = useState('');
     const [category, setCategory] = useState('');
     const [mccCode, setMccCode] = useState('');
@@ -83,7 +98,30 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
             // Prioritize grossAmount (Base Amount) for editing, fall back to Amount (Final Amount)
             const baseAmount = sourceData['grossAmount'] !== undefined ? sourceData['grossAmount'] : sourceData['Amount'];
             setAmount((baseAmount || '').toLocaleString('en-US'));
-            setDate(sourceData['Transaction Date'] || new Date().toISOString().slice(0, 10));
+
+            // --- Date Logic ---
+            const initialDateStr = sourceData['Transaction Date'];
+            if (initialDateStr) {
+                // Check if it has time component (e.g. contains 'T' or is longer than 10 chars)
+                // Note: Notion date can be "2023-10-27" (date only) or "2023-10-27T14:30:00.000+07:00"
+                const hasTimeComponent = initialDateStr.includes('T') || initialDateStr.length > 10;
+                setHasTime(hasTimeComponent);
+
+                if (hasTimeComponent) {
+                    // Normalize to YYYY-MM-DDTHH:mm for input[type="datetime-local"]
+                    // Assuming initialDateStr is ISO-like
+                    setDate(initialDateStr.slice(0, 16));
+                } else {
+                    setDate(initialDateStr);
+                }
+            } else {
+                // Fallback for new/empty
+                const now = new Date();
+                const offset = now.getTimezoneOffset() * 60000;
+                setDate(new Date(now.getTime() - offset).toISOString().slice(0, 16));
+                setHasTime(true);
+            }
+
             setCardId(sourceData['Card'] ? String(sourceData['Card'][0]) : '');
             setApplicableRuleId(sourceData['Applicable Rule'] ? String(sourceData['Applicable Rule'][0]) : '');
             setCardSummaryCategoryId(sourceData['Card Summary Category'] ? sourceData['Card Summary Category'][0] : 'new'); // <-- ADDED THIS
@@ -439,49 +477,45 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
 
     // --- Render Helpers ---
 
-    const renderMethodSelector = () => (
-        <div className="grid grid-cols-3 gap-1 p-1 bg-muted/50 rounded-lg">
-             <button
-                type="button"
-                onClick={() => setMethod('POS')}
-                className={cn(
-                    "flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all",
-                    method === 'POS'
-                        ? "bg-white dark:bg-slate-800 shadow-sm text-sky-600 dark:text-sky-400"
-                        : "text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-800/50"
-                )}
-            >
-                <Store className="h-4 w-4" />
-                POS
-            </button>
-            <button
-                type="button"
-                onClick={() => setMethod('eCom')}
-                className={cn(
-                    "flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all",
-                    method === 'eCom'
-                        ? "bg-white dark:bg-slate-800 shadow-sm text-emerald-600 dark:text-emerald-400"
-                        : "text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-800/50"
-                )}
-            >
-                <Laptop className="h-4 w-4" />
-                eCom
-            </button>
-            <button
-                type="button"
-                onClick={() => setMethod('International')}
-                className={cn(
-                    "flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all",
-                    method === 'International'
-                        ? "bg-white dark:bg-slate-800 shadow-sm text-orange-600 dark:text-orange-400"
-                        : "text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-800/50"
-                )}
-            >
-                <Globe className="h-4 w-4" />
-                Int'l
-            </button>
-        </div>
-    );
+    const renderMethodSelector = () => {
+        const methods = definitions?.methods && definitions.methods.length > 0
+            ? definitions.methods
+            : ['POS', 'eCom', 'International'];
+
+        return (
+            <div className="grid grid-cols-3 gap-1 p-1 bg-muted/50 rounded-lg">
+                {methods.map((m) => {
+                    let icon = <Store className="h-4 w-4" />;
+                    let activeClass = "bg-white dark:bg-slate-800 shadow-sm text-sky-600 dark:text-sky-400";
+
+                    if (m === 'eCom') {
+                        icon = <Laptop className="h-4 w-4" />;
+                        activeClass = "bg-white dark:bg-slate-800 shadow-sm text-emerald-600 dark:text-emerald-400";
+                    } else if (m === 'International') {
+                        icon = <Globe className="h-4 w-4" />;
+                        activeClass = "bg-white dark:bg-slate-800 shadow-sm text-orange-600 dark:text-orange-400";
+                    }
+
+                    return (
+                        <button
+                            key={m}
+                            type="button"
+                            onClick={() => setMethod(m)}
+                            className={cn(
+                                "flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all",
+                                method === m
+                                    ? activeClass
+                                    : "text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-800/50"
+                            )}
+                        >
+                            {icon}
+                            {m === 'International' ? "Int'l" : m}
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    };
 
     return (
         <FormProvider {...form}>
@@ -503,24 +537,54 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                         />
                     </div>
 
-                    {/* Date Pill */}
-                     <div className="relative">
-                        <button
+                    {/* Date Pill with Time Toggle */}
+                     <div className="relative flex items-center gap-2">
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => dateInputRef.current?.showPicker()}
+                                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-sm font-medium transition-colors"
+                            >
+                                <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                                {hasTime
+                                    ? new Date(date).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                    : new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                                }
+                            </button>
+                            <input
+                                ref={dateInputRef}
+                                type={hasTime ? "datetime-local" : "date"}
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                                required
+                            />
+                        </div>
+
+                        <Button
                             type="button"
-                            onClick={() => dateInputRef.current?.showPicker()}
-                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-sm font-medium transition-colors"
+                            variant="ghost"
+                            size="icon"
+                            className={cn("h-8 w-8 rounded-full", hasTime ? "text-primary bg-primary/10" : "text-muted-foreground")}
+                            onClick={() => {
+                                const newHasTime = !hasTime;
+                                setHasTime(newHasTime);
+                                if (newHasTime) {
+                                    // Switch to datetime-local: append current time or 00:00
+                                    // If date was YYYY-MM-DD, make it YYYY-MM-DDTHH:mm
+                                    // Better: use current time if switching ON
+                                    const now = new Date();
+                                    const timeStr = now.toTimeString().slice(0, 5); // HH:mm
+                                    setDate(`${date}T${timeStr}`);
+                                } else {
+                                    // Switch to date-only: slice the string
+                                    setDate(date.split('T')[0]);
+                                }
+                            }}
+                            title={hasTime ? "Remove time" : "Add time"}
                         >
-                            <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                            {new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </button>
-                        <input
-                            ref={dateInputRef}
-                            type="date"
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                            required
-                        />
+                            <Clock className="h-4 w-4" />
+                        </Button>
                     </div>
                 </div>
 
@@ -617,7 +681,10 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'SGD', 'THB', 'KRW'].map(curr => (
+                                        {(definitions?.foreignCurrencies?.length > 0
+                                            ? definitions.foreignCurrencies
+                                            : ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'SGD', 'THB', 'KRW']
+                                        ).map(curr => (
                                             <SelectItem key={curr} value={curr}>{curr}</SelectItem>
                                         ))}
                                     </SelectContent>
@@ -787,7 +854,10 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                                 <div className="space-y-2">
                                     <label htmlFor="paidFor">Paid For</label>
                                     <Combobox
-                                        options={['Personal', 'Family', 'Work'].map(c => ({ value: c, label: c }))}
+                                        options={(definitions?.paidFor?.length > 0
+                                            ? definitions.paidFor
+                                            : ['Personal', 'Family', 'Work']
+                                        ).map(c => ({ value: c, label: c }))}
                                         value={paidFor}
                                         onChange={setPaidFor}
                                         placeholder="Who is this for?"
@@ -857,12 +927,23 @@ export default function AddTransactionForm({ cards, categories, rules, monthlyCa
                     </AccordionItem>
                 </Accordion>
                 
-                {/* --- 8. SUBMIT --- */}
-                <div className="sticky bottom-0 bg-background/95 backdrop-blur pt-4 pb-4 border-t mt-8">
-                     <Button type="submit" disabled={isSubmitting} size="lg" className="w-full text-lg h-12 shadow-lg">
-                        {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : (initialData ? "Update Transaction" : "Add Transaction")}
+                {/* --- 8. SUBMIT (Desktop & Mobile FAB) --- */}
+                {isDesktop ? (
+                    <div className="sticky bottom-0 bg-background/95 backdrop-blur pt-4 pb-4 border-t mt-8">
+                         <Button type="submit" disabled={isSubmitting} size="lg" className="w-full text-lg h-12 shadow-lg">
+                            {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : (initialData ? "Update Transaction" : "Add Transaction")}
+                        </Button>
+                    </div>
+                ) : (
+                    <Button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-xl z-50 p-0 flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90"
+                        aria-label={initialData ? "Update Transaction" : "Add Transaction"}
+                    >
+                        {isSubmitting ? <Loader2 className="h-6 w-6 animate-spin" /> : <Check className="h-7 w-7" />}
                     </Button>
-                </div>
+                )}
             </form>
             <MccSearchResultsDialog
                 open={isLookupDialogOpen}
