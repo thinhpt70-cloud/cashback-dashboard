@@ -18,7 +18,7 @@ import {
   PopoverTrigger,
 } from "src/components/ui/popover"
 
-const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) => {
+const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder, disableAutoFocus = false }) => {
   const [open, setOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState('');
 
@@ -44,6 +44,8 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder }) 
             placeholder={searchPlaceholder}
             value={inputValue}
             onValueChange={setInputValue}
+            // Fix: Disable autofocus if requested (e.g. on mobile)
+            autoFocus={!disableAutoFocus}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && inputValue) {
                 if (!options.some(opt => opt.value.toLowerCase() === inputValue.toLowerCase())) {

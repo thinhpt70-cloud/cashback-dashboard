@@ -804,7 +804,7 @@ export default function CashbackDashboard() {
                             <History className="mr-2 h-4 w-4" />
                             Needs Syncing ({needsSyncing.length})
                         </Button>
-                        <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
+                        <Sheet open={isAddTxDialogOpen && isDesktop} onOpenChange={setIsAddTxDialogOpen}>
                             <SheetTrigger asChild>
                                 <Button variant="default" className="h-10">
                                     <Plus className="mr-2 h-4 w-4" />
@@ -875,72 +875,37 @@ export default function CashbackDashboard() {
 
                     {/* --- Mobile Controls (hidden on desktop) --- */}
                     <div className="flex items-center gap-2 md:hidden">
-                        {isDesktop ? (
-                             <Sheet open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
-                                <SheetTrigger asChild>
-                                    <Button variant="default" size="icon" className="h-10 w-10">
-                                        <Plus className="h-4 w-4" />
-                                    </Button>
-                                </SheetTrigger>
-                                <SheetContent
-                                    side="right"
-                                    className="flex flex-col p-0 w-full sm:max-w-2xl"
-                                >
-                                    <SheetHeader className="px-6 pt-6">
-                                        <SheetTitle>Add a New Transaction</SheetTitle>
-                                    </SheetHeader>
-                                    <div className="flex-grow overflow-y-auto px-6 pb-6">
-                                        <AddTransactionForm
-                                            cards={cards}
-                                            categories={allCategories}
-                                            definitions={definitions}
-                                            rules={cashbackRules}
-                                            monthlyCategories={monthlyCashbackCategories}
-                                            mccMap={mccMap}
-                                            onTransactionAdded={handleTransactionAdded}
-                                            commonVendors={commonVendors}
-                                            monthlySummary={monthlySummary}
-                                            monthlyCategorySummary={monthlyCategorySummary}
-                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                            needsSyncing={needsSyncing}
-                                            setNeedsSyncing={setNeedsSyncing}
-                                            prefillData={duplicateTransaction}
-                                        />
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
-                        ) : (
-                            <Drawer open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
-                                <DrawerTrigger asChild>
-                                    <Button variant="default" size="icon" className="h-10 w-10 rounded-full shadow-lg">
-                                        <Plus className="h-6 w-6" />
-                                    </Button>
-                                </DrawerTrigger>
-                                <DrawerContent className="h-[90vh]">
-                                    <DrawerHeader>
-                                        <DrawerTitle>Add Transaction</DrawerTitle>
-                                    </DrawerHeader>
-                                    <div className="px-4 pb-4 overflow-y-auto">
-                                        <AddTransactionForm
-                                            cards={cards}
-                                            categories={allCategories}
-                                            rules={cashbackRules}
-                                            monthlyCategories={monthlyCashbackCategories}
-                                            mccMap={mccMap}
-                                            onTransactionAdded={handleTransactionAdded}
-                                            commonVendors={commonVendors}
-                                            monthlySummary={monthlySummary}
-                                            monthlyCategorySummary={monthlyCategorySummary}
-                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                            needsSyncing={needsSyncing}
-                                            setNeedsSyncing={setNeedsSyncing}
-                                            prefillData={duplicateTransaction}
-                                            onClose={() => setIsAddTxDialogOpen(false)}
-                                        />
-                                    </div>
-                                </DrawerContent>
-                            </Drawer>
-                        )}
+                        <Drawer open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
+                            <DrawerTrigger asChild>
+                                <Button variant="default" size="icon" className="h-10 w-10 rounded-full shadow-lg">
+                                    <Plus className="h-6 w-6" />
+                                </Button>
+                            </DrawerTrigger>
+                            <DrawerContent className="h-[90vh]">
+                                <DrawerHeader>
+                                    <DrawerTitle>Add Transaction</DrawerTitle>
+                                </DrawerHeader>
+                                <div className="px-4 pb-4 overflow-y-auto">
+                                    <AddTransactionForm
+                                        cards={cards}
+                                        categories={allCategories}
+                                        definitions={definitions}
+                                        rules={cashbackRules}
+                                        monthlyCategories={monthlyCashbackCategories}
+                                        mccMap={mccMap}
+                                        onTransactionAdded={handleTransactionAdded}
+                                        commonVendors={commonVendors}
+                                        monthlySummary={monthlySummary}
+                                        monthlyCategorySummary={monthlyCategorySummary}
+                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                                        needsSyncing={needsSyncing}
+                                        setNeedsSyncing={setNeedsSyncing}
+                                        prefillData={duplicateTransaction}
+                                        onClose={() => setIsAddTxDialogOpen(false)}
+                                    />
+                                </div>
+                            </DrawerContent>
+                        </Drawer>
 
                         {/* Mobile Edit Transaction Drawer */}
                         {editingTransaction && !isDesktop && (

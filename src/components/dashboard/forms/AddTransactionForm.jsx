@@ -642,6 +642,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                             placeholder="Select category"
                             searchPlaceholder="Search..."
                             className="h-12"
+                                        disableAutoFocus={!isDesktop} // Disable on mobile to prevent keyboard jump
                         />
                     </div>
                 </div>
@@ -862,6 +863,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                         onChange={setPaidFor}
                                         placeholder="Who is this for?"
                                         searchPlaceholder="Search..."
+                                        disableAutoFocus={!isDesktop} // Disable on mobile
                                     />
                                 </div>
                             </div>
