@@ -18,6 +18,7 @@ export default function useCashbackData(isAuthenticated) {
     const [commonVendors, setCommonVendors] = useState([]);
     const [reviewTransactions, setReviewTransactions] = useState([]);
     const [reviewLoading, setReviewLoading] = useState(false); // Separate loading state
+    const [definitions, setDefinitions] = useState({ categories: [], methods: [], paidFor: [], foreignCurrencies: [], subCategories: [] });
 
     // --- NEW LOADING STATES ---
     const [isShellReady, setIsShellReady] = useState(false); // Critical data for UI shell
@@ -41,27 +42,28 @@ export default function useCashbackData(isAuthenticated) {
         try {
             // --- STAGE 1: CRITICAL SHELL DATA ---
             // Fetch minimal data required to render the Sidebar, Header, and basic actions (Add Tx, Finder)
-            const [cardsRes, rulesRes, mccRes, categoriesRes] = await Promise.all([
+            const [cardsRes, rulesRes, mccRes, definitionsRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/cards?includeClosed=true`),
                 fetch(`${API_BASE_URL}/rules`),
                 fetch(`${API_BASE_URL}/mcc-codes`),
-                fetch(`${API_BASE_URL}/categories`),
+                fetch(`${API_BASE_URL}/definitions`),
             ]);
 
-            if (!cardsRes.ok || !rulesRes.ok || !mccRes.ok || !categoriesRes.ok) {
+            if (!cardsRes.ok || !rulesRes.ok || !mccRes.ok || !definitionsRes.ok) {
                 throw new Error('Failed to fetch critical shell data.');
             }
 
             const cardsData = await cardsRes.json();
             const rulesData = await rulesRes.json();
             const mccData = await mccRes.json();
-            const categoriesData = await categoriesRes.json();
+            const definitionsData = await definitionsRes.json();
 
             setAllCards(cardsData);
             setCards(cardsData.filter(c => c.status !== 'Closed'));
             setRules(rulesData);
             setMccMap(mccData.mccDescriptionMap || {});
-            setAllCategories(categoriesData);
+            setDefinitions(definitionsData);
+            setAllCategories(definitionsData.categories || []);
 
             // Shell is ready! The UI can render now.
             hasShellLoaded = true;
@@ -251,5 +253,6 @@ export default function useCashbackData(isAuthenticated) {
         refreshData: fetchData, // Provide the fetch function under a clearer name
         fetchReviewTransactions,
         fetchCategorySummaryForMonth, // Expose the new function
+        definitions,
     };
 }

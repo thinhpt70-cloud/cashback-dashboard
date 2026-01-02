@@ -9,6 +9,11 @@ jest.mock('../../../hooks/useCardRecommendations', () => ({
     default: () => [],
 }));
 
+jest.mock('../../../hooks/useMediaQuery', () => ({
+    __esModule: true,
+    default: () => true, // Default to desktop
+}));
+
 describe('AddTransactionForm Edit Logic', () => {
     const mockCards = [
         { id: 'card1', name: 'Test Card', bank: 'Bank A' }
