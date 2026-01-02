@@ -22,6 +22,24 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder, di
   const [open, setOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState('');
 
+  // Explicitly manage focus to ensure disableAutoFocus is respected
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (open && disableAutoFocus && inputRef.current) {
+      // Force blur if it grabs focus, or ensure we don't focus it.
+      // cmdk might try to focus it.
+      // Actually, cmdk's Command.Input has autoFocus.
+      // If we pass autoFocus={false}, react might still focus it if cmdk does internally.
+      // Let's try blurring it immediately if it's not supposed to be focused.
+      setTimeout(() => {
+          if (document.activeElement === inputRef.current) {
+              inputRef.current.blur();
+          }
+      }, 0);
+    }
+  }, [open, disableAutoFocus]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -41,6 +59,7 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder, di
       <PopoverContent className="w-full p-0">
         <Command>
           <CommandInput
+            ref={inputRef}
             placeholder={searchPlaceholder}
             value={inputValue}
             onValueChange={setInputValue}

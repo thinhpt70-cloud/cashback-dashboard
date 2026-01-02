@@ -850,6 +850,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                         name="subCategory"
                                         label="Sub Category"
                                         placeholder="Add tags..."
+                                        suggestions={definitions?.subCategories || []}
                                     />
                                 </div>
                                 <div className="space-y-2">
