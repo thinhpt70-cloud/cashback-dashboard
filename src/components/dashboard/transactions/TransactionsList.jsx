@@ -448,9 +448,16 @@ export default function TransactionsList({
                             className="w-full h-[30px] pl-8 pr-3 bg-slate-100 dark:bg-slate-900 rounded-full text-base font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-500 transition-all border-none"
                         />
                         {searchTerm && (
-                            <button onClick={() => setSearchTerm('')} className="absolute right-2 p-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-2 h-5 w-5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-700 p-0"
+                                aria-label="Clear search"
+                            >
                                 <X className="w-3 h-3" />
-                            </button>
+                            </Button>
                         )}
                     </div>
 
