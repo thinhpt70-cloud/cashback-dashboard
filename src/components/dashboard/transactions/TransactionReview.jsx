@@ -495,9 +495,16 @@ export default function TransactionReview({
                             className="w-full h-[30px] pl-8 pr-3 bg-slate-100 dark:bg-slate-900 rounded-full text-base font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-500 transition-all border-none"
                         />
                         {filters.search && (
-                            <button onClick={() => setFilters({...filters, search: ''})} className="absolute right-2 p-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setFilters({...filters, search: ''})}
+                                className="absolute right-2 h-5 w-5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-700 p-0"
+                                aria-label="Clear search"
+                            >
                                 <X className="w-3 h-3" />
-                            </button>
+                            </Button>
                         )}
                     </div>
 
@@ -631,9 +638,12 @@ export default function TransactionReview({
             isOpen && !isDesktop ? "" : "overflow-hidden"
         )}>
             {/* Header */}
-            <div
-                className="p-4 bg-orange-50 dark:bg-orange-950/30 border-b border-orange-100 dark:border-orange-900/50 flex justify-between items-center cursor-pointer select-none transition-colors"
+            <button
+                type="button"
+                className="w-full p-4 bg-orange-50 dark:bg-orange-950/30 border-b border-orange-100 dark:border-orange-900/50 flex justify-between items-center cursor-pointer select-none transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
                 onClick={() => setIsOpen(!isOpen)}
+                aria-expanded={isOpen}
+                aria-controls="review-needed-content"
             >
                 <div className="flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-500" />
@@ -644,14 +654,14 @@ export default function TransactionReview({
                         </Badge>
                     </h3>
                 </div>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-orange-100 dark:hover:bg-orange-900/50">
-                    {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </Button>
-            </div>
+                <div className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors">
+                    {isOpen ? <ChevronUp className="h-4 w-4 text-orange-700 dark:text-orange-300" /> : <ChevronDown className="h-4 w-4 text-orange-700 dark:text-orange-300" />}
+                </div>
+            </button>
 
             {/* Content */}
             {isOpen && (
-                <div className="p-0">
+                <div className="p-0" id="review-needed-content">
                     {/* Toolbar (Desktop) */}
                     {isDesktop && (
                         <div className="p-4 border-b dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center transition-colors">
