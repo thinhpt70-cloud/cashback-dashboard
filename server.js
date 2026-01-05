@@ -707,7 +707,7 @@ app.get('/api/transactions', async (req, res) => {
     const { month, filterBy = 'date', cardId } = req.query;
 
     // Validate that the 'month' parameter is present and correctly formatted.
-    if (!month || month.length !== 6) {
+    if (!month || typeof month !== 'string' || month.length !== 6) {
         return res.status(400).json({ error: 'A month query parameter in YYYYMM format is required.' });
     }
 
@@ -1376,7 +1376,7 @@ app.get('/api/recent-transactions', async (req, res) => {
 
 app.get('/api/lookup-merchant', lookupRateLimiter, async (req, res) => {
     const { keyword } = req.query;
-    if (!keyword || keyword.trim().length < 2) {
+    if (!keyword || typeof keyword !== 'string' || keyword.trim().length < 2) {
         // Return a consistent structure for empty queries
         return res.json({ type: 'merchant', bestMatch: null, prediction: null, history: [], external: [] });
     }
