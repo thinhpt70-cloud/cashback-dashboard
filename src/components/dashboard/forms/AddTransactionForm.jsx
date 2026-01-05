@@ -534,6 +534,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                             placeholder="0"
                             className="w-full bg-transparent text-center text-5xl font-bold placeholder:text-muted-foreground/30 focus:outline-none focus:ring-0"
                             required
+                            aria-label="Transaction Amount"
                         />
                     </div>
 
@@ -582,6 +583,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                 }
                             }}
                             title={hasTime ? "Remove time" : "Add time"}
+                            aria-label={hasTime ? "Remove time" : "Add time"}
                         >
                             <Clock className="h-4 w-4" />
                         </Button>
@@ -621,6 +623,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                 className="absolute right-1 top-1 h-10 w-10 text-muted-foreground hover:text-primary"
                                 onClick={handleMerchantLookup}
                                 disabled={!merchant || isLookingUp}
+                                aria-label="Lookup merchant"
                             >
                                 <Sparkles className="h-5 w-5" />
                             </Button>
@@ -753,7 +756,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                             </Select>
                              <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button type="button" variant="ghost" size="icon" disabled={!selectedRule}>
+                                    <Button type="button" variant="ghost" size="icon" disabled={!selectedRule} aria-label="Rule details">
                                         <Info className="h-4 w-4" />
                                     </Button>
                                 </PopoverTrigger>
@@ -897,7 +900,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                                 setDiscounts(newDiscounts);
                                             });
                                         }} />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))}>
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))} aria-label="Remove discount">
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -916,7 +919,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                                 setFees(newFees);
                                             });
                                         }} />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => setFees(fees.filter((_, i) => i !== index))}>
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => setFees(fees.filter((_, i) => i !== index))} aria-label="Remove fee">
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
