@@ -621,6 +621,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                 className="absolute right-1 top-1 h-10 w-10 text-muted-foreground hover:text-primary"
                                 onClick={handleMerchantLookup}
                                 disabled={!merchant || isLookingUp}
+                                aria-label="Lookup Merchant"
                             >
                                 <Sparkles className="h-5 w-5" />
                             </Button>
@@ -753,7 +754,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                             </Select>
                              <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button type="button" variant="ghost" size="icon" disabled={!selectedRule}>
+                                    <Button type="button" variant="ghost" size="icon" disabled={!selectedRule} aria-label="View rule details">
                                         <Info className="h-4 w-4" />
                                     </Button>
                                 </PopoverTrigger>
@@ -897,7 +898,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                                 setDiscounts(newDiscounts);
                                             });
                                         }} />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))}>
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => setDiscounts(discounts.filter((_, i) => i !== index))} aria-label="Remove discount">
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -916,7 +917,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                                 setFees(newFees);
                                             });
                                         }} />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => setFees(fees.filter((_, i) => i !== index))}>
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => setFees(fees.filter((_, i) => i !== index))} aria-label="Remove fee">
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
