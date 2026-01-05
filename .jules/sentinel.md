@@ -5,3 +5,8 @@
 1.  Use the `createRateLimiter` factory in `server.js` for any new public-facing endpoints.
 2.  Ensure the cleanup mechanism (setTimeout or periodic sweep) exists to prevent memory leaks from IP storage.
 3.  Note that this in-memory limit resets on server restarts (or cold starts in serverless), which is a known trade-off for simplicity.
+
+## 2024-05-24 - HTTP Parameter Pollution (HPP) in Express
+**Vulnerability:** Express populates `req.query` parameters as arrays when multiple values are provided (e.g., `?month=A&month=B`). Calling string methods like `.trim()` or `.substring()` on these arrays causes runtime crashes (500 errors/DoS).
+**Learning:** Checking for existence (`if (!month)`) is insufficient. Type checking (`typeof month === 'string'`) is critical for any input intended to be a scalar value.
+**Prevention:** Always validate `typeof param === 'string'` before processing query parameters in Express, or use a middleware to enforce scalar types for specific fields.
