@@ -279,7 +279,9 @@ export default function TransactionsList({
             _searchMerchant: (tx.merchantLookup || '').toLowerCase(),
             _searchAmount: String(tx['Amount'] ?? ''),
             _searchDate: tx['Transaction Date'] || '',
-            _searchMcc: String(tx['MCC Code'] ?? '')
+            _searchMcc: String(tx['MCC Code'] ?? ''),
+            // ⚡ Bolt Optimization: Pre-calculate timestamp for fast sorting without repeated new Date() calls
+            _dateTimestamp: tx['Transaction Date'] ? new Date(tx['Transaction Date']).getTime() : 0
         }));
     }, [transactions]);
 
@@ -306,6 +308,15 @@ export default function TransactionsList({
         if (sortConfig.key !== null) {
             // We create a shallow copy before sorting to avoid mutating the enrichedTransactions array
             items = [...items].sort((a, b) => {
+                // ⚡ Bolt Optimization: Use pre-calculated timestamp
+                if (sortConfig.key === 'Transaction Date') {
+                    const aTime = a._dateTimestamp || 0;
+                    const bTime = b._dateTimestamp || 0;
+                    return sortConfig.direction === 'ascending'
+                        ? aTime - bTime
+                        : bTime - aTime;
+                }
+
                 const aValue = a[sortConfig.key];
                 const bValue = b[sortConfig.key];
                 if (aValue === null || aValue === undefined) return 1;
@@ -313,11 +324,7 @@ export default function TransactionsList({
                 if (typeof aValue === 'number' && typeof bValue === 'number') {
                     return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
                 }
-                if (sortConfig.key === 'Transaction Date') {
-                    return sortConfig.direction === 'ascending'
-                        ? new Date(aValue) - new Date(bValue)
-                        : new Date(bValue) - new Date(aValue);
-                }
+
                 return sortConfig.direction === 'ascending'
                     ? String(aValue).localeCompare(String(bValue))
                     : String(bValue).localeCompare(String(aValue));

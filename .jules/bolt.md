@@ -1,0 +1,3 @@
+## 2024-05-23 - CSS Build Configuration Mismatch
+**Learning:** The project's `src/styles/global.css` contained Tailwind CSS v4 syntax (`@import "tailwindcss"`, `@theme`, `oklch` colors) but the build environment (`package.json`, `tailwind.config.js`) was configured for Tailwind v3. This caused build failures when verifying frontend changes.
+**Action:** When encountering CSS syntax errors in `global.css`, verify `tailwind.config.js` and `package.json` versions. If they are v3, revert `global.css` to standard v3 directives (`@tailwind base`, etc.) and ensure color variables match the config (e.g., HSL vs OKLCH).
