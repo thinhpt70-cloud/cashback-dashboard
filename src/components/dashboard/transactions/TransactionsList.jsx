@@ -271,16 +271,23 @@ export default function TransactionsList({
     }, [transactions]);
 
     const enrichedTransactions = useMemo(() => {
-        return transactions.map(tx => ({
-            ...tx,
-            rate: (tx['Amount'] && tx['Amount'] > 0) ? (tx.estCashback / tx['Amount']) : 0,
-            // ⚡ Bolt Optimization: Pre-calculate lowercased search strings to avoid repeated ops in filter loop
-            _searchName: (tx['Transaction Name'] || '').toLowerCase(),
-            _searchMerchant: (tx.merchantLookup || '').toLowerCase(),
-            _searchAmount: String(tx['Amount'] ?? ''),
-            _searchDate: tx['Transaction Date'] || '',
-            _searchMcc: String(tx['MCC Code'] ?? '')
-        }));
+        return transactions.map(tx => {
+            // ⚡ Bolt Optimization: Pre-calculate date timestamp for faster sorting
+            const dateStr = tx['Transaction Date'];
+            const timestamp = dateStr ? new Date(dateStr).getTime() : 0;
+
+            return {
+                ...tx,
+                rate: (tx['Amount'] && tx['Amount'] > 0) ? (tx.estCashback / tx['Amount']) : 0,
+                // ⚡ Bolt Optimization: Pre-calculate lowercased search strings to avoid repeated ops in filter loop
+                _searchName: (tx['Transaction Name'] || '').toLowerCase(),
+                _searchMerchant: (tx.merchantLookup || '').toLowerCase(),
+                _searchAmount: String(tx['Amount'] ?? ''),
+                _searchDate: dateStr || '',
+                _searchMcc: String(tx['MCC Code'] ?? ''),
+                _dateTimestamp: isNaN(timestamp) ? 0 : timestamp
+            };
+        });
     }, [transactions]);
 
     const filteredData = useMemo(() => {
@@ -306,18 +313,22 @@ export default function TransactionsList({
         if (sortConfig.key !== null) {
             // We create a shallow copy before sorting to avoid mutating the enrichedTransactions array
             items = [...items].sort((a, b) => {
+                // ⚡ Bolt Optimization: Use pre-calculated timestamp for Date sorting
+                if (sortConfig.key === 'Transaction Date') {
+                    const aTime = a._dateTimestamp;
+                    const bTime = b._dateTimestamp;
+                    return sortConfig.direction === 'ascending' ? aTime - bTime : bTime - aTime;
+                }
+
                 const aValue = a[sortConfig.key];
                 const bValue = b[sortConfig.key];
                 if (aValue === null || aValue === undefined) return 1;
                 if (bValue === null || bValue === undefined) return -1;
+
                 if (typeof aValue === 'number' && typeof bValue === 'number') {
                     return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
                 }
-                if (sortConfig.key === 'Transaction Date') {
-                    return sortConfig.direction === 'ascending'
-                        ? new Date(aValue) - new Date(bValue)
-                        : new Date(bValue) - new Date(aValue);
-                }
+
                 return sortConfig.direction === 'ascending'
                     ? String(aValue).localeCompare(String(bValue))
                     : String(bValue).localeCompare(String(aValue));
