@@ -35,7 +35,19 @@ const MobileTransactionItem = React.memo(({
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+            <div
+                className="flex-1 min-w-0 flex flex-col gap-1.5 outline-none rounded-md focus-visible:ring-2 focus-visible:ring-blue-500 -m-1 p-1"
+                tabIndex={0}
+                role="button"
+                aria-label={`View details for ${tx['Transaction Name']}, ${currencyFn(tx['Amount'])}`}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onClick && onClick(tx);
+                    }
+                }}
+            >
                 {/* Top Row: Name & Amount */}
                 <div className="flex justify-between items-start gap-2">
                     <div className="flex items-center gap-2 min-w-0">
