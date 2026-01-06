@@ -10,3 +10,8 @@
 **Vulnerability:** Express populates `req.query` parameters as arrays when multiple values are provided (e.g., `?month=A&month=B`). Calling string methods like `.trim()` or `.substring()` on these arrays causes runtime crashes (500 errors/DoS).
 **Learning:** Checking for existence (`if (!month)`) is insufficient. Type checking (`typeof month === 'string'`) is critical for any input intended to be a scalar value.
 **Prevention:** Always validate `typeof param === 'string'` before processing query parameters in Express, or use a middleware to enforce scalar types for specific fields.
+
+## 2024-05-25 - Unlimited Bulk Operations (DoS Risk)
+**Vulnerability:** Bulk API endpoints (e.g., `batch-update`, `bulk-approve`) accepted arrays of arbitrary length, allowing a single request to trigger thousands of backend operations and downstream API calls (Notion).
+**Learning:** Even internal or authenticated endpoints can be vectors for Denial of Service if input size is unchecked, especially when operations involve heavy processing or third-party API limits (like Notion's 3 req/sec).
+**Prevention:** Enforce a strict `MAX_BULK_LIMIT` (e.g., 50 items) on all array inputs for bulk endpoints to ensure predictable performance and prevent resource exhaustion.

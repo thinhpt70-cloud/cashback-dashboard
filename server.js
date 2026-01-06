@@ -34,6 +34,9 @@ const monthlySummaryDbId = process.env.NOTION_MONTHLY_SUMMARY_DB_ID; // ADDED: F
 const monthlyCategoryDbId = process.env.NOTION_MONTHLY_CATEGORY_DB_ID;
 const vendorsDbId = process.env.NOTION_VENDORS_DB_ID;
 
+// --- SECURITY CONSTANTS ---
+const MAX_BULK_LIMIT = 50; // Prevent DoS by limiting bulk operations
+
 // --- RATE LIMITING (In-Memory) ---
 const createRateLimiter = (windowMs, maxAttempts, message) => {
     const attempts = new Map();
@@ -836,6 +839,10 @@ app.post('/api/transactions/batch-update', async (req, res) => {
         return res.status(400).json({ error: 'An array of updates is required.' });
     }
 
+    if (updates.length > MAX_BULK_LIMIT) {
+        return res.status(400).json({ error: `Too many items. Maximum allowed is ${MAX_BULK_LIMIT}.` });
+    }
+
     try {
         const results = await Promise.all(updates.map(async (update) => {
             const { id, properties } = update;
@@ -870,6 +877,12 @@ app.post('/api/transactions/batch-update', async (req, res) => {
 
 app.post('/api/transactions/bulk-approve', async (req, res) => {
     const { ids, items } = req.body;
+
+    // Check size limits for both potential arrays
+    if ((items && Array.isArray(items) && items.length > MAX_BULK_LIMIT) ||
+        (ids && Array.isArray(ids) && ids.length > MAX_BULK_LIMIT)) {
+        return res.status(400).json({ error: `Too many items. Maximum allowed is ${MAX_BULK_LIMIT}.` });
+    }
 
     // CASE 1: Specific Approval (from "Analyze" dialog)
     // The frontend sent specific updates to apply
@@ -964,6 +977,10 @@ app.post('/api/transactions/bulk-edit', async (req, res) => {
         return res.status(400).json({ error: 'An array of transaction IDs is required.' });
     }
 
+    if (ids.length > MAX_BULK_LIMIT) {
+        return res.status(400).json({ error: `Too many items. Maximum allowed is ${MAX_BULK_LIMIT}.` });
+    }
+
     if (!field || !value) {
         return res.status(400).json({ error: 'A field and value are required.' });
     }
@@ -1014,6 +1031,10 @@ app.post('/api/transactions/bulk-delete', async (req, res) => {
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ error: 'An array of transaction IDs is required.' });
+    }
+
+    if (ids.length > MAX_BULK_LIMIT) {
+        return res.status(400).json({ error: `Too many items. Maximum allowed is ${MAX_BULK_LIMIT}.` });
     }
 
     try {
@@ -1796,6 +1817,10 @@ app.post('/api/monthly-summary/bulk-review', async (req, res) => {
         return res.status(400).json({ error: 'An array of summary IDs is required.' });
     }
 
+    if (ids.length > MAX_BULK_LIMIT) {
+        return res.status(400).json({ error: `Too many items. Maximum allowed is ${MAX_BULK_LIMIT}.` });
+    }
+
     if (typeof reviewed !== 'boolean') {
         return res.status(400).json({ error: 'A boolean "reviewed" status is required.' });
     }
@@ -1952,6 +1977,10 @@ app.post('/api/transactions/analyze-approval', async (req, res) => {
     const { ids } = req.body;
     if (!ids || !Array.isArray(ids)) return res.status(400).json({ error: 'IDs required' });
 
+    if (ids.length > MAX_BULK_LIMIT) {
+        return res.status(400).json({ error: `Too many items. Maximum allowed is ${MAX_BULK_LIMIT}.` });
+    }
+
     try {
         const activeRules = await fetchActiveRules(); // Fetch rules once
         const analysisResults = [];
@@ -1998,6 +2027,10 @@ app.post('/api/transactions/analyze-approval', async (req, res) => {
 app.post('/api/transactions/finalize', async (req, res) => {
     const { ids } = req.body;
     if (!ids || !Array.isArray(ids)) return res.status(400).json({ error: 'IDs required' });
+
+    if (ids.length > MAX_BULK_LIMIT) {
+        return res.status(400).json({ error: `Too many items. Maximum allowed is ${MAX_BULK_LIMIT}.` });
+    }
 
     try {
         const results = [];
