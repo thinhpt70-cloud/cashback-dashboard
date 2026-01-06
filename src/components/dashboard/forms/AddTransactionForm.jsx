@@ -743,9 +743,9 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                 <SelectContent>
                                     {filteredRules.map(rule => (
                                         <SelectItem key={rule.id} value={rule.id} disabled={rule.status === 'Inactive'}>
-                                            <div className="flex w-full items-center justify-between gap-4">
-                                                <span>{rule.ruleName}</span>
-                                                <Badge variant="secondary" className="ml-auto text-xs">{(rule.rate * 100).toFixed(1)}%</Badge>
+                                            <div className="flex w-full items-center justify-between gap-2 overflow-hidden">
+                                                <span className="truncate">{rule.ruleName}</span>
+                                                <Badge variant="secondary" className="ml-auto text-xs shrink-0">{(rule.rate * 100).toFixed(1)}%</Badge>
                                             </div>
                                         </SelectItem>
                                     ))}
