@@ -595,22 +595,8 @@ function CardFinderContent({
             })
             .filter(Boolean);
 
-        // Group by Card (Best Rule Wins)
-        const bestRulePerCard = new Map();
-        allCandidates.forEach(item => {
-            const existing = bestRulePerCard.get(item.card.id);
-            if (!existing) {
-                bestRulePerCard.set(item.card.id, item);
-                return;
-            }
-            if (item.calculatedCashback !== null && existing.calculatedCashback !== null) {
-                if (item.calculatedCashback > existing.calculatedCashback) bestRulePerCard.set(item.card.id, item);
-            } else if (item.rule.rate > existing.rule.rate) {
-                 bestRulePerCard.set(item.card.id, item);
-            }
-        });
-
-        const sorted = Array.from(bestRulePerCard.values())
+        // NO Grouping by Card - Show all applicable rules
+        const sorted = allCandidates
             .sort((a, b) => {
                 const isAActive = a.rule.status === 'Active';
                 const isBActive = b.rule.status === 'Active';
