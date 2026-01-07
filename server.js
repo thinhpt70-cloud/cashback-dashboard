@@ -81,35 +81,6 @@ const createRateLimiter = (windowMs, maxAttempts, message) => {
 const loginRateLimiter = createRateLimiter(15 * 60 * 1000, 5, 'Too many login attempts. Please try again later.');
 const lookupRateLimiter = createRateLimiter(60 * 1000, 30, 'Too many lookups. Please wait a moment.'); // 30 per min
 
-// --- CACHING UTILS ---
-const simpleCache = {
-    data: new Map(), // Key -> { value, timestamp, ttl }
-    get: (key) => {
-        const item = simpleCache.data.get(key);
-        if (!item) return null;
-        if (Date.now() - item.timestamp > item.ttl) {
-            simpleCache.data.delete(key);
-            return null;
-        }
-        return item.value;
-    },
-    set: (key, value, ttl = 300000) => { // Default 5 minutes
-        simpleCache.data.set(key, { value, timestamp: Date.now(), ttl });
-    },
-    invalidate: (key) => {
-        simpleCache.data.delete(key);
-    }
-};
-
-const getCachedData = async (key, fetchFn, ttl = 300000) => {
-    const cached = simpleCache.get(key);
-    if (cached) return cached;
-
-    const data = await fetchFn();
-    simpleCache.set(key, data, ttl);
-    return data;
-};
-
 // NEW: Simple in-memory cache for transaction DB schema to avoid redundant fetches
 let transactionDbSchemaCache = {
     data: null,
@@ -1227,47 +1198,44 @@ app.patch('/api/transactions/:id', async (req, res) => {
 app.get('/api/cards', async (req, res) => {
     const { includeClosed } = req.query;
     try {
-        // Cache Key: 'cards'
-        // We fetch ALL cards and cache them, then filter based on query params
-        const allCards = await getCachedData('cards', async () => {
-            const response = await notion.databases.query({ database_id: cardsDbId });
-            return response.results.map(page => {
-                const parsed = parseNotionPageProperties(page);
-                return {
-                    id: parsed.id,
-                    name: parsed['Card Name'],
-                    bank: parsed['Bank'],
-                    cardType: parsed['Card Type'],
-                    creditLimit: parsed['Credit Limit'],
-                    last4: parsed['Last 4 Digits'],
-                    statementDay: parsed['Statement Day'],
-                    paymentDueDay: parsed['Payment Due Day'],
-                    interestRateMonthly: parsed['Interest Rate (Monthly)'],
-                    estYtdCashback: parsed['Total Cashback - Formula'], // Formula (YTD)
-                    overallMonthlyLimit: parsed['Overall Monthly Limit'],
-                    annualFee: parsed['Annual Fee'],
-                    totalSpendingYtd: parsed['Total Spending - Formula'],
-                    minimumMonthlySpend: parsed['Minimum Monthly Spend'],
-                    nextAnnualFeeDate: parsed['Next Annual Payment Date'],
-                    cardOpenDate: parsed['Card Open Date'],
-                    useStatementMonthForPayments: parsed['Cashback <> Statement Month'] || false,
-                    status: parsed['Status'],
-                    cashbackType: parsed['Cashback Type'], // 1 Tier, 2 Tier
-                    tier2MinSpend: parsed['Tier 2 Minimum Monthly Spend'],
-                    tier2Limit: parsed['Tier 2 Monthly Limit'],
-                    foreignFee: parsed['Foreign Fee'],
-                    tier1PaymentType: parsed['Tier 1 Cashback Payment Type'],
-                    tier2PaymentType: parsed['Tier 2 Cashback Payment Type'],
-                    minPointsRedeem: parsed['Minimum Points Redeem'],
-                    totalAmountRedeemed: parsed['Total Amount Redeemed'],
-                };
-            });
+        const response = await notion.databases.query({ database_id: cardsDbId });
+        // UPDATED: Renaming properties to be more JS-friendly
+        let results = response.results.map(page => {
+            const parsed = parseNotionPageProperties(page);
+            return {
+                id: parsed.id,
+                name: parsed['Card Name'],
+                bank: parsed['Bank'],
+                cardType: parsed['Card Type'],
+                creditLimit: parsed['Credit Limit'],
+                last4: parsed['Last 4 Digits'],
+                statementDay: parsed['Statement Day'],
+                paymentDueDay: parsed['Payment Due Day'],
+                interestRateMonthly: parsed['Interest Rate (Monthly)'],
+                estYtdCashback: parsed['Total Cashback - Formula'], // Formula (YTD)
+                overallMonthlyLimit: parsed['Overall Monthly Limit'],
+                annualFee: parsed['Annual Fee'],
+                totalSpendingYtd: parsed['Total Spending - Formula'],
+                minimumMonthlySpend: parsed['Minimum Monthly Spend'],
+                nextAnnualFeeDate: parsed['Next Annual Payment Date'],
+                cardOpenDate: parsed['Card Open Date'],
+                useStatementMonthForPayments: parsed['Cashback <> Statement Month'] || false,
+                status: parsed['Status'],
+                cashbackType: parsed['Cashback Type'], // 1 Tier, 2 Tier
+                tier2MinSpend: parsed['Tier 2 Minimum Monthly Spend'],
+                tier2Limit: parsed['Tier 2 Monthly Limit'],
+                foreignFee: parsed['Foreign Fee'],
+                tier1PaymentType: parsed['Tier 1 Cashback Payment Type'],
+                tier2PaymentType: parsed['Tier 2 Cashback Payment Type'],
+                minPointsRedeem: parsed['Minimum Points Redeem'],
+                totalAmountRedeemed: parsed['Total Amount Redeemed'],
+            };
         });
 
         // If 'includeClosed' is NOT 'true', filter out the Closed cards
-        const results = (includeClosed !== 'true')
-            ? allCards.filter(card => card.status !== 'Closed')
-            : allCards;
+        if (includeClosed !== 'true') {
+            results = results.filter(card => card.status !== 'Closed');
+        }
 
         res.json(results);
     } catch (error) {
@@ -1280,33 +1248,32 @@ app.get('/api/cards', async (req, res) => {
 // Fetch All Rules
 app.get('/api/rules', async (req, res) => {
     try {
-        const results = await getCachedData('rules', async () => {
-            const response = await notion.databases.query({ database_id: rulesDbId });
-            return response.results.map(page => {
-                const parsed = parseNotionPageProperties(page);
-                return {
-                    id: parsed.id,
-                    ruleName: parsed['Rule Name'],
-                    cardId: parsed['Card'] ? parsed['Card'][0] : null, // Assuming one card per rule
-                    category: parsed['Category'],
-                    rate: parsed['Cashback Rate'],
-                    capPerTransaction: parsed['Limit per Transaction'],
-                    status: parsed['Status'],
-                    mccCodes: parsed['MCC Code'],
+        const response = await notion.databases.query({ database_id: rulesDbId });
+         // UPDATED: Renaming properties to be more JS-friendly
+        const results = response.results.map(page => {
+            const parsed = parseNotionPageProperties(page);
+            return {
+                id: parsed.id,
+                ruleName: parsed['Rule Name'],
+                cardId: parsed['Card'] ? parsed['Card'][0] : null, // Assuming one card per rule
+                category: parsed['Category'],
+                rate: parsed['Cashback Rate'],
+                capPerTransaction: parsed['Limit per Transaction'],
+                status: parsed['Status'],
+                mccCodes: parsed['MCC Code'],
 
-                    type: parsed['Type'], // Transaction Limit, 1 Tier, 2 Tier
-                    transactionLimit: parsed['Transaction Limit'], // Renamed from capPerTransaction conceptually
-                    categoryLimit: parsed['Category Limit'],
-                    secondaryTransactionCriteria: parsed['2nd Transaction Criteria'],
-                    secondaryTransactionLimit: parsed['2nd Transaction Limit'],
-                    tier2Rate: parsed['Tier 2 Cashback Rate'],
-                    tier2CategoryLimit: parsed['Tier 2 Category Limit'],
-                    method: parsed['Method'],
-                    // NEW: Default flag and Excluded MCC Codes
-                    isDefault: parsed['Default'] || false,
-                    excludedMccCodes: parsed['Excluded MCC Code'] ? parsed['Excluded MCC Code'].split(',').map(c => c.trim()) : [],
-                };
-            });
+                type: parsed['Type'], // Transaction Limit, 1 Tier, 2 Tier
+                transactionLimit: parsed['Transaction Limit'], // Renamed from capPerTransaction conceptually
+                categoryLimit: parsed['Category Limit'],
+                secondaryTransactionCriteria: parsed['2nd Transaction Criteria'],
+                secondaryTransactionLimit: parsed['2nd Transaction Limit'],
+                tier2Rate: parsed['Tier 2 Cashback Rate'],
+                tier2CategoryLimit: parsed['Tier 2 Category Limit'],
+                method: parsed['Method'],
+                // NEW: Default flag and Excluded MCC Codes
+                isDefault: parsed['Default'] || false,
+                excludedMccCodes: parsed['Excluded MCC Code'] ? parsed['Excluded MCC Code'].split(',').map(c => c.trim()) : [],
+            };
         });
         res.json(results);
     } catch (error) {
@@ -1888,40 +1855,38 @@ app.post('/api/monthly-summary/bulk-review', async (req, res) => {
 
 app.get('/api/common-vendors', async (req, res) => {
     try {
-        const vendors = await getCachedData('vendors', async () => {
-            const response = await notion.databases.query({
-                database_id: vendorsDbId,
-                // Filter to only get vendors where the "Active" checkbox is checked
-                filter: {
-                    property: 'Active',
-                    checkbox: {
-                        equals: true,
-                    },
+        const response = await notion.databases.query({
+            database_id: vendorsDbId,
+            // Filter to only get vendors where the "Active" checkbox is checked
+            filter: {
+                property: 'Active',
+                checkbox: {
+                    equals: true,
                 },
-                // Sort the vendors based on the "Sort Order" column
-                sorts: [
-                    {
-                        property: 'Sort Order',
-                        direction: 'ascending',
-                    },
-                ],
-            });
+            },
+            // Sort the vendors based on the "Sort Order" column
+            sorts: [
+                {
+                    property: 'Sort Order',
+                    direction: 'ascending',
+                },
+            ],
+        });
 
-            // Map the Notion data to a clean JSON format
-            return response.results.map((page) => {
-                const parsed = parseNotionPageProperties(page);
-                return {
-                    id: parsed.id,
-                    name: parsed['Name'],
-                    transactionName: parsed['Transaction Name'],
-                    merchant: parsed['Merchant'],
-                    mcc: parsed['MCC'],
-                    category: parsed['Category'],
-                    // Safely extract the first ID from the relation arrays
-                    preferredCardId: parsed['Preferred Card']?.[0] || null,
-                    preferredRuleId: parsed['Preferred Cashback Rule']?.[0] || null,
-                };
-            });
+        // Map the Notion data to a clean JSON format
+        const vendors = response.results.map((page) => {
+            const parsed = parseNotionPageProperties(page);
+            return {
+                id: parsed.id,
+                name: parsed['Name'],
+                transactionName: parsed['Transaction Name'],
+                merchant: parsed['Merchant'],
+                mcc: parsed['MCC'],
+                category: parsed['Category'],
+                // Safely extract the first ID from the relation arrays
+                preferredCardId: parsed['Preferred Card']?.[0] || null,
+                preferredRuleId: parsed['Preferred Cashback Rule']?.[0] || null,
+            };
         });
 
         res.json(vendors);
