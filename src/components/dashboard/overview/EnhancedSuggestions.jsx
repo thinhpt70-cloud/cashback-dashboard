@@ -223,7 +223,19 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
 
             if (effectiveRate < MINIMUM_RATE_THRESHOLD) return [];
 
-            const remainingCategoryCap = effectiveCategoryLimit > 0 ? Math.max(0, effectiveCategoryLimit - currentCashbackForCategory) : Infinity;
+            // --- CHANGED: Incorporate Card Monthly Limit Logic ---
+            const cardTierLimit = isTier2Met ? card.tier2Limit : card.overallMonthlyLimit;
+            const dynamicLimit = cardSummary?.monthlyCashbackLimit;
+            const effectiveCardLimit = dynamicLimit > 0 ? dynamicLimit : cardTierLimit;
+
+            const remainingCardCap = effectiveCardLimit > 0
+                ? Math.max(0, effectiveCardLimit - (cardSummary?.cashback || 0))
+                : Infinity;
+
+            let remainingCategoryCap = effectiveCategoryLimit > 0 ? Math.max(0, effectiveCategoryLimit - currentCashbackForCategory) : Infinity;
+
+            // The actual remaining cap is the bottleneck of the Category Limit and the Card Limit
+            remainingCategoryCap = Math.min(remainingCategoryCap, remainingCardCap);
 
             if (remainingCategoryCap === 0) return [];
             
