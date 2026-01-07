@@ -193,3 +193,48 @@ export const calculateFeeCycleProgress = (openDateStr, nextFeeDateStr) => {
 
     return { daysPast, progressPercent };
 };
+
+/**
+ * Formats a date string into a standard date format (e.g., "06 Jan 2026").
+ * @param {string} dateStr - The date string to format.
+ * @returns {string} - The formatted date string.
+ */
+export const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch (e) {
+        return dateStr;
+    }
+};
+
+/**
+ * Formats a date string into a date and time format (e.g., "06 Jan • 00:32").
+ * @param {string} dateStr - The date string to format.
+ * @returns {string} - The formatted date and time string.
+ */
+export const formatDateTime = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' • ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch (e) {
+        return dateStr;
+    }
+};
+
+/**
+ * Formats a date string into a full verbose date and time format (e.g., "Tuesday, 06 Jan 2026 at 00:32").
+ * @param {string} dateStr - The date string to format.
+ * @returns {string} - The formatted full date and time string.
+ */
+export const formatFullDateTime = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch (e) {
+        return dateStr;
+    }
+};

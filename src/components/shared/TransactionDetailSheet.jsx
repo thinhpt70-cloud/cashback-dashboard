@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
+import { formatFullDateTime } from "../../lib/date";
 import mccData from '../../lib/MCC.json';
 import useMediaQuery from "../../hooks/useMediaQuery";
 
@@ -191,7 +192,7 @@ export default function TransactionDetailSheet({
             <div>
                 <SectionHeader title="Transaction Info" />
                 <div className="grid gap-4">
-                    <DetailRow icon={Calendar} label="Date" value={currentTransaction['Transaction Date']} />
+                    <DetailRow icon={Calendar} label="Date" value={formatFullDateTime(currentTransaction['Transaction Date'])} />
                     <DetailRow icon={Store} label="Merchant" value={currentTransaction.merchantLookup || currentTransaction['Transaction Name']} />
                     <DetailRow icon={CreditCard} label="Card" value={cardName} />
                     <DetailRow icon={Globe} label="Method" value={getMethodBadge(currentTransaction['Method'])} />
