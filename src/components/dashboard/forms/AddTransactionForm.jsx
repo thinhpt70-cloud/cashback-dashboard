@@ -740,12 +740,12 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                         <label htmlFor="rule" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rule</label>
                         <div className="flex items-center gap-2">
                             <Select value={applicableRuleId} onValueChange={(val) => val && setApplicableRuleId(val)} disabled={filteredRules.length === 0}>
-                                <SelectTrigger className="flex-1 [&>span]:min-w-0">
+                                <SelectTrigger className="flex-1 min-w-0 [&>span]:min-w-0">
                                     <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules' : 'Select rule...'} />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="w-[var(--radix-select-trigger-width)]">
                                     {filteredRules.map(rule => (
-                                        <SelectItem key={rule.id} value={rule.id} disabled={rule.status === 'Inactive'}>
+                                        <SelectItem key={rule.id} value={rule.id} disabled={rule.status === 'Inactive'} className="[&>span]:min-w-0">
                                             <div className="flex w-full items-center justify-between gap-2 overflow-hidden">
                                                 <span className="truncate">{rule.ruleName}</span>
                                                 <Badge variant="secondary" className="ml-auto text-xs shrink-0">{(rule.rate * 100).toFixed(1)}%</Badge>
@@ -756,7 +756,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                             </Select>
                              <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button type="button" variant="ghost" size="icon" disabled={!selectedRule} aria-label="Rule details">
+                                    <Button type="button" variant="ghost" size="icon" disabled={!selectedRule} aria-label="Rule details" className="shrink-0">
                                         <Info className="h-4 w-4" />
                                     </Button>
                                 </PopoverTrigger>
