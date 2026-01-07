@@ -740,7 +740,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                         <label htmlFor="rule" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rule</label>
                         <div className="flex items-center gap-2">
                             <Select value={applicableRuleId} onValueChange={(val) => val && setApplicableRuleId(val)} disabled={filteredRules.length === 0}>
-                                <SelectTrigger className="flex-1">
+                                <SelectTrigger className="flex-1 [&>span]:min-w-0">
                                     <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules' : 'Select rule...'} />
                                 </SelectTrigger>
                                 <SelectContent>
