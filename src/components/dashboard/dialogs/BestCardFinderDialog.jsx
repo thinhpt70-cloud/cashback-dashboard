@@ -178,7 +178,11 @@ function RankingCard({ rank, item, currencyFn, isExpanded, onToggle }) {
         )}>
             {/* --- CARD HEADER --- */}
             <div
-                className={cn("p-4 flex items-center justify-between cursor-pointer select-none", isWinner ? "py-5" : "py-3")}
+                role="button"
+                tabIndex={0}
+                aria-expanded={isWinner || isExpanded}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+                className={cn("p-4 flex items-center justify-between cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 rounded-t-xl", isWinner ? "py-5" : "py-3")}
                 onClick={onToggle}
             >
                 <div className="flex items-center gap-4 flex-1">
@@ -295,12 +299,15 @@ function RankingCard({ rank, item, currencyFn, isExpanded, onToggle }) {
 
             {/* Toggle Button for non-winners */}
             {!isWinner && (
-                 <div
-                    className="w-full flex justify-center py-1 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                 <button
+                    type="button"
+                    className="w-full flex justify-center py-1 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:bg-slate-100 dark:focus-visible:bg-slate-800"
                     onClick={onToggle}
+                    aria-expanded={isExpanded}
+                    aria-label={isExpanded ? "Collapse details" : "Show more details"}
                  >
                      {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
-                 </div>
+                 </button>
             )}
         </div>
     );
