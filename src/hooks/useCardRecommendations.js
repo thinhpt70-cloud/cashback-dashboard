@@ -20,7 +20,16 @@ export default function useCardRecommendations({
         const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
 
         return rules
-            .filter(rule => rule.mccCodes && rule.mccCodes.split(',').map(c => c.trim()).includes(mccCode))
+            .filter(rule => {
+                const ruleMccCodes = rule.mccCodes ? rule.mccCodes.split(',').map(c => c.trim()) : [];
+                const ruleExcludedCodes = rule.excludedMccCodes ? rule.excludedMccCodes.split(',').map(c => c.trim()) : [];
+
+                const isSpecificMatch = ruleMccCodes.includes(mccCode);
+                const isBroadRule = rule.isDefault || ruleMccCodes.length === 0;
+
+                // Match specific code OR broad rule (unless excluded)
+                return isSpecificMatch || (isBroadRule && !ruleExcludedCodes.includes(mccCode));
+            })
             .map(rule => {
                 const card = cardMap.get(rule.cardId);
                 if (!card || card.status !== 'Active') return null;
