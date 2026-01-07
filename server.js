@@ -714,6 +714,11 @@ app.get('/api/transactions', async (req, res) => {
         return res.status(400).json({ error: 'A month query parameter in YYYYMM format is required.' });
     }
 
+    // Validate cardId type to prevent HTTP Parameter Pollution attacks (e.g., array injection)
+    if (cardId && typeof cardId !== 'string') {
+        return res.status(400).json({ error: 'Invalid cardId format. Must be a string.' });
+    }
+
     try {
         let filter; // This variable will hold the final filter object for the Notion API call.
 
@@ -1328,6 +1333,11 @@ app.get('/api/monthly-category-summary', async (req, res) => {
     try {
         let filter;
         if (months) {
+            // Validate months type to prevent HTTP Parameter Pollution attacks (e.g., array injection)
+            if (typeof months !== 'string') {
+                return res.status(400).json({ error: 'Invalid months format. Must be a comma-separated string.' });
+            }
+
             const monthList = months.split(',').map(m => m.trim());
             if (monthList.length > 0) {
                 filter = {
