@@ -5,24 +5,34 @@ export default function useCardRecommendations({
     amount,
     date,
     rules,
-    cards, // Pass cards directly
+    cards,
     monthlySummary,
     monthlyCategorySummary,
     getCurrentCashbackMonthForCard
 }) {
-    // 1. Move cardMap logic inside the hook
+    // 1. Map setup
     const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
 
-    // 2. Move rankedCards logic inside the hook
+    // 2. Main Logic
     const rankedCards = useMemo(() => {
+        // Basic validation
         if (!mccCode || !/^\d{4}$/.test(mccCode)) return [];
 
         const numericAmount = parseFloat(String(amount).replace(/,/g, ''));
 
+        // Helper: Safely parse "1234, 5678" strings or single numbers into an array
+        const safeSplit = (val) => {
+            if (typeof val === 'string') return val.split(',').map(c => c.trim());
+            if (typeof val === 'number') return [String(val)]; // Handle single numeric codes
+            return []; // Return empty array for null/undefined
+        };
+
         return rules
             .filter(rule => {
-                const ruleMccCodes = rule.mccCodes ? rule.mccCodes.split(',').map(c => c.trim()) : [];
-                const ruleExcludedCodes = rule.excludedMccCodes ? rule.excludedMccCodes.split(',').map(c => c.trim()) : [];
+                // --- UPDATED SAFE PARSING ---
+                const ruleMccCodes = safeSplit(rule.mccCodes);
+                const ruleExcludedCodes = safeSplit(rule.excludedMccCodes);
+                // ----------------------------
 
                 const isSpecificMatch = ruleMccCodes.includes(mccCode);
                 const isBroadRule = rule.isDefault || ruleMccCodes.length === 0;
@@ -39,11 +49,11 @@ export default function useCardRecommendations({
                 const categorySummaryId = `${monthForCard} - ${rule.ruleName}`;
                 const categoryMonthSummary = monthlyCategorySummary.find(s => s.summaryId === categorySummaryId && s.cardId === card.id);
 
-                // --- NEW TIERED LOGIC ---
+                // --- TIERED LOGIC ---
                 const currentMonthSpend = cardMonthSummary?.spend || 0;
                 const isTier2Met = card.cashbackType === '2 Tier' && card.tier2MinSpend > 0 && currentMonthSpend >= card.tier2MinSpend;
 
-                // Determine effective rate and limits based on tier
+                // Effective Rates & Limits
                 const effectiveRate = isTier2Met && rule.tier2Rate ? rule.tier2Rate : rule.rate;
                 const effectiveCategoryLimit = (isTier2Met && rule.tier2CategoryLimit) ? rule.tier2CategoryLimit : rule.categoryLimit;
                 const effectiveMonthlyLimit = (isTier2Met && card.tier2Limit) ? card.tier2Limit : card.overallMonthlyLimit;
@@ -64,13 +74,10 @@ export default function useCardRecommendations({
                 if (!isNaN(numericAmount) && numericAmount > 0) {
                     calculatedCashback = numericAmount * effectiveRate;
                     
-                    // NEW Transaction Limit Logic
                     let cap = rule.transactionLimit;
-                    // Check for secondary criteria (e.g., "Max 10k, but max 5k for txns > 1M")
                     if (rule.secondaryTransactionCriteria > 0 && numericAmount >= rule.secondaryTransactionCriteria) {
                         cap = rule.secondaryTransactionLimit;
                     }
-                    // Apply the determined cap
                     if (cap > 0) {
                         calculatedCashback = Math.min(calculatedCashback, cap);
                     }
@@ -80,15 +87,14 @@ export default function useCardRecommendations({
                     rule,
                     card,
                     calculatedCashback,
-                    isMinSpendMet: isMinSpendMet,
-                    isCategoryCapReached: isCategoryCapReached,
-                    isMonthlyCapReached: isMonthlyCapReached,
+                    isMinSpendMet,
+                    isCategoryCapReached,
+                    isMonthlyCapReached,
                     remainingCategoryCashback,
                 };
             })
             .filter(Boolean)
             .sort((a, b) => {
-                // Sorting logic remains the same
                 const isACapped = a.isMonthlyCapReached || a.isCategoryCapReached;
                 const isBCapped = b.isMonthlyCapReached || b.isCategoryCapReached;
                 if (isACapped !== isBCapped) return isACapped ? 1 : -1;
@@ -101,6 +107,5 @@ export default function useCardRecommendations({
             });
     }, [mccCode, amount, rules, cardMap, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, date]);
 
-    // 3. Return the calculated data
     return rankedCards;
 }
