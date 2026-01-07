@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "../../../lib/utils";
+import { formatDate } from "../../../lib/date";
 import { Checkbox } from "../../ui/checkbox";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -113,7 +114,7 @@ export default function TransactionsList({
             sortKey: 'Transaction Date',
             defaultVisible: true,
             width: 'w-[120px]',
-            renderCell: (tx) => tx['Transaction Date']
+            renderCell: (tx) => formatDate(tx['Transaction Date'])
         },
         {
             id: 'name',
@@ -357,7 +358,7 @@ export default function TransactionsList({
             } else if (groupBy === 'category') {
                 key = tx['Category'] || 'Uncategorized';
             } else if (groupBy === 'date') {
-                key = tx['Transaction Date'] || 'No Date';
+                key = formatDate(tx['Transaction Date']) || 'No Date';
             }
 
             if (!groups[key]) groups[key] = [];
@@ -365,7 +366,12 @@ export default function TransactionsList({
         });
 
         return Object.keys(groups).sort((a, b) => {
-             if (groupBy === 'date') return new Date(b) - new Date(a);
+             if (groupBy === 'date') {
+                 // Get the first item from each group to compare actual dates
+                 const dateA = groups[a][0]['Transaction Date'];
+                 const dateB = groups[b][0]['Transaction Date'];
+                 return new Date(dateB) - new Date(dateA);
+             }
              return a.localeCompare(b);
         }).reduce((obj, key) => {
             obj[key] = groups[key];
