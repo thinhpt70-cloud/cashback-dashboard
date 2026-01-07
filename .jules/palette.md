@@ -5,3 +5,7 @@
 2. Make the specific "content area" a keyboard-focusable button (`tabIndex="0"`, `role="button"`).
 3. Keep the secondary action (checkbox) as a separate focusable element.
 4. Ensure visible focus styles on the inner content area so keyboard users know which part is active.
+
+## 2026-01-07 - [Card Expand Toggles]
+**Learning:** Using `div` elements for expand/collapse toggles in cards creates a barrier for keyboard users.
+**Action:** Always use `<button type="button">` for card toggles, ensuring to add `aria-expanded` state and a descriptive `aria-label`. For the main card area, if it's clickable, use `role="button"` with `tabIndex="0"` and explicit `onKeyDown` (Enter/Space) handlers to ensure full keyboard operability.
