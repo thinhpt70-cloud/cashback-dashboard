@@ -1326,26 +1326,69 @@ function PaymentsTabV2({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLe
                 };
 
                 if (card.useStatementMonthForPayments) {
-                    const tempStatements = allCardSummaries.map(createStatementObject);
-                    const upcomingSummaries = tempStatements.filter(s => s.daysLeft !== null);
-                    const allPastSummaries = tempStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
-                    const initialPastToProcess = allPastSummaries.slice(0, 3);
-                    const remainingPastSummaries = allPastSummaries.slice(3);
-                    const summariesToProcess = [...upcomingSummaries, ...initialPastToProcess];
+                    // NEW: Decoupled Statement Logic & Fetch-on-Demand Optimization
 
-                    const statementPromises = summariesToProcess.map(async (stmt) => {
+                    // 1. Calculate Current Expected Statement Month
+                    const today = new Date();
+                    let targetDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    if (today.getDate() > card.statementDay) {
+                        targetDate.setMonth(targetDate.getMonth() + 1);
+                    }
+
+                    // 2. Generate Target Months (Current + Past 3)
+                    const targetMonths = [];
+                    for (let i = 0; i < 4; i++) {
+                        const y = targetDate.getFullYear();
+                        const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+                        targetMonths.push(`${y}${m}`);
+                        targetDate.setMonth(targetDate.getMonth() - 1);
+                    }
+
+                    // 3. Process Target Months
+                    const statementPromises = targetMonths.map(async (month) => {
+                        // A. Find existing summary (if any)
+                        const existingSummary = allCardSummaries.find(s => s.month === month);
+
+                        // B. OPTIMIZATION: If finalized, skip fetch
+                        if (existingSummary && (existingSummary.statementAmount > 0 || existingSummary.reviewed)) {
+                            return createStatementObject(existingSummary);
+                        }
+
+                        // C. Fetch Active/Missing Data
                         try {
-                            const res = await fetch(`${API_BASE_URL}/transactions?month=${stmt.month}&filterBy=statementMonth&cardId=${card.id}`);
-                            if (!res.ok) throw new Error('Failed to fetch statement transactions');
+                            const res = await fetch(`${API_BASE_URL}/transactions?month=${month}&filterBy=statementMonth&cardId=${card.id}`);
+                            if (!res.ok) throw new Error('Failed');
                             const transactions = await res.json();
                             const spend = transactions.reduce((acc, tx) => acc + (tx['Amount'] || 0), 0);
                             const cashback = transactions.reduce((acc, tx) => acc + (tx.estCashback || 0), 0);
-                            return { ...stmt, spend, cashback };
-                        } catch (error) { return { ...stmt, spend: 0, cashback: 0 }; }
+
+                            const base = existingSummary || {
+                                id: `synthetic-${card.id}-${month}`,
+                                month: month,
+                                cardId: card.id,
+                                statementAmount: 0,
+                                paidAmount: 0,
+                                isSynthetic: true
+                            };
+
+                            return createStatementObject({ ...base, spend, cashback });
+
+                        } catch (err) {
+                            console.error(`Fetch failed for ${month}`, err);
+                            return existingSummary ? createStatementObject(existingSummary) : null;
+                        }
                     });
 
-                    const processedStatements = await Promise.all(statementPromises);
-                    finalResult = processAndFinalize(processedStatements, remainingPastSummaries);
+                    const activeStatements = (await Promise.all(statementPromises)).filter(Boolean);
+
+                    // 4. Handle Older Statements (Not in target window)
+                    const activeMonthsSet = new Set(activeStatements.map(s => s.month));
+                    const olderSummaries = allCardSummaries
+                        .filter(s => !activeMonthsSet.has(s.month))
+                        .map(createStatementObject);
+
+                    // 5. Partition
+                    finalResult = processAndFinalize(activeStatements, olderSummaries);
 
                 } else {
                     const finalStatements = allCardSummaries.map(createStatementObject);
@@ -1811,12 +1854,20 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button onClick={() => onLogStatement(statement)} variant="outline" size="icon" className="sm:w-auto sm:px-3">
+                                <Button
+                                    onClick={() => onLogStatement(statement)}
+                                    disabled={statement.isSynthetic}
+                                    variant="outline"
+                                    size="icon"
+                                    className="sm:w-auto sm:px-3"
+                                >
                                     <FilePenLine className="h-4 w-4" />
                                     <span className="hidden sm:inline ml-1.5">Log Statement</span>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent className="sm:hidden"><p>Log Statement Amount</p></TooltipContent>
+                            <TooltipContent>
+                                <p>{statement.isSynthetic ? "Wait for month to finalize" : "Log Statement Amount"}</p>
+                            </TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
@@ -1837,12 +1888,19 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                         {!noPaymentNeeded && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button onClick={() => onLogPayment(statement)} disabled={isPaid} size="icon" className="sm:w-auto sm:px-3">
+                                    <Button
+                                        onClick={() => onLogPayment(statement)}
+                                        disabled={isPaid || statement.isSynthetic}
+                                        size="icon"
+                                        className="sm:w-auto sm:px-3"
+                                    >
                                         {isPaid ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                                         <span className="hidden sm:inline ml-1.5">{isPaid ? 'Paid' : 'Log Payment'}</span>
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent className="sm:hidden"><p>{isPaid ? 'Paid' : 'Log Payment'}</p></TooltipContent>
+                                <TooltipContent>
+                                    <p>{statement.isSynthetic ? "Wait for month to finalize" : (isPaid ? 'Paid' : 'Log Payment')}</p>
+                                </TooltipContent>
                             </Tooltip>
                         )}
                     </TooltipProvider>
