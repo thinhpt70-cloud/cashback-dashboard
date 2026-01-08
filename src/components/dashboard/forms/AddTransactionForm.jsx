@@ -20,7 +20,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { cn } from '@/lib/utils';
 
 
-export default function AddTransactionForm({ cards, categories, definitions, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, prefillData, onClose, needsSyncing, setNeedsSyncing }) {
+export default function AddTransactionForm({ cards, categories, definitions, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, prefillData, onClose, addToQueue }) {
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const form = useForm({
         defaultValues: {
@@ -455,7 +455,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
             'Method': method,
         };
 
-        setNeedsSyncing([...needsSyncing, transactionData]);
+        addToQueue(transactionData);
 
         if (initialData) {
             toast.success("Transaction update queued!");
