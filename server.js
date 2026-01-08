@@ -5,6 +5,7 @@ const { Client } = require('@notionhq/client');
 const cors = require('cors');
 const fs = require('fs'); // ADDED: To read the MCC.json file
 const path = require('path'); // ADDED: To help locate the MCC.json file
+const crypto = require('crypto'); // ADDED: For secure PIN comparison
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const cheerio = require('cheerio'); // ADDED: for scraping rcgv.vn
@@ -639,8 +640,17 @@ app.post('/api/login', loginRateLimiter, (req, res) => {
     const pin = String((req.body && req.body.pin) ?? '').trim();
     const correctPin = String(process.env.ACCESS_PASSWORD ?? '').trim();
 
-    if (pin && pin === correctPin) {
-        // Create a token that expires in 8 hours
+    // Use constant-time comparison to prevent timing attacks
+    let isValid = false;
+    if (pin && correctPin) {
+        const hash = (str) => crypto.createHash('sha256').update(str).digest();
+        const pinHash = hash(pin);
+        const correctPinHash = hash(correctPin);
+        isValid = crypto.timingSafeEqual(pinHash, correctPinHash);
+    }
+
+    if (isValid) {
+        // Create a token that expires in 7 days
         const token = jwt.sign({ user: 'admin' }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
         // Send token back in a secure, httpOnly cookie
@@ -648,7 +658,7 @@ app.post('/api/login', loginRateLimiter, (req, res) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
             sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 8 hours in milliseconds
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
         });
 
         return res.status(200).json({ success: true });
