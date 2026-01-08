@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronDown, CheckCircle2, Circle, Unlock, Lock, Infinity, Eye } from 'lucide-react';
+import { ChevronDown, CheckCircle2, Circle, Unlock, Lock, Infinity, Eye, Snowflake } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -138,7 +138,7 @@ function SingleCapCard({
     onSelectCategory
 }) {
     return (
-        <Card key={p.cardId} className="w-full">
+        <Card key={p.cardId} className={cn("w-full", p.isFrozen && "opacity-60 grayscale bg-slate-50 dark:bg-slate-900/50")}>
             {/* Clickable Header Area */}
             <div 
                 className="flex flex-col gap-2 p-3 cursor-pointer"
@@ -151,10 +151,13 @@ function SingleCapCard({
                             "w-2 h-2 rounded-full flex-shrink-0",
                             getDotColorClass(p.dotStatus)
                         )} />
-                        <p className={cn(
-                            "font-semibold truncate",
-                            { "text-slate-400 font-normal": p.isCapReached }
-                        )} title={p.cardName}>{p.cardName}</p>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            {p.isFrozen && <Snowflake className="h-4 w-4 text-sky-500 flex-shrink-0" />}
+                            <p className={cn(
+                                "font-semibold truncate",
+                                { "text-slate-400 font-normal": p.isCapReached || p.isFrozen }
+                            )} title={p.cardName}>{p.cardName}</p>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                         <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
@@ -171,9 +174,9 @@ function SingleCapCard({
                         <div className="flex justify-between items-center w-full text-sm">
                             <span className={cn(
                                 "font-medium",
-                                p.isCapReached ? "text-slate-500" : "text-emerald-600"
+                                p.isCapReached || p.isFrozen ? "text-slate-500" : "text-emerald-600"
                             )}>
-                                {p.isCapReached ? "✓ Maximized" : `${currencyFn(p.monthlyLimit - p.currentCashback)} left`}
+                                {p.isFrozen ? "Frozen" : (p.isCapReached ? "✓ Maximized" : `${currencyFn(p.monthlyLimit - p.currentCashback)} left`)}
                             </span>
                             <span className={cn(
                                 "text-xs text-right",
@@ -343,6 +346,8 @@ export default function CardSpendsCap({
                     summary => summary.cardId === card.id && summary.month === monthForCard
                 );
 
+                const isFrozen = card.status === 'Frozen';
+
                 const currentCashback = cardMonthSummary?.cashback || 0;
                 const currentSpend = cardMonthSummary?.spend || 0;
 
@@ -361,13 +366,25 @@ export default function CardSpendsCap({
 
                 const tier2SpendPct = card.tier2MinSpend > 0 ? Math.min(100, Math.round((currentSpend / card.tier2MinSpend) * 100)) : 0;
 
-                const { days, status } = card.useStatementMonthForPayments
-                    ? calculateDaysLeftInCashbackMonth(monthForCard)
-                    : calculateDaysUntilStatement(card.statementDay, monthForCard);
+                let days = 0;
+                let status = 'Unknown';
+
+                if (isFrozen) {
+                    status = 'Frozen';
+                    days = 0;
+                } else {
+                    const result = card.useStatementMonthForPayments
+                        ? calculateDaysLeftInCashbackMonth(monthForCard)
+                        : calculateDaysUntilStatement(card.statementDay, monthForCard);
+                    days = result.days;
+                    status = result.status;
+                }
 
                 let dotStatus = 'gray'; // Default
                 
-                if (isCapReached) {
+                if (isFrozen) {
+                    dotStatus = 'gray';
+                } else if (isCapReached) {
                     dotStatus = 'green'; // Fully capped
                 } else if (!minSpendMet && minSpend > 0) {
                     dotStatus = 'yellow'; // Requires action: Minimum Spend not met
@@ -387,9 +404,11 @@ export default function CardSpendsCap({
                     tier2Limit: card.tier2Limit,
                     tier2SpendPct,
                     dotStatus,
+                    isFrozen, // Add this property
                 };
             })
             .sort((a, b) => {
+                 if (a.isFrozen !== b.isFrozen) return a.isFrozen ? 1 : -1; // Frozen cards always last
                  if (a.isCapReached !== b.isCapReached) return a.isCapReached ? 1 : -1; // Capped cards last
                  if (a.minSpendMet !== b.minSpendMet) return a.minSpendMet ? -1 : 1; // Unmet min spend cards last among uncapped
                  // Prioritize 2 Tier cards that met Tier 2
@@ -408,6 +427,10 @@ export default function CardSpendsCap({
     }, [cards, activeMonth, monthlySummary, isLiveView, getCurrentCashbackMonthForCard]);
 
     const getProgressColor = (percentage) => {
+        // If logic needs to depend on card frozen state, we might need to change signature,
+        // but easier to handle in SingleCapCard render or assume passed percentage handles it.
+        // Actually, we should handle Frozen color in the component render logic or update this.
+        // But for now, let's keep this pure percentage based.
         if (percentage >= 100) return "bg-emerald-500";
         if (percentage > 85) return "bg-orange-500";
         return "bg-sky-500";
@@ -422,16 +445,26 @@ export default function CardSpendsCap({
         }
     };
 
-    const DaysLeftBadge = ({ status, days }) => (
-        <Badge
-            variant="outline"
-            className={cn( "text-xs h-6 px-2 font-semibold justify-center",
-                status === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
-            )}
-        >
-            {status === 'Completed' ? 'Done' : `${days} days left`}
-        </Badge>
-    );
+    const DaysLeftBadge = ({ status, days }) => {
+        if (status === 'Frozen') {
+             return (
+                <Badge variant="outline" className="text-xs h-6 px-2 font-semibold justify-center bg-slate-100 text-slate-500 border-slate-200">
+                    <Snowflake className="h-3 w-3 mr-1" />
+                    Frozen
+                </Badge>
+             );
+        }
+        return (
+            <Badge
+                variant="outline"
+                className={cn( "text-xs h-6 px-2 font-semibold justify-center",
+                    status === 'Completed' && "bg-emerald-100 text-emerald-800 border-emerald-200"
+                )}
+            >
+                {status === 'Completed' ? 'Done' : `${days} days left`}
+            </Badge>
+        );
+    };
 
     return (
         // This div replaces the original outer <Card>
