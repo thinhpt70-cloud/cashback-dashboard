@@ -22,7 +22,7 @@ import MobileThemeToggle from "./components/dashboard/header/MobileThemeToggle";
 import BestCardFinderDialog from './components/dashboard/dialogs/BestCardFinderDialog';
 import PaymentLogDialog from './components/dashboard/dialogs/PaymentLogDialog';
 import StatementLogDialog from './components/dashboard/dialogs/StatementLogDialog';
-import NeedsSyncingDialog from './components/dashboard/dialogs/NeedsSyncingDialog';
+import SyncQueueSheet from './components/shared/SyncQueueSheet';
 
 // Import form components
 import AddTransactionForm from './components/dashboard/forms/AddTransactionForm';
@@ -56,6 +56,7 @@ import SharedTransactionsDialog from "./components/shared/SharedTransactionsDial
 // Import custom hooks
 import useMediaQuery from "./hooks/useMediaQuery";
 import useCashbackData from "./hooks/useCashbackData";
+import useTransactionSync from "./hooks/useTransactionSync";
 
 // Import constants and utilities
 import { COLORS } from './lib/constants';
@@ -88,9 +89,6 @@ export default function CashbackDashboard() {
     // const [cardView, setCardView] = useState('month'); // MOVED TO CardsTab
     const [activeView, setActiveView] = useState('overview');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
-    const [needsSyncing, setNeedsSyncing] = useState([]);
-    const [isSyncingDialogOpen, setIsSyncingDialogOpen] = useState(false);
-    const [isSyncing, setIsSyncing] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
     const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -105,6 +103,44 @@ export default function CashbackDashboard() {
         fetchReviewTransactions, reviewLoading, fetchCategorySummaryForMonth,
         definitions
     } = useCashbackData(isAuthenticated);
+
+
+    // --- SYNC LOGIC ---
+    const handleBackgroundSyncSuccess = useCallback((updatedTransaction) => {
+        // Find and replace the transaction in the list for an instant UI update
+        // without disrupting the user or closing the form
+        setMonthlyTransactions(prevTxs =>
+            prevTxs.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
+        );
+
+        // Also update the recent transactions carousel
+        setRecentTransactions(prevRecent =>
+            prevRecent.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
+        );
+
+        setReviewTransactions(prevReview =>
+            prevReview.filter(tx => tx.id !== updatedTransaction.id)
+        );
+
+        // Quietly refresh other data
+        refreshData(true);
+    }, [setRecentTransactions, setReviewTransactions, refreshData]);
+
+    const {
+        queue: needsSyncing,
+        addToQueue,
+        retry: handleRetrySync,
+        remove: handleRemoveFromSync,
+        isSyncing,
+        isSheetOpen: isSyncingSheetOpen,
+        setSheetOpen: setIsSyncingSheetOpen
+    } = useTransactionSync({
+        cards,
+        monthlySummary,
+        monthlyCategorySummary, // actually passed but hook logic does fetch itself if needed, but it's good for deps
+        onSyncSuccess: handleBackgroundSyncSuccess
+    });
+
 
     // Fetch review transactions when tab is active
     useEffect(() => {
@@ -291,6 +327,8 @@ export default function CashbackDashboard() {
         }
     }, [setRecentTransactions, setReviewTransactions, refreshData]);
 
+    // Used for MANUAL edits (when user clicks "Update Transaction" in form)
+    // The background sync updates are handled by handleBackgroundSyncSuccess
     const handleTransactionUpdated = useCallback((updatedTransaction) => {
         // Find and replace the transaction in the list for an instant UI update
         setMonthlyTransactions(prevTxs =>
@@ -306,9 +344,13 @@ export default function CashbackDashboard() {
             prevReview.filter(tx => tx.id !== updatedTransaction.id)
         );
 
-        setEditingTransaction(null); // Close the edit form
+        // Close the edit form ONLY IF we are editing THIS transaction
+        if (editingTransaction && editingTransaction.id === updatedTransaction.id) {
+            setEditingTransaction(null);
+        }
+
         refreshData(true);
-    }, [setRecentTransactions, setReviewTransactions, refreshData]);
+    }, [setRecentTransactions, setReviewTransactions, refreshData, editingTransaction]);
 
 
 
@@ -320,126 +362,6 @@ export default function CashbackDashboard() {
     }, [monthlySummary]);
 
     // --- NEW: AUTHENTICATION CHECK EFFECT ---
-    useEffect(() => {
-        const storedQueue = localStorage.getItem('needsSyncing');
-        if (storedQueue) {
-            setNeedsSyncing(JSON.parse(storedQueue));
-        }
-    }, []);
-
-    useEffect(() => {
-        localStorage.setItem('needsSyncing', JSON.stringify(needsSyncing));
-
-        const syncTransactions = async () => {
-            setIsSyncing(true); // <-- 1. SET THE LOCK
-
-            try { // <-- 2. Wrap in try/finally to ensure lock is released
-                for (const transaction of needsSyncing) {
-                    if (transaction.status === 'pending') {
-                        try {
-                            let finalSummaryId = null;
-
-                            // --- START: Summary Logic ---
-                            const cardId = transaction['Card'] ? transaction['Card'][0] : null;
-                            const ruleId = transaction['Applicable Rule'] ? transaction['Applicable Rule'][0] : null;
-                            const cardForTx = cardId ? cards.find(c => c.id === cardId) : null;
-
-                            if (ruleId && cardForTx) {
-                                const cbMonth = getCurrentCashbackMonthForCard(cardForTx, transaction['Transaction Date']);
-                                const summaryResponse = await fetch('/api/summaries', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        cardId: cardId,
-                                        month: cbMonth,
-                                        ruleId: ruleId
-                                    }),
-                                });
-                                if (!summaryResponse.ok) throw new Error('Failed to create new monthly summary.');
-                                const newSummary = await summaryResponse.json();
-                                finalSummaryId = newSummary.id;
-                            }
-                            // --- END: Summary Logic ---
-
-
-                            // --- START: FIX 1 (Key Mapping) ---
-                            const apiPayload = {
-                                merchant: transaction['Transaction Name'],
-                                amount: transaction['Amount'],
-                                date: transaction['Transaction Date'],
-                                cardId: cardId,
-                                category: transaction['Category'],
-                                mccCode: transaction['MCC Code'],
-                                merchantLookup: transaction['merchantLookup'],
-                                applicableRuleId: ruleId,
-                                cardSummaryCategoryId: finalSummaryId,
-                                notes: transaction['notes'],
-                                otherDiscounts: transaction['otherDiscounts'],
-                                otherFees: transaction['otherFees'],
-                                foreignCurrencyAmount: transaction['foreignCurrencyAmount'],
-                                exchangeRate: transaction['exchangeRate'],
-                                foreignCurrency: transaction['foreignCurrency'],
-                                conversionFee: transaction['conversionFee'],
-                                paidFor: transaction['paidFor'],
-                                subCategory: transaction['subCategory'],
-                                billingDate: transaction['billingDate'],
-                                method: transaction['Method'], // Pass the method field
-                            };
-                            // --- END: FIX 1 ---
-
-                            // --- START: FIX 2 (POST vs. PATCH) ---
-                            const isNewTransaction = transaction.id.includes('T') && transaction.id.includes('Z');
-                            // --- END: FIX 2 ---
-
-                            let response;
-                            if (isNewTransaction) {
-                                response = await fetch('/api/transactions', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify(apiPayload),
-                                });
-                            } else {
-                                response = await fetch(`/api/transactions/${transaction.id}`, {
-                                    method: 'PATCH',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify(apiPayload),
-                                });
-                            }
-
-                            if (!response.ok) {
-                                const errorBody = await response.json().catch(() => ({}));
-                                console.error("Server responded with error:", response.status, errorBody);
-                                throw new Error(`Failed to sync transaction. Server said: ${errorBody.error || 'Bad Request'}`);
-                            }
-
-                            const syncedTransaction = await response.json();
-
-                            // Remove from queue *after* successful sync
-                            setNeedsSyncing(prevQueue => prevQueue.filter(t => t.id !== transaction.id));
-
-                            handleTransactionUpdated(syncedTransaction);
-                            toast.success(`Synced "${syncedTransaction['Transaction Name']}"`);
-
-                        } catch (error) {
-                            console.error('Error syncing transaction:', error);
-                            setNeedsSyncing(prevQueue =>
-                                prevQueue.map(t => t.id === transaction.id ? { ...t, status: 'error' } : t)
-                            );
-                        }
-                    }
-                }
-            } finally {
-                setIsSyncing(false); // <-- 3. RELEASE THE LOCK
-            }
-        };
-
-        // 4. CHECK THE LOCK before starting
-        if (needsSyncing.some(t => t.status === 'pending') && !isSyncing) {
-            syncTransactions();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [needsSyncing, cards, monthlySummary, monthlyCategorySummary, isSyncing]); // <-- 5. ADD isSyncing to dependency array
-
 
     useEffect(() => {
         const checkAuthStatus = async () => {
@@ -682,18 +604,6 @@ export default function CashbackDashboard() {
         return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
     }
 
-    const handleRetrySync = (txId) => {
-        const updatedQueue = needsSyncing.map(tx =>
-            tx.id === txId ? { ...tx, status: 'pending' } : tx
-        );
-        setNeedsSyncing(updatedQueue);
-    };
-
-    const handleRemoveFromSync = (txId) => {
-        const updatedQueue = needsSyncing.filter(tx => tx.id !== txId);
-        setNeedsSyncing(updatedQueue);
-    };
-
     if (!isShellReady) {
         return <AppSkeleton />;
     }
@@ -787,6 +697,28 @@ export default function CashbackDashboard() {
 
                 {/* Right-aligned container for all controls */}
                 <div className="ml-auto flex items-center gap-2">
+                    {/* Status Indicator for Sync */}
+                    {needsSyncing.length > 0 && (
+                         <Button
+                             variant="ghost"
+                             size="sm"
+                             className="h-8 gap-1.5 px-2 text-muted-foreground hover:text-foreground"
+                             onClick={() => setIsSyncingSheetOpen(true)}
+                         >
+                            {isSyncing ? (
+                                <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    <span className="hidden sm:inline text-xs">Syncing...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
+                                    <span className="hidden sm:inline text-xs">Saved Offline</span>
+                                </>
+                            )}
+                         </Button>
+                    )}
+
                     {/* Month Selector - visible on all screen sizes */}
                     {statementMonths.length > 0 && (
                         <select
@@ -803,10 +735,6 @@ export default function CashbackDashboard() {
 
                     {/* --- Desktop Controls (hidden on mobile) --- */}
                     <div className="hidden md:flex items-center gap-2">
-                        <Button variant="outline" className="h-10" onClick={() => setIsSyncingDialogOpen(true)}>
-                            <History className="mr-2 h-4 w-4" />
-                            Needs Syncing ({needsSyncing.length})
-                        </Button>
                         <Sheet open={isAddTxDialogOpen && isDesktop} onOpenChange={setIsAddTxDialogOpen}>
                             <SheetTrigger asChild>
                                 <Button variant="default" className="h-10">
@@ -838,8 +766,7 @@ export default function CashbackDashboard() {
                                         monthlySummary={monthlySummary}
                                         monthlyCategorySummary={monthlyCategorySummary}
                                         getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                        needsSyncing={needsSyncing}
-                                        setNeedsSyncing={setNeedsSyncing}
+                                        addToQueue={addToQueue}
                                         prefillData={duplicateTransaction}
                                     />
                                 </div>
@@ -868,8 +795,7 @@ export default function CashbackDashboard() {
                                         initialData={editingTransaction}
                                         onTransactionUpdated={handleTransactionUpdated}
                                         onClose={() => setEditingTransaction(null)}
-                                        needsSyncing={needsSyncing}
-                                        setNeedsSyncing={setNeedsSyncing}
+                                        addToQueue={addToQueue}
                                     />
                                 </div>
                             </SheetContent>
@@ -901,8 +827,7 @@ export default function CashbackDashboard() {
                                         monthlySummary={monthlySummary}
                                         monthlyCategorySummary={monthlyCategorySummary}
                                         getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                        needsSyncing={needsSyncing}
-                                        setNeedsSyncing={setNeedsSyncing}
+                                        addToQueue={addToQueue}
                                         prefillData={duplicateTransaction}
                                         onClose={() => setIsAddTxDialogOpen(false)}
                                     />
@@ -931,8 +856,7 @@ export default function CashbackDashboard() {
                                             initialData={editingTransaction}
                                             onTransactionUpdated={handleTransactionUpdated}
                                             onClose={() => setEditingTransaction(null)}
-                                            needsSyncing={needsSyncing}
-                                            setNeedsSyncing={setNeedsSyncing}
+                                            addToQueue={addToQueue}
                                         />
                                     </div>
                                 </DrawerContent>
@@ -1157,12 +1081,13 @@ export default function CashbackDashboard() {
                 rules={cashbackRules}
                 monthlyCategorySummary={monthlyCategorySummary}
             />
-            <NeedsSyncingDialog
-                isOpen={isSyncingDialogOpen}
-                onClose={() => setIsSyncingDialogOpen(false)}
-                needsSyncing={needsSyncing}
+            <SyncQueueSheet
+                isOpen={isSyncingSheetOpen}
+                onOpenChange={setIsSyncingSheetOpen}
+                queue={needsSyncing}
                 onRetry={handleRetrySync}
                 onRemove={handleRemoveFromSync}
+                isSyncing={isSyncing}
             />
         </div>
         </div>
