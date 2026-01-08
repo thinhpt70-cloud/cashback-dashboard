@@ -456,7 +456,13 @@ export default function TransactionReview({
          <div className="sticky top-16 z-40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-slate-900 text-white shadow-md rounded-b-xl animate-in fade-in slide-in-from-top-2 mb-4">
             <div className="flex items-center gap-4 pl-1 w-full sm:w-auto">
                 <div className="flex items-center gap-2">
-                     <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-white shrink-0" onClick={() => setSelectedIds(new Set())}>
+                     <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-300 hover:text-white shrink-0"
+                        onClick={() => setSelectedIds(new Set())}
+                        aria-label="Clear selection"
+                    >
                         <X className="h-4 w-4" />
                     </Button>
                     <span className="text-sm font-medium whitespace-nowrap">{selectedIds.size} Selected</span>
@@ -1069,7 +1075,7 @@ export default function TransactionReview({
                                                                 </Button>
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild>
-                                                                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="More options">
                                                                             <MoreHorizontal className="h-4 w-4" />
                                                                         </Button>
                                                                     </DropdownMenuTrigger>
