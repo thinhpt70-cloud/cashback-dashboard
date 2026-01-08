@@ -168,7 +168,8 @@ export default function CashbackDashboard() {
         }
     };
 
-    const handleTransactionAdded = (newTransaction) => {
+    // ⚡ Bolt Optimization: Memoize handlers to prevent re-renders
+    const handleTransactionAdded = useCallback((newTransaction) => {
         // 1. Instantly update the list for the current month
         if (newTransaction['Transaction Date'].startsWith(activeMonth.replace('-', ''))) {
                 setMonthlyTransactions(prevTxs => [newTransaction, ...prevTxs]);
@@ -179,7 +180,7 @@ export default function CashbackDashboard() {
 
         // 3. Trigger a full refresh in the background to update all aggregate data (charts, stats, etc.) without a loading screen.
         refreshData(true);
-    };
+    }, [activeMonth, setRecentTransactions, refreshData]);
 
     const handleViewTransactions = useCallback(async (cardId, cardName, month, monthLabel) => {
         setDialogDetails({ cardId, cardName, month, monthLabel });
@@ -204,7 +205,7 @@ export default function CashbackDashboard() {
         }
     }, []);
 
-    const handleTransactionDeleted = async (deletedTxId, txName) => {
+    const handleTransactionDeleted = useCallback(async (deletedTxId, txName) => {
         // 1. Ask for confirmation to prevent accidental deletion
         const confirmationMessage = txName
             ? `Are you sure you want to delete the transaction for "${txName}"? This action cannot be undone.`
@@ -244,23 +245,26 @@ export default function CashbackDashboard() {
             console.error("Delete failed:", error);
             toast.error("Could not delete the transaction. Please try again.");
         }
-    };
+    }, [setRecentTransactions, setReviewTransactions, refreshData]);
 
-    const handleEditClick = (transaction) => {
+    const handleEditClick = useCallback((transaction) => {
         setEditingTransaction(transaction);
-    };
+    }, []);
 
-    const handleDuplicateClick = (transaction) => {
+    const handleDuplicateClick = useCallback((transaction) => {
         setDuplicateTransaction(transaction);
         setIsAddTxDialogOpen(true);
-    };
+    }, []);
 
-    const handleViewTransactionDetails = (transaction) => {
+    // ⚡ Bolt Optimization: Memoize helper functions to prevent re-renders
+    const cardMap = useMemo(() => new Map(allCards.map(c => [c.id, c])), [allCards]); // Use allCards here
+
+    const handleViewTransactionDetails = useCallback((transaction) => {
         const cardName = transaction['Card Name'] || (transaction['Card'] && cardMap.get(transaction['Card'][0])?.name);
         setViewingTransaction({ ...transaction, 'Card Name': cardName });
-    };
+    }, [cardMap]);
 
-    const handleBulkDelete = async (transactionIds) => {
+    const handleBulkDelete = useCallback(async (transactionIds) => {
         if (!window.confirm(`Are you sure you want to delete ${transactionIds.length} transactions? This action cannot be undone.`)) {
             return;
         }
@@ -285,9 +289,9 @@ export default function CashbackDashboard() {
             console.error("Bulk delete failed:", error);
             toast.error("Could not delete transactions. Please try again.");
         }
-    };
+    }, [setRecentTransactions, setReviewTransactions, refreshData]);
 
-    const handleTransactionUpdated = (updatedTransaction) => {
+    const handleTransactionUpdated = useCallback((updatedTransaction) => {
         // Find and replace the transaction in the list for an instant UI update
         setMonthlyTransactions(prevTxs =>
             prevTxs.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
@@ -304,7 +308,7 @@ export default function CashbackDashboard() {
 
         setEditingTransaction(null); // Close the edit form
         refreshData(true);
-    };
+    }, [setRecentTransactions, setReviewTransactions, refreshData]);
 
 
 
@@ -501,7 +505,8 @@ export default function CashbackDashboard() {
     // --------------------------
 
     // --- UTILITIES ---
-    const mccName = (code) => mccMap[code]?.vn || "Unknown";
+    // ⚡ Bolt Optimization: Memoize this function to prevent re-renders of TransactionsList
+    const mccName = useCallback((code) => mccMap[code]?.vn || "Unknown", [mccMap]);
 
     // sortedCards MOVED TO CardsTab
     // const sortedCards = useMemo(() => { ... }, [allCards]);
@@ -517,8 +522,6 @@ export default function CashbackDashboard() {
         });
         return map;
     }, [allCards]);
-
-    const cardMap = useMemo(() => new Map(allCards.map(c => [c.id, c])), [allCards]); // Use allCards here
 
 
     // --- NEW: CONSOLIDATED STATS LOGIC ---
