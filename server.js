@@ -16,6 +16,10 @@ const mccDataPath = path.join(__dirname, 'MCC.json');
 const mccData = JSON.parse(fs.readFileSync(mccDataPath, 'utf8'));
 
 const app = express();
+// Enable proxy trust to correctly identify client IP from Netlify's load balancer
+// 1 hop is sufficient for Netlify Functions/Edge
+app.set('trust proxy', 1);
+
 app.use(cors({
     origin: 'http://localhost:3000', // Or your frontend URL
     credentials: true
@@ -43,10 +47,8 @@ const createRateLimiter = (windowMs, maxAttempts, message) => {
     const attempts = new Map();
 
     return (req, res, next) => {
-        // Use X-Forwarded-For if behind a proxy (like Netlify), otherwise req.ip
-        // Handle comma-separated X-Forwarded-For list
-        const xForwardedFor = req.headers['x-forwarded-for'];
-        const ip = xForwardedFor ? xForwardedFor.split(',')[0].trim() : (req.ip || req.connection.remoteAddress);
+        // Use req.ip which is now safe because 'trust proxy' is enabled
+        const ip = req.ip;
 
         const current = attempts.get(ip) || { count: 0, windowStart: Date.now() };
 
