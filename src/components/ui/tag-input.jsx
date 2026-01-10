@@ -190,6 +190,7 @@ const TagsInputFieldBase = ({
                                 removeTag(index, tags, field.onChange)
                               }
                               className="ml-1 hover:bg-destructive/20 rounded-full p-0.5 transition-colors"
+                              aria-label={`Remove ${tag}`}
                             >
                               <X className="w-3 h-3" />
                             </button>
@@ -250,6 +251,7 @@ const TagsInputFieldBase = ({
                         !inputValue.trim() ||
                         (maxTags ? tags.length >= maxTags : false)
                       }
+                      aria-label="Add tag"
                     >
                       <Plus className="w-4 h-4 text-muted-foreground" />
                     </button>
