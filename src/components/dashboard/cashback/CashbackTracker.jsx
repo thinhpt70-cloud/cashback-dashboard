@@ -475,8 +475,8 @@ export default function CashbackTracker({
     });
 
     // --- DATA PROCESSING ---
-    const { cashItems, pointsByCard, stats, cardMap } = useMemo(() => {
-        if (!monthlySummary || !cards) return { cashItems: [], pointsByCard: [], stats: null, cardMap: new Map() };
+    const { cashItems, pointsByCard, globalStats, cardMap } = useMemo(() => {
+        if (!monthlySummary || !cards) return { cashItems: [], pointsByCard: [], globalStats: null, cardMap: new Map() };
 
         const cMap = new Map(cards.map(c => [c.id, c]));
 
@@ -569,21 +569,22 @@ export default function CashbackTracker({
         });
 
         // Stats Calculation
-        const totalCashback = cash.reduce((sum, item) => sum + item.totalEarned, 0);
-        const amountReceived = cash.reduce((sum, item) => sum + (item.amountRedeemed || 0), 0);
-        const amountPending = cash.reduce((sum, item) => sum + item.remainingDue, 0);
+        const totalCashEarned = cash.reduce((sum, item) => sum + item.totalEarned, 0);
+        const totalCashRedeemed = cash.reduce((sum, item) => sum + (item.amountRedeemed || 0), 0);
+        const totalCashPending = cash.reduce((sum, item) => sum + item.remainingDue, 0);
 
-        const uniqueMonths = new Set(cash.map(i => i.month)).size;
-        const avgMonthlyEarnings = uniqueMonths > 0 ? totalCashback / uniqueMonths : 0;
+        const totalPointsEarned = points.reduce((sum, item) => sum + item.totalEarned, 0);
+        const totalPointsRedeemed = points.reduce((sum, item) => sum + (item.amountRedeemed || 0), 0);
+        const totalPointsAvailable = points.reduce((sum, item) => sum + item.remainingDue, 0);
 
-        const stats = {
-            totalCashback,
-            amountReceived,
-            amountPending,
-            avgMonthlyEarnings
+        const globalStats = {
+            lifetimeEarnings: totalCashEarned + totalPointsEarned,
+            totalRedeemed: totalCashRedeemed + totalPointsRedeemed,
+            cashPending: totalCashPending,
+            pointsAvailable: totalPointsAvailable
         };
 
-        return { cashItems: cash, pointsItems: points, pointsByCard: Object.values(pCardMap), stats, cardMap: cMap };
+        return { cashItems: cash, pointsItems: points, pointsByCard: Object.values(pCardMap), globalStats, cardMap: cMap };
     }, [monthlySummary, cards, optimisticData]);
 
     // --- CASH FILTERING & GROUPING ---
@@ -1240,6 +1241,41 @@ export default function CashbackTracker({
     return (
         <div className="space-y-6">
 
+            {/* GLOBAL STATS GRID */}
+            {globalStats && (
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
+                    <StatCard
+                        title="Lifetime Earnings"
+                        value={currency(globalStats.lifetimeEarnings)}
+                        numericValue={globalStats.lifetimeEarnings}
+                        icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+                        currencyFn={currency}
+                    />
+                    <StatCard
+                        title="Total Redeemed"
+                        value={currency(globalStats.totalRedeemed)}
+                        numericValue={globalStats.totalRedeemed}
+                        icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />}
+                        currencyFn={currency}
+                    />
+                    <StatCard
+                        title="Cash Pending"
+                        value={currency(globalStats.cashPending)}
+                        numericValue={globalStats.cashPending}
+                        icon={<Clock className="h-4 w-4 text-muted-foreground" />}
+                        currencyFn={currency}
+                        invertTrendColor={true}
+                    />
+                    <StatCard
+                        title="Points Available"
+                        value={currency(globalStats.pointsAvailable)}
+                        numericValue={globalStats.pointsAvailable}
+                        icon={<Coins className="h-4 w-4 text-muted-foreground" />}
+                        currencyFn={currency}
+                    />
+                </div>
+            )}
+
             {/* MAIN TAB SWITCHER */}
             <div className="flex justify-center">
                 <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-full inline-flex">
@@ -1261,41 +1297,6 @@ export default function CashbackTracker({
             {/* ===== CASH VIEW ===== */}
             {mainTab === 'cash' && (
                 <div className="space-y-6">
-
-                    {/* Stats Cards */}
-                    {stats && (
-                        <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
-                            <StatCard
-                                title="Total Cashback"
-                                value={currency(stats.totalCashback)}
-                                numericValue={stats.totalCashback}
-                                icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-                                currencyFn={currency}
-                            />
-                            <StatCard
-                                title="Received"
-                                value={currency(stats.amountReceived)}
-                                numericValue={stats.amountReceived}
-                                icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />}
-                                currencyFn={currency}
-                            />
-                            <StatCard
-                                title="Pending"
-                                value={currency(stats.amountPending)}
-                                numericValue={stats.amountPending}
-                                icon={<Clock className="h-4 w-4 text-muted-foreground" />}
-                                currencyFn={currency}
-                                invertTrendColor={true} // High pending might be considered 'bad' or just needs distinct color
-                            />
-                            <StatCard
-                                title="Avg. Monthly"
-                                value={currency(stats.avgMonthlyEarnings)}
-                                numericValue={stats.avgMonthlyEarnings}
-                                icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-                                currencyFn={currency}
-                            />
-                        </div>
-                    )}
 
                     {/* Controls */}
                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
@@ -1439,33 +1440,6 @@ export default function CashbackTracker({
             {/* ===== POINTS VIEW ===== */}
             {mainTab === 'points' && (
                 <div className="space-y-6">
-
-                    {/* Points Hero Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Available Balance */}
-                        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-                            <div className="absolute top-0 right-0 -mr-10 -mt-10 bg-white/10 h-64 w-64 rounded-full blur-3xl pointer-events-none"></div>
-                            <div className="relative z-10">
-                                <p className="text-indigo-100 font-medium mb-1">Total Rewards Value</p>
-                                <h2 className="text-4xl font-bold tracking-tight">
-                                    {currency(pointsByCard.reduce((acc, c) => acc + c.totalPoints, 0))} <span className="text-lg font-normal opacity-80">pts</span>
-                                </h2>
-                                <p className="text-sm text-indigo-200 mt-2"> across {pointsByCard.length} cards</p>
-                            </div>
-                        </div>
-
-                        {/* Redeemed Balance */}
-                        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-                            <div className="absolute top-0 right-0 -mr-10 -mt-10 bg-white/10 h-64 w-64 rounded-full blur-3xl pointer-events-none"></div>
-                            <div className="relative z-10">
-                                <p className="text-emerald-100 font-medium mb-1">Total Redeemed</p>
-                                <h2 className="text-4xl font-bold tracking-tight">
-                                    {currency(pointsByCard.reduce((acc, c) => acc + (c.totalRedeemed || 0), 0))} <span className="text-lg font-normal opacity-80">pts</span>
-                                </h2>
-                                <p className="text-sm text-emerald-200 mt-2"> realized value</p>
-                            </div>
-                        </div>
-                    </div>
 
                     {/* Points Card Grid */}
                     {pointsByCard.length === 0 ? (
