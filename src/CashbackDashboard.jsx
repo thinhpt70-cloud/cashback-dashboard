@@ -1,7 +1,7 @@
 // CashbackDashboard.jsx
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CreditCard, Wallet, CalendarClock, DollarSign, AlertTriangle, Search, Loader2, Plus, History, Check, ChevronDown, List, FilePenLine, LayoutDashboard, ArrowLeftRight, Banknote, Menu, RefreshCw, LogOut } from "lucide-react";
+import { CreditCard, DollarSign, AlertTriangle, Search, Loader2, Plus, LayoutDashboard, ArrowLeftRight, Banknote, Menu, RefreshCw, LogOut } from "lucide-react";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
@@ -11,9 +11,7 @@ import { getTodaysMonth, getPreviousMonth, getCurrentCashbackMonthForCard } from
 
 // Import UI components
 import { Button } from "./components/ui/button";
-import { Badge } from "./components/ui/badge";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
+import { TooltipProvider } from "./components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./components/ui/sheet";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "./components/ui/drawer";
 
@@ -33,7 +31,6 @@ import CashbackByCardChart from "./components/dashboard/overview/CashbackByCardC
 import CummulativeResultsChart from "./components/dashboard/overview/CummulativeResultsChart";
 import RecentTransactions from './components/dashboard/overview/RecentTransactions';
 import CurrentCashflowChart from "./components/dashboard/overview/CurrentCashflowChart";
-import StatCards from './components/dashboard/overview/OverviewStatCards';
 import TransactionReview from './components/dashboard/transactions/TransactionReview';
 import TransactionsList from './components/dashboard/transactions/TransactionsList';
 import TransactionDetailSheet from './components/shared/TransactionDetailSheet';
