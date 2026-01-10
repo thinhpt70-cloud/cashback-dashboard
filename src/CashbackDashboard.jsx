@@ -50,6 +50,7 @@ import AppSkeleton from "./components/shared/AppSkeleton";
 import StatCard from "./components/shared/StatCard";
 import AppSidebar from "./components/shared/AppSidebar";
 import SharedTransactionsDialog from "./components/shared/SharedTransactionsDialog";
+import StatCards from './components/dashboard/overview/OverviewStatCards';
 
 // Import custom hooks
 import useMediaQuery from "./hooks/useMediaQuery";
