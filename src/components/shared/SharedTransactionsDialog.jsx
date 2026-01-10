@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Loader2, Trash2, MoreVertical, Search, X, ArrowUpDown, ChevronDown, Layers } from 'lucide-react';
 import mccData from '@/lib/MCC.json';
 import useMediaQuery from '@/hooks/useMediaQuery';
+import { formatDateTime, formatDate } from '@/lib/date';
 import {
     Dialog,
     DialogContent,
@@ -37,6 +38,11 @@ import TransactionDetailSheet from './TransactionDetailSheet';
 // Helper function to get MCC description
 const getMccDescription = (mcc) => {
     return mccData.mccDescriptionMap[mcc]?.vn || 'N/A';
+};
+
+const formatTxDate = (dateStr) => {
+    if (!dateStr) return '';
+    return dateStr.includes('T') ? formatDateTime(dateStr) : formatDate(dateStr);
 };
 
 export default function SharedTransactionsDialog({
@@ -454,7 +460,7 @@ export default function SharedTransactionsDialog({
                                                         onCheckedChange={(checked) => handleSelectRow(t.id, checked)}
                                                     />
                                                 </td>
-                                                {visibleColumns['Transaction Date'] && <td className="p-2">{t['Transaction Date']}</td>}
+                                                {visibleColumns['Transaction Date'] && <td className="p-2">{formatTxDate(t['Transaction Date'])}</td>}
                                                 {visibleColumns['Transaction Name'] && <td className="p-2">{t['Transaction Name']}</td>}
 
                                                 {visibleColumns['Merchant'] && (
