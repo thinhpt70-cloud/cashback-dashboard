@@ -20,8 +20,11 @@ const app = express();
 // 1 hop is sufficient for Netlify Functions/Edge
 app.set('trust proxy', 1);
 
+// SECURITY: Allow configuring the CORS origin via environment variable to support production domains
+// Defaults to localhost:3000 for development
+const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
 app.use(cors({
-    origin: 'http://localhost:3000', // Or your frontend URL
+    origin: allowedOrigin,
     credentials: true
 }));
 app.use(helmet());
