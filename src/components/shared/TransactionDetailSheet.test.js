@@ -43,6 +43,7 @@ jest.mock('lucide-react', () => ({
   Globe: () => <span data-testid="icon-globe" />,
   AlertCircle: () => <span data-testid="icon-alert-circle" />,
   CheckCircle2: () => <span data-testid="icon-check-circle" />,
+  Check: () => <span data-testid="icon-check" />,
   Percent: () => <span data-testid="icon-percent" />,
   ArrowLeft: () => <span data-testid="icon-arrow-left" />,
 }));
