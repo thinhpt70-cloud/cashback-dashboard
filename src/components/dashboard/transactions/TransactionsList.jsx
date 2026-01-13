@@ -294,29 +294,14 @@ export default function TransactionsList({
         });
     }, [transactions]);
 
-    const filteredData = useMemo(() => {
-        let items = enrichedTransactions;
-
-        // ⚡ Bolt Optimization: Hoist toLowerCase out of loop and use pre-calculated fields
-        if (searchTerm) {
-            const lowerCaseSearch = searchTerm.toLowerCase();
-            items = items.filter(tx =>
-                tx._searchName.includes(lowerCaseSearch) ||
-                tx._searchMerchant.includes(lowerCaseSearch) ||
-                tx._searchAmount.includes(lowerCaseSearch) ||
-                tx._searchDate.includes(lowerCaseSearch) ||
-                tx._searchMcc.includes(lowerCaseSearch)
-            );
-        }
-
-        items = items
-        .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
-        .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter)
-        .filter(tx => methodFilter === "all" || tx['Method'] === methodFilter);
+    // ⚡ Bolt Optimization: Sort FIRST, then Filter.
+    // This ensures that when the user types in the search box (high frequency), we only run O(N) filter,
+    // and do NOT re-run O(N log N) sort. The sorted order is preserved by filter.
+    const sortedTransactions = useMemo(() => {
+        let items = [...enrichedTransactions];
 
         if (sortConfig.key !== null) {
-            // We create a shallow copy before sorting to avoid mutating the enrichedTransactions array
-            items = [...items].sort((a, b) => {
+            items.sort((a, b) => {
                 // ⚡ Bolt Optimization: Use pre-calculated timestamp for Date sorting
                 if (sortConfig.key === 'Transaction Date') {
                     const aTime = a._dateTimestamp;
@@ -339,7 +324,32 @@ export default function TransactionsList({
             });
         }
         return items;
-    }, [enrichedTransactions, searchTerm, cardFilter, categoryFilter, sortConfig, methodFilter]);
+    }, [enrichedTransactions, sortConfig]);
+
+    const filteredData = useMemo(() => {
+        // Start with the ALREADY SORTED list
+        let items = sortedTransactions;
+
+        // ⚡ Bolt Optimization: Hoist toLowerCase out of loop and use pre-calculated fields
+        if (searchTerm) {
+            const lowerCaseSearch = searchTerm.toLowerCase();
+            items = items.filter(tx =>
+                tx._searchName.includes(lowerCaseSearch) ||
+                tx._searchMerchant.includes(lowerCaseSearch) ||
+                tx._searchAmount.includes(lowerCaseSearch) ||
+                tx._searchDate.includes(lowerCaseSearch) ||
+                tx._searchMcc.includes(lowerCaseSearch)
+            );
+        }
+
+        items = items
+        .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
+        .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter)
+        .filter(tx => methodFilter === "all" || tx['Method'] === methodFilter);
+
+        // No need to sort here! 'items' retains the order from 'sortedTransactions'.
+        return items;
+    }, [sortedTransactions, searchTerm, cardFilter, categoryFilter, methodFilter]);
 
     useEffect(() => {
         setVisibleCount(15);
@@ -442,7 +452,11 @@ export default function TransactionsList({
     };
 
     const { totalAmount, totalCashback } = useMemo(() => {
-        const selectedTxs = transactions.filter(tx => selectedIds.includes(tx.id));
+        // ⚡ Bolt Optimization: Use Set for O(1) lookup instead of array.includes (O(N))
+        if (selectedIds.length === 0) return { totalAmount: 0, totalCashback: 0 };
+        const selectedSet = new Set(selectedIds);
+
+        const selectedTxs = transactions.filter(tx => selectedSet.has(tx.id));
         const totalAmount = selectedTxs.reduce((sum, tx) => sum + (tx['Amount'] || 0), 0);
         const totalCashback = selectedTxs.reduce((sum, tx) => sum + (tx.estCashback || 0), 0);
         return { totalAmount, totalCashback };
