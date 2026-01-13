@@ -19,6 +19,7 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import {
     Calendar,
+    Clock,
     CreditCard,
     Tag,
     Store,
@@ -186,19 +187,30 @@ export default function TransactionDetailSheet({
     const Separator = () => <div className="h-px bg-slate-200 dark:bg-slate-800 my-6" />;
 
     // Shared Content Component
-    const TransactionDetailBody = () => (
-        <div className="space-y-6">
-            {/* 1. Transaction Info */}
-            <div>
-                <SectionHeader title="Transaction Info" />
-                <div className="grid gap-4">
-                    <DetailRow icon={Calendar} label="Date" value={formatFullDateTime(currentTransaction['Transaction Date'])} />
-                    <DetailRow icon={Store} label="Merchant" value={currentTransaction.merchantLookup || currentTransaction['Transaction Name']} />
-                    <DetailRow icon={CreditCard} label="Card" value={cardName} />
-                    <DetailRow icon={Globe} label="Method" value={getMethodBadge(currentTransaction['Method'])} />
-                    <DetailRow icon={Receipt} label="MCC Code" value={displayMcc} className="font-mono" />
+    const TransactionDetailBody = () => {
+        const effectiveDate = currentTransaction['billingDate'] || currentTransaction['Transaction Date'];
+
+        return (
+            <div className="space-y-6">
+                {/* 1. Transaction Info */}
+                <div>
+                    <SectionHeader title="Transaction Info" />
+                    <div className="grid gap-4">
+                        <DetailRow icon={Calendar} label="Date" value={formatFullDateTime(effectiveDate)} />
+                        {currentTransaction['billingDate'] && (
+                            <DetailRow
+                                icon={Clock}
+                                label="Transaction Date"
+                                value={formatFullDateTime(currentTransaction['Transaction Date'])}
+                                className="opacity-75"
+                            />
+                        )}
+                        <DetailRow icon={Store} label="Merchant" value={currentTransaction.merchantLookup || currentTransaction['Transaction Name']} />
+                        <DetailRow icon={CreditCard} label="Card" value={cardName} />
+                        <DetailRow icon={Globe} label="Method" value={getMethodBadge(currentTransaction['Method'])} />
+                        <DetailRow icon={Receipt} label="MCC Code" value={displayMcc} className="font-mono" />
+                    </div>
                 </div>
-            </div>
 
             <Separator />
 
@@ -383,10 +395,6 @@ export default function TransactionDetailSheet({
                         </div>
                     </div>
 
-                    {currentTransaction['billingDate'] && (
-                        <DetailRow icon={Calendar} label="Billing Date" value={currentTransaction['billingDate']} />
-                    )}
-
                     {cleanNotes && (
                         <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-md border border-amber-100 dark:border-amber-900/50">
                             <div className="flex gap-2 items-start">
@@ -401,7 +409,8 @@ export default function TransactionDetailSheet({
                 </div>
             </div>
         </div>
-    );
+        );
+    };
 
     // Shared Header
     const DetailHeader = () => (

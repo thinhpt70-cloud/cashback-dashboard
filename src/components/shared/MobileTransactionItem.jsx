@@ -14,6 +14,7 @@ const MobileTransactionItem = React.memo(({
 }) => {
     const tx = transaction;
     const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
+    const effectiveDate = tx['billingDate'] || tx['Transaction Date'];
 
     return (
         <div
@@ -67,7 +68,7 @@ const MobileTransactionItem = React.memo(({
                     {/* Left: Date • Card */}
                     <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                         <div className="flex items-center gap-1.5">
-                            <span>{formatDateTime(tx['Transaction Date'])}</span>
+                            <span>{formatDateTime(effectiveDate)}</span>
                             <span className="w-0.5 h-0.5 rounded-full bg-slate-300 dark:bg-slate-600"></span>
                             <span className="truncate max-w-[90px] text-slate-600 dark:text-slate-300">{card ? card.name : 'Unknown'}</span>
                         </div>

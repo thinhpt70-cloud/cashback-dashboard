@@ -110,11 +110,11 @@ export default function TransactionsList({
     const columnsConfig = useMemo(() => [
         {
             id: 'date',
-            label: 'Transaction Date',
+            label: 'Date',
             sortKey: 'Transaction Date',
             defaultVisible: true,
             width: 'w-[120px]',
-            renderCell: (tx) => formatDate(tx['Transaction Date'])
+            renderCell: (tx) => formatDate(tx.effectiveDate)
         },
         {
             id: 'name',
@@ -272,12 +272,16 @@ export default function TransactionsList({
 
     const enrichedTransactions = useMemo(() => {
         return transactions.map(tx => {
+            // Priority: Billing Date > Transaction Date
+            const effectiveDate = tx['billingDate'] || tx['Transaction Date'];
+
             // ⚡ Bolt Optimization: Pre-calculate date timestamp for faster sorting
-            const dateStr = tx['Transaction Date'];
+            const dateStr = effectiveDate;
             const timestamp = dateStr ? new Date(dateStr).getTime() : 0;
 
             return {
                 ...tx,
+                effectiveDate,
                 rate: (tx['Amount'] && tx['Amount'] > 0) ? (tx.estCashback / tx['Amount']) : 0,
                 // ⚡ Bolt Optimization: Pre-calculate lowercased search strings to avoid repeated ops in filter loop
                 _searchName: (tx['Transaction Name'] || '').toLowerCase(),
@@ -358,7 +362,7 @@ export default function TransactionsList({
             } else if (groupBy === 'category') {
                 key = tx['Category'] || 'Uncategorized';
             } else if (groupBy === 'date') {
-                key = formatDate(tx['Transaction Date']) || 'No Date';
+                key = formatDate(tx.effectiveDate) || 'No Date';
             }
 
             if (!groups[key]) groups[key] = [];
@@ -368,8 +372,8 @@ export default function TransactionsList({
         return Object.keys(groups).sort((a, b) => {
              if (groupBy === 'date') {
                  // Get the first item from each group to compare actual dates
-                 const dateA = groups[a][0]['Transaction Date'];
-                 const dateB = groups[b][0]['Transaction Date'];
+                 const dateA = groups[a][0].effectiveDate;
+                 const dateB = groups[b][0].effectiveDate;
                  return new Date(dateB) - new Date(dateA);
              }
              return a.localeCompare(b);

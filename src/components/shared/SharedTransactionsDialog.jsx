@@ -75,7 +75,7 @@ export default function SharedTransactionsDialog({
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
 
     const [visibleColumns, setVisibleColumns] = useState({
-        'Transaction Date': true,
+        'Date': true,
         'Transaction Name': true,
         'Merchant': false, 
         'Amount': true,
@@ -112,6 +112,7 @@ export default function SharedTransactionsDialog({
     const filteredAndSortedData = useMemo(() => {
         let items = [...transactions].map(tx => ({
             ...tx,
+            effectiveDate: tx['billingDate'] || tx['Transaction Date'],
             rate: (tx['Amount'] && tx['Amount'] > 0) ? (tx.estCashback / tx['Amount']) : 0
         }));
 
@@ -140,8 +141,8 @@ export default function SharedTransactionsDialog({
                 }
                 if (sortConfig.key === 'Transaction Date') {
                     return sortConfig.direction === 'ascending'
-                        ? new Date(aValue) - new Date(bValue)
-                        : new Date(bValue) - new Date(aValue);
+                        ? new Date(a.effectiveDate) - new Date(b.effectiveDate)
+                        : new Date(b.effectiveDate) - new Date(a.effectiveDate);
                 }
                 return sortConfig.direction === 'ascending'
                     ? String(aValue).localeCompare(String(bValue))
@@ -166,7 +167,7 @@ export default function SharedTransactionsDialog({
             } else if (groupBy === 'category') {
                 key = tx['Category'] || 'Uncategorized';
             } else if (groupBy === 'date') {
-                key = tx['Transaction Date'] || 'No Date';
+                key = tx.effectiveDate || 'No Date';
             }
 
             if (!groups[key]) groups[key] = [];
@@ -434,7 +435,7 @@ export default function SharedTransactionsDialog({
                                                 onCheckedChange={handleSelectAll}
                                             />
                                         </th>
-                                        {visibleColumns['Transaction Date'] && <th className="text-left p-2">Date</th>}
+                                        {visibleColumns['Date'] && <th className="text-left p-2">Date</th>}
                                         {visibleColumns['Transaction Name'] && <th className="text-left p-2">Transaction</th>}
                                         {visibleColumns['Merchant'] && <th className="text-left p-2">Merchant</th>}
                                         {visibleColumns['Amount'] && <th className="text-right p-2">Amount</th>}
@@ -460,7 +461,7 @@ export default function SharedTransactionsDialog({
                                                         onCheckedChange={(checked) => handleSelectRow(t.id, checked)}
                                                     />
                                                 </td>
-                                                {visibleColumns['Transaction Date'] && <td className="p-2">{formatTxDate(t['Transaction Date'])}</td>}
+                                                {visibleColumns['Date'] && <td className="p-2">{formatTxDate(t.effectiveDate)}</td>}
                                                 {visibleColumns['Transaction Name'] && <td className="p-2">{t['Transaction Name']}</td>}
 
                                                 {visibleColumns['Merchant'] && (
@@ -521,7 +522,7 @@ export default function SharedTransactionsDialog({
                                 <tfoot>
                                     <tr className="border-t-2 font-semibold bg-slate-50/50">
                                         <td className="p-2"></td>
-                                        {visibleColumns['Transaction Date'] && <td className="p-2"></td>}
+                                        {visibleColumns['Date'] && <td className="p-2"></td>}
 
                                         {/* Logic to place 'Total' label correctly */}
                                         {visibleColumns['Transaction Name'] && (
