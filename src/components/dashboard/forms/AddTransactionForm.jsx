@@ -5,7 +5,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
-import { Switch } from '../../ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 import { Textarea } from '../../ui/textarea';
@@ -659,12 +658,33 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                 <Globe className="h-4 w-4" />
                                 Foreign Currency
                             </span>
-                            <div className="flex items-center space-x-2">
-                                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Input Mode</span>
-                                <Switch
-                                    checked={foreignInputMode === 'vnd_unknown'}
-                                    onCheckedChange={(checked) => setForeignInputMode(checked ? 'vnd_unknown' : 'vnd_known')}
-                                />
+                            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700" role="group" aria-label="Calculation Mode">
+                                <button
+                                    type="button"
+                                    onClick={() => setForeignInputMode('vnd_known')}
+                                    aria-pressed={foreignInputMode === 'vnd_known'}
+                                    className={cn(
+                                        "px-3 py-1 text-[10px] font-semibold rounded-md transition-all",
+                                        foreignInputMode === 'vnd_known'
+                                            ? "bg-white dark:bg-slate-950 text-emerald-600 dark:text-emerald-500 shadow-sm ring-1 ring-black/5 dark:ring-white/10"
+                                            : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                                    )}
+                                >
+                                    From Total
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setForeignInputMode('vnd_unknown')}
+                                    aria-pressed={foreignInputMode === 'vnd_unknown'}
+                                    className={cn(
+                                        "px-3 py-1 text-[10px] font-semibold rounded-md transition-all",
+                                        foreignInputMode === 'vnd_unknown'
+                                            ? "bg-white dark:bg-slate-950 text-blue-600 dark:text-blue-500 shadow-sm ring-1 ring-black/5 dark:ring-white/10"
+                                            : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                                    )}
+                                >
+                                    From Rate
+                                </button>
                             </div>
                         </div>
 
