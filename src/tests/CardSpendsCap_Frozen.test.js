@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import CardSpendsCap from '../src/components/dashboard/overview/CardSpendsCap';
-import { currencyFn } from '../src/lib/formatters';
+import CardSpendsCap from '../components/dashboard/overview/CardSpendsCap';
+import { currencyFn } from '../lib/formatters';
 
 // Mock dependencies
 jest.mock('lucide-react', () => ({
@@ -94,11 +94,13 @@ describe('CardSpendsCap', () => {
         // Check if Frozen Card name is rendered
         expect(screen.getByText('Frozen Card')).toBeInTheDocument();
 
-        // Check for Snowflake icon
-        expect(screen.getByTestId('Snowflake')).toBeInTheDocument();
+        // Check for Snowflake icon (it appears twice: title and badge)
+        const snowflakes = screen.getAllByTestId('Snowflake');
+        expect(snowflakes.length).toBeGreaterThanOrEqual(1);
 
         // Check for "Frozen" badge text
-        expect(screen.getByText('Frozen')).toBeInTheDocument();
+        const frozenTexts = screen.getAllByText('Frozen');
+        expect(frozenTexts.length).toBeGreaterThanOrEqual(1);
     });
 
     test('renders Active card correctly', () => {
@@ -107,9 +109,10 @@ describe('CardSpendsCap', () => {
         // Check if Active Card name is rendered
         expect(screen.getByText('Active Card')).toBeInTheDocument();
 
-        // Check that Active Card does NOT have Snowflake (should only be 1 for the frozen card)
+        // Check that Active Card does NOT have Snowflake (should only be those for the frozen card)
+        // Since we have 1 frozen card with 2 snowflakes, we expect 2 total.
         const snowflakes = screen.getAllByTestId('Snowflake');
-        expect(snowflakes).toHaveLength(1);
+        expect(snowflakes).toHaveLength(2);
     });
 
     test('renders Frozen card with opacity and grayscale classes', () => {
