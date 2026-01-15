@@ -138,6 +138,38 @@ const createRateLimiter = (windowMs, maxAttempts, message) => {
 const loginRateLimiter = createRateLimiter(15 * 60 * 1000, 5, 'Too many login attempts. Please try again later.');
 const lookupRateLimiter = createRateLimiter(60 * 1000, 30, 'Too many lookups. Please wait a moment.'); // 30 per min
 
+// --- SECURE LOGGING HELPER ---
+const secureLog = (message, error) => {
+    let errorDetails = error;
+
+    // Notion API errors often contain a 'body' string with the full response
+    if (error && error.body) {
+        try {
+            const body = typeof error.body === 'string' ? JSON.parse(error.body) : error.body;
+            // Create a sanitized error object
+            errorDetails = {
+                message: error.message || body.message || 'Unknown Error',
+                code: error.code || body.code,
+                status: error.status || body.status,
+                // Omit the full 'body' to prevent leaking data (e.g. PII in failed transaction properties)
+            };
+        } catch (e) {
+            // If body isn't JSON, fall back to message
+            errorDetails = { message: error.message || String(error) };
+        }
+    }
+    // Handle standard Error objects
+    else if (error instanceof Error) {
+        errorDetails = {
+            message: error.message,
+            name: error.name,
+            stack: error.stack, // Include stack trace for debugging
+        };
+    }
+
+    console.error(message, JSON.stringify(errorDetails));
+};
+
 // NEW: Simple in-memory cache for transaction DB schema to avoid redundant fetches
 let transactionDbSchemaCache = {
     data: null,
