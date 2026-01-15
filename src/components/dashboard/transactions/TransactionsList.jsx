@@ -132,14 +132,6 @@ export default function TransactionsList({
             )
         },
         {
-            id: 'merchant',
-            label: 'Merchant',
-            sortKey: 'merchantLookup',
-            defaultVisible: false,
-            cellClass: "text-slate-500",
-            renderCell: (tx) => tx.merchantLookup || ''
-        },
-        {
             id: 'amount',
             label: 'Amount',
             sortKey: 'Amount',
