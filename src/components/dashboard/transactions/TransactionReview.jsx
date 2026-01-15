@@ -806,36 +806,31 @@ export default function TransactionReview({
                                                             </TableCell>
                                                             <TableCell className="text-right">
                                                                 <div className="flex items-center justify-end gap-1">
-                                                                    <TooltipProvider>
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger asChild>
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="icon"
-                                                                                    aria-label={tx.status === 'Quick Approve' ? "Quick Approve" : "Edit Transaction"}
-                                                                                    className={cn(
-                                                                                        "h-8 w-8 transition-colors",
-                                                                                        tx.status === 'Quick Approve'
-                                                                                            ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                                                                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-                                                                                    )}
-                                                                                    onClick={() => tx.status === 'Quick Approve' ? handleSingleProcess(tx) : onEditTransaction(tx)}
-                                                                                    disabled={processingIds.has(tx.id)}
-                                                                                >
-                                                                                    {processingIds.has(tx.id) ? (
-                                                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                                                    ) : tx.status === 'Quick Approve' ? (
-                                                                                        <Check className="h-4 w-4" />
-                                                                                    ) : (
-                                                                                        <FilePenLine className="h-4 w-4" />
-                                                                                    )}
-                                                                                </Button>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                {tx.status === 'Quick Approve' ? "Quick Approve" : "Edit Transaction"}
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
+                                                                    {tx.status === 'Quick Approve' && (
+                                                                        <TooltipProvider>
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger asChild>
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="icon"
+                                                                                        aria-label="Quick Approve"
+                                                                                        className="h-8 w-8 transition-colors text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                                                                        onClick={() => handleSingleProcess(tx)}
+                                                                                        disabled={processingIds.has(tx.id)}
+                                                                                    >
+                                                                                        {processingIds.has(tx.id) ? (
+                                                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                                                        ) : (
+                                                                                            <Check className="h-4 w-4" />
+                                                                                        )}
+                                                                                    </Button>
+                                                                                </TooltipTrigger>
+                                                                                <TooltipContent>
+                                                                                    Quick Approve
+                                                                                </TooltipContent>
+                                                                            </Tooltip>
+                                                                        </TooltipProvider>
+                                                                    )}
 
                                                                     <Button
                                                                         variant="ghost"
