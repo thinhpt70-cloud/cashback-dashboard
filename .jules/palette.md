@@ -9,3 +9,7 @@
 ## 2026-01-07 - [Card Expand Toggles]
 **Learning:** Using `div` elements for expand/collapse toggles in cards creates a barrier for keyboard users.
 **Action:** Always use `<button type="button">` for card toggles, ensuring to add `aria-expanded` state and a descriptive `aria-label`. For the main card area, if it's clickable, use `role="button"` with `tabIndex="0"` and explicit `onKeyDown` (Enter/Space) handlers to ensure full keyboard operability.
+
+## 2026-01-28 - [Custom Input Labels]
+**Learning:** Custom form controls (like `Combobox` built with Popovers) often break standard `<label htmlFor="...">` behavior because the trigger element doesn't receive the ID.
+**Action:** Ensure custom input components accept an `id` prop and forward it to the actual interactive trigger element (e.g., the Button). This restores the native behavior where clicking the label focuses the control and allows screen readers to announce the label correctly.
