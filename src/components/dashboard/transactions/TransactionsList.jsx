@@ -796,7 +796,15 @@ export default function TransactionsList({
 
                                 {/* Dynamic Headers */}
                                 {activeColumns.map(col => (
-                                    <TableHead key={col.id} className={col.width || ''}>
+                                    <TableHead
+                                        key={col.id}
+                                        className={col.width || ''}
+                                        aria-sort={
+                                            sortConfig.key === col.sortKey
+                                                ? (sortConfig.direction === 'ascending' ? 'ascending' : 'descending')
+                                                : 'none'
+                                        }
+                                    >
                                         {col.sortKey ? (
                                             <Button
                                                 variant="ghost"

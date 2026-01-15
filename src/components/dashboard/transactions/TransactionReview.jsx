@@ -709,18 +709,34 @@ export default function TransactionReview({
                                                 onChange={handleSelectAll}
                                             />
                                         </TableHead>
-                                        <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Transaction Date')}>
+                                        <TableHead
+                                            className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                            onClick={() => handleSort('Transaction Date')}
+                                            aria-sort={sortConfig.key === 'Transaction Date' ? (sortConfig.direction === 'ascending' ? 'ascending' : 'descending') : 'none'}
+                                        >
                                             Date {sortConfig.key === 'Transaction Date' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
                                         </TableHead>
-                                        <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Transaction Name')}>
+                                        <TableHead
+                                            className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                            onClick={() => handleSort('Transaction Name')}
+                                            aria-sort={sortConfig.key === 'Transaction Name' ? (sortConfig.direction === 'ascending' ? 'ascending' : 'descending') : 'none'}
+                                        >
                                             Transaction {sortConfig.key === 'Transaction Name' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
                                         </TableHead>
                                         <TableHead>Details</TableHead>
-                                        <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Category')}>
+                                        <TableHead
+                                            className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                            onClick={() => handleSort('Category')}
+                                            aria-sort={sortConfig.key === 'Category' ? (sortConfig.direction === 'ascending' ? 'ascending' : 'descending') : 'none'}
+                                        >
                                             Category {sortConfig.key === 'Category' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
                                         </TableHead>
                                         <TableHead>Cashback Rule</TableHead>
-                                        <TableHead className="text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('Amount')}>
+                                        <TableHead
+                                            className="text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                            onClick={() => handleSort('Amount')}
+                                            aria-sort={sortConfig.key === 'Amount' ? (sortConfig.direction === 'ascending' ? 'ascending' : 'descending') : 'none'}
+                                        >
                                             Amount {sortConfig.key === 'Amount' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-3 w-3"/> : <ArrowDown className="inline h-3 w-3"/>)}
                                         </TableHead>
                                         <TableHead>Status</TableHead>
