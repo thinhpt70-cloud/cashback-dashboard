@@ -54,14 +54,20 @@ jest.mock('lucide-react', () => ({
   ArrowUpDown: () => <span>ArrowUpDown</span>,
 }));
 
-describe('TransactionReview Accessibility', () => {
+describe('TransactionReview', () => {
   const mockTransactions = [
     {
       id: 'tx-1',
       'Transaction Name': 'Test Transaction',
       'Amount': 100000,
       'Transaction Date': '2023-10-26',
-      status: 'Review Needed'
+      status: 'Review Needed',
+      // Additional fields for desktop view logic
+      'MCC Code': '5411',
+      'Applicable Rule': ['rule-1'],
+      'Match': true,
+      'Automated': false,
+      'Card': ['card-1']
     }
   ];
 
@@ -76,7 +82,7 @@ describe('TransactionReview Accessibility', () => {
           rules={[]}
           categories={[]}
           isLoading={false}
-          isDesktop={false} // Force mobile view
+          isDesktop={false} // Default to mobile
           {...props}
         />
       </TooltipProvider>
@@ -123,5 +129,30 @@ describe('TransactionReview Accessibility', () => {
     // Now bulk bar should be visible with the clear button
     const clearSelectionButton = screen.getByLabelText('Clear selection');
     expect(clearSelectionButton).toBeInTheDocument();
+  });
+
+  test('Should only render one Edit button for Review Needed transactions on Desktop', async () => {
+    // Force desktop view
+    renderComponent({ isDesktop: true });
+
+    // Open the "Review Needed" section
+    const expandButton = screen.getByRole('button', { name: /review needed/i });
+
+    // Check if collapsed, if so click
+    // The default state depends on internal logic, but usually starts collapsed or based on props.
+    // We click to ensure it toggles open or is open.
+    // If it's already open, clicking might close it.
+    // The mock says status is "Review Needed".
+    // Let's assume it starts closed.
+    fireEvent.click(expandButton);
+
+    await waitFor(() => {
+        expect(screen.getByText('Test Transaction')).toBeInTheDocument();
+    });
+
+    // Count Edit Icons (FilePenLine)
+    // There should only be 1 (the static Edit button), not 2 (dynamic + static)
+    const editIcons = screen.getAllByText('FilePenLine');
+    expect(editIcons.length).toBe(1);
   });
 });
