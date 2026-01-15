@@ -100,7 +100,15 @@ export default function TransactionReview({
                 statusType = 'info';
             }
 
-            return { ...tx, status, statusType };
+            return {
+                ...tx,
+                status,
+                statusType,
+                // ⚡ Bolt Optimization: Pre-calculate lowercased search strings to avoid repetitive ops in filter loop
+                _searchName: (tx['Transaction Name'] || '').toLowerCase(),
+                _searchAmount: String(tx['Amount'] ?? ''),
+                _searchMcc: tx['MCC Code'] ? String(tx['MCC Code']) : ''
+            };
         });
     }, [transactions]);
 
@@ -112,9 +120,9 @@ export default function TransactionReview({
         if (filters.search) {
             const lowerSearch = filters.search.toLowerCase();
             data = data.filter(tx =>
-                tx['Transaction Name'].toLowerCase().includes(lowerSearch) ||
-                String(tx['Amount']).includes(lowerSearch) ||
-                (tx['MCC Code'] && String(tx['MCC Code']).includes(lowerSearch))
+                tx._searchName.includes(lowerSearch) ||
+                tx._searchAmount.includes(lowerSearch) ||
+                tx._searchMcc.includes(lowerSearch)
             );
         }
 
