@@ -13,6 +13,28 @@ const navItems = [
   { view: 'payments', icon: Banknote, label: 'Payments' },
 ];
 
+const NavLink = ({ item, isCollapsed, activeView, handleLinkClick }) => (
+  <TooltipProvider delayDuration={0}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant={activeView === item.view ? 'default' : 'ghost'}
+          className={cn('w-full justify-start h-10', isCollapsed && 'justify-center')}
+          onClick={() => handleLinkClick(item.view)}
+        >
+          <item.icon className={cn('h-5 w-5', !isCollapsed && 'mr-3')} />
+          <span className={cn(isCollapsed && 'sr-only')}>{item.label}</span>
+        </Button>
+      </TooltipTrigger>
+      {isCollapsed && (
+        <TooltipContent side="right">
+          <p>{item.label}</p>
+        </TooltipContent>
+      )}
+    </Tooltip>
+  </TooltipProvider>
+);
+
 const AppSidebar = ({ 
   activeView, 
   setActiveView, 
@@ -28,28 +50,6 @@ const AppSidebar = ({
   const handleLinkClick = (view) => {
     setActiveView(view);
   };
-
-  const NavLink = ({ item, isCollapsed, activeView, handleLinkClick }) => (
-    <TooltipProvider delayDuration={0}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant={activeView === item.view ? 'default' : 'ghost'}
-            className={cn('w-full justify-start h-10', isCollapsed && 'justify-center')}
-            onClick={() => handleLinkClick(item.view)}
-          >
-            <item.icon className={cn('h-5 w-5', !isCollapsed && 'mr-3')} />
-            <span className={cn(isCollapsed && 'sr-only')}>{item.label}</span>
-          </Button>
-        </TooltipTrigger>
-        {isCollapsed && (
-          <TooltipContent side="right">
-            <p>{item.label}</p>
-          </TooltipContent>
-        )}
-      </Tooltip>
-    </TooltipProvider>
-  );
 
   return (
         <aside

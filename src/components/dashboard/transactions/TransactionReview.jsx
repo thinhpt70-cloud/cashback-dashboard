@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 import BulkEditDialog from '../dialogs/BulkEditDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../ui/tooltip";
 
-export default function TransactionReview({
+const TransactionReview = React.memo(({
     transactions,
     isLoading,
     onRefresh,
@@ -34,7 +34,7 @@ export default function TransactionReview({
     onEditTransaction,
     isDesktop,
     mccMap
-}) {
+}) => {
     // FIX 1: Set initial state to false so it does not auto-expand on load
     const [isOpen, setIsOpen] = useState(false);
     
@@ -1028,4 +1028,8 @@ export default function TransactionReview({
             />
         </div>
     );
-}
+});
+
+TransactionReview.displayName = "TransactionReview";
+
+export default TransactionReview;
