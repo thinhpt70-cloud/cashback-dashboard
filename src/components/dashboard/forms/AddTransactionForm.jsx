@@ -639,6 +639,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                     <div className="space-y-2">
                          <label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</label>
                         <Combobox
+        id="category"
                             options={categories.map(c => ({ value: c, label: c }))}
                             value={category}
                             onChange={setCategory}
@@ -725,7 +726,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                      <div className="space-y-2">
                         <label htmlFor="card" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Card</label>
                         <Select value={cardId} onValueChange={(value) => { handleCardSelect(value); localStorage.setItem('lastUsedCardId', value); }}>
-                            <SelectTrigger>
+                            <SelectTrigger id="card">
                                 <SelectValue placeholder="Select a card..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -740,7 +741,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                         <label htmlFor="rule" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rule</label>
                         <div className="flex items-center gap-2">
                             <Select value={applicableRuleId} onValueChange={(val) => val && setApplicableRuleId(val)} disabled={filteredRules.length === 0}>
-                                <SelectTrigger className="flex-1 min-w-0 [&>span]:min-w-0">
+                                <SelectTrigger id="rule" className="flex-1 min-w-0 [&>span]:min-w-0">
                                     <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules' : 'Select rule...'} />
                                 </SelectTrigger>
                                 <SelectContent className="w-[var(--radix-select-trigger-width)]">
@@ -859,6 +860,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                 <div className="space-y-2">
                                     <label htmlFor="paidFor">Paid For</label>
                                     <Combobox
+        id="paidFor"
                                         options={(definitions?.paidFor?.length > 0
                                             ? definitions.paidFor
                                             : ['Personal', 'Family', 'Work']

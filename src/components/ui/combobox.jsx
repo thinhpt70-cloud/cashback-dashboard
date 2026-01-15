@@ -18,7 +18,7 @@ import {
   PopoverTrigger,
 } from "src/components/ui/popover"
 
-const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder, disableAutoFocus = false }) => {
+const Combobox = ({ options = [], value, onChange, placeholder, searchPlaceholder, disableAutoFocus = false, className, id }) => {
   const [open, setOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState('');
 
@@ -44,10 +44,11 @@ const Combobox = ({ options, value, onChange, placeholder, searchPlaceholder, di
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between h-10"
+          className={cn("w-full justify-between h-10", className)}
         >
           {/* --- FIX 1: Added fallback to 'value' --- */}
           {value
