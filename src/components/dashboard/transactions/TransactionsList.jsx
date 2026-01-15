@@ -62,7 +62,7 @@ import TransactionRow from "./TransactionRow";
 // Moved currency function outside to be stable
 const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
-export default function TransactionsList({
+const TransactionsList = React.memo(({
     transactions,
     isLoading,
     activeMonth,
@@ -80,7 +80,7 @@ export default function TransactionsList({
     onBulkDelete,
     onViewDetails = () => {},
     fmtYMShortFn
-}) {
+}) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [cardFilter, setCardFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
@@ -1052,4 +1052,8 @@ export default function TransactionsList({
             </CardContent>
         </Card>
     );
-}
+});
+
+TransactionsList.displayName = "TransactionsList";
+
+export default TransactionsList;
