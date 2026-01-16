@@ -46,6 +46,7 @@ jest.mock('lucide-react', () => ({
   Check: () => <span data-testid="icon-check" />,
   Percent: () => <span data-testid="icon-percent" />,
   ArrowLeft: () => <span data-testid="icon-arrow-left" />,
+  Wallet: () => <span data-testid="icon-wallet" />,
 }));
 
 const mockTransaction = {

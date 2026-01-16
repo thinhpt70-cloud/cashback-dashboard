@@ -30,7 +30,8 @@ import {
     AlertCircle,
     CheckCircle2,
     Percent,
-    ArrowLeft
+    ArrowLeft,
+    Wallet
 } from "lucide-react";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
@@ -130,6 +131,8 @@ export default function TransactionDetailSheet({
     const rate = (currentTransaction['Amount'] && currentTransaction['Amount'] > 0)
         ? (currentTransaction.estCashback / currentTransaction['Amount'])
         : 0;
+
+    const netAmount = (currentTransaction['Amount'] || 0) - (currentTransaction.estCashback || 0);
 
     // Foreign Currency Helpers
     // Logic: Show foreign fields if any foreign data is present, regardless of "Method"
@@ -234,6 +237,12 @@ export default function TransactionDetailSheet({
                             +{currency(currentTransaction.estCashback)}
                         </span>
                     </div>
+
+                    <DetailRow
+                        icon={Wallet}
+                        label="Net Amount (After Cashback)"
+                        value={<span className="font-bold text-blue-600 dark:text-blue-400">{currency(netAmount)}</span>}
+                    />
 
                     {hasForeignData && (
                         <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-2 border">
