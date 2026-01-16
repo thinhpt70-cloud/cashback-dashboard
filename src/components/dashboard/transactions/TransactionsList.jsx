@@ -348,14 +348,14 @@ const TransactionsList = React.memo(({
     }, [filteredData]);
 
     const groupedData = useMemo(() => {
+        // New Logic: Group all filtered data first.
         if (groupBy === 'none') {
-            return { 'All Transactions': filteredData.slice(0, visibleCount) };
+            return { 'All Transactions': filteredData };
         }
 
         const groups = {};
-        const itemsToShow = filteredData.slice(0, visibleCount);
-
-        itemsToShow.forEach(tx => {
+        // Group everything (not just slice)
+        filteredData.forEach(tx => {
             let key = 'Other';
             if (groupBy === 'card') {
                 const cardId = tx['Card'] && tx['Card'][0];
@@ -371,20 +371,61 @@ const TransactionsList = React.memo(({
             groups[key].push(tx);
         });
 
-        return Object.keys(groups).sort((a, b) => {
+        // Determine if current sort matches group key
+        let isMatchingSort = false;
+        if (groupBy === 'date' && sortConfig.key === 'Transaction Date') isMatchingSort = true;
+        else if (groupBy === 'card' && sortConfig.key === 'Card') isMatchingSort = true;
+        else if (groupBy === 'category' && sortConfig.key === 'Category') isMatchingSort = true;
+
+        const sortedKeys = Object.keys(groups).sort((a, b) => {
+            if (isMatchingSort) {
+                // If keys match, strict adherence to sortConfig.direction
+                if (groupBy === 'date') {
+                    const dateA = groups[a][0].effectiveDate;
+                    const dateB = groups[b][0].effectiveDate;
+                    return sortConfig.direction === 'ascending'
+                        ? new Date(dateA) - new Date(dateB)
+                        : new Date(dateB) - new Date(dateA);
+                }
+
+                return sortConfig.direction === 'ascending'
+                    ? a.localeCompare(b)
+                    : b.localeCompare(a);
+            }
+
+            // Default fallback sorting for groups if not matching active sort
              if (groupBy === 'date') {
-                 // Get the first item from each group to compare actual dates
+                 // Date Descending default
                  const dateA = groups[a][0].effectiveDate;
                  const dateB = groups[b][0].effectiveDate;
                  return new Date(dateB) - new Date(dateA);
              }
+             // Alphabetical Ascending default
              return a.localeCompare(b);
-        }).reduce((obj, key) => {
+        });
+
+        return sortedKeys.reduce((obj, key) => {
             obj[key] = groups[key];
             return obj;
         }, {});
 
-    }, [filteredData, groupBy, visibleCount, cardMap]);
+    }, [filteredData, groupBy, cardMap, sortConfig]);
+
+    // Flatten the grouped data for rendering and pagination
+    const flattenedTransactions = useMemo(() => {
+        const list = [];
+        Object.entries(groupedData).forEach(([key, items]) => {
+            if (groupBy !== 'none') {
+                list.push({ type: 'header', title: key, count: items.length });
+            }
+            items.forEach(tx => list.push({ type: 'item', ...tx }));
+        });
+        return list;
+    }, [groupedData, groupBy]);
+
+    const transactionsToShow = useMemo(() => {
+        return flattenedTransactions.slice(0, visibleCount);
+    }, [flattenedTransactions, visibleCount]);
 
     const requestSort = (key) => {
         let direction = 'ascending';
@@ -401,10 +442,6 @@ const TransactionsList = React.memo(({
         else if (val === 'Amount: High') setSortConfig({ key: 'Amount', direction: 'descending' });
         else if (val === 'Amount: Low') setSortConfig({ key: 'Amount', direction: 'ascending' });
     };
-
-    const transactionsToShow = useMemo(() => {
-        return filteredData.slice(0, visibleCount);
-    }, [filteredData, visibleCount]);
 
     const handleLoadMore = () => {
         setVisibleCount(prevCount => prevCount + 15);
@@ -719,13 +756,6 @@ const TransactionsList = React.memo(({
         }
 
         if (!isDesktop) {
-            // Mobile View (Unchanged logic using MobileTransactionItem)
-             const flatList = [];
-             Object.entries(groupedData).forEach(([key, items]) => {
-                 if (groupBy !== 'none') flatList.push({ type: 'header', title: key, count: items.length });
-                 flatList.push(...items.map(i => ({ type: 'item', ...i })));
-             });
-
             return (
                 <div className="space-y-2.5 pb-20 p-3">
                     {/* Select All Row */}
@@ -744,7 +774,7 @@ const TransactionsList = React.memo(({
                         </div>
                     )}
 
-                    {flatList.map((item, index) => {
+                    {transactionsToShow.map((item, index) => {
                         if (item.type === 'header') {
                             return (
                                 <div key={`header-${index}`} className="pt-2 pb-1 px-1">
@@ -813,30 +843,32 @@ const TransactionsList = React.memo(({
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {Object.entries(groupedData).map(([groupKey, groupTxs]) => (
-                                <React.Fragment key={groupKey}>
-                                    {groupBy !== 'none' && (
-                                        <TableRow className="bg-slate-100/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-900">
+                            {transactionsToShow.map((item, index) => {
+                                if (item.type === 'header') {
+                                    return (
+                                        <TableRow key={`group-${index}-${item.title}`} className="bg-slate-100/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-900">
                                             {/* colSpan = activeColumns.length + 3 (Check, Spacer, Actions) */}
                                             <TableCell colSpan={activeColumns.length + 3} className="py-2 px-4 font-semibold text-xs uppercase text-slate-500 dark:text-slate-400 tracking-wider">
-                                                {groupKey} <span className="ml-1 text-slate-400 font-normal">({groupTxs.length})</span>
+                                                {item.title} <span className="ml-1 text-slate-400 font-normal">({item.count})</span>
                                             </TableCell>
                                         </TableRow>
-                                    )}
-                                    {groupTxs.map(tx => (
-                                        <TransactionRow
-                                            key={tx.id}
-                                            transaction={tx}
-                                            isSelected={selectedIds.includes(tx.id)}
-                                            activeColumns={activeColumns}
-                                            onSelect={handleSelectOne}
-                                            onViewDetails={onViewDetails}
-                                            onEdit={handleEdit}
-                                            onDelete={handleDelete}
-                                        />
-                                    ))}
-                                </React.Fragment>
-                             ))}
+                                    );
+                                }
+
+                                const tx = item;
+                                return (
+                                    <TransactionRow
+                                        key={tx.id}
+                                        transaction={tx}
+                                        isSelected={selectedIds.includes(tx.id)}
+                                        activeColumns={activeColumns}
+                                        onSelect={handleSelectOne}
+                                        onViewDetails={onViewDetails}
+                                        onEdit={handleEdit}
+                                        onDelete={handleDelete}
+                                    />
+                                );
+                            })}
                         </TableBody>
                     </Table>
                 </div>
@@ -1043,9 +1075,9 @@ const TransactionsList = React.memo(({
                 {renderContent()}
                 <div className="mt-2 flex flex-col items-center gap-4 mb-6">
                     <p className="text-sm text-muted-foreground">
-                        Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{filteredData.length}</span> transactions
+                        Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{flattenedTransactions.length}</span> items
                     </p>
-                    {visibleCount < filteredData.length && (
+                    {visibleCount < flattenedTransactions.length && (
                         <Button onClick={handleLoadMore} variant="outline">Load More</Button>
                     )}
                 </div>
