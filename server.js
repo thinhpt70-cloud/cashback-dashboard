@@ -45,57 +45,6 @@ const vendorsDbId = process.env.NOTION_VENDORS_DB_ID;
 // --- SECURITY CONSTANTS ---
 const MAX_BULK_LIMIT = 50; // Prevent DoS by limiting bulk operations
 
-// --- SECURITY HELPER: Secure Logging ---
-// Standardizes error logging and prevents sensitive data leaks
-const secureLog = (message, error) => {
-    // 1. Basic error info
-    const logEntry = {
-        message,
-        timestamp: new Date().toISOString(),
-    };
-
-    // 2. Extract safe error details
-    if (error) {
-        // Capture error name/type if available
-        logEntry.errorType = error.name || 'Error';
-        logEntry.errorMessage = error.message;
-        logEntry.stack = error.stack; // Preserve stack trace for debugging
-
-        // Handle Notion-specific error bodies or generic objects
-        // Notion errors often put the API response in 'body'
-        const rawBody = error.body || error;
-
-        // Deep clone to avoid mutating original and to sanitize safely
-        try {
-            const sanitized = JSON.parse(JSON.stringify(rawBody));
-
-            // REDACT SENSITIVE FIELDS
-            // All lowercase for case-insensitive matching
-            const sensitiveKeys = ['authorization', 'cookie', 'password', 'pin', 'token', 'key', 'secret'];
-
-            const redact = (obj) => {
-                if (!obj || typeof obj !== 'object') return;
-                Object.keys(obj).forEach(key => {
-                    // Check if key matches sensitive list (case insensitive)
-                    if (sensitiveKeys.some(s => key.toLowerCase().includes(s))) {
-                        obj[key] = '[REDACTED]';
-                    } else if (typeof obj[key] === 'object') {
-                        redact(obj[key]);
-                    }
-                });
-            };
-
-            redact(sanitized);
-            logEntry.details = sanitized;
-
-        } catch (e) {
-            logEntry.details = 'Could not parse/sanitize error details';
-        }
-    }
-
-    console.error(JSON.stringify(logEntry, null, 2));
-};
-
 // --- RATE LIMITING (In-Memory) ---
 const createRateLimiter = (windowMs, maxAttempts, message) => {
     const attempts = new Map();
@@ -305,7 +254,7 @@ const getOrCreateSummaryId = async (cardId, month, ruleId) => {
         });
         return newSummary.id;
     } catch (error) {
-        secureLog("Error in getOrCreateSummaryId", error);
+        console.error("Error in getOrCreateSummaryId", error);
         return null;
     }
 };
@@ -453,7 +402,7 @@ const searchInternalTransactions = async (keyword, excludeId = null) => {
             .map(page => mapTransaction(page));
 
     } catch (error) {
-        secureLog("Error in searchInternalTransactions:", error);
+        console.error("Error in searchInternalTransactions:", error);
         return [];
     }
 };
@@ -477,7 +426,7 @@ const searchExternalMcc = async (keyword) => {
         }
         return [];
     } catch (error) {
-        secureLog("Error in searchExternalMcc (Vercel):", error);
+        console.error("Error in searchExternalMcc (Vercel):", error);
         return [];
     }
 };
@@ -498,7 +447,7 @@ const searchExternalMccFallback = async (keyword) => {
         });
 
         if (!response.ok) {
-            secureLog(`RCGV fetch failed: ${response.status} ${response.statusText}`);
+            console.error(`RCGV fetch failed: ${response.status} ${response.statusText}`);
             return [];
         }
 
@@ -526,7 +475,7 @@ const searchExternalMccFallback = async (keyword) => {
         return results;
 
     } catch (error) {
-        secureLog("Error in searchExternalMccFallback (RCGV):", error);
+        console.error("Error in searchExternalMccFallback (RCGV):", error);
         return []; // Fail-safe: return empty array on error
     }
 };
@@ -741,7 +690,7 @@ app.get('/api/transactions', async (req, res) => {
         res.json(results);
 
     } catch (error) {
-        secureLog(`Failed to fetch transactions with filterBy='${filterBy}':`, error);
+        console.error(`Failed to fetch transactions with filterBy='${filterBy}':`, error.body || error);
         res.status(500).json({ error: 'Failed to fetch data from Notion' });
     }
 });
@@ -784,7 +733,7 @@ app.post('/api/transactions/batch-update', async (req, res) => {
         res.status(200).json(results);
 
     } catch (error) {
-        secureLog('Error batch updating transactions:', error);
+        console.error('Error batch updating transactions:', error.body || error);
         res.status(500).json({ error: 'Failed to batch update transactions.' });
     }
 });
@@ -819,7 +768,7 @@ app.post('/api/transactions/bulk-edit', async (req, res) => {
 
         res.status(200).json(updatedTransactions);
     } catch (error) {
-        secureLog('Error bulk editing transactions in Notion:', error);
+        console.error('Error bulk editing transactions in Notion:', error.body || error);
         res.status(500).json({ error: 'Failed to edit transactions.' });
     }
 });
@@ -841,7 +790,7 @@ app.delete('/api/transactions/:id', async (req, res) => {
 
         res.status(200).json({ success: true, message: 'Transaction deleted successfully.' });
     } catch (error) {
-        secureLog('Error deleting transaction in Notion:', error);
+        console.error('Error deleting transaction in Notion:', error.body || error);
         res.status(500).json({ error: 'Failed to delete transaction.' });
     }
 });
@@ -867,7 +816,7 @@ app.post('/api/transactions/bulk-delete', async (req, res) => {
 
         res.status(200).json({ success: true, message: 'Transactions deleted successfully.' });
     } catch (error) {
-        secureLog('Error bulk deleting transactions in Notion:', error);
+        console.error('Error bulk deleting transactions in Notion:', error.body || error);
         res.status(500).json({ error: 'Failed to delete transactions.' });
     }
 });
@@ -1009,7 +958,7 @@ app.patch('/api/transactions/:id', async (req, res) => {
         res.status(200).json(formattedTransaction);
 
     } catch (error) {
-        secureLog('Error updating transaction in Notion:', error);
+        console.error('Error updating transaction in Notion:', error.body || error);
         res.status(500).json({ error: 'Failed to update transaction.' });
     }
 });
@@ -1059,7 +1008,7 @@ app.get('/api/cards', async (req, res) => {
 
         res.json(results);
     } catch (error) {
-        secureLog('Failed to fetch cards:', error);
+        console.error('Failed to fetch cards:', error);
         res.status(500).json({ error: 'Failed to fetch data from Notion' });
     }
 });
@@ -1097,7 +1046,7 @@ app.get('/api/rules', async (req, res) => {
         });
         res.json(results);
     } catch (error) {
-        secureLog('Failed to fetch rules:', error);
+        console.error('Failed to fetch rules:', error);
         res.status(500).json({ error: 'Failed to fetch data from Notion' });
     }
 });
@@ -1131,7 +1080,7 @@ app.get('/api/monthly-summary', async (req, res) => {
         });
         res.json(results);
     } catch (error) {
-        secureLog('Failed to fetch monthly summary:', error);
+        console.error('Failed to fetch monthly summary:', error);
         res.status(500).json({ error: 'Failed to fetch data from Notion' });
     }
 });
@@ -1192,7 +1141,7 @@ app.get('/api/monthly-category-summary', async (req, res) => {
         });
         res.json(results);
     } catch (error) {
-        secureLog('Failed to fetch monthly category summary:', error);
+        console.error('Failed to fetch monthly category summary:', error);
         res.status(500).json({ error: 'Failed to fetch data from Notion' });
     }
 });
@@ -1215,7 +1164,7 @@ app.get('/api/recent-transactions', async (req, res) => {
         res.json(results);
 
     } catch (error) {
-        secureLog('Failed to fetch recent transactions:', error);
+        console.error('Failed to fetch recent transactions:', error);
         res.status(500).json({ error: 'Failed to fetch recent transactions' });
     }
 });
@@ -1311,7 +1260,7 @@ app.get('/api/lookup-merchant', lookupRateLimiter, async (req, res) => {
         });
 
     } catch (error) {
-        secureLog('Unified Merchant Lookup Error:', error);
+        console.error('Unified Merchant Lookup Error:', error.body || error);
         res.status(500).json({ error: 'Failed to perform lookup' });
     }
 });
@@ -1416,7 +1365,7 @@ app.post('/api/transactions', async (req, res) => {
         res.status(201).json(formattedTransaction);
 
     } catch (error) {
-        secureLog('Error adding transaction to Notion:', error);
+        console.error('Error adding transaction to Notion:', error.body || error);
         res.status(500).json({ error: 'Failed to add transaction. Check server logs.' });
     }
 });
@@ -1438,7 +1387,7 @@ app.get('/api/categories', async (req, res) => {
             res.status(404).json({ error: 'Category property not found or is not a select property' });
         }
     } catch (error) {
-        secureLog('Error fetching categories from Notion:', error);
+        console.error('Error fetching categories from Notion:', error);
         res.status(500).json({ error: 'Failed to fetch categories' });
     }
 });
@@ -1472,7 +1421,7 @@ app.get('/api/definitions', async (req, res) => {
 
         res.json(definitions);
     } catch (error) {
-        secureLog('Error fetching definitions:', error);
+        console.error('Error fetching definitions:', error);
         res.status(500).json({ error: 'Failed to fetch definitions' });
     }
 });
@@ -1586,7 +1535,7 @@ app.post('/api/summaries', async (req, res) => {
         res.status(201).json({ id: newSummary.id, name: summaryName, cardId, month });
 
     } catch (error) {
-        secureLog('Error in find-or-create summary:', error);
+        console.error('Error in find-or-create summary:', error.body || error);
         res.status(500).json({ error: 'Failed to find or create summary' });
     }
 });
@@ -1629,7 +1578,7 @@ app.patch('/api/monthly-summary/:id', async (req, res) => {
         });
         res.status(200).json({ success: true, message: 'Summary updated successfully.' });
     } catch (error) {
-        secureLog('Error updating summary in Notion:', error);
+        console.error('Error updating summary in Notion:', error.body || error);
         res.status(500).json({ error: 'Failed to update summary in Notion.' });
     }
 });
@@ -1666,14 +1615,14 @@ app.post('/api/monthly-summary/bulk-review', async (req, res) => {
                 });
                 results.push(id);
             } catch (innerError) {
-                secureLog(`Failed to update summary ${id} in bulk-review`, innerError);
+                console.error(`Failed to update summary ${id} in bulk-review`, innerError);
             }
         }
 
         res.status(200).json({ success: true, updatedIds: results });
 
     } catch (error) {
-        secureLog('Error bulk updating summary reviews:', error);
+        console.error('Error bulk updating summary reviews:', error.body || error);
         res.status(500).json({ error: 'Failed to bulk update reviews.' });
     }
 });
@@ -1716,7 +1665,7 @@ app.get('/api/common-vendors', async (req, res) => {
 
         res.json(vendors);
     } catch (error) {
-        secureLog('Failed to fetch common vendors:', error);
+        console.error('Failed to fetch common vendors:', error.body || error);
         res.status(500).json({ error: 'Failed to fetch data from Notion' });
     }
 });
@@ -1757,7 +1706,7 @@ app.get('/api/transactions/needs-review', async (req, res) => {
         res.json(transactions);
 
     } catch (error) {
-        secureLog("Error fetching transactions for review:", error);
+        console.error("Error fetching transactions for review:", error);
         res.status(500).json({ message: "Failed to fetch transactions for review" });
     }
 });
@@ -1792,7 +1741,7 @@ app.patch('/api/transactions/:id/approve', async (req, res) => {
         res.json(updatedTransaction);
 
     } catch (error) {
-        secureLog('Failed to quick approve transaction:', error);
+        console.error('Failed to quick approve transaction:', error);
         res.status(500).json({ message: 'Error updating transaction in Notion.' });
     }
 });
@@ -1832,12 +1781,12 @@ app.post('/api/transactions/finalize', async (req, res) => {
                 });
                 results.push(id);
             } catch (innerErr) {
-                secureLog(`Failed to finalize ${id}`, innerErr);
+                console.error(`Failed to finalize ${id}`, innerErr);
             }
         }
         res.status(200).json(results);
     } catch (error) {
-        secureLog("Finalize Error", error);
+        console.error("Finalize Error", error);
         res.status(500).json({ error: "Failed to finalize transactions" });
     }
 });
