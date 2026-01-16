@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import TransactionReview from './TransactionReview';
 import { TooltipProvider } from '../../ui/tooltip';
 
@@ -8,9 +8,9 @@ jest.mock('../../ui/table', () => ({
   Table: ({ children }) => <table>{children}</table>,
   TableHeader: ({ children }) => <thead>{children}</thead>,
   TableBody: ({ children }) => <tbody>{children}</tbody>,
-  TableRow: ({ children }) => <tr>{children}</tr>,
-  TableHead: ({ children }) => <th>{children}</th>,
-  TableCell: ({ children }) => <td>{children}</td>,
+  TableRow: ({ children, className }) => <tr className={className}>{children}</tr>,
+  TableHead: ({ children, className, onClick }) => <th className={className} onClick={onClick}>{children}</th>,
+  TableCell: ({ children, colSpan, className }) => <td colSpan={colSpan} className={className}>{children}</td>,
 }));
 
 jest.mock('../../ui/dropdown-menu', () => ({
@@ -33,6 +33,31 @@ jest.mock('../../ui/checkbox', () => ({
   )
 }));
 
+// Mock Select to support finding options and triggering changes
+jest.mock('../../ui/select', () => ({
+  Select: ({ value, onValueChange, children }) => (
+    <div data-testid="select-root">
+      <select
+        data-testid="test-select"
+        value={value}
+        onChange={(e) => onValueChange(e.target.value)}
+        style={{ display: 'block', opacity: 0.5 }}
+      >
+          <option value="all">All</option>
+          <option value="card">Card</option>
+          <option value="date">Date</option>
+          <option value="status">Status</option>
+          {/* Add more as needed */}
+      </select>
+      <div style={{ display: 'none' }}>{children}</div>
+    </div>
+  ),
+  SelectTrigger: ({ children }) => <div>{children}</div>,
+  SelectContent: ({ children }) => <div>{children}</div>,
+  SelectItem: ({ value, children }) => <div data-value={value}>{children}</div>,
+  SelectValue: ({ placeholder }) => <span>{placeholder}</span>
+}));
+
 // Mock Lucide icons
 jest.mock('lucide-react', () => ({
   Check: () => <span>Check</span>,
@@ -41,17 +66,17 @@ jest.mock('lucide-react', () => ({
   ChevronDown: () => <span>ChevronDown</span>,
   ChevronUp: () => <span>ChevronUp</span>,
   AlertTriangle: () => <span>AlertTriangle</span>,
-  ArrowUp: () => <span>ArrowUp</span>,
-  ArrowDown: () => <span>ArrowDown</span>,
+  ArrowUp: () => <span>Asc</span>,
+  ArrowDown: () => <span>Desc</span>,
   Search: () => <span>Search</span>,
   MoreHorizontal: () => <span>MoreHorizontal</span>,
   Loader2: () => <span>Loader2</span>,
   Filter: () => <span>Filter</span>,
-  Layers: () => <span>Layers</span>,
+  Layers: () => <span>Group</span>,
   X: () => <span>X</span>,
   Wand2: () => <span>Wand2</span>,
   CreditCard: () => <span>CreditCard</span>,
-  ArrowUpDown: () => <span>ArrowUpDown</span>,
+  ArrowUpDown: () => <span>Sort</span>,
 }));
 
 describe('TransactionReview', () => {
@@ -83,6 +108,7 @@ describe('TransactionReview', () => {
           categories={[]}
           isLoading={false}
           isDesktop={false} // Default to mobile
+          mccMap={{}}
           {...props}
         />
       </TooltipProvider>
@@ -139,11 +165,6 @@ describe('TransactionReview', () => {
     const expandButton = screen.getByRole('button', { name: /review needed/i });
 
     // Check if collapsed, if so click
-    // The default state depends on internal logic, but usually starts collapsed or based on props.
-    // We click to ensure it toggles open or is open.
-    // If it's already open, clicking might close it.
-    // The mock says status is "Review Needed".
-    // Let's assume it starts closed.
     fireEvent.click(expandButton);
 
     await waitFor(() => {
@@ -154,5 +175,58 @@ describe('TransactionReview', () => {
     // There should only be 1 (the static Edit button), not 2 (dynamic + static)
     const editIcons = screen.getAllByText('FilePenLine');
     expect(editIcons.length).toBe(1);
+  });
+
+  test('Group by Date and Sort by Date Ascending renders groups in Oldest-Newest order', async () => {
+    const dates = ['2023-01-01', '2023-01-05'];
+    const txs = dates.map((d, i) => ({
+      id: `tx-${i}`,
+      'Transaction Name': `Tx ${i}`,
+      'Amount': 100,
+      'Transaction Date': d,
+      status: 'Review Needed',
+      'MCC Code': '0000',
+      'Applicable Rule': ['rule-1'],
+      'Match': true,
+      'Automated': false,
+       'Card': ['card-1']
+    }));
+
+    renderComponent({ transactions: txs, isDesktop: true });
+
+    // Open Review Needed
+    const expandButton = screen.getByRole('button', { name: /review needed/i });
+    fireEvent.click(expandButton);
+
+    await waitFor(() => {
+        expect(screen.getByText('Tx 0')).toBeInTheDocument();
+    });
+
+    // Sort by Date (Asc)
+    // Find Header "Date"
+    const dateHeader = screen.getAllByText(/Date/i).find(el => el.closest('th'));
+    // Default is Descending. Click once -> Ascending.
+    fireEvent.click(dateHeader);
+
+    expect(within(dateHeader.closest('th')).getByText('Asc')).toBeInTheDocument();
+
+    // Verify Order.
+    // 2023-01-01 should be before 2023-01-05.
+
+    const rows = screen.getAllByRole('row');
+    const cells = screen.getAllByRole('cell');
+
+    const date1Header = cells.find(c => c.textContent.includes('2023-01-01') && c.getAttribute('colSpan'));
+    const date2Header = cells.find(c => c.textContent.includes('2023-01-05') && c.getAttribute('colSpan'));
+
+    expect(date1Header).toBeInTheDocument();
+    expect(date2Header).toBeInTheDocument();
+
+    const index1 = rows.findIndex(r => r.contains(date1Header));
+    const index2 = rows.findIndex(r => r.contains(date2Header));
+
+    // Expect Oldest (Jan 1) < Newest (Jan 5).
+    // Current Bug: Hardcoded to Descending (Newest first).
+    expect(index1).toBeLessThan(index2);
   });
 });

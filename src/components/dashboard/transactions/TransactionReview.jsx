@@ -179,13 +179,31 @@ const TransactionReview = React.memo(({
 
         // Sort keys to make groups appear in order (optional)
         return Object.keys(groups).sort((a, b) => {
+             // Check if Sort Key matches Group Key
+             let isMatchingSort = false;
+             if (groupBy === 'date' && sortConfig.key === 'Transaction Date') isMatchingSort = true;
+             else if (groupBy === 'card' && sortConfig.key === 'Card') isMatchingSort = true;
+             else if (groupBy === 'category' && sortConfig.key === 'Category') isMatchingSort = true;
+             else if (groupBy === 'status' && sortConfig.key === 'Status') isMatchingSort = true;
+
+             if (isMatchingSort) {
+                 if (groupBy === 'date') {
+                      return sortConfig.direction === 'ascending'
+                          ? new Date(a) - new Date(b)
+                          : new Date(b) - new Date(a);
+                 }
+                 return sortConfig.direction === 'ascending'
+                    ? a.localeCompare(b)
+                    : b.localeCompare(a);
+             }
+
              if (groupBy === 'date') return new Date(b) - new Date(a);
              return a.localeCompare(b);
         }).reduce((obj, key) => {
             obj[key] = groups[key]; 
             return obj;
         }, {});
-    }, [filteredData, groupBy, cards]);
+    }, [filteredData, groupBy, cards, sortConfig]);
 
 
     // --- 4. Event Handlers ---
