@@ -376,6 +376,10 @@ const TransactionsList = React.memo(({
                  // Get the first item from each group to compare actual dates
                  const dateA = groups[a][0].effectiveDate;
                  const dateB = groups[b][0].effectiveDate;
+
+                 if (sortConfig.key === 'Transaction Date' && sortConfig.direction === 'ascending') {
+                     return new Date(dateA) - new Date(dateB);
+                 }
                  return new Date(dateB) - new Date(dateA);
              }
              return a.localeCompare(b);
@@ -384,7 +388,7 @@ const TransactionsList = React.memo(({
             return obj;
         }, {});
 
-    }, [filteredData, groupBy, visibleCount, cardMap]);
+    }, [filteredData, groupBy, visibleCount, cardMap, sortConfig]);
 
     const requestSort = (key) => {
         let direction = 'ascending';
