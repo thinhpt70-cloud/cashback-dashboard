@@ -107,14 +107,42 @@ const TransactionReview = React.memo(({
                 // ⚡ Bolt Optimization: Pre-calculate lowercased search strings to avoid repetitive ops in filter loop
                 _searchName: (tx['Transaction Name'] || '').toLowerCase(),
                 _searchAmount: String(tx['Amount'] ?? ''),
-                _searchMcc: tx['MCC Code'] ? String(tx['MCC Code']) : ''
+                _searchMcc: tx['MCC Code'] ? String(tx['MCC Code']) : '',
+                // ⚡ Bolt Optimization: Pre-calculate timestamp for faster date sorting
+                _dateTimestamp: tx['Transaction Date'] ? new Date(tx['Transaction Date']).getTime() : 0
             };
         });
     }, [transactions]);
 
-    // --- 2. Filtering & Sorting ---
+    // ⚡ Bolt Optimization: Sort FIRST, then Filter.
+    // This ensures that when the user types in the search box (high frequency), we only run O(N) filter,
+    // and do NOT re-run O(N log N) sort. The sorted order is preserved by filter.
+    const sortedTransactions = useMemo(() => {
+        const items = [...enrichedTransactions];
+        if (sortConfig.key) {
+            items.sort((a, b) => {
+                // ⚡ Bolt Optimization: Use pre-calculated timestamp for Date sorting
+                if (sortConfig.key === 'Transaction Date') {
+                    const aTime = a._dateTimestamp;
+                    const bTime = b._dateTimestamp;
+                    return sortConfig.direction === 'ascending' ? aTime - bTime : bTime - aTime;
+                }
+
+                const aVal = a[sortConfig.key];
+                const bVal = b[sortConfig.key];
+
+                if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
+                if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
+                return 0;
+            });
+        }
+        return items;
+    }, [enrichedTransactions, sortConfig]);
+
+    // --- 2. Filtering ---
     const filteredData = useMemo(() => {
-        let data = [...enrichedTransactions];
+        // Start with the ALREADY SORTED list
+        let data = sortedTransactions;
 
         // Filter by Search
         if (filters.search) {
@@ -138,20 +166,9 @@ const TransactionReview = React.memo(({
              if (filters.status === 'mismatch') data = data.filter(tx => tx.status === 'Mismatch');
         }
 
-        // Sorting (Only applies if NOT grouped, or sorts within groups)
-        if (sortConfig.key) {
-            data.sort((a, b) => {
-                const aVal = a[sortConfig.key];
-                const bVal = b[sortConfig.key];
-
-                if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
-                if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
-                return 0;
-            });
-        }
-
+        // No need to sort here! 'data' retains the order from 'sortedTransactions'.
         return data;
-    }, [enrichedTransactions, filters, sortConfig]);
+    }, [sortedTransactions, filters]);
 
     // --- 3. Grouping Logic ---
     const groupedData = useMemo(() => {
