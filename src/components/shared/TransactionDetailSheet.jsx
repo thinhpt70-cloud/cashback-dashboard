@@ -131,6 +131,8 @@ export default function TransactionDetailSheet({
         ? (currentTransaction.estCashback / currentTransaction['Amount'])
         : 0;
 
+    const netAmount = (currentTransaction['Amount'] || 0) - (currentTransaction.estCashback || 0);
+
     // Foreign Currency Helpers
     // Logic: Show foreign fields if any foreign data is present, regardless of "Method"
     const foreignAmount = currentTransaction['foreignCurrencyAmount'];
@@ -233,6 +235,11 @@ export default function TransactionDetailSheet({
                         <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
                             +{currency(currentTransaction.estCashback)}
                         </span>
+                    </div>
+
+                    <div className="flex justify-between items-center py-2">
+                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">Net Amount (After Cashback)</span>
+                        <span className="text-sm font-bold text-slate-900 dark:text-slate-100">{currency(netAmount)}</span>
                     </div>
 
                     {hasForeignData && (
