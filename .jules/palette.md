@@ -13,3 +13,7 @@
 ## 2026-01-28 - [Custom Input Labels]
 **Learning:** Custom form controls (like `Combobox` built with Popovers) often break standard `<label htmlFor="...">` behavior because the trigger element doesn't receive the ID.
 **Action:** Ensure custom input components accept an `id` prop and forward it to the actual interactive trigger element (e.g., the Button). This restores the native behavior where clicking the label focuses the control and allows screen readers to announce the label correctly.
+
+## 2026-02-12 - [Invisible Overlay Inputs]
+**Learning:** Overlaying an invisible `<input>` (opacity-0) on top of a styled `<button>` or `<div>` to trigger native pickers (like date/file) creates a "focus void". Keyboard users tab into the invisible input, seeing no visual focus indicator on the underlying styled element.
+**Action:** Wrap both elements in a `group` container. Apply `group-focus-within` styles to the *visible* element (e.g., `group-focus-within:ring-2`) so it appears focused when the hidden input is active. This maintains the native picker behavior while ensuring focus visibility.
