@@ -568,13 +568,20 @@ app.get('/api/transactions', async (req, res) => {
     const { month, filterBy = 'date', cardId } = req.query;
 
     // Validate that the 'month' parameter is present and correctly formatted.
-    if (!month || typeof month !== 'string' || month.length !== 6) {
+    // SECURITY: Ensure strictly 6 digits to prevent unexpected inputs
+    if (!month || typeof month !== 'string' || !/^\d{6}$/.test(month)) {
         return res.status(400).json({ error: 'A month query parameter in YYYYMM format is required.' });
     }
 
     // Validate cardId type to prevent HTTP Parameter Pollution attacks (e.g., array injection)
     if (cardId && typeof cardId !== 'string') {
         return res.status(400).json({ error: 'Invalid cardId format. Must be a string.' });
+    }
+
+    // SECURITY: Whitelist filterBy values to prevent unexpected behavior or logging of massive inputs
+    const allowedFilters = ['date', 'cashbackMonth', 'statementMonth'];
+    if (filterBy && (typeof filterBy !== 'string' || !allowedFilters.includes(filterBy))) {
+        return res.status(400).json({ error: `Invalid filterBy parameter. Allowed: ${allowedFilters.join(', ')}` });
     }
 
     try {
@@ -690,7 +697,8 @@ app.get('/api/transactions', async (req, res) => {
         res.json(results);
 
     } catch (error) {
-        console.error(`Failed to fetch transactions with filterBy='${filterBy}':`, error.body || error);
+        // SECURITY: Use secureLog to avoid leaking potential PII or raw error bodies
+        secureLog(`Failed to fetch transactions with filterBy='${filterBy}':`, error);
         res.status(500).json({ error: 'Failed to fetch data from Notion' });
     }
 });
