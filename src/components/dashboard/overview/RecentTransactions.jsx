@@ -18,7 +18,49 @@ import {
     isWithinInterval 
 } from 'date-fns';
 
-export default function RecentTransactions({ transactions, cardMap, currencyFn, isLoading }) { // NEW PROP
+// ⚡ Bolt Optimization: Extracted and Memoized List Item
+// Prevents VDOM re-creation for every item when parent re-renders.
+const RecentTransactionItem = React.memo(({ tx, cardMap, currencyFn }) => {
+    const card = tx['Card'] && tx['Card'][0] ? cardMap.get(tx['Card'][0]) : null;
+    const cardName = card ? card.name : 'Unknown Card';
+
+    const formattedDate = useMemo(() => {
+        try {
+            if (tx._parsedDate) {
+                return format(tx._parsedDate, 'dd MMM yyyy');
+            }
+            return format(parseISO(tx['Transaction Date']), 'dd MMM yyyy');
+        } catch (e) {
+            return tx['Transaction Date'];
+        }
+    }, [tx]);
+
+    return (
+        <div className="flex items-center p-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800">
+            {/* Name Column */}
+            <div className="flex-1 min-w-0">
+                <p className="font-medium text-slate-800 dark:text-slate-200 truncate" title={tx['Transaction Name']}>
+                    {tx['Transaction Name']}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{cardName}</p>
+            </div>
+            {/* Date Column */}
+            <div className="w-28 text-sm text-slate-600 dark:text-slate-300 text-left px-2 flex-shrink-0 hidden sm:block">
+                {formattedDate}
+            </div>
+            {/* Amount Column */}
+            <div className="w-28 text-right flex-shrink-0">
+                <p className="font-semibold text-slate-900 dark:text-slate-100">{currencyFn(tx['Amount'])}</p>
+                <p className="text-sm text-emerald-600 dark:text-emerald-500 font-medium">+ {currencyFn(tx.estCashback)}</p>
+            </div>
+        </div>
+    );
+});
+RecentTransactionItem.displayName = 'RecentTransactionItem';
+
+
+// ⚡ Bolt Optimization: Memoize the container to prevent re-renders on parent state changes
+const RecentTransactions = React.memo(({ transactions, cardMap, currencyFn, isLoading }) => {
     const [activityFilter, setActivityFilter] = useState('thisWeek'); // 'thisWeek', 'lastWeek', 'thisMonth'
 
     const filterLabels = {
@@ -26,6 +68,22 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn, 
         lastWeek: 'Last Week',
         thisMonth: 'This Month',
     };
+
+    // ⚡ Bolt Optimization: Pre-parse dates once to avoid repeated parseISO during filtering
+    const transactionsWithDates = useMemo(() => {
+        if (!transactions) return [];
+        return transactions.map(tx => {
+            try {
+                return {
+                    ...tx,
+                    _parsedDate: parseISO(tx['Transaction Date'])
+                };
+            } catch (e) {
+                console.error("Error parsing date:", tx['Transaction Date']);
+                return { ...tx, _parsedDate: null };
+            }
+        });
+    }, [transactions]);
 
     const filteredTransactions = useMemo(() => {
         const today = startOfDay(new Date());
@@ -49,29 +107,16 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn, 
                 end: endOfMonth(today)
             };
         } else {
-            return transactions; // Fallback
+            return transactionsWithDates; // Fallback
         }
 
-        // Filter transactions that are within the calculated interval
-        return transactions.filter(tx => {
-            try {
-                const txDate = parseISO(tx['Transaction Date']);
-                return isWithinInterval(txDate, interval);
-            } catch (e) {
-                console.error("Error parsing date:", tx['Transaction Date']);
-                return false;
-            }
+        // Filter using the pre-parsed date
+        return transactionsWithDates.filter(tx => {
+            if (!tx._parsedDate) return false;
+            return isWithinInterval(tx._parsedDate, interval);
         });
-    }, [transactions, activityFilter]);
+    }, [transactionsWithDates, activityFilter]);
 
-    // Helper to format date
-    const formatDate = (dateString) => {
-        try {
-            return format(parseISO(dateString), 'dd MMM yyyy');
-        } catch (e) {
-            return dateString; // Fallback
-        }
-    };
 
     if (!transactions && !isLoading) return null;
 
@@ -133,33 +178,21 @@ export default function RecentTransactions({ transactions, cardMap, currencyFn, 
                             No activity for this period.
                         </div>
                     ) : (
-                        filteredTransactions.map(tx => {
-                            const card = tx['Card'] && tx['Card'][0] ? cardMap.get(tx['Card'][0]) : null;
-                            const cardName = card ? card.name : 'Unknown Card';
-                            return (
-                                <div key={tx.id} className="flex items-center p-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800">
-                                    {/* Name Column */}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-slate-800 dark:text-slate-200 truncate" title={tx['Transaction Name']}>
-                                            {tx['Transaction Name']}
-                                        </p>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">{cardName}</p>
-                                    </div>
-                                    {/* Date Column */}
-                                    <div className="w-28 text-sm text-slate-600 dark:text-slate-300 text-left px-2 flex-shrink-0 hidden sm:block">
-                                        {formatDate(tx['Transaction Date'])}
-                                    </div>
-                                    {/* Amount Column */}
-                                    <div className="w-28 text-right flex-shrink-0">
-                                        <p className="font-semibold text-slate-900 dark:text-slate-100">{currencyFn(tx['Amount'])}</p>
-                                        <p className="text-sm text-emerald-600 dark:text-emerald-500 font-medium">+ {currencyFn(tx.estCashback)}</p>
-                                    </div>
-                                </div>
-                            );
-                        })
+                        filteredTransactions.map(tx => (
+                            <RecentTransactionItem
+                                key={tx.id}
+                                tx={tx}
+                                cardMap={cardMap}
+                                currencyFn={currencyFn}
+                            />
+                        ))
                     )}
                 </div>
             </CardContent>
         </Card>
     );
-}
+});
+
+RecentTransactions.displayName = 'RecentTransactions';
+
+export default RecentTransactions;
