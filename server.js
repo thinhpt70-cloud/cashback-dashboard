@@ -1265,6 +1265,64 @@ app.get('/api/lookup-merchant', lookupRateLimiter, async (req, res) => {
     }
 });
 
+// GET /api/transactions/query - Paginated & Searchable Transactions
+app.get('/api/transactions/query', async (req, res) => {
+    const { search, cursor, limit = 20 } = req.query;
+
+    try {
+        const queryOptions = {
+            database_id: transactionsDbId,
+            page_size: Math.min(parseInt(limit, 10), 100), // Enforce max limit
+            sorts: [{ property: 'Transaction Date', direction: 'descending' }],
+        };
+
+        if (cursor) {
+            queryOptions.start_cursor = cursor;
+        }
+
+        // Build filter if 'search' is provided
+        if (search && search.trim()) {
+            const keyword = search.trim();
+            queryOptions.filter = {
+                or: [
+                    {
+                        property: 'Transaction Name',
+                        title: {
+                            contains: keyword,
+                        },
+                    },
+                    {
+                        property: 'Merchant',
+                        rich_text: {
+                            contains: keyword,
+                        },
+                    },
+                    {
+                        property: 'Amount',
+                        number: {
+                            equals: parseFloat(keyword) || 0, // Simple exact match for amount if it's a number
+                        }
+                    }
+                ],
+            };
+        }
+
+        const response = await notion.databases.query(queryOptions);
+
+        const results = response.results.map(mapTransaction);
+
+        res.json({
+            results,
+            nextCursor: response.next_cursor,
+            hasMore: response.has_more
+        });
+
+    } catch (error) {
+        console.error('Failed to query transactions:', error.body || error);
+        res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+});
+
 // POST /api/transactions - Add a new transaction
 
 app.post('/api/transactions', async (req, res) => {

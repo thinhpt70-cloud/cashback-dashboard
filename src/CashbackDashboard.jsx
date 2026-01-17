@@ -84,6 +84,15 @@ export default function CashbackDashboard() {
     const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
     const [dialogTransactions, setDialogTransactions] = useState([]);
     const [isDialogLoading, setIsDialogLoading] = useState(false);
+
+    // --- NEW: Live View & Search State ---
+    const [liveTransactions, setLiveTransactions] = useState([]);
+    const [liveCursor, setLiveCursor] = useState(null);
+    const [liveHasMore, setLiveHasMore] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isLiveLoading, setIsLiveLoading] = useState(false);
+
     // const [cardView, setCardView] = useState('month'); // MOVED TO CardsTab
     const [activeView, setActiveView] = useState('overview');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
@@ -202,6 +211,53 @@ export default function CashbackDashboard() {
         }
     };
 
+    // --- NEW: Helper to fetch paginated/search transactions ---
+    const fetchTransactions = useCallback(async (query = "", cursor = null, shouldReplace = false) => {
+        setIsLiveLoading(true);
+        try {
+            const params = new URLSearchParams();
+            if (query) params.append("search", query);
+            if (cursor) params.append("cursor", cursor);
+            params.append("limit", "20"); // Fetch in batches of 20
+
+            const res = await fetch(`${API_BASE_URL}/transactions/query?${params.toString()}`);
+            if (!res.ok) throw new Error("Failed to fetch transactions");
+
+            const data = await res.json();
+
+            setLiveTransactions(prev => shouldReplace ? data.results : [...prev, ...data.results]);
+            setLiveCursor(data.nextCursor);
+            setLiveHasMore(data.hasMore);
+        } catch (error) {
+            console.error("Error fetching transactions:", error);
+            toast.error("Failed to load transactions.");
+        } finally {
+            setIsLiveLoading(false);
+        }
+    }, []);
+
+    const handleGlobalSearch = useCallback((query) => {
+        setSearchQuery(query);
+        if (query) {
+            setIsSearching(true);
+            setLiveCursor(null);
+            fetchTransactions(query, null, true);
+        } else {
+            setIsSearching(false);
+            if (activeMonth === 'live') {
+                fetchTransactions("", null, true);
+            }
+        }
+    }, [activeMonth, fetchTransactions]);
+
+    const handleLoadMore = useCallback(() => {
+        if (isSearching) {
+            fetchTransactions(searchQuery, liveCursor, false);
+        } else if (activeMonth === 'live') {
+            fetchTransactions("", liveCursor, false);
+        }
+    }, [isSearching, searchQuery, liveCursor, activeMonth, fetchTransactions]);
+
     // ⚡ Bolt Optimization: Memoize handlers to prevent re-renders
     const handleTransactionAdded = useCallback((newTransaction) => {
         // 1. Instantly update the list for the current month
@@ -212,7 +268,10 @@ export default function CashbackDashboard() {
         // 2. Update the recent transactions carousel
         setRecentTransactions(prevRecent => [newTransaction, ...prevRecent].slice(0, 20));
 
-        // 3. Trigger a full refresh in the background to update all aggregate data (charts, stats, etc.) without a loading screen.
+        // 3. Update live transactions list
+        setLiveTransactions(prev => [newTransaction, ...prev]);
+
+        // 4. Trigger a full refresh in the background
         refreshData(true);
     }, [activeMonth, setRecentTransactions, refreshData]);
 
@@ -261,18 +320,12 @@ export default function CashbackDashboard() {
             }
 
             // 3. If successful, update the UI
-            // Remove the transaction from the main list to update the UI instantly
             setMonthlyTransactions(prevTxs => prevTxs.filter(tx => tx.id !== deletedTxId));
-
-            // Also remove it from the recent transactions carousel for consistency
             setRecentTransactions(prevRecent => prevRecent.filter(tx => tx.id !== deletedTxId));
-
-            // Also remove it from the review transactions list
+            setLiveTransactions(prev => prev.filter(tx => tx.id !== deletedTxId));
             setReviewTransactions(prevReview => prevReview.filter(tx => tx.id !== deletedTxId));
 
             toast.success('Transaction deleted successfully!');
-
-            // Optionally, trigger a silent refresh to ensure all aggregate data is up-to-date
             refreshData(true);
 
         } catch (error) {
@@ -316,6 +369,7 @@ export default function CashbackDashboard() {
 
             setMonthlyTransactions(prevTxs => prevTxs.filter(tx => !transactionIds.includes(tx.id)));
             setRecentTransactions(prevRecent => prevRecent.filter(tx => !transactionIds.includes(tx.id)));
+            setLiveTransactions(prev => prev.filter(tx => !transactionIds.includes(tx.id)));
             setReviewTransactions(prevReview => prevReview.filter(tx => !transactionIds.includes(tx.id)));
             toast.success(`${transactionIds.length} transactions deleted successfully!`);
             refreshData(true);
@@ -336,6 +390,11 @@ export default function CashbackDashboard() {
         // Also update the recent transactions carousel
         setRecentTransactions(prevRecent =>
             prevRecent.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
+        );
+
+        // Update live transactions list
+        setLiveTransactions(prev =>
+            prev.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
         );
 
         setReviewTransactions(prevReview =>
@@ -391,6 +450,14 @@ export default function CashbackDashboard() {
 
 
 
+    // Initialize Live View data
+    useEffect(() => {
+        if (activeMonth === 'live' && activeView === 'transactions' && !isSearching) {
+            // Initial fetch for Live View
+            fetchTransactions("", null, true);
+        }
+    }, [activeMonth, activeView, isSearching, fetchTransactions]);
+
     useEffect(() => {
         // Determine which month to fetch transactions for.
         const isLiveView = activeMonth === 'live';
@@ -398,7 +465,8 @@ export default function CashbackDashboard() {
         const monthToFetch = isLiveView ? statementMonths[0] : activeMonth;
 
         // NEW: Lazy loading - only fetch full transactions if the tab is active
-        if (monthToFetch && activeView === 'transactions') {
+        // Only fetch monthly transactions if we are NOT in Live View (as Live View uses fetchTransactions)
+        if (monthToFetch && activeView === 'transactions' && !isLiveView) {
             const fetchMonthlyTransactions = async () => {
                 setIsMonthlyTxLoading(true);
                 try {
@@ -965,8 +1033,8 @@ export default function CashbackDashboard() {
                         />
                         <TransactionsList
                             isDesktop={isDesktop}
-                            transactions={activeMonth === 'live' ? recentTransactions : monthlyTransactions}
-                            isLoading={activeMonth === 'live' ? loading : isMonthlyTxLoading}
+                            transactions={(isSearching || activeMonth === 'live') ? liveTransactions : monthlyTransactions}
+                            isLoading={(isSearching || activeMonth === 'live') ? isLiveLoading : isMonthlyTxLoading}
                             activeMonth={activeMonth}
                             cardMap={cardMap}
                             mccNameFn={mccName}
@@ -981,6 +1049,9 @@ export default function CashbackDashboard() {
                             onViewDetails={handleViewTransactionDetails}
                             fmtYMShortFn={fmtYMShort}
                             rules={cashbackRules}
+                            onSearch={handleGlobalSearch}
+                            onLoadMore={handleLoadMore}
+                            hasMore={liveHasMore}
                         />
                     </div>
                 )}

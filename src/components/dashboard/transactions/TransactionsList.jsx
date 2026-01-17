@@ -79,7 +79,10 @@ const TransactionsList = React.memo(({
     onDuplicateTransaction,
     onBulkDelete,
     onViewDetails = () => {},
-    fmtYMShortFn
+    fmtYMShortFn,
+    onSearch, // NEW: Handler for server-side search
+    onLoadMore, // NEW: Handler for loading more transactions (pagination)
+    hasMore = false // NEW: Flag to indicate if more transactions are available
 }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [cardFilter, setCardFilter] = useState("all");
@@ -255,6 +258,17 @@ const TransactionsList = React.memo(({
         else if (sortConfig.key === 'Amount' && sortConfig.direction === 'ascending') setSortByValue('Amount: Low');
         else setSortByValue('Custom');
     }, [sortConfig]);
+
+    // ⚡ Bolt Optimization: Debounce search input to prevent rapid server calls
+    useEffect(() => {
+        if (!onSearch) return;
+
+        const timer = setTimeout(() => {
+            onSearch(searchTerm);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [searchTerm, onSearch]);
 
     const categories = useMemo(() => {
         const uniqueCategories = Array.from(new Set(transactions.map(tx => tx['Category']).filter(Boolean)));
@@ -444,7 +458,13 @@ const TransactionsList = React.memo(({
     };
 
     const handleLoadMore = () => {
-        setVisibleCount(prevCount => prevCount + 15);
+        const newCount = visibleCount + 15;
+        setVisibleCount(newCount);
+
+        // If we have reached the end of currently loaded transactions AND there are more on server
+        if (onLoadMore && hasMore && newCount >= flattenedTransactions.length) {
+            onLoadMore();
+        }
     };
 
     const handleEdit = useCallback((tx) => {
@@ -1077,8 +1097,10 @@ const TransactionsList = React.memo(({
                     <p className="text-sm text-muted-foreground">
                         Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{flattenedTransactions.length}</span> items
                     </p>
-                    {visibleCount < flattenedTransactions.length && (
-                        <Button onClick={handleLoadMore} variant="outline">Load More</Button>
+                    {(visibleCount < flattenedTransactions.length || hasMore) && (
+                        <Button onClick={handleLoadMore} variant="outline" disabled={isLoading}>
+                            {isLoading ? "Loading..." : "Load More"}
+                        </Button>
                     )}
                 </div>
             </CardContent>
