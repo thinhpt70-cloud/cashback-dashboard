@@ -532,7 +532,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                             value={amount}
                             onChange={handleAmountChange}
                             placeholder="0"
-                            className="w-full bg-transparent text-center text-5xl font-bold placeholder:text-muted-foreground/30 focus:outline-none focus:ring-0"
+                            className="w-full bg-transparent text-center text-5xl font-bold placeholder:text-muted-foreground/30 focus:outline-none focus:ring-0 focus-visible:border-b-2 focus-visible:border-primary pb-1 rounded-none transition-all"
                             required
                             aria-label="Transaction Amount"
                         />
@@ -540,11 +540,11 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
 
                     {/* Date Pill with Time Toggle */}
                      <div className="relative flex items-center gap-2">
-                        <div className="relative">
+                        <div className="relative group">
                             <button
                                 type="button"
                                 onClick={() => dateInputRef.current?.showPicker()}
-                                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-sm font-medium transition-colors"
+                                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-sm font-medium transition-colors group-focus-within:ring-2 group-focus-within:ring-ring group-focus-within:ring-offset-2"
                             >
                                 <CalendarClock className="h-4 w-4 text-muted-foreground" />
                                 {hasTime
