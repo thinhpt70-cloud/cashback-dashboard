@@ -19,6 +19,7 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "../../ui/select";
 import { cn } from "../../../lib/utils";
+import { currency } from "../../../lib/formatters";
 import { toast } from 'sonner';
 import BulkEditDialog from '../dialogs/BulkEditDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../ui/tooltip";
@@ -349,8 +350,6 @@ const TransactionReview = React.memo(({
             setIsProcessing(false);
         }
     };
-
-    const currency = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 
     // 1. Loading State
     if (isLoading) {

@@ -17,6 +17,7 @@ import {
 
 import { cn } from "../../../lib/utils";
 import { formatDate } from "../../../lib/date";
+import { currency } from "../../../lib/formatters";
 import { Checkbox } from "../../ui/checkbox";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -58,9 +59,6 @@ import {
 import MobileTransactionItem from "../../shared/MobileTransactionItem";
 import MethodIndicator from "../../shared/MethodIndicator";
 import TransactionRow from "./TransactionRow";
-
-// Moved currency function outside to be stable
-const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
 const TransactionsList = React.memo(({
     transactions,
