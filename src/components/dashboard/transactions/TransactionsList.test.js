@@ -73,8 +73,24 @@ jest.mock('lucide-react', () => ({
   CreditCard: () => <span>Card</span>,
   ArrowUpDown: () => <span>Sort</span>,
   ChevronDown: () => <span>Down</span>,
-  Inbox: () => <span>Inbox</span>
+  Inbox: () => <span>Inbox</span>,
+  Calendar: () => <span>CalendarIcon</span>
 }));
+
+// Mock DatePickerWithRange
+jest.mock('../../ui/date-range-picker', () => ({
+  DatePickerWithRange: ({ date, setDate }) => (
+    <div data-testid="date-range-picker">
+      <button onClick={() => setDate({ from: new Date('2023-01-01'), to: new Date('2023-01-05') })}>
+        Select Date Range
+      </button>
+      <span>{date?.from ? 'Date Selected' : 'No Date'}</span>
+    </div>
+  )
+}));
+
+// Mock useDebounce
+jest.mock('../../../hooks/useDebounce', () => (value) => value);
 
 // Mock TransactionRow to avoid complexity
 jest.mock('./TransactionRow', () => ({ transaction }) => (
