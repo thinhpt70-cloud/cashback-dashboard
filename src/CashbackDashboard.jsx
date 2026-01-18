@@ -102,7 +102,7 @@ export default function CashbackDashboard() {
     const {
         cards, allCards, rules, monthlySummary, mccMap, monthlyCategorySummary,
         recentTransactions, allCategories, commonVendors, reviewTransactions,
-        loading, error, refreshData, isShellReady, isDashboardLoading,
+        error, refreshData, isShellReady, isDashboardLoading,
         setRecentTransactions, setReviewTransactions,
         cashbackRules, monthlyCashbackCategories, liveSummary,
         fetchReviewTransactions, reviewLoading, fetchCategorySummaryForMonth,
