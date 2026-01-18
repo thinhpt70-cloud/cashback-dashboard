@@ -71,9 +71,11 @@ export default function TransactionDetailSheet({
     const {
         cleanNotes,
         discounts,
-        fees
+        fees,
+        totalDiscounts,
+        totalFees
     } = useMemo(() => {
-        if (!currentTransaction?.notes) return { cleanNotes: '', discounts: [], fees: [] };
+        if (!currentTransaction?.notes) return { cleanNotes: '', discounts: [], fees: [], totalDiscounts: 0, totalFees: 0 };
 
         let noteText = currentTransaction.notes;
         let discountData = [];
@@ -101,10 +103,15 @@ export default function TransactionDetailSheet({
             }
         }
 
+        const calculatedDiscounts = discountData.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+        const calculatedFees = feeData.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+
         return {
             cleanNotes: noteText.trim(),
             discounts: discountData,
-            fees: feeData
+            fees: feeData,
+            totalDiscounts: calculatedDiscounts,
+            totalFees: calculatedFees
         };
     }, [currentTransaction]);
 
@@ -151,6 +158,17 @@ export default function TransactionDetailSheet({
             displayFeePercent = (conversionFee / amountBeforeFee) * 100;
         }
     }
+
+    // Gross Amount Calculation
+    const calculatedStartingAmount = (currentTransaction['Amount'] || 0) +
+                                     (totalDiscounts || 0) +
+                                     (currentTransaction.otherDiscounts || 0) -
+                                     (totalFees || 0) -
+                                     (currentTransaction.otherFees || 0);
+
+    const displayStartingAmount = currentTransaction.grossAmount !== undefined
+        ? (hasForeignData ? currentTransaction.grossAmount + (conversionFee || 0) : currentTransaction.grossAmount)
+        : calculatedStartingAmount;
 
     // Method Badge Logic
     const getMethodBadge = (method) => {
@@ -273,17 +291,13 @@ export default function TransactionDetailSheet({
 
                     {(discounts.length > 0 || fees.length > 0 || currentTransaction.otherDiscounts > 0 || currentTransaction.otherFees > 0) && (
                         <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-sm space-y-3 border">
-                            {currentTransaction.grossAmount !== undefined && (
+                            {(displayStartingAmount !== undefined && !isNaN(displayStartingAmount)) && (
                                 <div className="flex justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
                                     <span className="text-muted-foreground">
                                         {hasForeignData ? "Amount (after conversion)" : "Gross Amount"}
                                     </span>
                                     <span className="font-medium">
-                                        {currency(
-                                            hasForeignData
-                                            ? (currentTransaction.grossAmount + (conversionFee || 0))
-                                            : currentTransaction.grossAmount
-                                        )}
+                                        {currency(displayStartingAmount)}
                                     </span>
                                 </div>
                             )}
@@ -313,7 +327,7 @@ export default function TransactionDetailSheet({
                             {fees.length > 0 && (
                                 <div className="space-y-1">
                                     {/* Only add border top if there are previous elements (Discounts or Gross Amount) */}
-                                    {(discounts.length > 0 || currentTransaction.grossAmount !== undefined) && (
+                                    {(discounts.length > 0 || currentTransaction.otherDiscounts > 0) && (
                                          <div className="h-px bg-slate-200 dark:bg-slate-800 my-2" />
                                     )}
                                     <p className="text-xs font-semibold text-red-600 uppercase">Fees</p>
