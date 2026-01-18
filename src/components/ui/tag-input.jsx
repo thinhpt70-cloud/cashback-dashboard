@@ -35,11 +35,19 @@ const TagsInputFieldBase = ({
   endIcon,
   suggestions = [],
 }) => {
-  const { control } = useFormContext();
+  const { control, watch } = useFormContext();
   const [inputValue, setInputValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
+
+  const tags = watch(name) || [];
+  const filteredSuggestions = suggestions.filter(
+    (s) =>
+      s.toLowerCase().includes(inputValue.toLowerCase()) &&
+      !tags.includes(s)
+  );
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -86,6 +94,26 @@ const TagsInputFieldBase = ({
     currentTags,
     onChange
   ) => {
+    if (showSuggestions && filteredSuggestions.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev + 1) % filteredSuggestions.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((prev) =>
+          prev <= 0 ? filteredSuggestions.length - 1 : prev - 1
+        );
+        return;
+      }
+      if (e.key === "Enter" && selectedIndex >= 0) {
+        e.preventDefault();
+        addTag(filteredSuggestions[selectedIndex], currentTags, onChange);
+        return;
+      }
+    }
+
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
       addTag(inputValue, currentTags, onChange);
@@ -131,13 +159,6 @@ const TagsInputFieldBase = ({
       control={control}
       name={name}
       render={({ field }) => {
-        const tags = field.value || [];
-        const filteredSuggestions = suggestions.filter(
-          (s) =>
-            s.toLowerCase().includes(inputValue.toLowerCase()) &&
-            !tags.includes(s)
-        );
-
         return (
           <FormItem className={cn("space-y-2", className)}>
             <FormLabel className="flex items-center gap-2">
@@ -206,6 +227,7 @@ const TagsInputFieldBase = ({
                       value={inputValue}
                       onChange={(e) => {
                         setInputValue(e.target.value);
+                        setSelectedIndex(-1);
                         setShowSuggestions(
                           e.target.value.length > 0 && suggestions.length > 0
                         );
@@ -216,6 +238,15 @@ const TagsInputFieldBase = ({
                           inputValue.length > 0 && suggestions.length > 0
                         )
                       }
+                      aria-activedescendant={
+                        selectedIndex >= 0 && showSuggestions
+                          ? `suggestion-${selectedIndex}`
+                          : undefined
+                      }
+                      aria-autocomplete="list"
+                      aria-controls="tag-suggestions-list"
+                      aria-expanded={showSuggestions}
+                      role="combobox"
                       placeholder={
                         tags.length === 0
                           ? placeholder ??
@@ -264,19 +295,29 @@ const TagsInputFieldBase = ({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2 }}
+                      id="tag-suggestions-list"
+                      role="listbox"
                       className={cn(
                         "absolute z-50 w-full mt-1 rounded-md py-1 overflow-auto",
                         styles.suggestions
                       )}
                     >
-                      {filteredSuggestions.map((suggestion) => (
+                      {filteredSuggestions.map((suggestion, index) => (
                         <button
                           key={suggestion}
+                          id={`suggestion-${index}`}
+                          role="option"
+                          aria-selected={index === selectedIndex}
                           type="button"
                           onClick={() =>
                             addTag(suggestion, tags, field.onChange)
                           }
-                          className="w-full px-3 py-2 text-left hover:bg-muted transition-colors text-sm"
+                          className={cn(
+                            "w-full px-3 py-2 text-left transition-colors text-sm",
+                            index === selectedIndex
+                              ? "bg-accent text-accent-foreground"
+                              : "hover:bg-muted"
+                          )}
                         >
                           <div className="flex items-center gap-2">
                             {startIcon ? (
