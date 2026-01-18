@@ -695,6 +695,46 @@ app.get('/api/transactions', async (req, res) => {
     }
 });
 
+app.get('/api/transactions/query', async (req, res) => {
+    const { cursor, pageSize = 20, search } = req.query;
+
+    try {
+        const queryParams = {
+            database_id: transactionsDbId,
+            page_size: parseInt(pageSize, 10),
+            sorts: [{ property: 'Transaction Date', direction: 'descending' }],
+        };
+
+        if (cursor) {
+            queryParams.start_cursor = cursor;
+        }
+
+        if (search) {
+            const trimmedSearch = search.trim();
+            queryParams.filter = {
+                or: [
+                    { property: 'Transaction Name', title: { contains: trimmedSearch } },
+                    { property: 'Merchant', rich_text: { contains: trimmedSearch } }
+                ]
+            };
+        }
+
+        const response = await notion.databases.query(queryParams);
+
+        const results = response.results.map(mapTransaction);
+
+        res.json({
+            results,
+            nextCursor: response.next_cursor,
+            hasMore: response.has_more,
+        });
+
+    } catch (error) {
+        console.error('Failed to query transactions:', error.body || error);
+        res.status(500).json({ error: 'Failed to query transactions from Notion' });
+    }
+});
+
 app.post('/api/transactions/batch-update', async (req, res) => {
     const { updates } = req.body; // Expecting [{ id, properties }]
 

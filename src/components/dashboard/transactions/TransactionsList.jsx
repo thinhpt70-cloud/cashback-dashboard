@@ -58,6 +58,7 @@ import {
 import MobileTransactionItem from "../../shared/MobileTransactionItem";
 import MethodIndicator from "../../shared/MethodIndicator";
 import TransactionRow from "./TransactionRow";
+import useDebounce from "../../../hooks/useDebounce";
 
 // Moved currency function outside to be stable
 const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
@@ -79,9 +80,14 @@ const TransactionsList = React.memo(({
     onDuplicateTransaction,
     onBulkDelete,
     onViewDetails = () => {},
-    fmtYMShortFn
+    fmtYMShortFn,
+    isServerSide = false,
+    onLoadMore,
+    hasMore = false,
+    onSearch
 }) => {
     const [searchTerm, setSearchTerm] = useState("");
+    const debouncedSearchTerm = useDebounce(searchTerm, 500);
     const [cardFilter, setCardFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [methodFilter, setMethodFilter] = useState("all");
@@ -244,6 +250,13 @@ const TransactionsList = React.memo(({
     // Existing Logic (Sorting, Filtering, Grouping)
     // ------------------------------------------------------------------
 
+    // Server-side Search Trigger
+    useEffect(() => {
+        if (isServerSide && onSearch) {
+            onSearch(debouncedSearchTerm);
+        }
+    }, [debouncedSearchTerm, isServerSide, onSearch]);
+
     useEffect(() => {
         setSelectedIds([]);
     }, [activeMonth, filterType]);
@@ -323,7 +336,8 @@ const TransactionsList = React.memo(({
         let items = sortedTransactions;
 
         // ⚡ Bolt Optimization: Hoist toLowerCase out of loop and use pre-calculated fields
-        if (searchTerm) {
+        // Skip client-side text filtering if server-side search is active
+        if (!isServerSide && searchTerm) {
             const lowerCaseSearch = searchTerm.toLowerCase();
             items = items.filter(tx =>
                 tx._searchName.includes(lowerCaseSearch) ||
@@ -341,11 +355,17 @@ const TransactionsList = React.memo(({
 
         // No need to sort here! 'items' retains the order from 'sortedTransactions'.
         return items;
-    }, [sortedTransactions, searchTerm, cardFilter, categoryFilter, methodFilter]);
+    }, [sortedTransactions, searchTerm, cardFilter, categoryFilter, methodFilter, isServerSide]);
 
     useEffect(() => {
-        setVisibleCount(15);
-    }, [filteredData]);
+        if (!isServerSide) {
+            setVisibleCount(15);
+        } else {
+            // For server-side, we always want to show all loaded items
+            // But we need to update it when filteredData changes (e.g. new page loaded)
+            setVisibleCount(filteredData.length > 0 ? 10000 : 15); // Use a large number or length
+        }
+    }, [filteredData, isServerSide]);
 
     const groupedData = useMemo(() => {
         // New Logic: Group all filtered data first.
@@ -424,6 +444,9 @@ const TransactionsList = React.memo(({
     }, [groupedData, groupBy]);
 
     const transactionsToShow = useMemo(() => {
+        // If server side, we might just want to show all flattenedTransactions
+        // But the previous useEffect tries to set visibleCount to large number.
+        // Let's just slice safely.
         return flattenedTransactions.slice(0, visibleCount);
     }, [flattenedTransactions, visibleCount]);
 
@@ -444,7 +467,11 @@ const TransactionsList = React.memo(({
     };
 
     const handleLoadMore = () => {
-        setVisibleCount(prevCount => prevCount + 15);
+        if (isServerSide && onLoadMore) {
+            onLoadMore();
+        } else {
+            setVisibleCount(prevCount => prevCount + 15);
+        }
     };
 
     const handleEdit = useCallback((tx) => {
@@ -505,7 +532,7 @@ const TransactionsList = React.memo(({
                         <Search className="absolute left-3 w-3.5 h-3.5 text-slate-400" />
                         <input
                             type="text"
-                            placeholder="Search..."
+                            placeholder={isServerSide ? "Search Database..." : "Search..."}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full h-[30px] pl-8 pr-3 bg-slate-100 dark:bg-slate-900 rounded-full text-base font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-500 transition-all border-none"
@@ -948,7 +975,7 @@ const TransactionsList = React.memo(({
                                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                         <Input
                                             type="search"
-                                            placeholder="Search..."
+                                            placeholder={isServerSide ? "Search Database..." : "Search..."}
                                             className="pl-8 h-10"
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -1077,8 +1104,10 @@ const TransactionsList = React.memo(({
                     <p className="text-sm text-muted-foreground">
                         Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{flattenedTransactions.length}</span> items
                     </p>
-                    {visibleCount < flattenedTransactions.length && (
-                        <Button onClick={handleLoadMore} variant="outline">Load More</Button>
+                    {(visibleCount < flattenedTransactions.length || (isServerSide && hasMore)) && (
+                        <Button onClick={handleLoadMore} variant="outline" disabled={isServerSide && isLoading}>
+                            {isServerSide && isLoading ? 'Loading...' : 'Load More'}
+                        </Button>
                     )}
                 </div>
             </CardContent>
