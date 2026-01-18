@@ -697,7 +697,11 @@ const TransactionsList = React.memo(({
     }
 
     const renderContent = () => {
-        if (isLoading) {
+        // Only show full skeleton if it's an initial load (empty list) or client-side filter load
+        // This prevents the list from unmounting during "Load More" (server-side append), which preserves scroll position.
+        const shouldShowSkeleton = isLoading && (transactions.length === 0 || !isServerSide);
+
+        if (shouldShowSkeleton) {
              if (!isDesktop) {
                 return (
                     <div className="space-y-3">
@@ -1102,7 +1106,11 @@ const TransactionsList = React.memo(({
                 {renderContent()}
                 <div className="mt-2 flex flex-col items-center gap-4 mb-6">
                     <p className="text-sm text-muted-foreground">
-                        Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{flattenedTransactions.length}</span> items
+                        {isServerSide ? (
+                            <>Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> loaded items</>
+                        ) : (
+                            <>Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{flattenedTransactions.length}</span> items</>
+                        )}
                     </p>
                     {(visibleCount < flattenedTransactions.length || (isServerSide && hasMore)) && (
                         <Button onClick={handleLoadMore} variant="outline" disabled={isServerSide && isLoading}>
