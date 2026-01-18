@@ -9,3 +9,8 @@
 **Vulnerability:** N/A (Tooling Issue)
 **Learning:** Modern Node.js libraries like `undici` (used by `cheerio` and others) rely on global APIs like `TextEncoder`, `ReadableStream`, and `MessagePort` which are not present in the JSDOM test environment by default.
 **Prevention:** When testing backend logic or libraries that depend on these globals in a JSDOM environment, explicit polyfills must be added to `src/setupTests.js` to mirror the Node.js environment.
+
+## 2025-02-23 - [Sensitive Data Exposure in Logs]
+**Vulnerability:** The application was logging raw error bodies from the Notion API directly to `console.error`. These bodies can contain PII or sensitive transaction details.
+**Learning:** A `secureLog` function was implemented but never used, likely due to developer oversight or lack of enforcement.
+**Prevention:** Enforce usage of safe logging wrappers. Replaced all raw `console.error` calls with `secureLog` which sanitizes the input.
