@@ -89,13 +89,20 @@ export default function CashbackDashboard() {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
+
+    // --- LIVE TRANSACTIONS STATE ---
+    const [liveTransactions, setLiveTransactions] = useState([]);
+    const [liveCursor, setLiveCursor] = useState(null);
+    const [liveHasMore, setLiveHasMore] = useState(false);
+    const [isLiveLoading, setIsLiveLoading] = useState(false);
+    const [liveSearchTerm, setLiveSearchTerm] = useState('');
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
     const {
         cards, allCards, rules, monthlySummary, mccMap, monthlyCategorySummary,
         recentTransactions, allCategories, commonVendors, reviewTransactions,
-        loading, error, refreshData, isShellReady, isDashboardLoading,
+        error, refreshData, isShellReady, isDashboardLoading,
         setRecentTransactions, setReviewTransactions,
         cashbackRules, monthlyCashbackCategories, liveSummary,
         fetchReviewTransactions, reviewLoading, fetchCategorySummaryForMonth,
@@ -202,6 +209,42 @@ export default function CashbackDashboard() {
         }
     };
 
+    // --- LIVE TRANSACTIONS LOGIC ---
+    const fetchLiveTransactions = useCallback(async (cursor = null, search = '', isAppend = false) => {
+        setIsLiveLoading(true);
+        try {
+            const params = new URLSearchParams();
+            if (cursor) params.append('cursor', cursor);
+            if (search) params.append('search', search);
+
+            const res = await fetch(`${API_BASE_URL}/transactions/query?${params.toString()}`);
+            if (!res.ok) throw new Error('Failed to fetch live transactions');
+
+            const data = await res.json();
+
+            setLiveTransactions(prev => isAppend ? [...prev, ...data.results] : data.results);
+            setLiveCursor(data.nextCursor);
+            setLiveHasMore(data.hasMore);
+        } catch (error) {
+            console.error("Error fetching live transactions:", error);
+            toast.error("Failed to load transactions.");
+        } finally {
+            setIsLiveLoading(false);
+        }
+    }, []);
+
+    const handleLiveLoadMore = useCallback(() => {
+        if (liveHasMore && liveCursor) {
+            fetchLiveTransactions(liveCursor, liveSearchTerm, true);
+        }
+    }, [liveHasMore, liveCursor, liveSearchTerm, fetchLiveTransactions]);
+
+    const handleLiveSearch = useCallback((term) => {
+        setLiveSearchTerm(term);
+        // Reset list and fetch new results
+        fetchLiveTransactions(null, term, false);
+    }, [fetchLiveTransactions]);
+
     // ⚡ Bolt Optimization: Memoize handlers to prevent re-renders
     const handleTransactionAdded = useCallback((newTransaction) => {
         // 1. Instantly update the list for the current month
@@ -212,7 +255,10 @@ export default function CashbackDashboard() {
         // 2. Update the recent transactions carousel
         setRecentTransactions(prevRecent => [newTransaction, ...prevRecent].slice(0, 20));
 
-        // 3. Trigger a full refresh in the background to update all aggregate data (charts, stats, etc.) without a loading screen.
+        // 3. Update Live Transactions list
+        setLiveTransactions(prev => [newTransaction, ...prev]);
+
+        // 4. Trigger a full refresh in the background to update all aggregate data (charts, stats, etc.) without a loading screen.
         refreshData(true);
     }, [activeMonth, setRecentTransactions, refreshData]);
 
@@ -392,33 +438,39 @@ export default function CashbackDashboard() {
 
 
     useEffect(() => {
-        // Determine which month to fetch transactions for.
         const isLiveView = activeMonth === 'live';
-        // In Live View, default to the most recent month. Otherwise, use the selected month.
-        const monthToFetch = isLiveView ? statementMonths[0] : activeMonth;
 
-        // NEW: Lazy loading - only fetch full transactions if the tab is active
-        if (monthToFetch && activeView === 'transactions') {
-            const fetchMonthlyTransactions = async () => {
-                setIsMonthlyTxLoading(true);
-                try {
-                    // Use the dynamically determined 'monthToFetch' in the API call.
-                    const res = await fetch(`${API_BASE_URL}/transactions?month=${monthToFetch}&filterBy=${transactionFilterType}`);
-                    if (!res.ok) {
-                        throw new Error('Failed to fetch monthly transactions');
-                    }
-                    const data = await res.json();
-                    setMonthlyTransactions(data);
-                } catch (err) {
-                    console.error(err);
-                    setMonthlyTransactions([]);
-                } finally {
-                    setIsMonthlyTxLoading(false);
-                }
-            };
-            fetchMonthlyTransactions();
+        // 1. Handle Live View fetching
+        if (isLiveView && activeView === 'transactions') {
+             // Only fetch if empty to avoid refetching on every tab switch,
+             // unless we want to ensure freshness.
+             // Given 'recentTransactions' might be stale or partial, we fetch fresh.
+             if (liveTransactions.length === 0) {
+                 fetchLiveTransactions();
+             }
         }
-    }, [activeMonth, transactionFilterType, statementMonths, activeView]);
+        // 2. Handle Historical View fetching
+        else {
+            const monthToFetch = activeMonth;
+            if (monthToFetch && activeView === 'transactions') {
+                const fetchMonthlyTransactions = async () => {
+                    setIsMonthlyTxLoading(true);
+                    try {
+                        const res = await fetch(`${API_BASE_URL}/transactions?month=${monthToFetch}&filterBy=${transactionFilterType}`);
+                        if (!res.ok) throw new Error('Failed to fetch monthly transactions');
+                        const data = await res.json();
+                        setMonthlyTransactions(data);
+                    } catch (err) {
+                        console.error(err);
+                        setMonthlyTransactions([]);
+                    } finally {
+                        setIsMonthlyTxLoading(false);
+                    }
+                };
+                fetchMonthlyTransactions();
+            }
+        }
+    }, [activeMonth, transactionFilterType, activeView, fetchLiveTransactions, liveTransactions.length]);
 
     // --------------------------
     // 2) HELPERS & CALCULATIONS
@@ -965,8 +1017,8 @@ export default function CashbackDashboard() {
                         />
                         <TransactionsList
                             isDesktop={isDesktop}
-                            transactions={activeMonth === 'live' ? recentTransactions : monthlyTransactions}
-                            isLoading={activeMonth === 'live' ? loading : isMonthlyTxLoading}
+                            transactions={activeMonth === 'live' ? liveTransactions : monthlyTransactions}
+                            isLoading={activeMonth === 'live' ? isLiveLoading : isMonthlyTxLoading}
                             activeMonth={activeMonth}
                             cardMap={cardMap}
                             mccNameFn={mccName}
@@ -981,6 +1033,12 @@ export default function CashbackDashboard() {
                             onViewDetails={handleViewTransactionDetails}
                             fmtYMShortFn={fmtYMShort}
                             rules={cashbackRules}
+
+                            // Server-side props
+                            isServerSide={activeMonth === 'live'}
+                            onLoadMore={handleLiveLoadMore}
+                            hasMore={liveHasMore}
+                            onSearch={handleLiveSearch}
                         />
                     </div>
                 )}
