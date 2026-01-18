@@ -696,7 +696,7 @@ app.get('/api/transactions', async (req, res) => {
 });
 
 app.get('/api/transactions/query', async (req, res) => {
-    const { cursor, pageSize = 20, search } = req.query;
+    const { cursor, pageSize = 20, search, cardId, category, method } = req.query;
 
     try {
         const queryParams = {
@@ -709,14 +709,43 @@ app.get('/api/transactions/query', async (req, res) => {
             queryParams.start_cursor = cursor;
         }
 
+        const andConditions = [];
+
         if (search) {
             const trimmedSearch = search.trim();
-            queryParams.filter = {
-                or: [
-                    { property: 'Transaction Name', title: { contains: trimmedSearch } },
-                    { property: 'Merchant', rich_text: { contains: trimmedSearch } }
-                ]
-            };
+            if (trimmedSearch) {
+                andConditions.push({
+                    or: [
+                        { property: 'Transaction Name', title: { contains: trimmedSearch } },
+                        { property: 'Merchant', rich_text: { contains: trimmedSearch } }
+                    ]
+                });
+            }
+        }
+
+        if (cardId) {
+            andConditions.push({
+                property: 'Card',
+                relation: { contains: cardId }
+            });
+        }
+
+        if (category) {
+            andConditions.push({
+                property: 'Category',
+                select: { equals: category }
+            });
+        }
+
+        if (method) {
+            andConditions.push({
+                property: 'Method',
+                select: { equals: method }
+            });
+        }
+
+        if (andConditions.length > 0) {
+            queryParams.filter = { and: andConditions };
         }
 
         const response = await notion.databases.query(queryParams);

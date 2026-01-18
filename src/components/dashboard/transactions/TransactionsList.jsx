@@ -253,9 +253,14 @@ const TransactionsList = React.memo(({
     // Server-side Search Trigger
     useEffect(() => {
         if (isServerSide && onSearch) {
-            onSearch(debouncedSearchTerm);
+            onSearch({
+                term: debouncedSearchTerm,
+                cardId: cardFilter !== 'all' ? cardFilter : null,
+                category: categoryFilter !== 'all' ? categoryFilter : null,
+                method: methodFilter !== 'all' ? methodFilter : null
+            });
         }
-    }, [debouncedSearchTerm, isServerSide, onSearch]);
+    }, [debouncedSearchTerm, cardFilter, categoryFilter, methodFilter, isServerSide, onSearch]);
 
     useEffect(() => {
         setSelectedIds([]);
@@ -348,10 +353,12 @@ const TransactionsList = React.memo(({
             );
         }
 
-        items = items
-        .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
-        .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter)
-        .filter(tx => methodFilter === "all" || tx['Method'] === methodFilter);
+        if (!isServerSide) {
+            items = items
+            .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
+            .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter)
+            .filter(tx => methodFilter === "all" || tx['Method'] === methodFilter);
+        }
 
         // No need to sort here! 'items' retains the order from 'sortedTransactions'.
         return items;
@@ -1107,9 +1114,9 @@ const TransactionsList = React.memo(({
                 <div className="mt-2 flex flex-col items-center gap-4 mb-6">
                     <p className="text-sm text-muted-foreground">
                         {isServerSide ? (
-                            <>Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> loaded items</>
+                            <>Showing <span className="font-semibold text-primary">{transactionsToShow.filter(i => i.type !== 'header').length}</span> loaded items</>
                         ) : (
-                            <>Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{flattenedTransactions.length}</span> items</>
+                            <>Showing <span className="font-semibold text-primary">{transactionsToShow.filter(i => i.type !== 'header').length}</span> of <span className="font-semibold text-primary">{flattenedTransactions.filter(i => i.type !== 'header').length}</span> items</>
                         )}
                     </p>
                     {(visibleCount < flattenedTransactions.length || (isServerSide && hasMore)) && (

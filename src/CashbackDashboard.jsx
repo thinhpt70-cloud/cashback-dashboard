@@ -95,7 +95,7 @@ export default function CashbackDashboard() {
     const [liveCursor, setLiveCursor] = useState(null);
     const [liveHasMore, setLiveHasMore] = useState(false);
     const [isLiveLoading, setIsLiveLoading] = useState(false);
-    const [liveSearchTerm, setLiveSearchTerm] = useState('');
+    const [liveFilters, setLiveFilters] = useState({});
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
@@ -210,12 +210,17 @@ export default function CashbackDashboard() {
     };
 
     // --- LIVE TRANSACTIONS LOGIC ---
-    const fetchLiveTransactions = useCallback(async (cursor = null, search = '', isAppend = false) => {
+    const fetchLiveTransactions = useCallback(async (cursor = null, filters = {}, isAppend = false) => {
         setIsLiveLoading(true);
         try {
             const params = new URLSearchParams();
             if (cursor) params.append('cursor', cursor);
-            if (search) params.append('search', search);
+
+            const { term, cardId, category, method } = filters;
+            if (term) params.append('search', term);
+            if (cardId) params.append('cardId', cardId);
+            if (category) params.append('category', category);
+            if (method) params.append('method', method);
 
             const res = await fetch(`${API_BASE_URL}/transactions/query?${params.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch live transactions');
@@ -235,14 +240,14 @@ export default function CashbackDashboard() {
 
     const handleLiveLoadMore = useCallback(() => {
         if (liveHasMore && liveCursor) {
-            fetchLiveTransactions(liveCursor, liveSearchTerm, true);
+            fetchLiveTransactions(liveCursor, liveFilters, true);
         }
-    }, [liveHasMore, liveCursor, liveSearchTerm, fetchLiveTransactions]);
+    }, [liveHasMore, liveCursor, liveFilters, fetchLiveTransactions]);
 
-    const handleLiveSearch = useCallback((term) => {
-        setLiveSearchTerm(term);
+    const handleLiveSearch = useCallback((newFilters) => {
+        setLiveFilters(newFilters);
         // Reset list and fetch new results
-        fetchLiveTransactions(null, term, false);
+        fetchLiveTransactions(null, newFilters, false);
     }, [fetchLiveTransactions]);
 
     // ⚡ Bolt Optimization: Memoize handlers to prevent re-renders
