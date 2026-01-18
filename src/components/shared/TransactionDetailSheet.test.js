@@ -139,4 +139,52 @@ describe('TransactionDetailSheet', () => {
     expect(screen.getByTestId('sheet')).toBeInTheDocument();
     expect(screen.queryByTestId('drawer')).not.toBeInTheDocument();
   });
+
+  it('renders only one divider between Gross Amount and Fees', () => {
+    // Issue: When we have Gross Amount and Fees (but no discounts), we get a double line.
+    // One from Gross Amount border-b, one from the conditional separator in Fees block.
+    // We expect ONLY the Gross Amount border (or just no extra separator).
+
+    const transaction = {
+      ...mockTransaction,
+      grossAmount: 100000,
+      notes: 'Fees: [{"description": "Fee", "amount": 5000}]',
+    };
+
+    const { container } = render(
+      <TransactionDetailSheet
+        transaction={transaction}
+        isOpen={true}
+        onClose={() => {}}
+      />
+    );
+
+    // The inner separator uses "my-2". Main separators use "my-6".
+    const innerSeparators = container.querySelectorAll('.my-2');
+    // Expect 0 separators because Gross Amount has a border, and no discounts exist to separate from.
+    expect(innerSeparators.length).toBe(0);
+  });
+
+  it('calculates and renders Gross Amount when missing from transaction but Discounts/Fees exist', () => {
+    // Issue: Transactions with "Amount" and "Discounts" but NO "grossAmount" property
+    // do not show the Gross Amount row.
+
+    const transaction = {
+      ...mockTransaction,
+      'Amount': 90000,
+      grossAmount: undefined, // Missing gross amount
+      notes: 'Discounts: [{"description": "Discount", "amount": 10000}]',
+    };
+
+    render(
+      <TransactionDetailSheet
+        transaction={transaction}
+        isOpen={true}
+        onClose={() => {}}
+      />
+    );
+
+    // Should verify that "Gross Amount" text is present
+    expect(screen.getByText('Gross Amount')).toBeInTheDocument();
+  });
 });
