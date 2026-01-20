@@ -5,3 +5,7 @@
 ## 2024-05-24 - Memoizing List Containers
 **Learning:** While individual list items (like `TransactionRow`) were memoized, the container component `TransactionsList` was not. This meant that whenever the parent `CashbackDashboard` re-rendered (e.g., due to unrelated state changes like `isSyncing`), the `TransactionsList` would still re-execute its function body (including VDOM diffing), even if props were stable.
 **Action:** When optimizing lists, ensure BOTH the list items AND the list container are memoized to fully isolate the list from parent re-renders.
+
+## 2026-01-20 - Memoization Broken by Object Spreading
+**Learning:** In `TransactionsList`, the list flattening logic used `...tx` spreading (`{ type: 'item', ...tx }`) to create list items. This created a new object reference for every transaction on every render, causing `React.memo` on `TransactionRow` to fail (always returning false) and triggering unnecessary re-renders of all rows whenever sorting or filtering changed.
+**Action:** When transforming data for a list, wrap the original object (e.g., `{ type: 'item', data: tx }`) instead of spreading it, to preserve the object reference and enable effective memoization of child components.
