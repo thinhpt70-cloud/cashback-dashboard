@@ -247,6 +247,9 @@ export default function CashbackDashboard() {
     const handleLiveSearch = useCallback((newFilters) => {
         setLiveFilters(newFilters);
         // Reset list and fetch new results
+        setLiveTransactions([]);
+        setLiveCursor(null);
+        setLiveHasMore(false);
         fetchLiveTransactions(null, newFilters, false);
     }, [fetchLiveTransactions]);
 
@@ -1038,6 +1041,7 @@ export default function CashbackDashboard() {
                             onViewDetails={handleViewTransactionDetails}
                             fmtYMShortFn={fmtYMShort}
                             rules={cashbackRules}
+                            categories={allCategories}
 
                             // Server-side props
                             isServerSide={activeMonth === 'live'}

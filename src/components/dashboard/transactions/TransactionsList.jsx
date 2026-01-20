@@ -84,7 +84,8 @@ const TransactionsList = React.memo(({
     isServerSide = false,
     onLoadMore,
     hasMore = false,
-    onSearch
+    onSearch,
+    categories: providedCategories = []
 }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -275,10 +276,16 @@ const TransactionsList = React.memo(({
     }, [sortConfig]);
 
     const categories = useMemo(() => {
+        // If providedCategories is available (passed from parent), use it.
+        // This is crucial for Server-Side Filtering where 'transactions' might be empty or partial.
+        if (providedCategories && providedCategories.length > 0) {
+             return ["all", ...[...providedCategories].sort((a, b) => a.localeCompare(b))];
+        }
+
         const uniqueCategories = Array.from(new Set(transactions.map(tx => tx['Category']).filter(Boolean)));
         uniqueCategories.sort((a, b) => a.localeCompare(b));
         return ["all", ...uniqueCategories];
-    }, [transactions]);
+    }, [transactions, providedCategories]);
 
     const enrichedTransactions = useMemo(() => {
         return transactions.map(tx => {

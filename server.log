@@ -32,3 +32,19 @@ See https://nodejs.org/api/errors.html#errors_common_system_errors for more info
 
 Proxy error: Could not proxy request /api/definitions from localhost:3002 to http://localhost:3001.
 See https://nodejs.org/api/errors.html#errors_common_system_errors for more information (ECONNREFUSED).
+
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
+Compiling...
+Compiled successfully!
+webpack compiled successfully
