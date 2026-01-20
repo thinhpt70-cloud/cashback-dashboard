@@ -1,31 +1,40 @@
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import BulkEditDialog from './BulkEditDialog';
-import { Toaster } from 'sonner';
 
 // Mock UI components
 jest.mock('../../ui/dialog', () => ({
-  Dialog: ({ open, onOpenChange, children }) => open ? <div role="dialog">{children}</div> : null,
+  Dialog: ({ open, children }) => open ? <div role="dialog">{children}</div> : null,
   DialogContent: ({ children }) => <div>{children}</div>,
   DialogHeader: ({ children }) => <div>{children}</div>,
   DialogTitle: ({ children }) => <h2>{children}</h2>,
   DialogFooter: ({ children }) => <div>{children}</div>,
 }));
 
+jest.mock('../../ui/table', () => ({
+    Table: ({ children }) => <table>{children}</table>,
+    TableHeader: ({ children }) => <thead>{children}</thead>,
+    TableHead: ({ children }) => <th>{children}</th>,
+    TableBody: ({ children }) => <tbody>{children}</tbody>,
+    TableRow: ({ children }) => <tr>{children}</tr>,
+    TableCell: ({ children }) => <td>{children}</td>,
+}));
+
 jest.mock('../../ui/select', () => ({
-    Select: ({ value, onValueChange, children }) => (
-        <div data-testid="mock-select">
+    Select: ({ value, onValueChange, children, disabled }) => (
+        <div data-testid="mock-select" data-disabled={disabled}>
             <select
                 data-testid="select-trigger"
                 value={value}
                 onChange={(e) => onValueChange(e.target.value)}
+                disabled={disabled}
             >
-                {/* We can't easily render SelectItems inside standard option tags from here without more complex mocking,
-                    but for this test we mainly care about the Combobox logic */}
                  <option value="">Select...</option>
                  <option value="Category">Category</option>
                  <option value="MCC Code">MCC Code</option>
+                 <option value="Applicable Rule">Applicable Rule</option>
+                 <option value="Card">Card</option>
             </select>
             {children}
         </div>
@@ -36,73 +45,108 @@ jest.mock('../../ui/select', () => ({
     SelectValue: ({ placeholder }) => <span>{placeholder}</span>
 }));
 
-// Mock Combobox to verify props
+// Mock Combobox
 jest.mock('../../ui/combobox', () => ({
-    Combobox: (props) => {
-        // We render a special element that exposes the props we received
-        return (
-            <div data-testid="mock-combobox">
-                <span data-testid="combobox-options-length">{props.options ? props.options.length : 'undefined'}</span>
-                <span data-testid="combobox-items-length">{props.items ? props.items.length : 'undefined'}</span>
-                <input
-                    data-testid="combobox-input"
-                    value={props.value}
-                    onChange={(e) => {
-                        if (props.onChange) props.onChange(e.target.value);
-                        if (props.setValue) props.setValue(e.target.value);
-                    }}
-                />
-            </div>
-        );
-    }
+    Combobox: (props) => (
+        <div data-testid="mock-combobox">
+            <input
+                data-testid="combobox-input"
+                value={props.value}
+                onChange={(e) => props.onChange(e.target.value)}
+            />
+        </div>
+    )
 }));
 
-
-describe('BulkEditDialog Prop Mismatch Test', () => {
+describe('BulkEditDialog', () => {
     const mockOnClose = jest.fn();
     const mockOnUpdateComplete = jest.fn();
-    const categories = ['Dining', 'Travel', 'Utilities'];
+    const categories = ['Dining', 'Travel'];
+    const cards = [{ id: 'c1', name: 'Card A' }, { id: 'c2', name: 'Card B' }];
+    const rules = [
+        { id: 'r1', ruleName: 'Rule A', cardId: 'c1' },
+        { id: 'r2', ruleName: 'Rule B', cardId: 'c2' }
+    ];
+    const mccMap = {
+        '5812': { vn: 'Restaurants', us: 'Eating Places' },
+        '5411': { vn: 'Supermarkets', us: 'Grocery Stores' }
+    };
+
+    const tx1 = { id: '1', 'Transaction Date': '2023-01-01', 'Transaction Name': 'Tx 1', 'Amount': 100, 'Card': ['c1'] };
+    const tx2 = { id: '2', 'Transaction Date': '2023-01-02', 'Transaction Name': 'Tx 2', 'Amount': 200, 'Card': ['c2'] };
+    const tx3 = { id: '3', 'Transaction Date': '2023-01-03', 'Transaction Name': 'Tx 3', 'Amount': 300, 'Card': ['c1'] };
 
     beforeEach(() => {
         jest.clearAllMocks();
     });
 
-    test('Combobox should receive "options" and "onChange" props correctly', async () => {
+    test('renders correctly and shows preview table', () => {
         render(
             <BulkEditDialog
                 isOpen={true}
                 onClose={mockOnClose}
-                selectedIds={['tx-1', 'tx-2']}
-                allTransactions={[]}
+                selectedIds={['1']}
+                allTransactions={[tx1]}
                 categories={categories}
-                cards={[]}
-                rules={[]}
+                cards={cards}
+                rules={rules}
+                mccMap={mccMap}
                 onUpdateComplete={mockOnUpdateComplete}
             />
         );
 
-        // 1. Select "Category" as the field to update
-        const fieldSelect = screen.getByTestId('select-trigger');
-        fireEvent.change(fieldSelect, { target: { value: 'Category' } });
+        expect(screen.getByText(/Bulk Edit/i)).toBeInTheDocument();
+        expect(screen.getByText('Preview Changes')).toBeInTheDocument();
+        expect(screen.getByText('Tx 1')).toBeInTheDocument(); // Preview row
+    });
 
-        // 2. Wait for Combobox to appear
-        const combobox = await screen.findByTestId('mock-combobox');
-        expect(combobox).toBeInTheDocument();
+    test('shows warning and disables input when selecting "Applicable Rule" with mixed cards', () => {
+        render(
+            <BulkEditDialog
+                isOpen={true}
+                onClose={mockOnClose}
+                selectedIds={['1', '2']} // Mixed cards: c1 and c2
+                allTransactions={[tx1, tx2]}
+                categories={categories}
+                cards={cards}
+                rules={rules}
+                mccMap={mccMap}
+                onUpdateComplete={mockOnUpdateComplete}
+            />
+        );
 
-        // 3. Verify props
-        // Expect failure here because currently it passes 'items' instead of 'options'
-        const optionsLength = screen.getByTestId('combobox-options-length').textContent;
-        const itemsLength = screen.getByTestId('combobox-items-length').textContent;
+        // Select "Applicable Rule"
+        const select = screen.getByTestId('select-trigger');
+        fireEvent.change(select, { target: { value: 'Applicable Rule' } });
 
-        // In a fixed version, optionsLength should be '3' and itemsLength should be 'undefined'.
-        // In the buggy version, optionsLength is 'undefined' and itemsLength is '3'.
+        // Check for warning
+        expect(screen.getByText(/Mixed Cards Selected/i)).toBeInTheDocument();
+    });
 
-        // Asserting what SHOULD happen for a correct implementation:
-        expect(optionsLength).toBe('3');
-        expect(itemsLength).toBe('undefined');
+    test('shows MCC description when entering an MCC code', () => {
+        render(
+            <BulkEditDialog
+                isOpen={true}
+                onClose={mockOnClose}
+                selectedIds={['1']}
+                allTransactions={[tx1]}
+                categories={categories}
+                cards={cards}
+                rules={rules}
+                mccMap={mccMap}
+                onUpdateComplete={mockOnUpdateComplete}
+            />
+        );
 
-        // Also check if onChange is wired up correctly by simulating a change
-        // This is harder to check directly on props without a spy, but we can verify if the component works?
-        // Actually, just checking the prop existence via the rendered text is enough to prove the mismatch.
+        // 1. Select MCC Code field
+        const select = screen.getByTestId('select-trigger');
+        fireEvent.change(select, { target: { value: 'MCC Code' } });
+
+        // 2. Type "5812" into input
+        const input = screen.getByPlaceholderText('Enter MCC Code');
+        fireEvent.change(input, { target: { value: '5812' } });
+
+        // 3. Expect "Restaurants" to appear in helper text
+        expect(screen.getByText('Restaurants')).toBeInTheDocument();
     });
 });

@@ -1,13 +1,14 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../ui/dialog";
 import { Button } from "../../ui/button";
 import { Label } from "../../ui/label";
 import { Input } from "../../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../ui/table";
 import { Combobox } from "../../ui/combobox";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle, ArrowRight, Info } from "lucide-react";
 import { toast } from 'sonner';
+import { cn } from "../../../lib/utils";
 
 export default function BulkEditDialog({
     isOpen,
@@ -17,6 +18,7 @@ export default function BulkEditDialog({
     categories,
     cards,
     rules,
+    mccMap,
     getCurrentCashbackMonthForCard,
     onUpdateComplete
 }) {
@@ -33,12 +35,47 @@ export default function BulkEditDialog({
         }
     }, [isOpen]);
 
+    const selectedTransactions = useMemo(() => {
+        return allTransactions.filter(t => selectedIds.includes(t.id));
+    }, [allTransactions, selectedIds]);
+
+    const uniqueCardIds = useMemo(() => {
+        const ids = new Set();
+        selectedTransactions.forEach(tx => {
+            if (tx['Card'] && tx['Card'].length > 0) ids.add(tx['Card'][0]);
+        });
+        return Array.from(ids);
+    }, [selectedTransactions]);
+
+    const hasMixedCards = uniqueCardIds.length > 1;
+
+    // Sorting logic integrated here
+    const sortedCategories = useMemo(() => {
+        return [...categories].sort((a, b) => a.localeCompare(b));
+    }, [categories]);
+
+    const sortedCards = useMemo(() => {
+        return [...cards].sort((a, b) => a.name.localeCompare(b.name));
+    }, [cards]);
+
+    const filteredRules = useMemo(() => {
+        let relevantRules = rules;
+        if (selectedField === 'Applicable Rule' && !hasMixedCards && uniqueCardIds.length === 1) {
+            relevantRules = rules.filter(r => r.cardId === uniqueCardIds[0]);
+        }
+        return [...relevantRules].sort((a, b) => (a.ruleName || '').localeCompare(b.ruleName || ''));
+    }, [rules, uniqueCardIds, selectedField, hasMixedCards]);
+
     const handleSave = async () => {
         if (!selectedField) {
             toast.error("Please select a field to update.");
             return;
         }
-        if (!value && value !== 0) { // Allow 0 as a value
+        if (selectedField === 'Applicable Rule' && hasMixedCards) {
+             toast.error("Cannot apply rules to transactions from different cards.");
+             return;
+        }
+        if (!value && value !== 0) {
              toast.error("Please enter a value.");
              return;
         }
@@ -47,7 +84,7 @@ export default function BulkEditDialog({
 
         try {
             const updates = [];
-            const summaryCache = new Map(); // Cache summary IDs to avoid redundant calls
+            const summaryCache = new Map();
 
             for (const txId of selectedIds) {
                 const tx = allTransactions.find(t => t.id === txId);
@@ -58,7 +95,6 @@ export default function BulkEditDialog({
                 let newRuleId = null;
                 let newCardId = null;
 
-                // Prepare the specific field update
                 if (selectedField === 'MCC Code') {
                     updatePayload.properties.mccCode = value;
                 } else if (selectedField === 'Category') {
@@ -66,31 +102,23 @@ export default function BulkEditDialog({
                 } else if (selectedField === 'Applicable Rule') {
                     updatePayload.properties.applicableRuleId = value;
                     newRuleId = value;
-                    newCardId = tx['Card'] ? tx['Card'][0] : null; // Keep existing card
+                    newCardId = tx['Card'] ? tx['Card'][0] : null;
                     needsSummaryUpdate = true;
                 } else if (selectedField === 'Card') {
                     updatePayload.properties.cardId = value;
                     newCardId = value;
-
-                    // If we change card, we might need to update the rule if the old rule doesn't apply?
-                    // For now, let's assume we keep the rule if possible, OR the user should update rule too.
-                    // But critically, changing card DEFINITELY changes the summary category.
                     newRuleId = tx['Applicable Rule'] ? tx['Applicable Rule'][0] : null;
                     needsSummaryUpdate = true;
                 }
 
-                // --- Complex Logic: Recalculate Summary Category ---
                 if (needsSummaryUpdate && newRuleId && newCardId) {
                     const cardObj = cards.find(c => c.id === newCardId);
                     if (cardObj && tx['Transaction Date']) {
                         const month = getCurrentCashbackMonthForCard(cardObj, tx['Transaction Date']);
-
-                        // Check cache first
                         const cacheKey = `${newCardId}-${month}-${newRuleId}`;
                         let summaryId = summaryCache.get(cacheKey);
 
                         if (!summaryId) {
-                            // Fetch or create summary from backend
                             const res = await fetch('/api/summaries', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -119,7 +147,6 @@ export default function BulkEditDialog({
                 updates.push(updatePayload);
             }
 
-            // Send batch update
             const res = await fetch('/api/transactions/batch-update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -141,21 +168,90 @@ export default function BulkEditDialog({
         }
     };
 
-    // Helper to render the correct input based on selected field
+    const getMccDescription = (code) => {
+        if (!code || !mccMap || !mccMap[code]) return null;
+        return mccMap[code].vn || mccMap[code].us || 'Unknown';
+    };
+
+    const getDisplayValue = (tx, field) => {
+        if (!field) return '-';
+        if (field === 'MCC Code') {
+             const code = tx['MCC Code'];
+             if (!code) return '-';
+             const desc = getMccDescription(code);
+             return desc ? `${code} - ${desc}` : code;
+        }
+        if (field === 'Category') return tx['Category'] || 'Uncategorized';
+        if (field === 'Applicable Rule') {
+             const ruleId = tx['Applicable Rule']?.[0];
+             const rule = rules.find(r => r.id === ruleId);
+             return rule ? rule.ruleName : '-';
+        }
+        if (field === 'Card') {
+             const cardId = tx['Card']?.[0];
+             const card = cards.find(c => c.id === cardId);
+             return card ? card.name : '-';
+        }
+        return '-';
+    };
+
+    const getNewDisplayValue = () => {
+        if (!value) return null;
+        if (selectedField === 'MCC Code') {
+            const desc = getMccDescription(value);
+            return desc ? `${value} - ${desc}` : value;
+        }
+        if (selectedField === 'Category') return value;
+        if (selectedField === 'Applicable Rule') {
+             const rule = rules.find(r => r.id === value);
+             return rule ? rule.ruleName : value;
+        }
+        if (selectedField === 'Card') {
+             const card = cards.find(c => c.id === value);
+             return card ? card.name : value;
+        }
+        return value;
+    };
+
     const renderInput = () => {
+        if (selectedField === 'Applicable Rule' && hasMixedCards) {
+            return (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md flex items-start gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-800 dark:text-amber-300">
+                        <p className="font-semibold">Mixed Cards Selected</p>
+                        <p className="mt-1">Cannot bulk assign rules because selected transactions belong to different cards. Please filter by card first.</p>
+                    </div>
+                </div>
+            );
+        }
+
         switch (selectedField) {
             case 'MCC Code':
+                const mccDesc = getMccDescription(value);
                 return (
-                     <Input
-                        placeholder="Enter MCC Code"
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
-                    />
+                    <div className="space-y-2">
+                        <Input
+                            placeholder="Enter MCC Code"
+                            value={value}
+                            onChange={(e) => setValue(e.target.value)}
+                        />
+                        {value && (
+                            <div className="flex items-start gap-2 text-xs text-muted-foreground p-2 bg-slate-50 dark:bg-slate-900/50 rounded border dark:border-slate-800">
+                                <Info className="h-3.5 w-3.5 mt-0.5 text-blue-500" />
+                                {mccDesc ? (
+                                    <span>Match: <span className="font-medium text-slate-700 dark:text-slate-300">{mccDesc}</span></span>
+                                ) : (
+                                    <span className="italic text-slate-400">No known description for this code</span>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 );
             case 'Category':
                 return (
                     <Combobox
-                        options={categories.map(c => ({ value: c, label: c }))}
+                        options={sortedCategories.map(c => ({ value: c, label: c }))}
                         value={value}
                         onChange={setValue}
                         placeholder="Select category..."
@@ -163,12 +259,12 @@ export default function BulkEditDialog({
                 );
             case 'Applicable Rule':
                 return (
-                    <Select value={value} onValueChange={setValue}>
+                    <Select value={value} onValueChange={setValue} disabled={hasMixedCards}>
                         <SelectTrigger>
                             <SelectValue placeholder="Select Cashback Rule" />
                         </SelectTrigger>
                         <SelectContent className="max-h-60">
-                            {rules.map(rule => (
+                            {filteredRules.map(rule => (
                                 <SelectItem key={rule.id} value={rule.id}>
                                     {rule.ruleName}
                                 </SelectItem>
@@ -183,7 +279,7 @@ export default function BulkEditDialog({
                             <SelectValue placeholder="Select Card" />
                         </SelectTrigger>
                         <SelectContent>
-                            {cards.map(card => (
+                            {sortedCards.map(card => (
                                 <SelectItem key={card.id} value={card.id}>
                                     {card.name}
                                 </SelectItem>
@@ -192,39 +288,100 @@ export default function BulkEditDialog({
                     </Select>
                 );
             default:
-                return <div className="h-10 bg-slate-50 rounded border border-dashed flex items-center justify-center text-sm text-slate-400">Select a field first</div>;
+                return <div className="h-10 bg-slate-50 dark:bg-slate-900 rounded border border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-sm text-slate-400">Select a field first</div>;
         }
     };
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-[900px] h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
+                <DialogHeader className="p-6 pb-2">
                     <DialogTitle>Bulk Edit ({selectedIds.length} items)</DialogTitle>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                        <Label>Field to Update</Label>
-                        <Select value={selectedField} onValueChange={setSelectedField}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select field..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="MCC Code">MCC Code</SelectItem>
-                                <SelectItem value="Category">Category</SelectItem>
-                                <SelectItem value="Applicable Rule">Applicable Rule</SelectItem>
-                                <SelectItem value="Card">Card</SelectItem>
-                            </SelectContent>
-                        </Select>
+
+                <div className="flex-1 min-h-0 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x dark:divide-slate-800">
+                    {/* Left Column: Controls */}
+                    <div className="w-full md:w-1/3 p-6 space-y-6 bg-white dark:bg-slate-950">
+                        <div className="grid gap-2">
+                            <Label>Field to Update</Label>
+                            <Select value={selectedField} onValueChange={(val) => { setSelectedField(val); setValue(''); }}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select field..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="MCC Code">MCC Code</SelectItem>
+                                    <SelectItem value="Category">Category</SelectItem>
+                                    <SelectItem value="Applicable Rule">Applicable Rule</SelectItem>
+                                    <SelectItem value="Card">Card</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label>New Value</Label>
+                            {renderInput()}
+                        </div>
                     </div>
-                    <div className="grid gap-2">
-                        <Label>New Value</Label>
-                        {renderInput()}
+
+                    {/* Right Column: Preview */}
+                    <div className="w-full md:w-2/3 flex flex-col bg-slate-50/50 dark:bg-slate-900/50">
+                        <div className="p-3 border-b dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900 sticky top-0">
+                            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Preview Changes</h4>
+                        </div>
+                        <div className="flex-1 overflow-auto p-0">
+                            <Table>
+                                <TableHeader className="sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 shadow-sm">
+                                    <TableRow>
+                                        <TableHead className="w-[100px]">Date</TableHead>
+                                        <TableHead>Transaction</TableHead>
+                                        <TableHead className="w-[140px]">Current Value</TableHead>
+                                        <TableHead className="w-[140px]">New Value</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {selectedTransactions.map(tx => {
+                                        const currentValue = getDisplayValue(tx, selectedField);
+                                        const newValue = getNewDisplayValue();
+                                        const isChanged = newValue && newValue !== currentValue;
+
+                                        return (
+                                            <TableRow key={tx.id}>
+                                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                                    {tx['Transaction Date']}
+                                                </TableCell>
+                                                <TableCell className="text-sm">
+                                                    <div className="font-medium truncate max-w-[180px]" title={tx['Transaction Name']}>{tx['Transaction Name']}</div>
+                                                    <div className="text-xs text-muted-foreground">{Number(tx['Amount']).toLocaleString()}</div>
+                                                </TableCell>
+                                                <TableCell className="text-xs text-slate-500">
+                                                    {currentValue}
+                                                </TableCell>
+                                                <TableCell className="text-xs">
+                                                    {newValue ? (
+                                                        <div className={cn("flex items-center gap-1 font-medium", isChanged ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500")}>
+                                                            {isChanged && <ArrowRight className="h-3 w-3" />}
+                                                            {newValue}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-slate-300">-</span>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
                 </div>
-                <DialogFooter>
+
+                <DialogFooter className="p-4 border-t dark:border-slate-800 bg-white dark:bg-slate-950">
                     <Button variant="outline" onClick={onClose} disabled={isProcessing}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={isProcessing || !selectedField || !value}>
+                    <Button
+                        onClick={handleSave}
+                        disabled={isProcessing || !selectedField || !value || (selectedField === 'Applicable Rule' && hasMixedCards)}
+                        className="min-w-[100px]"
+                    >
                         {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Update All
                     </Button>
