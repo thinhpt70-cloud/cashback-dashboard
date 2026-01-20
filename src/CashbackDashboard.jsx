@@ -1021,6 +1021,7 @@ export default function CashbackDashboard() {
                             isLoading={activeMonth === 'live' ? isLiveLoading : isMonthlyTxLoading}
                             activeMonth={activeMonth}
                             cardMap={cardMap}
+                            categories={allCategories}
                             mccNameFn={mccName}
                             allCards={cards}
                             filterType={transactionFilterType}
