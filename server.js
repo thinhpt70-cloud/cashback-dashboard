@@ -86,6 +86,7 @@ const createRateLimiter = (windowMs, maxAttempts, message) => {
 
 const loginRateLimiter = createRateLimiter(15 * 60 * 1000, 5, 'Too many login attempts. Please try again later.');
 const lookupRateLimiter = createRateLimiter(60 * 1000, 30, 'Too many lookups. Please wait a moment.'); // 30 per min
+const writeRateLimiter = createRateLimiter(60 * 1000, 20, 'Too many data modification attempts. Please wait a moment.'); // 20 per min
 
 // --- SECURE LOGGING HELPER ---
 const secureLog = (message, error) => {
@@ -735,7 +736,7 @@ app.get('/api/transactions/query', async (req, res) => {
     }
 });
 
-app.post('/api/transactions/batch-update', async (req, res) => {
+app.post('/api/transactions/batch-update', writeRateLimiter, async (req, res) => {
     const { updates } = req.body; // Expecting [{ id, properties }]
 
     if (!updates || !Array.isArray(updates) || updates.length === 0) {
@@ -779,7 +780,7 @@ app.post('/api/transactions/batch-update', async (req, res) => {
 });
 
 
-app.post('/api/transactions/bulk-edit', async (req, res) => {
+app.post('/api/transactions/bulk-edit', writeRateLimiter, async (req, res) => {
     const { ids, field, value } = req.body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -814,7 +815,7 @@ app.post('/api/transactions/bulk-edit', async (req, res) => {
 });
 
 // DELETE /api/transactions/:id - Delete (archive) a transaction
-app.delete('/api/transactions/:id', async (req, res) => {
+app.delete('/api/transactions/:id', writeRateLimiter, async (req, res) => {
     const { id } = req.params;
 
     if (!id) {
@@ -835,7 +836,7 @@ app.delete('/api/transactions/:id', async (req, res) => {
     }
 });
 
-app.post('/api/transactions/bulk-delete', async (req, res) => {
+app.post('/api/transactions/bulk-delete', writeRateLimiter, async (req, res) => {
     const { ids } = req.body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -862,7 +863,7 @@ app.post('/api/transactions/bulk-delete', async (req, res) => {
 });
 
 // PATCH /api/transactions/:id - Update an existing transaction
-app.patch('/api/transactions/:id', async (req, res) => {
+app.patch('/api/transactions/:id', writeRateLimiter, async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -1307,7 +1308,7 @@ app.get('/api/lookup-merchant', lookupRateLimiter, async (req, res) => {
 
 // POST /api/transactions - Add a new transaction
 
-app.post('/api/transactions', async (req, res) => {
+app.post('/api/transactions', writeRateLimiter, async (req, res) => {
     try {
         const {
             merchant,
@@ -1467,7 +1468,7 @@ app.get('/api/definitions', async (req, res) => {
 });
 
 // POST /api/summaries - Create a new monthly summary category
-app.post('/api/summaries', async (req, res) => {
+app.post('/api/summaries', writeRateLimiter, async (req, res) => {
     try {
         const { cardId, month, ruleId } = req.body;
 
@@ -1580,7 +1581,7 @@ app.post('/api/summaries', async (req, res) => {
     }
 });
 
-app.patch('/api/monthly-summary/:id', async (req, res) => {
+app.patch('/api/monthly-summary/:id', writeRateLimiter, async (req, res) => {
     const { id } = req.params;
     const { paidAmount, statementAmount, adjustment, notes, amountRedeemed, reviewed } = req.body;
 
@@ -1624,7 +1625,7 @@ app.patch('/api/monthly-summary/:id', async (req, res) => {
 });
 
 // POST /api/monthly-summary/bulk-review - Bulk update Reviewed status
-app.post('/api/monthly-summary/bulk-review', async (req, res) => {
+app.post('/api/monthly-summary/bulk-review', writeRateLimiter, async (req, res) => {
     const { ids, reviewed } = req.body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -1752,7 +1753,7 @@ app.get('/api/transactions/needs-review', async (req, res) => {
 });
 
 // PATCH /api/transactions/:id/approve
-app.patch('/api/transactions/:id/approve', async (req, res) => {
+app.patch('/api/transactions/:id/approve', writeRateLimiter, async (req, res) => {
     const { id: pageId } = req.params;
     const { newName } = req.body; 
 
@@ -1788,7 +1789,7 @@ app.patch('/api/transactions/:id/approve', async (req, res) => {
 
 
 // POST /api/transactions/finalize - Simple approval for already-valid transactions
-app.post('/api/transactions/finalize', async (req, res) => {
+app.post('/api/transactions/finalize', writeRateLimiter, async (req, res) => {
     const { ids } = req.body;
     if (!ids || !Array.isArray(ids)) return res.status(400).json({ error: 'IDs required' });
 
