@@ -69,6 +69,7 @@ const TransactionsList = React.memo(({
     activeMonth,
     cardMap,
     rules = [],
+    categories: allCategoriesProp = [], // Added categories prop
     mccNameFn,
     allCards,
     filterType,
@@ -270,10 +271,16 @@ const TransactionsList = React.memo(({
     }, [sortConfig]);
 
     const categories = useMemo(() => {
-        const uniqueCategories = Array.from(new Set(transactions.map(tx => tx['Category']).filter(Boolean)));
+        // Use provided categories prop if available, otherwise derive from transactions
+        const baseCategories = allCategoriesProp && allCategoriesProp.length > 0
+            ? allCategoriesProp
+            : Array.from(new Set(transactions.map(tx => tx['Category']).filter(Boolean)));
+
+        // Ensure we sort and remove duplicates just in case
+        const uniqueCategories = Array.from(new Set(baseCategories));
         uniqueCategories.sort((a, b) => a.localeCompare(b));
         return ["all", ...uniqueCategories];
-    }, [transactions]);
+    }, [transactions, allCategoriesProp]);
 
     const enrichedTransactions = useMemo(() => {
         return transactions.map(tx => {

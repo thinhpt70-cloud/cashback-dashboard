@@ -155,9 +155,9 @@ export default function BulkEditDialog({
             case 'Category':
                 return (
                     <Combobox
-                        items={categories.map(c => ({ value: c, label: c }))}
+                        options={categories.map(c => ({ value: c, label: c }))}
                         value={value}
-                        setValue={setValue}
+                        onChange={setValue}
                         placeholder="Select category..."
                     />
                 );
