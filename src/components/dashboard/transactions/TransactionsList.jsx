@@ -14,10 +14,12 @@ import {
     ChevronDown,
     Inbox
 } from "lucide-react";
+import { format } from "date-fns";
 
 import { cn } from "../../../lib/utils";
 import { formatDate } from "../../../lib/date";
 import { Checkbox } from "../../ui/checkbox";
+import { DateRangePicker } from "../../ui/date-range-picker";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import {
@@ -85,18 +87,30 @@ const TransactionsList = React.memo(({
     isServerSide = false,
     onLoadMore,
     hasMore = false,
-    onSearch
+    onSearch,
+    dateRange,
+    onDateRangeChange
 }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 500);
     const [cardFilter, setCardFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [methodFilter, setMethodFilter] = useState("all");
+    const [internalDateRange, setInternalDateRange] = useState(undefined);
     const [visibleCount, setVisibleCount] = useState(15);
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
     const [selectedIds, setSelectedIds] = useState([]);
     const [groupBy, setGroupBy] = useState("date");
     const [sortByValue, setSortByValue] = useState('Newest');
+
+    const effectiveDateRange = isServerSide ? dateRange : internalDateRange;
+    const handleDateRangeChange = (range) => {
+        if (isServerSide && onDateRangeChange) {
+            onDateRangeChange(range);
+        } else {
+            setInternalDateRange(range);
+        }
+    };
 
     // ------------------------------------------------------------------
     // 1. Column Configuration
@@ -360,9 +374,20 @@ const TransactionsList = React.memo(({
         .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter)
         .filter(tx => methodFilter === "all" || tx['Method'] === methodFilter);
 
+        // Client-side Date Range Filtering
+        if (!isServerSide && effectiveDateRange?.from) {
+            const fromStr = format(effectiveDateRange.from, 'yyyy-MM-dd');
+            const toStr = effectiveDateRange.to ? format(effectiveDateRange.to, 'yyyy-MM-dd') : fromStr; // Default to single day if 'to' missing
+
+            items = items.filter(tx => {
+                // effectiveDate is YYYY-MM-DD
+                return tx.effectiveDate >= fromStr && tx.effectiveDate <= toStr;
+            });
+        }
+
         // No need to sort here! 'items' retains the order from 'sortedTransactions'.
         return items;
-    }, [sortedTransactions, searchTerm, cardFilter, categoryFilter, methodFilter, isServerSide]);
+    }, [sortedTransactions, searchTerm, cardFilter, categoryFilter, methodFilter, isServerSide, effectiveDateRange]);
 
     useEffect(() => {
         if (!isServerSide) {
@@ -556,6 +581,15 @@ const TransactionsList = React.memo(({
                                 <X className="w-3 h-3" />
                             </Button>
                         )}
+                    </div>
+
+                    {/* Date Range Picker (Mobile) */}
+                    <div className="flex items-center">
+                         <DateRangePicker
+                            date={effectiveDateRange}
+                            setDate={handleDateRangeChange}
+                            className="w-auto [&>button]:h-[30px] [&>button]:w-auto [&>button]:rounded-full [&>button]:px-3 [&>button]:py-1.5 [&>button]:text-xs [&>button]:font-medium [&>button]:border-0 [&>button]:bg-white [&>button]:text-slate-600 [&>button]:border-slate-200 hover:[&>button]:bg-slate-50 dark:[&>button]:bg-slate-950 dark:[&>button]:text-slate-400 dark:[&>button]:border-slate-800"
+                        />
                     </div>
 
                     {/* Card Filter Pill */}
@@ -992,6 +1026,13 @@ const TransactionsList = React.memo(({
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
+
+                                    {/* Date Range Picker */}
+                                    <DateRangePicker
+                                        date={effectiveDateRange}
+                                        setDate={handleDateRangeChange}
+                                        className="w-full md:w-auto"
+                                    />
 
                                     <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
 

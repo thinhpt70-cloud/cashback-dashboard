@@ -6,6 +6,7 @@ import { Toaster, toast } from 'sonner';
 
 // Import utility functions
 import { cn } from "./lib/utils";
+import { format } from "date-fns";
 import { getMetricSparkline } from './lib/stats';
 import { getTodaysMonth, getPreviousMonth, getCurrentCashbackMonthForCard } from './lib/date';
 
@@ -96,6 +97,7 @@ export default function CashbackDashboard() {
     const [liveHasMore, setLiveHasMore] = useState(false);
     const [isLiveLoading, setIsLiveLoading] = useState(false);
     const [liveSearchTerm, setLiveSearchTerm] = useState('');
+    const [liveDateRange, setLiveDateRange] = useState(undefined);
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
@@ -210,12 +212,22 @@ export default function CashbackDashboard() {
     };
 
     // --- LIVE TRANSACTIONS LOGIC ---
-    const fetchLiveTransactions = useCallback(async (cursor = null, search = '', isAppend = false) => {
+    const fetchLiveTransactions = useCallback(async (cursor = null, search = '', isAppend = false, dateRangeOverride = null) => {
         setIsLiveLoading(true);
         try {
             const params = new URLSearchParams();
             if (cursor) params.append('cursor', cursor);
             if (search) params.append('search', search);
+
+            const range = dateRangeOverride !== null ? dateRangeOverride : liveDateRange;
+            if (range && range.from) {
+                params.append('startDate', format(range.from, 'yyyy-MM-dd'));
+                if (range.to) {
+                    params.append('endDate', format(range.to, 'yyyy-MM-dd'));
+                } else {
+                    params.append('endDate', format(range.from, 'yyyy-MM-dd'));
+                }
+            }
 
             const res = await fetch(`${API_BASE_URL}/transactions/query?${params.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch live transactions');
@@ -231,7 +243,7 @@ export default function CashbackDashboard() {
         } finally {
             setIsLiveLoading(false);
         }
-    }, []);
+    }, [liveDateRange]);
 
     const handleLiveLoadMore = useCallback(() => {
         if (liveHasMore && liveCursor) {
@@ -244,6 +256,12 @@ export default function CashbackDashboard() {
         // Reset list and fetch new results
         fetchLiveTransactions(null, term, false);
     }, [fetchLiveTransactions]);
+
+    const handleLiveDateRangeChange = useCallback((range) => {
+        setLiveDateRange(range);
+        // Reset list and fetch new results
+        fetchLiveTransactions(null, liveSearchTerm, false, range);
+    }, [fetchLiveTransactions, liveSearchTerm]);
 
     // ⚡ Bolt Optimization: Memoize handlers to prevent re-renders
     const handleTransactionAdded = useCallback((newTransaction) => {
@@ -1040,6 +1058,8 @@ export default function CashbackDashboard() {
                             onLoadMore={handleLiveLoadMore}
                             hasMore={liveHasMore}
                             onSearch={handleLiveSearch}
+                            dateRange={liveDateRange}
+                            onDateRangeChange={handleLiveDateRangeChange}
                         />
                     </div>
                 )}

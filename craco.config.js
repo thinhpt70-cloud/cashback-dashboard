@@ -12,6 +12,9 @@ module.exports = {
         '^@/(.*)$': '<rootDir>/src/$1',
       },
       setupFilesAfterEnv: ['<rootDir>/src/setupTests.js'],
+      transformIgnorePatterns: [
+        "node_modules/(?!(date-fns|react-day-picker)/)"
+      ]
     },
   },
 };
