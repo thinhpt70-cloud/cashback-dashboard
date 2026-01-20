@@ -124,7 +124,13 @@ const AppSidebar = ({
                     </TooltipProvider>
                 </div>
                 <div className="p-2 border-t">
-                    <Button variant="ghost" size="icon" className="w-full" onClick={toggleSidebar}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-full"
+                        onClick={toggleSidebar}
+                        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    >
                         {isCollapsed ? <ChevronsRight className="h-5 w-5" /> : <ChevronsLeft className="h-5 w-5" />}
                     </Button>
                 </div>

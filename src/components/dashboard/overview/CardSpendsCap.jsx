@@ -102,7 +102,7 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                                             {`${currencyFn(cap.remaining)} left`}
                                         </span>
                                     )}
-                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onSelectCategory({ 
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`View transactions for ${cap.category}`} onClick={() => onSelectCategory({
                                         categoryName: cap.category, 
                                         cardId: card.id,
                                         summaryPageId: cap.id
