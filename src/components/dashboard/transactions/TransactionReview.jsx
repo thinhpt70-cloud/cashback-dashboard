@@ -1041,6 +1041,7 @@ const TransactionReview = React.memo(({
                 categories={categories}
                 cards={cards}
                 rules={rules}
+                mccMap={mccMap}
                 getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
                 onUpdateComplete={() => {
                     onRefresh();
