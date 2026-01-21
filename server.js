@@ -696,7 +696,7 @@ app.get('/api/transactions', async (req, res) => {
 });
 
 app.get('/api/transactions/query', async (req, res) => {
-    const { cursor, pageSize = 20, search } = req.query;
+    const { cursor, pageSize = 20, search, startDate, endDate } = req.query;
 
     try {
         const queryParams = {
@@ -709,14 +709,33 @@ app.get('/api/transactions/query', async (req, res) => {
             queryParams.start_cursor = cursor;
         }
 
+        const filters = [];
+
         if (search) {
             const trimmedSearch = search.trim();
-            queryParams.filter = {
+            filters.push({
                 or: [
                     { property: 'Transaction Name', title: { contains: trimmedSearch } },
                     { property: 'Merchant', rich_text: { contains: trimmedSearch } }
                 ]
-            };
+            });
+        }
+
+        if (startDate && endDate) {
+            filters.push({
+                and: [
+                    { property: 'Transaction Date', date: { on_or_after: startDate } },
+                    { property: 'Transaction Date', date: { on_or_before: endDate } }
+                ]
+            });
+        }
+
+        if (filters.length > 0) {
+            if (filters.length === 1) {
+                queryParams.filter = filters[0];
+            } else {
+                queryParams.filter = { and: filters };
+            }
         }
 
         const response = await notion.databases.query(queryParams);

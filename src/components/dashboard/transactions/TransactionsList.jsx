@@ -14,6 +14,7 @@ import {
     ChevronDown,
     Inbox
 } from "lucide-react";
+import { format } from "date-fns";
 
 import { cn } from "../../../lib/utils";
 import { formatDate } from "../../../lib/date";
@@ -85,18 +86,42 @@ const TransactionsList = React.memo(({
     isServerSide = false,
     onLoadMore,
     hasMore = false,
-    onSearch
+    onSearch,
+    dateRange,
+    onDateRangeChange
 }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 500);
     const [cardFilter, setCardFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [methodFilter, setMethodFilter] = useState("all");
+    const [internalDateRange, setInternalDateRange] = useState(undefined);
     const [visibleCount, setVisibleCount] = useState(15);
     const [sortConfig, setSortConfig] = useState({ key: 'Transaction Date', direction: 'descending' });
     const [selectedIds, setSelectedIds] = useState([]);
     const [groupBy, setGroupBy] = useState("date");
     const [sortByValue, setSortByValue] = useState('Newest');
+
+    const effectiveDateRange = isServerSide ? dateRange : internalDateRange;
+
+    const handleDateChange = (field, value) => {
+        // value is 'YYYY-MM-DD' or empty
+        const newRange = { ...effectiveDateRange };
+
+        if (!value) {
+            newRange[field] = undefined;
+        } else {
+            // Parse 'YYYY-MM-DD' to local Date to match date-fns format logic elsewhere
+            const [y, m, d] = value.split('-').map(Number);
+            newRange[field] = new Date(y, m - 1, d);
+        }
+
+        if (isServerSide && onDateRangeChange) {
+            onDateRangeChange(newRange);
+        } else {
+            setInternalDateRange(newRange);
+        }
+    };
 
     // ------------------------------------------------------------------
     // 1. Column Configuration
@@ -360,9 +385,20 @@ const TransactionsList = React.memo(({
         .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter)
         .filter(tx => methodFilter === "all" || tx['Method'] === methodFilter);
 
+        // Client-side Date Range Filtering
+        if (!isServerSide && effectiveDateRange?.from) {
+            const fromStr = format(effectiveDateRange.from, 'yyyy-MM-dd');
+            const toStr = effectiveDateRange.to ? format(effectiveDateRange.to, 'yyyy-MM-dd') : fromStr; // Default to single day if 'to' missing
+
+            items = items.filter(tx => {
+                // effectiveDate is YYYY-MM-DD
+                return tx.effectiveDate >= fromStr && tx.effectiveDate <= toStr;
+            });
+        }
+
         // No need to sort here! 'items' retains the order from 'sortedTransactions'.
         return items;
-    }, [sortedTransactions, searchTerm, cardFilter, categoryFilter, methodFilter, isServerSide]);
+    }, [sortedTransactions, searchTerm, cardFilter, categoryFilter, methodFilter, isServerSide, effectiveDateRange]);
 
     useEffect(() => {
         if (!isServerSide) {
@@ -556,6 +592,25 @@ const TransactionsList = React.memo(({
                                 <X className="w-3 h-3" />
                             </Button>
                         )}
+                    </div>
+
+                    {/* Date Range Inputs (Mobile) */}
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-white dark:bg-slate-950 min-w-fit h-[30px]">
+                        <input
+                            type="date"
+                            value={effectiveDateRange?.from ? format(effectiveDateRange.from, 'yyyy-MM-dd') : ''}
+                            onChange={(e) => handleDateChange('from', e.target.value)}
+                            className="bg-transparent text-xs focus:outline-none dark:text-slate-200 w-[85px]"
+                            aria-label="Start Date"
+                        />
+                        <span className="text-slate-400 text-xs">-</span>
+                        <input
+                            type="date"
+                            value={effectiveDateRange?.to ? format(effectiveDateRange.to, 'yyyy-MM-dd') : ''}
+                            onChange={(e) => handleDateChange('to', e.target.value)}
+                            className="bg-transparent text-xs focus:outline-none dark:text-slate-200 w-[85px]"
+                            aria-label="End Date"
+                        />
                     </div>
 
                     {/* Card Filter Pill */}
@@ -990,6 +1045,25 @@ const TransactionsList = React.memo(({
                                             className="pl-8 h-10"
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+
+                                    {/* Native Date Range Inputs */}
+                                    <div className="flex items-center gap-2 border rounded-md px-2 py-1 h-10 bg-white dark:bg-slate-950">
+                                        <input
+                                            type="date"
+                                            value={effectiveDateRange?.from ? format(effectiveDateRange.from, 'yyyy-MM-dd') : ''}
+                                            onChange={(e) => handleDateChange('from', e.target.value)}
+                                            className="bg-transparent text-sm focus:outline-none dark:text-slate-200 w-[110px]"
+                                            aria-label="Start Date"
+                                        />
+                                        <span className="text-slate-400">-</span>
+                                        <input
+                                            type="date"
+                                            value={effectiveDateRange?.to ? format(effectiveDateRange.to, 'yyyy-MM-dd') : ''}
+                                            onChange={(e) => handleDateChange('to', e.target.value)}
+                                            className="bg-transparent text-sm focus:outline-none dark:text-slate-200 w-[110px]"
+                                            aria-label="End Date"
                                         />
                                     </div>
 
