@@ -214,6 +214,8 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                                 isSynthetic: true
                             };
 
+                            // NOTE: For synthetic data (not yet in monthly summary), we don't have 'finalAmount' from Notion formulas,
+                            // so we fall back to 'spend' (sum of transactions).
                             return createStatementObject({ ...base, spend, cashback });
 
                         } catch (err) {
@@ -293,10 +295,12 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                 statementAmount: rawStatementAmount = 0,
                 paidAmount = 0,
                 spend = 0,
+            finalAmount = 0,
                 cashback = 0
             } = p.mainStatement;
 
-            const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : (spend - cashback);
+        const estimatedBalance = (finalAmount || spend) - cashback;
+        const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
             const remaining = finalStatementAmount - paidAmount;
 
             if (daysLeft === null && remaining > 0) {
@@ -526,6 +530,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
         statementAmount: rawStatementAmount = 0, // Get the raw amount
         paidAmount = 0,
         spend = 0,
+        finalAmount = 0,
         cashback = 0,
         statementDateObj
     } = statement;
@@ -535,7 +540,8 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
     const isNotFinalized = statementDateObj && today < statementDateObj;
 
     // Calculate estimated balance first
-    const estimatedBalance = spend - cashback;
+    // UPDATED: Use 'finalAmount' (from Monthly Final Amount) if available, falling back to spend
+    const estimatedBalance = (finalAmount || spend) - cashback;
     // Use the actual amount if it exists, otherwise fall back to the estimated balance
     const statementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
 
