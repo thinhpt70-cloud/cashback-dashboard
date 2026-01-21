@@ -696,13 +696,26 @@ app.get('/api/transactions', async (req, res) => {
 });
 
 app.get('/api/transactions/query', async (req, res) => {
-    const { cursor, pageSize = 20, search, startDate, endDate } = req.query;
+    const { cursor, pageSize = 20, search, startDate, endDate, sortKey, sortDirection } = req.query;
 
     try {
+        // Map frontend sort keys to Notion properties
+        // Default to 'Transaction Date' descending if not provided or unrecognized
+        const sorts = [];
+        const direction = sortDirection === 'ascending' ? 'ascending' : 'descending';
+
+        if (sortKey === 'Amount') {
+            sorts.push({ property: 'Final Amount', direction: direction });
+        } else if (sortKey === 'Transaction Name') {
+            sorts.push({ property: 'Transaction Name', direction: direction });
+        } else {
+            sorts.push({ property: 'Transaction Date', direction: direction });
+        }
+
         const queryParams = {
             database_id: transactionsDbId,
             page_size: parseInt(pageSize, 10),
-            sorts: [{ property: 'Transaction Date', direction: 'descending' }],
+            sorts: sorts,
         };
 
         if (cursor) {

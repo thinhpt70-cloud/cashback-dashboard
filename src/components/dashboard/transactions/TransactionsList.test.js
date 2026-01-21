@@ -178,4 +178,34 @@ describe('TransactionsList', () => {
     // We want Beta < Alpha (Descending).
     expect(betaIndex).toBeLessThan(alphaIndex);
   });
+
+  test('calls onSortChange when server-side sorting is active and header is clicked', () => {
+    const onSortChange = jest.fn();
+    render(
+      <TransactionsList
+        transactions={mockTransactions}
+        isLoading={false}
+        activeMonth="live"
+        cardMap={mockCardMap}
+        allCards={mockCards}
+        isDesktop={true}
+        rules={[]}
+        isServerSide={true}
+        onSortChange={onSortChange}
+      />
+    );
+
+    // Find Date header button. The text "Date" is inside the button.
+    // Note: In the component, the text is "Date " (with space) or just "Date".
+    // And there is an icon.
+    // We can search by text content.
+    const headerButton = screen.getByText((content, element) => {
+        return element.tagName.toLowerCase() === 'button' && content.includes('Date');
+    });
+
+    fireEvent.click(headerButton);
+
+    // Initial state is Date Descending. Clicking should toggle to Date Ascending.
+    expect(onSortChange).toHaveBeenCalledWith({ key: 'Transaction Date', direction: 'ascending' });
+  });
 });

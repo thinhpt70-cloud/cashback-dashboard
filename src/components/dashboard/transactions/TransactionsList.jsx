@@ -92,6 +92,7 @@ const TransactionsList = React.memo(({
     onLoadMore,
     hasMore = false,
     onSearch,
+    onSortChange,
     dateRange,
     onDateRangeChange,
     getCurrentCashbackMonthForCard,
@@ -506,15 +507,28 @@ const TransactionsList = React.memo(({
         if (sortConfig.key === key && sortConfig.direction === 'ascending') {
             direction = 'descending';
         }
-        setSortConfig({ key, direction });
+        const newSortConfig = { key, direction };
+        setSortConfig(newSortConfig);
+
+        if (isServerSide && onSortChange) {
+            onSortChange(newSortConfig);
+        }
     };
 
     const handleSortChange = (val) => {
         setSortByValue(val);
-        if (val === 'Newest') setSortConfig({ key: 'Transaction Date', direction: 'descending' });
-        else if (val === 'Oldest') setSortConfig({ key: 'Transaction Date', direction: 'ascending' });
-        else if (val === 'Amount: High') setSortConfig({ key: 'Amount', direction: 'descending' });
-        else if (val === 'Amount: Low') setSortConfig({ key: 'Amount', direction: 'ascending' });
+        let newSortConfig = null;
+        if (val === 'Newest') newSortConfig = { key: 'Transaction Date', direction: 'descending' };
+        else if (val === 'Oldest') newSortConfig = { key: 'Transaction Date', direction: 'ascending' };
+        else if (val === 'Amount: High') newSortConfig = { key: 'Amount', direction: 'descending' };
+        else if (val === 'Amount: Low') newSortConfig = { key: 'Amount', direction: 'ascending' };
+
+        if (newSortConfig) {
+            setSortConfig(newSortConfig);
+            if (isServerSide && onSortChange) {
+                onSortChange(newSortConfig);
+            }
+        }
     };
 
     const handleLoadMore = () => {
