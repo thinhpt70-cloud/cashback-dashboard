@@ -858,7 +858,7 @@ const TransactionsList = React.memo(({
 
         if (!isDesktop) {
             return (
-                <div className="space-y-2.5 pb-20 p-3">
+                <div className="space-y-2.5 p-3">
                     {/* Select All Row */}
                     {filteredData.length > 0 && (
                         <div className="flex items-center justify-between px-2 pt-1 pb-1">
@@ -1215,9 +1215,9 @@ const TransactionsList = React.memo(({
                 <div className="mt-2 flex flex-col items-center gap-4 mb-6">
                     <p className="text-sm text-muted-foreground">
                         {isServerSide ? (
-                            <>Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> loaded items</>
+                            <>Showing <span className="font-semibold text-primary">{transactionsToShow.filter(t => t.type !== 'header').length}</span> loaded items</>
                         ) : (
-                            <>Showing <span className="font-semibold text-primary">{transactionsToShow.length}</span> of <span className="font-semibold text-primary">{flattenedTransactions.length}</span> items</>
+                            <>Showing <span className="font-semibold text-primary">{transactionsToShow.filter(t => t.type !== 'header').length}</span> of <span className="font-semibold text-primary">{filteredData.length}</span> items</>
                         )}
                     </p>
                     {(visibleCount < flattenedTransactions.length || (isServerSide && hasMore)) && (
