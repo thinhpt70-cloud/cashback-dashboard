@@ -19,7 +19,6 @@ import { format } from "date-fns";
 import { cn } from "../../../lib/utils";
 import { formatDate } from "../../../lib/date";
 import { Checkbox } from "../../ui/checkbox";
-import { DateRangePicker } from "../../ui/date-range-picker";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import {
@@ -104,11 +103,23 @@ const TransactionsList = React.memo(({
     const [sortByValue, setSortByValue] = useState('Newest');
 
     const effectiveDateRange = isServerSide ? dateRange : internalDateRange;
-    const handleDateRangeChange = (range) => {
-        if (isServerSide && onDateRangeChange) {
-            onDateRangeChange(range);
+
+    const handleDateChange = (field, value) => {
+        // value is 'YYYY-MM-DD' or empty
+        const newRange = { ...effectiveDateRange };
+
+        if (!value) {
+            newRange[field] = undefined;
         } else {
-            setInternalDateRange(range);
+            // Parse 'YYYY-MM-DD' to local Date to match date-fns format logic elsewhere
+            const [y, m, d] = value.split('-').map(Number);
+            newRange[field] = new Date(y, m - 1, d);
+        }
+
+        if (isServerSide && onDateRangeChange) {
+            onDateRangeChange(newRange);
+        } else {
+            setInternalDateRange(newRange);
         }
     };
 
@@ -583,12 +594,22 @@ const TransactionsList = React.memo(({
                         )}
                     </div>
 
-                    {/* Date Range Picker (Mobile) */}
-                    <div className="flex items-center">
-                         <DateRangePicker
-                            date={effectiveDateRange}
-                            setDate={handleDateRangeChange}
-                            className="w-auto [&>button]:h-[30px] [&>button]:w-auto [&>button]:rounded-full [&>button]:px-3 [&>button]:py-1.5 [&>button]:text-xs [&>button]:font-medium [&>button]:border-0 [&>button]:bg-white [&>button]:text-slate-600 [&>button]:border-slate-200 hover:[&>button]:bg-slate-50 dark:[&>button]:bg-slate-950 dark:[&>button]:text-slate-400 dark:[&>button]:border-slate-800"
+                    {/* Date Range Inputs (Mobile) */}
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-white dark:bg-slate-950 min-w-fit h-[30px]">
+                        <input
+                            type="date"
+                            value={effectiveDateRange?.from ? format(effectiveDateRange.from, 'yyyy-MM-dd') : ''}
+                            onChange={(e) => handleDateChange('from', e.target.value)}
+                            className="bg-transparent text-xs focus:outline-none dark:text-slate-200 w-[85px]"
+                            aria-label="Start Date"
+                        />
+                        <span className="text-slate-400 text-xs">-</span>
+                        <input
+                            type="date"
+                            value={effectiveDateRange?.to ? format(effectiveDateRange.to, 'yyyy-MM-dd') : ''}
+                            onChange={(e) => handleDateChange('to', e.target.value)}
+                            className="bg-transparent text-xs focus:outline-none dark:text-slate-200 w-[85px]"
+                            aria-label="End Date"
                         />
                     </div>
 
@@ -1027,12 +1048,24 @@ const TransactionsList = React.memo(({
                                         />
                                     </div>
 
-                                    {/* Date Range Picker */}
-                                    <DateRangePicker
-                                        date={effectiveDateRange}
-                                        setDate={handleDateRangeChange}
-                                        className="w-full md:w-auto"
-                                    />
+                                    {/* Native Date Range Inputs */}
+                                    <div className="flex items-center gap-2 border rounded-md px-2 py-1 h-10 bg-white dark:bg-slate-950">
+                                        <input
+                                            type="date"
+                                            value={effectiveDateRange?.from ? format(effectiveDateRange.from, 'yyyy-MM-dd') : ''}
+                                            onChange={(e) => handleDateChange('from', e.target.value)}
+                                            className="bg-transparent text-sm focus:outline-none dark:text-slate-200 w-[110px]"
+                                            aria-label="Start Date"
+                                        />
+                                        <span className="text-slate-400">-</span>
+                                        <input
+                                            type="date"
+                                            value={effectiveDateRange?.to ? format(effectiveDateRange.to, 'yyyy-MM-dd') : ''}
+                                            onChange={(e) => handleDateChange('to', e.target.value)}
+                                            className="bg-transparent text-sm focus:outline-none dark:text-slate-200 w-[110px]"
+                                            aria-label="End Date"
+                                        />
+                                    </div>
 
                                     <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
 
