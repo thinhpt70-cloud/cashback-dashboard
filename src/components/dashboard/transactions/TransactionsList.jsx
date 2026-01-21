@@ -411,14 +411,11 @@ const TransactionsList = React.memo(({
     }, [sortedTransactions, searchTerm, cardFilter, categoryFilter, methodFilter, isServerSide, effectiveDateRange]);
 
     useEffect(() => {
-        if (!isServerSide) {
-            setVisibleCount(15);
-        } else {
-            // For server-side, we always want to show all loaded items
-            // But we need to update it when filteredData changes (e.g. new page loaded)
-            setVisibleCount(filteredData.length > 0 ? 10000 : 15); // Use a large number or length
-        }
-    }, [filteredData, isServerSide]);
+        // Reset visible count when filters change or mode changes
+        // For server-side, we want to start with a reasonable amount, not everything at once
+        // This avoids the massive DOM lag when rendering 1000+ items
+        setVisibleCount(20);
+    }, [isServerSide, searchTerm, cardFilter, categoryFilter, methodFilter, effectiveDateRange]);
 
     const groupedData = useMemo(() => {
         // New Logic: Group all filtered data first.
@@ -533,12 +530,45 @@ const TransactionsList = React.memo(({
     };
 
     const handleLoadMore = () => {
-        if (isServerSide && onLoadMore) {
-            onLoadMore();
+        const totalLoaded = flattenedTransactions.length;
+
+        if (visibleCount < totalLoaded) {
+             // If we have hidden local items, show more of them first
+             setVisibleCount(prev => Math.min(prev + 20, totalLoaded));
+        } else if (isServerSide && onLoadMore && hasMore) {
+             // If we've shown all local items and there's more on server, fetch them
+             onLoadMore();
+             // We can optimistically increase count or wait for prop update
+             // But usually best to let the prop update trigger re-render
+             // Optionally we can bump visibleCount to ensure new items are seen immediately if needed
+             // but logic above resets it on filter change, not on data append.
+             // We might need a separate effect to bump visibleCount when data grows?
+             // Actually, if we just fetch more, 'transactions' grows.
+             // We want 'visibleCount' to grow to include the new items IF the user asked for them.
+
+             // Let's implement an effect to auto-expand visibleCount when data appends via "Load More"
         } else {
-            setVisibleCount(prevCount => prevCount + 15);
+            // Client side only load more
+            setVisibleCount(prevCount => prevCount + 20);
         }
     };
+
+    // Auto-expand visible count when server-side data is appended (not filtered/reset)
+    useEffect(() => {
+        if (isServerSide && isAppending) {
+             // When appending finishes (loading false) or data length increases
+             // We want to show the new items.
+             // But here we don't know exactly how many came back easily without ref or tracking previous length.
+             // A simple heuristic: if we were at the bottom (visible >= total), and total grew, update visible to total?
+             // No, that re-introduces the lag if we load 1000 items.
+
+             // Better: The user clicked "Load More". The intention is to see more.
+             // Ideally we just add +20 to visibleCount, but we need to wait for data to arrive.
+             // For now, let's just stick to manual "Load More" revealing local data +20 at a time.
+             // So if server returns 50 items, user clicks "Load More" to see 20, then 20, then 10.
+             // This keeps DOM light.
+        }
+    }, [isAppending, isServerSide]);
 
     const handleEdit = useCallback((tx) => {
         onEditTransaction(tx);

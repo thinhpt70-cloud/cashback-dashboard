@@ -33,7 +33,8 @@ const TransactionReview = React.memo(({
     getCurrentCashbackMonthForCard,
     onEditTransaction,
     isDesktop,
-    mccMap
+    mccMap,
+    setReviewTransactions // NEW PROP for Optimistic Updates
 }) => {
     // FIX 1: Set initial state to false so it does not auto-expand on load
     const [isOpen, setIsOpen] = useState(false);
@@ -243,9 +244,10 @@ const TransactionReview = React.memo(({
     };
 
     const handleSingleProcess = async (tx) => {
-        const newProcessingIds = new Set(processingIds);
-        newProcessingIds.add(tx.id);
-        setProcessingIds(newProcessingIds);
+        // Optimistic Update: Immediately remove from UI
+        if (setReviewTransactions) {
+            setReviewTransactions(prev => prev.filter(t => t.id !== tx.id));
+        }
 
         try {
             // STATE 2: QUICK APPROVE (Green Status) -> FINALIZE
@@ -256,18 +258,16 @@ const TransactionReview = React.memo(({
                     body: JSON.stringify({ ids: [tx.id] })
                 });
                 if (!res.ok) throw new Error("Finalize failed");
-                toast.success("Transaction finalized.");
+                toast.success("Transaction approved.");
+                // Background refresh only - do not block UI
                 onRefresh();
             }
         } catch (error) {
             console.error(error);
             toast.error("Process failed.");
-        } finally {
-            setProcessingIds(prev => {
-                const next = new Set(prev);
-                next.delete(tx.id);
-                return next;
-            });
+            // Revert state if needed, but for now we assume success for speed.
+            // A full refresh would correct any sync errors.
+            onRefresh();
         }
     };
 
@@ -275,9 +275,20 @@ const TransactionReview = React.memo(({
         const txsToProcess = filteredData.filter(tx => selectedIds.has(tx.id));
         if (txsToProcess.length === 0) return;
 
-        setIsProcessing(true);
+        const quickApproveIds = txsToProcess.filter(tx => tx.status === 'Quick Approve').map(t => t.id);
+
+        // Optimistic Update
+        if (setReviewTransactions && quickApproveIds.length > 0) {
+             const idsToRemove = new Set(quickApproveIds);
+             setReviewTransactions(prev => prev.filter(t => !idsToRemove.has(t.id)));
+             setSelectedIds(prev => {
+                 const next = new Set(prev);
+                 quickApproveIds.forEach(id => next.delete(id));
+                 return next;
+             });
+        }
+
         try {
-            const quickApproveIds = txsToProcess.filter(tx => tx.status === 'Quick Approve').map(t => t.id);
             let successCount = 0;
 
             // 1. Process Quick Approves (Finalize)
@@ -291,7 +302,7 @@ const TransactionReview = React.memo(({
             }
 
             if (successCount > 0) {
-                toast.success(`Processed ${successCount} automated transactions.`);
+                toast.success(`Approved ${successCount} transactions.`);
                 onRefresh();
             } else {
                 toast.info("No 'Quick Approve' transactions selected.");
@@ -300,26 +311,31 @@ const TransactionReview = React.memo(({
         } catch (error) {
             console.error(error);
             toast.error("Bulk process failed.");
-        } finally {
-            setIsProcessing(false);
+            onRefresh(); // Re-fetch to restore state if failed
         }
     };
 
     const handleSingleDelete = async (id) => {
         if (!window.confirm("Delete this transaction?")) return;
-        setIsProcessing(true);
+
+        // Optimistic Update
+        if (setReviewTransactions) {
+            setReviewTransactions(prev => prev.filter(t => t.id !== id));
+        }
+
         try {
              const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
              if (!res.ok) throw new Error("Delete failed");
-             onRefresh();
+
              const newSelected = new Set(selectedIds);
              newSelected.delete(id);
              setSelectedIds(newSelected);
+
              toast.success("Transaction deleted.");
+             onRefresh();
         } catch(err) {
             toast.error("Failed to delete.");
-        } finally {
-            setIsProcessing(false);
+            onRefresh();
         }
     };
 
@@ -327,9 +343,16 @@ const TransactionReview = React.memo(({
         if (selectedIds.size === 0) return;
         if (!window.confirm(`Are you sure you want to delete ${selectedIds.size} transactions?`)) return;
 
-        setIsProcessing(true);
+        const ids = Array.from(selectedIds);
+
+        // Optimistic Update
+        if (setReviewTransactions) {
+             const idsToRemove = new Set(ids);
+             setReviewTransactions(prev => prev.filter(t => !idsToRemove.has(t.id)));
+             setSelectedIds(new Set());
+        }
+
         try {
-            const ids = Array.from(selectedIds);
             const res = await fetch('/api/transactions/bulk-delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -338,15 +361,13 @@ const TransactionReview = React.memo(({
 
             if (!res.ok) throw new Error("Delete failed");
 
-            onRefresh();
-            setSelectedIds(new Set());
             toast.success("Transactions deleted.");
+            onRefresh(); // Background sync
 
         } catch (error) {
             console.error(error);
             toast.error("Failed to delete transactions.");
-        } finally {
-            setIsProcessing(false);
+            onRefresh();
         }
     };
 

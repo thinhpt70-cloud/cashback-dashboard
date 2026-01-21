@@ -1124,6 +1124,7 @@ export default function CashbackDashboard() {
                             onEditTransaction={handleEditClick}
                             isDesktop={isDesktop}
                             mccMap={mccMap}
+                            setReviewTransactions={setReviewTransactions}
                         />
                         <TransactionsList
                             isDesktop={isDesktop}
