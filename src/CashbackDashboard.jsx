@@ -99,6 +99,7 @@ export default function CashbackDashboard() {
     const [isLiveAppending, setIsLiveAppending] = useState(false);
     const [liveSearchTerm, setLiveSearchTerm] = useState('');
     const [liveDateRange, setLiveDateRange] = useState(undefined);
+    const [liveSort, setLiveSort] = useState({ key: 'Transaction Date', direction: 'descending' });
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
@@ -213,7 +214,7 @@ export default function CashbackDashboard() {
     };
 
     // --- LIVE TRANSACTIONS LOGIC ---
-    const fetchLiveTransactions = useCallback(async (cursor = null, search = '', isAppend = false, dateRangeOverride = null) => {
+    const fetchLiveTransactions = useCallback(async (cursor = null, search = '', isAppend = false, dateRangeOverride = null, sortOverride = null) => {
         if (isAppend) {
             setIsLiveAppending(true);
         } else {
@@ -235,6 +236,12 @@ export default function CashbackDashboard() {
                 }
             }
 
+            const sort = sortOverride || liveSort;
+            if (sort) {
+                params.append('sortKey', sort.key);
+                params.append('sortDirection', sort.direction);
+            }
+
             const res = await fetch(`${API_BASE_URL}/transactions/query?${params.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch live transactions');
 
@@ -253,7 +260,7 @@ export default function CashbackDashboard() {
                 setIsLiveLoading(false);
             }
         }
-    }, [liveDateRange]);
+    }, [liveDateRange, liveSort]);
 
     const handleLiveLoadMore = useCallback(() => {
         if (liveHasMore && liveCursor) {
@@ -271,6 +278,16 @@ export default function CashbackDashboard() {
         setLiveDateRange(range);
         // Reset list and fetch new results
         fetchLiveTransactions(null, liveSearchTerm, false, range);
+    }, [fetchLiveTransactions, liveSearchTerm]);
+
+    const handleLiveSortChange = useCallback((newSortConfig) => {
+        setLiveSort(newSortConfig);
+        // Reset list and fetch new results with new sort
+        // Explicitly pass newSortConfig to avoid race conditions with state update
+        setLiveTransactions([]);
+        setLiveCursor(null);
+        setLiveHasMore(false);
+        fetchLiveTransactions(null, liveSearchTerm, false, null, newSortConfig);
     }, [fetchLiveTransactions, liveSearchTerm]);
 
     // ⚡ Bolt Optimization: Memoize handlers to prevent re-renders
@@ -1101,6 +1118,7 @@ export default function CashbackDashboard() {
                             onLoadMore={handleLiveLoadMore}
                             hasMore={liveHasMore}
                             onSearch={handleLiveSearch}
+                            onSortChange={handleLiveSortChange}
                             dateRange={liveDateRange}
                             onDateRangeChange={handleLiveDateRangeChange}
                             isAppending={activeMonth === 'live' ? isLiveAppending : false}
