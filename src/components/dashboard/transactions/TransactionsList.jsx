@@ -445,7 +445,11 @@ const TransactionsList = React.memo(({
             if (groupBy !== 'none') {
                 list.push({ type: 'header', title: key, count: items.length });
             }
-            items.forEach(tx => list.push({ type: 'item', ...tx }));
+            // ⚡ Bolt Optimization: Avoid object spreading for items.
+            // Using { type: 'item', ...tx } creates new object references for every item,
+            // which breaks React.memo(TransactionRow) even if data hasn't changed.
+            // Instead, wrap the stable 'tx' reference in a 'data' property.
+            items.forEach(tx => list.push({ type: 'item', data: tx }));
         });
         return list;
     }, [groupedData, groupBy]);
@@ -821,7 +825,8 @@ const TransactionsList = React.memo(({
                             );
                         }
 
-                        const tx = item;
+                        // ⚡ Bolt Optimization: Use stable data reference
+                        const tx = item.data;
                         const isSelected = selectedIds.includes(tx.id);
                         return (
                             <MobileTransactionItem
@@ -893,7 +898,8 @@ const TransactionsList = React.memo(({
                                     );
                                 }
 
-                                const tx = item;
+                                // ⚡ Bolt Optimization: Use stable data reference
+                                const tx = item.data;
                                 return (
                                     <TransactionRow
                                         key={tx.id}
