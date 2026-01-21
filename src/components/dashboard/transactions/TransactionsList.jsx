@@ -12,7 +12,9 @@ import {
     CreditCard,
     ArrowUpDown,
     ChevronDown,
-    Inbox
+    Inbox,
+    FilePenLine,
+    Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -60,6 +62,7 @@ import MobileTransactionItem from "../../shared/MobileTransactionItem";
 import MethodIndicator from "../../shared/MethodIndicator";
 import TransactionRow from "./TransactionRow";
 import useDebounce from "../../../hooks/useDebounce";
+import BulkEditDialog from "../dialogs/BulkEditDialog";
 
 // Moved currency function outside to be stable
 const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
@@ -72,6 +75,7 @@ const TransactionsList = React.memo(({
     rules = [],
     categories: allCategoriesProp = [], // Added categories prop
     mccNameFn,
+    mccMap,
     allCards,
     filterType,
     onFilterTypeChange,
@@ -81,6 +85,7 @@ const TransactionsList = React.memo(({
     onEditTransaction,
     onDuplicateTransaction,
     onBulkDelete,
+    onBulkUpdate,
     onViewDetails = () => {},
     fmtYMShortFn,
     isServerSide = false,
@@ -88,7 +93,9 @@ const TransactionsList = React.memo(({
     hasMore = false,
     onSearch,
     dateRange,
-    onDateRangeChange
+    onDateRangeChange,
+    getCurrentCashbackMonthForCard,
+    isAppending = false
 }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -101,6 +108,7 @@ const TransactionsList = React.memo(({
     const [selectedIds, setSelectedIds] = useState([]);
     const [groupBy, setGroupBy] = useState("date");
     const [sortByValue, setSortByValue] = useState('Newest');
+    const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
 
     const effectiveDateRange = isServerSide ? dateRange : internalDateRange;
 
@@ -759,9 +767,9 @@ const TransactionsList = React.memo(({
     }
 
     const renderContent = () => {
-        // Only show full skeleton if it's an initial load (empty list) or client-side filter load
-        // This prevents the list from unmounting during "Load More" (server-side append), which preserves scroll position.
-        const shouldShowSkeleton = isLoading && (transactions.length === 0 || !isServerSide);
+        // Only show full skeleton if it's an initial load (empty list)
+        // If we have data but are loading (refreshing/searching), we show the overlay in CardContent instead.
+        const shouldShowSkeleton = isLoading && transactions.length === 0;
 
         if (shouldShowSkeleton) {
              if (!isDesktop) {
@@ -993,6 +1001,15 @@ const TransactionsList = React.memo(({
                 </div>
             </div>
             <div className="flex items-center gap-2 pr-2 w-full sm:w-auto justify-end">
+                <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsBulkEditDialogOpen(true)}
+                    className="bg-white dark:bg-slate-900 w-full sm:w-auto text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800"
+                >
+                    <FilePenLine className="mr-2 h-3.5 w-3.5" />
+                    Edit
+                </Button>
                 <Button variant="destructive" size="sm" onClick={handleBulkDeleteAction} className="w-full sm:w-auto">
                     <Trash2 className="mr-2 h-4 w-4" /> Delete ({selectedIds.length})
                 </Button>
@@ -1183,8 +1200,18 @@ const TransactionsList = React.memo(({
                 renderMobileFilters()
             )}
 
-            <CardContent className={cn("p-0")}>
-                {renderContent()}
+            <CardContent className={cn("p-0 min-h-[300px] relative")}>
+                {isLoading && transactions.length > 0 && (
+                     <div className="absolute inset-0 z-20 bg-white/50 dark:bg-slate-950/50 backdrop-blur-[1px] flex items-center justify-center rounded-b-xl transition-all duration-200 animate-in fade-in">
+                         <div className="bg-white dark:bg-slate-900 p-3 rounded-full shadow-lg border dark:border-slate-800">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                         </div>
+                     </div>
+                )}
+                <div className={cn("transition-opacity duration-200", isLoading && transactions.length > 0 ? "opacity-40 pointer-events-none select-none" : "")}>
+                    {renderContent()}
+                </div>
+
                 <div className="mt-2 flex flex-col items-center gap-4 mb-6">
                     <p className="text-sm text-muted-foreground">
                         {isServerSide ? (
@@ -1194,12 +1221,29 @@ const TransactionsList = React.memo(({
                         )}
                     </p>
                     {(visibleCount < flattenedTransactions.length || (isServerSide && hasMore)) && (
-                        <Button onClick={handleLoadMore} variant="outline" disabled={isServerSide && isLoading}>
-                            {isServerSide && isLoading ? 'Loading...' : 'Load More'}
+                        <Button onClick={handleLoadMore} variant="outline" disabled={isServerSide && (isLoading || isAppending)}>
+                            {isServerSide && (isLoading || isAppending) ? 'Loading...' : 'Load More'}
                         </Button>
                     )}
                 </div>
             </CardContent>
+
+            <BulkEditDialog
+                isOpen={isBulkEditDialogOpen}
+                onClose={() => setIsBulkEditDialogOpen(false)}
+                selectedIds={selectedIds}
+                allTransactions={transactions}
+                categories={categories.filter(c => c !== 'all')}
+                cards={allCards}
+                rules={rules}
+                mccMap={mccMap}
+                getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                onUpdateComplete={(updatedTransactions) => {
+                    if (onBulkUpdate) onBulkUpdate(updatedTransactions);
+                    setSelectedIds([]);
+                    setIsBulkEditDialogOpen(false);
+                }}
+            />
         </Card>
     );
 });
