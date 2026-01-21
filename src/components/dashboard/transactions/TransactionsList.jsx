@@ -93,6 +93,7 @@ const TransactionsList = React.memo(({
     hasMore = false,
     onSearch,
     onSortChange,
+    onFilterChange,
     dateRange,
     onDateRangeChange,
     getCurrentCashbackMonthForCard,
@@ -636,7 +637,10 @@ const TransactionsList = React.memo(({
                     </div>
 
                     {/* Card Filter Pill */}
-                    <Select value={cardFilter} onValueChange={setCardFilter}>
+                    <Select value={cardFilter} onValueChange={(val) => {
+                        setCardFilter(val);
+                        if (isServerSide && onFilterChange) onFilterChange({ type: 'card', value: val });
+                    }}>
                         <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
                              <div className={cn(
                                 "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
@@ -666,7 +670,10 @@ const TransactionsList = React.memo(({
                     </Select>
 
                     {/* Category Filter Pill */}
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <Select value={categoryFilter} onValueChange={(val) => {
+                        setCategoryFilter(val);
+                        if (isServerSide && onFilterChange) onFilterChange({ type: 'category', value: val });
+                    }}>
                         <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
                             <div className={cn(
                                 "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
@@ -693,7 +700,10 @@ const TransactionsList = React.memo(({
                     </Select>
 
                     {/* Method Filter Pill */}
-                    <Select value={methodFilter} onValueChange={setMethodFilter}>
+                    <Select value={methodFilter} onValueChange={(val) => {
+                        setMethodFilter(val);
+                        if (isServerSide && onFilterChange) onFilterChange({ type: 'method', value: val });
+                    }}>
                         <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
                             <div className={cn(
                                 "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
@@ -1101,7 +1111,10 @@ const TransactionsList = React.memo(({
                                     <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
 
                                     {/* Card Filter */}
-                                    <Select value={cardFilter} onValueChange={setCardFilter}>
+                                    <Select value={cardFilter} onValueChange={(val) => {
+                                        setCardFilter(val);
+                                        if (isServerSide && onFilterChange) onFilterChange({ type: 'card', value: val });
+                                    }}>
                                         <SelectTrigger className="w-full md:w-[160px] h-10">
                                             <div className="flex items-center gap-2 truncate">
                                                 <Filter className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1119,7 +1132,10 @@ const TransactionsList = React.memo(({
                                     </Select>
 
                                     {/* Category Filter */}
-                                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                    <Select value={categoryFilter} onValueChange={(val) => {
+                                        setCategoryFilter(val);
+                                        if (isServerSide && onFilterChange) onFilterChange({ type: 'category', value: val });
+                                    }}>
                                         <SelectTrigger className="w-full md:w-[160px] h-10">
                                             <div className="flex items-center gap-2 truncate">
                                                 <Filter className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1138,7 +1154,10 @@ const TransactionsList = React.memo(({
                                     <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
 
                                     {/* Method Filter */}
-                                    <Select value={methodFilter} onValueChange={setMethodFilter}>
+                                    <Select value={methodFilter} onValueChange={(val) => {
+                                        setMethodFilter(val);
+                                        if (isServerSide && onFilterChange) onFilterChange({ type: 'method', value: val });
+                                    }}>
                                         <SelectTrigger className="w-full md:w-[160px] h-10">
                                             <div className="flex items-center gap-2 truncate">
                                                 <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />

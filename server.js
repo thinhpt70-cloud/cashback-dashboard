@@ -696,7 +696,7 @@ app.get('/api/transactions', async (req, res) => {
 });
 
 app.get('/api/transactions/query', async (req, res) => {
-    const { cursor, pageSize = 20, search, startDate, endDate, sortKey, sortDirection } = req.query;
+    const { cursor, pageSize = 20, search, startDate, endDate, sortKey, sortDirection, cardId, category, method } = req.query;
 
     try {
         // Map frontend sort keys to Notion properties
@@ -740,6 +740,27 @@ app.get('/api/transactions/query', async (req, res) => {
                     { property: 'Transaction Date', date: { on_or_after: startDate } },
                     { property: 'Transaction Date', date: { on_or_before: endDate } }
                 ]
+            });
+        }
+
+        if (cardId && cardId !== 'all') {
+            filters.push({
+                property: 'Card',
+                relation: { contains: cardId }
+            });
+        }
+
+        if (category && category !== 'all') {
+            filters.push({
+                property: 'Category',
+                select: { equals: category }
+            });
+        }
+
+        if (method && method !== 'all') {
+            filters.push({
+                property: 'Method',
+                select: { equals: method }
             });
         }
 
