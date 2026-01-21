@@ -96,6 +96,7 @@ export default function CashbackDashboard() {
     const [liveCursor, setLiveCursor] = useState(null);
     const [liveHasMore, setLiveHasMore] = useState(false);
     const [isLiveLoading, setIsLiveLoading] = useState(false);
+    const [isLiveAppending, setIsLiveAppending] = useState(false);
     const [liveSearchTerm, setLiveSearchTerm] = useState('');
     const [liveDateRange, setLiveDateRange] = useState(undefined);
     const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -213,7 +214,12 @@ export default function CashbackDashboard() {
 
     // --- LIVE TRANSACTIONS LOGIC ---
     const fetchLiveTransactions = useCallback(async (cursor = null, search = '', isAppend = false, dateRangeOverride = null) => {
-        setIsLiveLoading(true);
+        if (isAppend) {
+            setIsLiveAppending(true);
+        } else {
+            setIsLiveLoading(true);
+        }
+
         try {
             const params = new URLSearchParams();
             if (cursor) params.append('cursor', cursor);
@@ -241,7 +247,11 @@ export default function CashbackDashboard() {
             console.error("Error fetching live transactions:", error);
             toast.error("Failed to load transactions.");
         } finally {
-            setIsLiveLoading(false);
+            if (isAppend) {
+                setIsLiveAppending(false);
+            } else {
+                setIsLiveLoading(false);
+            }
         }
     }, [liveDateRange]);
 
@@ -1093,6 +1103,7 @@ export default function CashbackDashboard() {
                             onSearch={handleLiveSearch}
                             dateRange={liveDateRange}
                             onDateRangeChange={handleLiveDateRangeChange}
+                            isAppending={activeMonth === 'live' ? isLiveAppending : false}
                         />
                     </div>
                 )}

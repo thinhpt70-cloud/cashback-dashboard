@@ -94,7 +94,8 @@ const TransactionsList = React.memo(({
     onSearch,
     dateRange,
     onDateRangeChange,
-    getCurrentCashbackMonthForCard
+    getCurrentCashbackMonthForCard,
+    isAppending = false
 }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -1220,8 +1221,8 @@ const TransactionsList = React.memo(({
                         )}
                     </p>
                     {(visibleCount < flattenedTransactions.length || (isServerSide && hasMore)) && (
-                        <Button onClick={handleLoadMore} variant="outline" disabled={isServerSide && isLoading}>
-                            {isServerSide && isLoading ? 'Loading...' : 'Load More'}
+                        <Button onClick={handleLoadMore} variant="outline" disabled={isServerSide && (isLoading || isAppending)}>
+                            {isServerSide && (isLoading || isAppending) ? 'Loading...' : 'Load More'}
                         </Button>
                     )}
                 </div>
