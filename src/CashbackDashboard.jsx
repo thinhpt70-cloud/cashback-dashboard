@@ -414,6 +414,26 @@ export default function CashbackDashboard() {
         refreshData(true);
     }, [setRecentTransactions, setReviewTransactions, refreshData, editingTransaction]);
 
+    const handleBulkTransactionUpdate = useCallback((updatedTransactions) => {
+        if (!updatedTransactions || updatedTransactions.length === 0) return;
+
+        const updatedIds = new Set(updatedTransactions.map(t => t.id));
+
+        // Update Monthly
+        setMonthlyTransactions(prev => prev.map(tx => updatedIds.has(tx.id) ? updatedTransactions.find(u => u.id === tx.id) : tx));
+
+        // Update Live
+        setLiveTransactions(prev => prev.map(tx => updatedIds.has(tx.id) ? updatedTransactions.find(u => u.id === tx.id) : tx));
+
+        // Update Review
+        setReviewTransactions(prev => prev.map(tx => updatedIds.has(tx.id) ? updatedTransactions.find(u => u.id === tx.id) : tx));
+
+        // Update Recent
+        setRecentTransactions(prev => prev.map(tx => updatedIds.has(tx.id) ? updatedTransactions.find(u => u.id === tx.id) : tx));
+
+        refreshData(true);
+    }, [refreshData, setRecentTransactions, setReviewTransactions]);
+
 
 
     // Dynamic list of available months from transactions
@@ -455,6 +475,23 @@ export default function CashbackDashboard() {
 
 
 
+    const fetchMonthlyTransactions = useCallback(async () => {
+        if (!activeMonth || activeMonth === 'live') return;
+
+        setIsMonthlyTxLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/transactions?month=${activeMonth}&filterBy=${transactionFilterType}`);
+            if (!res.ok) throw new Error('Failed to fetch monthly transactions');
+            const data = await res.json();
+            setMonthlyTransactions(data);
+        } catch (err) {
+            console.error(err);
+            setMonthlyTransactions([]);
+        } finally {
+            setIsMonthlyTxLoading(false);
+        }
+    }, [activeMonth, transactionFilterType]);
+
     useEffect(() => {
         const isLiveView = activeMonth === 'live';
 
@@ -468,27 +505,20 @@ export default function CashbackDashboard() {
              }
         }
         // 2. Handle Historical View fetching
-        else {
-            const monthToFetch = activeMonth;
-            if (monthToFetch && activeView === 'transactions') {
-                const fetchMonthlyTransactions = async () => {
-                    setIsMonthlyTxLoading(true);
-                    try {
-                        const res = await fetch(`${API_BASE_URL}/transactions?month=${monthToFetch}&filterBy=${transactionFilterType}`);
-                        if (!res.ok) throw new Error('Failed to fetch monthly transactions');
-                        const data = await res.json();
-                        setMonthlyTransactions(data);
-                    } catch (err) {
-                        console.error(err);
-                        setMonthlyTransactions([]);
-                    } finally {
-                        setIsMonthlyTxLoading(false);
-                    }
-                };
-                fetchMonthlyTransactions();
-            }
+        else if (activeView === 'transactions') {
+            fetchMonthlyTransactions();
         }
-    }, [activeMonth, transactionFilterType, activeView, fetchLiveTransactions, liveTransactions.length]);
+    }, [activeMonth, activeView, fetchLiveTransactions, fetchMonthlyTransactions, liveTransactions.length]);
+
+    const handleGlobalRefresh = useCallback(() => {
+        fetchReviewTransactions();
+        if (activeMonth === 'live') {
+            fetchLiveTransactions(null, liveSearchTerm, false);
+        } else {
+            fetchMonthlyTransactions();
+        }
+        refreshData(true);
+    }, [fetchReviewTransactions, activeMonth, fetchLiveTransactions, liveSearchTerm, fetchMonthlyTransactions, refreshData]);
 
     // --------------------------
     // 2) HELPERS & CALCULATIONS
@@ -1024,7 +1054,7 @@ export default function CashbackDashboard() {
                         <TransactionReview
                             transactions={reviewTransactions}
                             isLoading={reviewLoading}
-                            onRefresh={fetchReviewTransactions}
+                            onRefresh={handleGlobalRefresh}
                             cards={cards}
                             categories={allCategories}
                             rules={cashbackRules}
@@ -1041,6 +1071,7 @@ export default function CashbackDashboard() {
                             cardMap={cardMap}
                             categories={allCategories}
                             mccNameFn={mccName}
+                            mccMap={mccMap}
                             allCards={cards}
                             filterType={transactionFilterType}
                             onFilterTypeChange={setTransactionFilterType}
@@ -1049,9 +1080,11 @@ export default function CashbackDashboard() {
                             onEditTransaction={handleEditClick}
                             onDuplicateTransaction={handleDuplicateClick}
                             onBulkDelete={handleBulkDelete}
+                            onBulkUpdate={handleBulkTransactionUpdate}
                             onViewDetails={handleViewTransactionDetails}
                             fmtYMShortFn={fmtYMShort}
                             rules={cashbackRules}
+                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
 
                             // Server-side props
                             isServerSide={activeMonth === 'live'}
