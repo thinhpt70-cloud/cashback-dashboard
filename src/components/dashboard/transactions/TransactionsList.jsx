@@ -12,7 +12,8 @@ import {
     CreditCard,
     ArrowUpDown,
     ChevronDown,
-    Inbox
+    Inbox,
+    Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -1195,7 +1196,14 @@ const TransactionsList = React.memo(({
                     </p>
                     {(visibleCount < flattenedTransactions.length || (isServerSide && hasMore)) && (
                         <Button onClick={handleLoadMore} variant="outline" disabled={isServerSide && isLoading}>
-                            {isServerSide && isLoading ? 'Loading...' : 'Load More'}
+                            {isServerSide && isLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Loading...
+                                </>
+                            ) : (
+                                'Load More'
+                            )}
                         </Button>
                     )}
                 </div>
