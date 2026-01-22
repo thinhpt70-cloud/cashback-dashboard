@@ -52,9 +52,10 @@ const TransactionReview = React.memo(({
 
     // Bulk Edit State
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
+    const [isProcessing] = useState(false);
 
     // NEW: Processing IDs to track individual loading states
-    const [processingIds, setProcessingIds] = useState(new Set());
+    const [processingIds] = useState(new Set());
 
     // Sync sortConfig with sortByValue
     useEffect(() => {
