@@ -99,6 +99,10 @@ export default function CashbackDashboard() {
     const [isLiveAppending, setIsLiveAppending] = useState(false);
     const [liveSearchTerm, setLiveSearchTerm] = useState('');
     const [liveDateRange, setLiveDateRange] = useState(undefined);
+    const [liveSort, setLiveSort] = useState({ key: 'Transaction Date', direction: 'descending' });
+    const [liveCardFilter, setLiveCardFilter] = useState('all');
+    const [liveCategoryFilter, setLiveCategoryFilter] = useState('all');
+    const [liveMethodFilter, setLiveMethodFilter] = useState('all');
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
@@ -213,7 +217,7 @@ export default function CashbackDashboard() {
     };
 
     // --- LIVE TRANSACTIONS LOGIC ---
-    const fetchLiveTransactions = useCallback(async (cursor = null, search = '', isAppend = false, dateRangeOverride = null) => {
+    const fetchLiveTransactions = useCallback(async (cursor = null, search = '', isAppend = false, dateRangeOverride = null, sortOverride = null, filterOverride = null) => {
         if (isAppend) {
             setIsLiveAppending(true);
         } else {
@@ -235,6 +239,22 @@ export default function CashbackDashboard() {
                 }
             }
 
+            const sort = sortOverride || liveSort;
+            if (sort) {
+                params.append('sortKey', sort.key);
+                params.append('sortDirection', sort.direction);
+            }
+
+            // Apply Filters
+            const card = filterOverride?.card ?? liveCardFilter;
+            if (card && card !== 'all') params.append('cardId', card);
+
+            const category = filterOverride?.category ?? liveCategoryFilter;
+            if (category && category !== 'all') params.append('category', category);
+
+            const method = filterOverride?.method ?? liveMethodFilter;
+            if (method && method !== 'all') params.append('method', method);
+
             const res = await fetch(`${API_BASE_URL}/transactions/query?${params.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch live transactions');
 
@@ -253,7 +273,7 @@ export default function CashbackDashboard() {
                 setIsLiveLoading(false);
             }
         }
-    }, [liveDateRange]);
+    }, [liveDateRange, liveSort, liveCardFilter, liveCategoryFilter, liveMethodFilter]);
 
     const handleLiveLoadMore = useCallback(() => {
         if (liveHasMore && liveCursor) {
@@ -271,6 +291,38 @@ export default function CashbackDashboard() {
         setLiveDateRange(range);
         // Reset list and fetch new results
         fetchLiveTransactions(null, liveSearchTerm, false, range);
+    }, [fetchLiveTransactions, liveSearchTerm]);
+
+    const handleLiveSortChange = useCallback((newSortConfig) => {
+        setLiveSort(newSortConfig);
+        // Reset list and fetch new results with new sort
+        // Explicitly pass newSortConfig to avoid race conditions with state update
+        setLiveTransactions([]);
+        setLiveCursor(null);
+        setLiveHasMore(false);
+        fetchLiveTransactions(null, liveSearchTerm, false, null, newSortConfig);
+    }, [fetchLiveTransactions, liveSearchTerm]);
+
+    const handleLiveFilterChange = useCallback(({ type, value }) => {
+        // Create an override object to pass to fetch
+        const filterOverride = {};
+
+        if (type === 'card') {
+            setLiveCardFilter(value);
+            filterOverride.card = value;
+        } else if (type === 'category') {
+            setLiveCategoryFilter(value);
+            filterOverride.category = value;
+        } else if (type === 'method') {
+            setLiveMethodFilter(value);
+            filterOverride.method = value;
+        }
+
+        // Reset and Fetch
+        setLiveTransactions([]);
+        setLiveCursor(null);
+        setLiveHasMore(false);
+        fetchLiveTransactions(null, liveSearchTerm, false, null, null, filterOverride);
     }, [fetchLiveTransactions, liveSearchTerm]);
 
     // ⚡ Bolt Optimization: Memoize handlers to prevent re-renders
@@ -1101,6 +1153,8 @@ export default function CashbackDashboard() {
                             onLoadMore={handleLiveLoadMore}
                             hasMore={liveHasMore}
                             onSearch={handleLiveSearch}
+                            onSortChange={handleLiveSortChange}
+                            onFilterChange={handleLiveFilterChange}
                             dateRange={liveDateRange}
                             onDateRangeChange={handleLiveDateRangeChange}
                             isAppending={activeMonth === 'live' ? isLiveAppending : false}

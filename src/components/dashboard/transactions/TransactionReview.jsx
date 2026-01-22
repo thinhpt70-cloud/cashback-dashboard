@@ -51,9 +51,11 @@ const TransactionReview = React.memo(({
 
     // Bulk Edit State
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
+    // eslint-disable-next-line no-unused-vars
     const [isProcessing, setIsProcessing] = useState(false);
 
     // NEW: Processing IDs to track individual loading states
+    // eslint-disable-next-line no-unused-vars
     const [processingIds, setProcessingIds] = useState(new Set());
 
     // Sync sortConfig with sortByValue

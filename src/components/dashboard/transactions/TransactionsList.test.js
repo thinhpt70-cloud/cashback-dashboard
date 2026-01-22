@@ -50,6 +50,7 @@ jest.mock('../../ui/select', () => ({
           <option value="all">All</option>
           <option value="category">Category</option>
           <option value="date">Date</option>
+          <option value="card-1">Card 1</option>
       </select>
       <div style={{ display: 'none' }}>{children}</div>
     </div>
@@ -177,5 +178,69 @@ describe('TransactionsList', () => {
     // EXPECT FAIL: Current code sorts Alpha < Beta (Ascending).
     // We want Beta < Alpha (Descending).
     expect(betaIndex).toBeLessThan(alphaIndex);
+  });
+
+  test('calls onSortChange when server-side sorting is active and header is clicked', () => {
+    const onSortChange = jest.fn();
+    render(
+      <TransactionsList
+        transactions={mockTransactions}
+        isLoading={false}
+        activeMonth="live"
+        cardMap={mockCardMap}
+        allCards={mockCards}
+        isDesktop={true}
+        rules={[]}
+        isServerSide={true}
+        onSortChange={onSortChange}
+      />
+    );
+
+    // Find Date header button. The text "Date" is inside the button.
+    // Note: In the component, the text is "Date " (with space) or just "Date".
+    // And there is an icon.
+    // We can search by text content.
+    const headerButton = screen.getByText((content, element) => {
+        return element.tagName.toLowerCase() === 'button' && content.includes('Date');
+    });
+
+    fireEvent.click(headerButton);
+
+    // Initial state is Date Descending. Clicking should toggle to Date Ascending.
+    expect(onSortChange).toHaveBeenCalledWith({ key: 'Transaction Date', direction: 'ascending' });
+  });
+
+  test('calls onFilterChange when server-side mode is active and filter changes', () => {
+    const onFilterChange = jest.fn();
+    render(
+      <TransactionsList
+        transactions={mockTransactions}
+        isLoading={false}
+        activeMonth="live"
+        cardMap={mockCardMap}
+        allCards={mockCards}
+        isDesktop={true}
+        rules={[]}
+        isServerSide={true}
+        onFilterChange={onFilterChange}
+      />
+    );
+
+    // We have multiple selects. We need to find the one for "Card Filter".
+    // In our mock, they all render the same.
+    // However, in the component, the Card filter Select has specific children or trigger content.
+    // The SelectTrigger for Card filter contains "Card" text or CreditCard icon.
+    // But our mock Select hides children.
+    // We can iterate over all mocked selects and trigger change on one,
+    // but we need to know which one is which.
+    // The component renders Selects in order: Card, Category, Method, Group, Sort.
+    // 1st Select is Card.
+
+    const selects = screen.getAllByTestId('test-select');
+    const cardSelect = selects[0]; // Assuming order is stable
+
+    fireEvent.change(cardSelect, { target: { value: 'card-1' } });
+
+    expect(onFilterChange).toHaveBeenCalledWith({ type: 'card', value: 'card-1' });
   });
 });
