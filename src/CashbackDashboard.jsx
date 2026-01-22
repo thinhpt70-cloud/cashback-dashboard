@@ -1132,6 +1132,7 @@ export default function CashbackDashboard() {
                             activeMonth={activeMonth}
                             cardMap={cardMap}
                             categories={allCategories}
+                            methods={definitions?.methods || []}
                             mccNameFn={mccName}
                             mccMap={mccMap}
                             allCards={cards}

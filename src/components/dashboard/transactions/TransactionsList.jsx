@@ -74,6 +74,7 @@ const TransactionsList = React.memo(({
     cardMap,
     rules = [],
     categories: allCategoriesProp = [], // Added categories prop
+    methods = [],
     mccNameFn,
     mccMap,
     allCards,
@@ -724,9 +725,17 @@ const TransactionsList = React.memo(({
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Methods</SelectItem>
-                            <SelectItem value="POS">POS</SelectItem>
-                            <SelectItem value="eCom">eCom</SelectItem>
-                            <SelectItem value="International">International</SelectItem>
+                            {methods.length > 0 ? (
+                                methods.map(method => (
+                                    <SelectItem key={method} value={method}>{method}</SelectItem>
+                                ))
+                            ) : (
+                                <>
+                                    <SelectItem value="POS">POS</SelectItem>
+                                    <SelectItem value="eCom">eCom</SelectItem>
+                                    <SelectItem value="International">International</SelectItem>
+                                </>
+                            )}
                         </SelectContent>
                     </Select>
 
@@ -1168,9 +1177,17 @@ const TransactionsList = React.memo(({
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">All Methods</SelectItem>
-                                            <SelectItem value="POS">POS</SelectItem>
-                                            <SelectItem value="eCom">eCom</SelectItem>
-                                            <SelectItem value="International">International</SelectItem>
+                                            {methods.length > 0 ? (
+                                                methods.map(method => (
+                                                    <SelectItem key={method} value={method}>{method}</SelectItem>
+                                                ))
+                                            ) : (
+                                                <>
+                                                    <SelectItem value="POS">POS</SelectItem>
+                                                    <SelectItem value="eCom">eCom</SelectItem>
+                                                    <SelectItem value="International">International</SelectItem>
+                                                </>
+                                            )}
                                         </SelectContent>
                                     </Select>
 
