@@ -37,6 +37,7 @@ import { cn } from "../../lib/utils";
 import { formatFullDateTime } from "../../lib/date";
 import mccData from '../../lib/MCC.json';
 import useMediaQuery from "../../hooks/useMediaQuery";
+import { currency as defaultCurrency } from "../../lib/formatters";
 
 export default function TransactionDetailSheet({
     transaction,
@@ -65,7 +66,7 @@ export default function TransactionDetailSheet({
     const currentTransaction = displayTransaction;
 
     // Currency helper
-    const currency = currencyFn || ((n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }));
+    const currency = currencyFn || defaultCurrency;
 
     // Data Parsing
     const {

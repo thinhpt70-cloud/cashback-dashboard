@@ -22,6 +22,7 @@ import { cn } from "../../../lib/utils";
 import { toast } from 'sonner';
 import BulkEditDialog from '../dialogs/BulkEditDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../ui/tooltip";
+import { currency } from "../../../lib/formatters";
 
 const TransactionReview = React.memo(({
     transactions,
@@ -349,8 +350,6 @@ const TransactionReview = React.memo(({
             setIsProcessing(false);
         }
     };
-
-    const currency = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 
     // 1. Loading State
     if (isLoading) {

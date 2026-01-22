@@ -63,9 +63,7 @@ import MethodIndicator from "../../shared/MethodIndicator";
 import TransactionRow from "./TransactionRow";
 import useDebounce from "../../../hooks/useDebounce";
 import BulkEditDialog from "../dialogs/BulkEditDialog";
-
-// Moved currency function outside to be stable
-const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+import { currency } from "../../../lib/formatters";
 
 const TransactionsList = React.memo(({
     transactions,

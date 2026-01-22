@@ -1,7 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import CardSpendsCap from '../components/dashboard/overview/CardSpendsCap';
-import { currencyFn } from '../lib/formatters';
 
 // Mock dependencies
 jest.mock('lucide-react', () => ({
