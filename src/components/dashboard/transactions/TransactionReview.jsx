@@ -250,8 +250,47 @@ const TransactionReview = React.memo(({
         }
 
         try {
+            // STATE 1: MISMATCH (Red Status) -> FIX CATEGORY & FINALIZE
+            if (tx.status === 'Mismatch') {
+                const cardId = tx['Card'] && tx['Card'][0];
+                const card = cards.find(c => c.id === cardId);
+                const ruleId = tx['Applicable Rule'] && tx['Applicable Rule'][0];
+
+                if (!card || !ruleId) {
+                    throw new Error("Missing Card or Rule data for mismatch fix.");
+                }
+
+                // 1. Calculate correct month
+                const month = getCurrentCashbackMonthForCard(card, tx['Transaction Date']);
+
+                // 2. Find/Create Summary
+                const summaryRes = await fetch('/api/summaries', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cardId, month, ruleId })
+                });
+
+                if (!summaryRes.ok) throw new Error("Failed to resolve summary.");
+                const summary = await summaryRes.json();
+
+                // 3. Update Transaction (Link Summary + Uncheck Automated)
+                const updateRes = await fetch(`/api/transactions/${tx.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cardSummaryCategoryId: summary.id,
+                        // Implicitly handled by PATCH: Automated becomes false?
+                        // Actually PATCH in server.js sets 'Automated' to false automatically.
+                    })
+                });
+
+                if (!updateRes.ok) throw new Error("Update failed.");
+
+                toast.success("Mismatch fixed & approved.");
+                onRefresh();
+            }
             // STATE 2: QUICK APPROVE (Green Status) -> FINALIZE
-            if (tx.status === 'Quick Approve') {
+            else if (tx.status === 'Quick Approve') {
                 const res = await fetch('/api/transactions/finalize', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -853,7 +892,7 @@ const TransactionReview = React.memo(({
                                                             </TableCell>
                                                             <TableCell className="text-right">
                                                                 <div className="flex items-center justify-end gap-1">
-                                                                    {tx.status === 'Quick Approve' && (
+                                                                    {(tx.status === 'Quick Approve' || tx.status === 'Mismatch') && (
                                                                         <TooltipProvider>
                                                                             <Tooltip>
                                                                                 <TooltipTrigger asChild>
@@ -861,19 +900,26 @@ const TransactionReview = React.memo(({
                                                                                         variant="ghost"
                                                                                         size="icon"
                                                                                         aria-label="Quick Approve"
-                                                                                        className="h-8 w-8 transition-colors text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                                                                        className={cn(
+                                                                                            "h-8 w-8 transition-colors",
+                                                                                            tx.status === 'Quick Approve'
+                                                                                                ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                                                                                : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                                                        )}
                                                                                         onClick={() => handleSingleProcess(tx)}
                                                                                         disabled={processingIds.has(tx.id)}
                                                                                     >
                                                                                         {processingIds.has(tx.id) ? (
                                                                                             <Loader2 className="h-4 w-4 animate-spin" />
+                                                                                        ) : tx.status === 'Mismatch' ? (
+                                                                                            <Wand2 className="h-4 w-4" />
                                                                                         ) : (
                                                                                             <Check className="h-4 w-4" />
                                                                                         )}
                                                                                     </Button>
                                                                                 </TooltipTrigger>
                                                                                 <TooltipContent>
-                                                                                    Quick Approve
+                                                                                    {tx.status === 'Mismatch' ? 'Fix & Approve' : 'Quick Approve'}
                                                                                 </TooltipContent>
                                                                             </Tooltip>
                                                                         </TooltipProvider>
@@ -1006,19 +1052,23 @@ const TransactionReview = React.memo(({
                                                                         "h-7 px-3 text-xs border transition-colors",
                                                                         tx.status === 'Quick Approve'
                                                                             ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950 dark:border-emerald-900 dark:text-emerald-400"
+                                                                            : tx.status === 'Mismatch'
+                                                                                ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-950 dark:border-amber-900 dark:text-amber-400"
                                                                             : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400"
                                                                     )}
-                                                                    onClick={() => tx.status === 'Quick Approve' ? handleSingleProcess(tx) : onEditTransaction(tx)}
+                                                                        onClick={() => (tx.status === 'Quick Approve' || tx.status === 'Mismatch') ? handleSingleProcess(tx) : onEditTransaction(tx)}
                                                                     disabled={processingIds.has(tx.id)}
                                                                 >
                                                                     {processingIds.has(tx.id) ? (
                                                                         <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                                                                     ) : tx.status === 'Quick Approve' ? (
                                                                         <Check className="mr-2 h-3 w-3" />
+                                                                        ) : tx.status === 'Mismatch' ? (
+                                                                            <Wand2 className="mr-2 h-3 w-3" />
                                                                     ) : (
                                                                         <FilePenLine className="mr-2 h-3 w-3" />
                                                                     )}
-                                                                    {tx.status === 'Quick Approve' ? "Approve" : "Edit"}
+                                                                        {tx.status === 'Quick Approve' ? "Approve" : tx.status === 'Mismatch' ? "Fix" : "Edit"}
                                                                 </Button>
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild>
