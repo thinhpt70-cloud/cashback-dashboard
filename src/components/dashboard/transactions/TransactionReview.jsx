@@ -91,8 +91,9 @@ const TransactionReview = React.memo(({
                 status = 'Missing Rule';
                 statusType = 'warning';
             } else if (!isMatch) {
-                status = 'Mismatch';
-                statusType = 'error';
+                // Modified: Treat as fixable if we have MCC and Rule
+                status = 'Quick Approve';
+                statusType = 'success';
             } else if (isAutomated) {
                 status = 'Quick Approve';
                 statusType = 'success';

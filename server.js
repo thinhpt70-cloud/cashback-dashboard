@@ -1854,24 +1854,61 @@ app.post('/api/transactions/finalize', async (req, res) => {
         const results = [];
         for (const id of ids) {
             try {
-                // 1. Fetch current to get name
+                // 1. Fetch current to get name and details for fixing mismatch
                 const page = await notion.pages.retrieve({ page_id: id });
-                const currentName = page.properties['Transaction Name']?.title[0]?.plain_text || "";
+                const props = page.properties;
 
-                // 2. Clean Name
+                const currentName = props['Transaction Name']?.title[0]?.plain_text || "";
+                const cardId = props['Card']?.relation?.[0]?.id;
+                const ruleId = props['Applicable Rule']?.relation?.[0]?.id;
+                // Prefer Billing Date, fallback to Transaction Date
+                const dateStr = props['Billing Date']?.date?.start || props['Transaction Date']?.date?.start;
+
+                // 2. Prepare Updates
+                const updates = {};
+
+                // A. Clean Name
                 let newName = currentName;
                 if (newName.startsWith("Email_")) {
                     newName = newName.substring(6);
                 }
                 newName = newName.trim();
+                updates['Transaction Name'] = { title: [{ text: { content: newName } }] };
 
-                // 3. Update (Name + Uncheck Automated)
+                // B. Uncheck Automated
+                updates['Automated'] = { checkbox: false };
+
+                // C. Fix "Mismatch" (Card Summary Category) if possible
+                // Only if we have Card + Rule + Date
+                if (cardId && ruleId && dateStr) {
+                    // Extract YYYY-MM
+                    const month = dateStr.substring(0, 7).replace('-', ''); // YYYYMM format expected by getOrCreateSummaryId ?
+                    // Wait, getOrCreateSummaryId expects "YYYY-MM" (e.g. 2024-07) or "YYYYMM"?
+                    // Looking at getOrCreateSummaryId implementation:
+                    // It uses the 'Month' Select property.
+                    // Let's check how 'Month' is stored. Usually YYYY-MM (e.g., 2024-05).
+                    // In `mapTransaction`, `Cashback Month` is often a formula.
+                    // But `monthly-summary` DB uses 'Month' select.
+                    // Let's verify standard format.
+                    // In `app.get('/api/monthly-summary')`: `month: parsed['Month']`.
+                    // The Frontend usually sees YYYY-MM (fmtYMShort uses it).
+                    // BUT `server.js` `getOrCreateSummaryId` implementation:
+                    // `const summaryName = \`\${month} - \${ruleName}\`;`
+                    // In my previous knowledge/memory, the Month select is YYYY-MM.
+                    // However, `dateStr` is YYYY-MM-DD.
+                    // Let's use YYYY-MM.
+                    const monthKey = dateStr.substring(0, 7); // "2024-05"
+
+                    const summaryId = await getOrCreateSummaryId(cardId, monthKey, ruleId);
+                    if (summaryId) {
+                        updates['Card Summary Category'] = { relation: [{ id: summaryId }] };
+                    }
+                }
+
+                // 3. Perform Update
                 await notion.pages.update({
                     page_id: id,
-                    properties: {
-                        'Transaction Name': { title: [{ text: { content: newName } }] },
-                        'Automated': { checkbox: false }
-                    }
+                    properties: updates
                 });
                 results.push(id);
             } catch (innerErr) {
