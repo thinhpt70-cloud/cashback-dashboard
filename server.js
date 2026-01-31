@@ -1881,23 +1881,9 @@ app.post('/api/transactions/finalize', async (req, res) => {
                 // C. Fix "Mismatch" (Card Summary Category) if possible
                 // Only if we have Card + Rule + Date
                 if (cardId && ruleId && dateStr) {
-                    // Extract YYYY-MM
-                    const month = dateStr.substring(0, 7).replace('-', ''); // YYYYMM format expected by getOrCreateSummaryId ?
-                    // Wait, getOrCreateSummaryId expects "YYYY-MM" (e.g. 2024-07) or "YYYYMM"?
-                    // Looking at getOrCreateSummaryId implementation:
-                    // It uses the 'Month' Select property.
-                    // Let's check how 'Month' is stored. Usually YYYY-MM (e.g., 2024-05).
-                    // In `mapTransaction`, `Cashback Month` is often a formula.
-                    // But `monthly-summary` DB uses 'Month' select.
-                    // Let's verify standard format.
-                    // In `app.get('/api/monthly-summary')`: `month: parsed['Month']`.
-                    // The Frontend usually sees YYYY-MM (fmtYMShort uses it).
-                    // BUT `server.js` `getOrCreateSummaryId` implementation:
-                    // `const summaryName = \`\${month} - \${ruleName}\`;`
-                    // In my previous knowledge/memory, the Month select is YYYY-MM.
-                    // However, `dateStr` is YYYY-MM-DD.
-                    // Let's use YYYY-MM.
-                    const monthKey = dateStr.substring(0, 7); // "2024-05"
+                    // Extract YYYY-MM (e.g., "2023-10")
+                    // Note: Notion 'Month' select property uses "YYYY-MM" format.
+                    const monthKey = dateStr.substring(0, 7);
 
                     const summaryId = await getOrCreateSummaryId(cardId, monthKey, ruleId);
                     if (summaryId) {
