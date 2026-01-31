@@ -67,6 +67,25 @@ import BulkEditDialog from "../dialogs/BulkEditDialog";
 // Moved currency function outside to be stable
 const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
+const DateInputWithPlaceholder = ({ value, onChange, placeholder, className, ...props }) => {
+    const [isFocused, setIsFocused] = useState(false);
+    const hasValue = !!value;
+    const inputType = (isFocused || hasValue) ? 'date' : 'text';
+
+    return (
+        <input
+            type={inputType}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            className={className}
+            {...props}
+        />
+    );
+};
+
 const TransactionsList = React.memo(({
     transactions,
     isLoading,
@@ -743,19 +762,19 @@ const TransactionsList = React.memo(({
 
                     {/* Date Range Inputs (Mobile) */}
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-white dark:bg-slate-950 min-w-fit h-[30px]">
-                        <input
-                            type="date"
+                        <DateInputWithPlaceholder
                             value={effectiveDateRange?.from ? format(effectiveDateRange.from, 'yyyy-MM-dd') : ''}
                             onChange={(e) => handleDateChange('from', e.target.value)}
-                            className="bg-transparent text-xs focus:outline-none dark:text-slate-200 w-[85px]"
+                            placeholder="dd/mm/yyyy"
+                            className="bg-transparent text-xs focus:outline-none dark:text-slate-200 w-[85px] placeholder:text-muted-foreground"
                             aria-label="Start Date"
                         />
                         <span className="text-slate-400 text-xs">-</span>
-                        <input
-                            type="date"
+                        <DateInputWithPlaceholder
                             value={effectiveDateRange?.to ? format(effectiveDateRange.to, 'yyyy-MM-dd') : ''}
                             onChange={(e) => handleDateChange('to', e.target.value)}
-                            className="bg-transparent text-xs focus:outline-none dark:text-slate-200 w-[85px]"
+                            placeholder="dd/mm/yyyy"
+                            className="bg-transparent text-xs focus:outline-none dark:text-slate-200 w-[85px] placeholder:text-muted-foreground"
                             aria-label="End Date"
                         />
                         {(effectiveDateRange?.from || effectiveDateRange?.to) && (
@@ -1133,19 +1152,19 @@ const TransactionsList = React.memo(({
 
                                     {/* Native Date Range Inputs */}
                                     <div className="flex items-center gap-2 border rounded-md px-2 py-1 h-10 bg-white dark:bg-slate-950">
-                                        <input
-                                            type="date"
+                                        <DateInputWithPlaceholder
                                             value={effectiveDateRange?.from ? format(effectiveDateRange.from, 'yyyy-MM-dd') : ''}
                                             onChange={(e) => handleDateChange('from', e.target.value)}
-                                            className="bg-transparent text-sm focus:outline-none dark:text-slate-200 w-[110px]"
+                                            placeholder="dd/mm/yyyy"
+                                            className="bg-transparent text-sm focus:outline-none dark:text-slate-200 w-[110px] placeholder:text-muted-foreground"
                                             aria-label="Start Date"
                                         />
                                         <span className="text-slate-400">-</span>
-                                        <input
-                                            type="date"
+                                        <DateInputWithPlaceholder
                                             value={effectiveDateRange?.to ? format(effectiveDateRange.to, 'yyyy-MM-dd') : ''}
                                             onChange={(e) => handleDateChange('to', e.target.value)}
-                                            className="bg-transparent text-sm focus:outline-none dark:text-slate-200 w-[110px]"
+                                            placeholder="dd/mm/yyyy"
+                                            className="bg-transparent text-sm focus:outline-none dark:text-slate-200 w-[110px] placeholder:text-muted-foreground"
                                             aria-label="End Date"
                                         />
                                     </div>
