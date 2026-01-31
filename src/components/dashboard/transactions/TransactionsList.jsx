@@ -647,25 +647,6 @@ const TransactionsList = React.memo(({
                         )}
                     </div>
 
-                    {/* Date Range Inputs (Mobile) */}
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-white dark:bg-slate-950 min-w-fit h-[30px]">
-                        <input
-                            type="date"
-                            value={effectiveDateRange?.from ? format(effectiveDateRange.from, 'yyyy-MM-dd') : ''}
-                            onChange={(e) => handleDateChange('from', e.target.value)}
-                            className="bg-transparent text-xs focus:outline-none dark:text-slate-200 w-[85px]"
-                            aria-label="Start Date"
-                        />
-                        <span className="text-slate-400 text-xs">-</span>
-                        <input
-                            type="date"
-                            value={effectiveDateRange?.to ? format(effectiveDateRange.to, 'yyyy-MM-dd') : ''}
-                            onChange={(e) => handleDateChange('to', e.target.value)}
-                            className="bg-transparent text-xs focus:outline-none dark:text-slate-200 w-[85px]"
-                            aria-label="End Date"
-                        />
-                    </div>
-
                     {/* Card Filter Pill */}
                     <Select value={cardFilter} onValueChange={(val) => {
                         setCardFilter(val);
@@ -759,6 +740,37 @@ const TransactionsList = React.memo(({
                             <SelectItem value="International">International</SelectItem>
                         </SelectContent>
                     </Select>
+
+                    {/* Date Range Inputs (Mobile) */}
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-white dark:bg-slate-950 min-w-fit h-[30px]">
+                        <input
+                            type="date"
+                            value={effectiveDateRange?.from ? format(effectiveDateRange.from, 'yyyy-MM-dd') : ''}
+                            onChange={(e) => handleDateChange('from', e.target.value)}
+                            className="bg-transparent text-xs focus:outline-none dark:text-slate-200 w-[85px]"
+                            aria-label="Start Date"
+                        />
+                        <span className="text-slate-400 text-xs">-</span>
+                        <input
+                            type="date"
+                            value={effectiveDateRange?.to ? format(effectiveDateRange.to, 'yyyy-MM-dd') : ''}
+                            onChange={(e) => handleDateChange('to', e.target.value)}
+                            className="bg-transparent text-xs focus:outline-none dark:text-slate-200 w-[85px]"
+                            aria-label="End Date"
+                        />
+                        {(effectiveDateRange?.from || effectiveDateRange?.to) && (
+                            <button
+                                onClick={() => {
+                                    if (isServerSide && onDateRangeChange) onDateRangeChange(undefined);
+                                    else setInternalDateRange(undefined);
+                                }}
+                                className="ml-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none"
+                                aria-label="Clear dates"
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        )}
+                    </div>
 
                      {/* Group By Pill */}
                      <Select value={groupBy} onValueChange={setGroupBy}>
