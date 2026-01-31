@@ -632,6 +632,7 @@ const TransactionsList = React.memo(({
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full h-[30px] pl-8 pr-3 bg-slate-100 dark:bg-slate-900 rounded-full text-base font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-500 transition-all border-none"
+                            aria-label="Search transactions"
                         />
                         {searchTerm && (
                             <Button
@@ -1285,7 +1286,12 @@ const TransactionsList = React.memo(({
                     </p>
                     {(visibleCount < flattenedTransactions.length || (isServerSide && hasMore)) && (
                         <Button onClick={handleLoadMore} variant="outline" disabled={isServerSide && (isLoading || isAppending)}>
-                            {isServerSide && (isLoading || isAppending) ? 'Loading...' : 'Load More'}
+                            {isServerSide && (isLoading || isAppending) ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Loading...
+                                </>
+                            ) : 'Load More'}
                         </Button>
                     )}
                 </div>
