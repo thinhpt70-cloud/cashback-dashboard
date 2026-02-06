@@ -29,7 +29,7 @@ export default function useCashbackData(isAuthenticated) {
     const [error, setError] = useState(null);
 
     // --- DATA FETCHING ---
-    const fetchData = useCallback(async (isSilent = false) => {
+    const fetchData = useCallback(async (isSilent = false, skipStatic = false) => {
         let hasShellLoaded = false; // Local variable to track shell loading status
 
         if (!isSilent) {
@@ -42,34 +42,39 @@ export default function useCashbackData(isAuthenticated) {
         try {
             // --- STAGE 1: CRITICAL SHELL DATA ---
             // Fetch minimal data required to render the Sidebar, Header, and basic actions (Add Tx, Finder)
-            const [cardsRes, rulesRes, mccRes, definitionsRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/cards?includeClosed=true`),
-                fetch(`${API_BASE_URL}/rules`),
-                fetch(`${API_BASE_URL}/mcc-codes`),
-                fetch(`${API_BASE_URL}/definitions`),
-            ]);
+            if (!skipStatic) {
+                const [cardsRes, rulesRes, mccRes, definitionsRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/cards?includeClosed=true`),
+                    fetch(`${API_BASE_URL}/rules`),
+                    fetch(`${API_BASE_URL}/mcc-codes`),
+                    fetch(`${API_BASE_URL}/definitions`),
+                ]);
 
-            if (!cardsRes.ok || !rulesRes.ok || !mccRes.ok || !definitionsRes.ok) {
-                throw new Error('Failed to fetch critical shell data.');
-            }
+                if (!cardsRes.ok || !rulesRes.ok || !mccRes.ok || !definitionsRes.ok) {
+                    throw new Error('Failed to fetch critical shell data.');
+                }
 
-            const cardsData = await cardsRes.json();
-            const rulesData = await rulesRes.json();
-            const mccData = await mccRes.json();
-            const definitionsData = await definitionsRes.json();
+                const cardsData = await cardsRes.json();
+                const rulesData = await rulesRes.json();
+                const mccData = await mccRes.json();
+                const definitionsData = await definitionsRes.json();
 
-            setAllCards(cardsData);
-            setCards(cardsData.filter(c => c.status !== 'Closed'));
-            setRules(rulesData);
-            setMccMap(mccData.mccDescriptionMap || {});
-            setDefinitions(definitionsData);
-            setAllCategories(definitionsData.categories || []);
+                setAllCards(cardsData);
+                setCards(cardsData.filter(c => c.status !== 'Closed'));
+                setRules(rulesData);
+                setMccMap(mccData.mccDescriptionMap || {});
+                setDefinitions(definitionsData);
+                setAllCategories(definitionsData.categories || []);
 
-            // Shell is ready! The UI can render now.
-            hasShellLoaded = true;
-            if (!isSilent) {
-                setIsShellReady(true);
-                setLoading(false); // Dismiss full-screen skeleton
+                // Shell is ready! The UI can render now.
+                hasShellLoaded = true;
+                if (!isSilent) {
+                    setIsShellReady(true);
+                    setLoading(false); // Dismiss full-screen skeleton
+                }
+            } else {
+                // If skipping static, we assume shell is already loaded or we don't block
+                hasShellLoaded = true;
             }
 
             // --- STAGE 2: DASHBOARD CONTENT ---

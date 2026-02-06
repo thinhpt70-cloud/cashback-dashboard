@@ -134,8 +134,8 @@ export default function CashbackDashboard() {
             prevReview.filter(tx => tx.id !== updatedTransaction.id)
         );
 
-        // Quietly refresh other data
-        refreshData(true);
+        // Quietly refresh other data, skipping static resources (cards, rules)
+        refreshData(true, true);
     }, [setRecentTransactions, setReviewTransactions, refreshData]);
 
     const {
@@ -339,7 +339,8 @@ export default function CashbackDashboard() {
         setLiveTransactions(prev => [newTransaction, ...prev]);
 
         // 4. Trigger a full refresh in the background to update all aggregate data (charts, stats, etc.) without a loading screen.
-        refreshData(true);
+        // Skip static data fetch to prevent unnecessary re-renders of memoized components.
+        refreshData(true, true);
     }, [activeMonth, setRecentTransactions, refreshData]);
 
     const handleViewTransactions = useCallback(async (cardId, cardName, month, monthLabel) => {
@@ -399,7 +400,7 @@ export default function CashbackDashboard() {
             toast.success('Transaction deleted successfully!');
 
             // Optionally, trigger a silent refresh to ensure all aggregate data is up-to-date
-            refreshData(true);
+            refreshData(true, true);
 
         } catch (error) {
             console.error("Delete failed:", error);
@@ -444,7 +445,7 @@ export default function CashbackDashboard() {
             setRecentTransactions(prevRecent => prevRecent.filter(tx => !transactionIds.includes(tx.id)));
             setReviewTransactions(prevReview => prevReview.filter(tx => !transactionIds.includes(tx.id)));
             toast.success(`${transactionIds.length} transactions deleted successfully!`);
-            refreshData(true);
+            refreshData(true, true);
         } catch (error) {
             console.error("Bulk delete failed:", error);
             toast.error("Could not delete transactions. Please try again.");
@@ -473,7 +474,7 @@ export default function CashbackDashboard() {
             setEditingTransaction(null);
         }
 
-        refreshData(true);
+        refreshData(true, true);
     }, [setRecentTransactions, setReviewTransactions, refreshData, editingTransaction]);
 
     const handleBulkTransactionUpdate = useCallback((updatedTransactions) => {
@@ -493,7 +494,7 @@ export default function CashbackDashboard() {
         // Update Recent
         setRecentTransactions(prev => prev.map(tx => updatedIds.has(tx.id) ? updatedTransactions.find(u => u.id === tx.id) : tx));
 
-        refreshData(true);
+        refreshData(true, true);
     }, [refreshData, setRecentTransactions, setReviewTransactions]);
 
 
@@ -579,7 +580,8 @@ export default function CashbackDashboard() {
         } else {
             fetchMonthlyTransactions();
         }
-        refreshData(true);
+        // Skip static data fetch for smoother UX in transaction review
+        refreshData(true, true);
     }, [fetchReviewTransactions, activeMonth, fetchLiveTransactions, liveSearchTerm, fetchMonthlyTransactions, refreshData]);
 
     // --------------------------
@@ -964,7 +966,7 @@ export default function CashbackDashboard() {
 
                     {/* --- Mobile Controls (hidden on desktop) --- */}
                     <div className="flex items-center gap-2 md:hidden">
-                        <Drawer open={isAddTxDialogOpen} onOpenChange={setIsAddTxDialogOpen}>
+                        <Drawer open={isAddTxDialogOpen && !isDesktop} onOpenChange={setIsAddTxDialogOpen}>
                             <DrawerTrigger asChild>
                                 <Button variant="default" size="icon" className="h-10 w-10 rounded-full shadow-lg">
                                     <Plus className="h-6 w-6" />
@@ -1182,7 +1184,7 @@ export default function CashbackDashboard() {
                         <CashbackTracker
                             cards={cards}
                             monthlySummary={monthlySummary}
-                            onUpdate={() => refreshData(true)}
+                            onUpdate={() => refreshData(true, true)}
                             onEditTransaction={handleEditClick}
                             onTransactionDeleted={handleTransactionDeleted}
                             onBulkDelete={handleBulkDelete}
