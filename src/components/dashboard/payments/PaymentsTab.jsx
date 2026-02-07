@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Wallet, CalendarClock, AlertTriangle, Check, Plus, History, FilePenLine, List, ChevronDown } from 'lucide-react';
+import { Loader2, Wallet, CalendarClock, AlertTriangle, Check, Plus, History, FilePenLine, List, ChevronDown, CalendarDays, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '../../../lib/utils';
@@ -11,6 +11,9 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '../../
 
 import PaymentLogDialog from '../dialogs/PaymentLogDialog';
 import StatementLogDialog from '../dialogs/StatementLogDialog';
+import PaymentsCalendarView from './PaymentsCalendarView';
+
+import { calculateCashbackSplit, calculatePaymentDate } from '../../../lib/cashback-logic';
 
 const API_BASE_URL = '/api';
 
@@ -18,9 +21,62 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
     const [paymentData, setPaymentData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [isStatementDialogOpen, setStatementDialogOpen] = useState(false); // State for the new dialog
+    const [isStatementDialogOpen, setStatementDialogOpen] = useState(false);
     const [activeStatement, setActiveStatement] = useState(null);
     const [isLoadingMore, setIsLoadingMore] = useState({});
+    const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
+
+    // --- LOGIC: Calculate Cashback Credits ---
+    const getApplicableCredits = useCallback((cardId, statementDateObj, paymentDateObj) => {
+        if (!monthlySummary || !statementDateObj || !paymentDateObj) return 0;
+
+        // Define Window: From (Statement Date - 35 days) to (Payment Date)
+        // We look back ~1 month to capture credits that might have appeared on the statement itself,
+        // as well as credits appearing after statement but before due date.
+        // A safer window for "New Credits" might be strictly > PreviousStatementDate.
+        // But simplifying: Any credit landing <= PaymentDate and > (PaymentDate - 45 days)
+        // This is a heuristic. A better approach is to strictly check dates against the current cycle.
+
+        const windowEnd = paymentDateObj.getTime();
+        const windowStart = new Date(statementDateObj).setMonth(statementDateObj.getMonth() - 1); // Approx start of cycle
+
+        let totalCredits = 0;
+
+        monthlySummary.forEach(item => {
+            // Only care about this card
+            if (item.cardId !== cardId) return;
+            // Only care if there is cashback
+            if ((item.actualCashback || 0) <= 0) return;
+
+            const card = cards.find(c => c.id === cardId);
+            if (!card) return;
+
+            const { tier1, tier2 } = calculateCashbackSplit(item.actualCashback, item.adjustment, card.overallMonthlyLimit);
+
+            // Check Tier 1
+            const t1Date = calculatePaymentDate(item.month, card.tier1PaymentType || 'M+1', card.statementDay);
+            if (t1Date instanceof Date) {
+                const t = t1Date.getTime();
+                if (t > windowStart && t <= windowEnd) {
+                    totalCredits += tier1;
+                }
+            }
+
+            // Check Tier 2
+            if (tier2 > 0) {
+                 const t2Date = calculatePaymentDate(item.month, card.tier2PaymentType || 'M+2', card.statementDay);
+                 if (t2Date instanceof Date) {
+                    const t = t2Date.getTime();
+                    if (t > windowStart && t <= windowEnd) {
+                        totalCredits += tier2;
+                    }
+                 }
+            }
+        });
+
+        return totalCredits;
+    }, [monthlySummary, cards]);
+
 
     const handleLoadMore = useCallback(async (cardId) => {
         setIsLoadingMore(prev => ({ ...prev, [cardId]: true }));
@@ -40,6 +96,8 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                 if (!res.ok) throw new Error('Failed to fetch transactions');
                 const transactions = await res.json();
                 const spend = transactions.reduce((acc, tx) => acc + (tx['Amount'] || 0), 0);
+                // Note: We don't use 'estCashback' from transactions for the balance calc anymore,
+                // but we keep it for reference or if getApplicableCredits fails.
                 const cashback = transactions.reduce((acc, tx) => acc + (tx.estCashback || 0), 0);
                 return { ...stmt, spend, cashback };
             });
@@ -134,8 +192,14 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                 let finalResult;
 
                 const createStatementObject = (stmt) => {
-                    const year = parseInt(stmt.month.slice(0, 4), 10);
-                    const month = parseInt(stmt.month.slice(4, 6), 10);
+                    let year, month;
+                    if (stmt.month.includes('-')) {
+                        year = parseInt(stmt.month.split('-')[0], 10);
+                        month = parseInt(stmt.month.split('-')[1], 10);
+                    } else {
+                        year = parseInt(stmt.month.slice(0, 4), 10);
+                        month = parseInt(stmt.month.slice(4, 6), 10);
+                    }
 
                     const statementDateObj = new Date(year, month - 1, card.statementDay);
                     statementDateObj.setHours(0, 0, 0, 0);
@@ -150,7 +214,19 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 
                     const paymentDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
 
-                    return { ...stmt, statementDateObj, statementDate: calculatedStatementDate, paymentDateObj: dueDate, daysLeft: daysLeftFn(paymentDate), paymentDate, card };
+                    // --- NEW: Calculate Applicable Cashback Credits ---
+                    const applicableCashback = getApplicableCredits(card.id, statementDateObj, dueDate);
+
+                    return {
+                        ...stmt,
+                        statementDateObj,
+                        statementDate: calculatedStatementDate,
+                        paymentDateObj: dueDate,
+                        daysLeft: daysLeftFn(paymentDate),
+                        paymentDate,
+                        card,
+                        applicableCashback // Pass this new field
+                    };
                 };
 
                 const processAndFinalize = (processedStatements, remainingPastSummaries = []) => {
@@ -169,16 +245,12 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                 };
 
                 if (card.useStatementMonthForPayments) {
-                    // NEW: Decoupled Statement Logic & Fetch-on-Demand Optimization
-
-                    // 1. Calculate Current Expected Statement Month
                     const today = new Date();
                     let targetDate = new Date(today.getFullYear(), today.getMonth(), 1);
                     if (today.getDate() > card.statementDay) {
                         targetDate.setMonth(targetDate.getMonth() + 1);
                     }
 
-                    // 2. Generate Target Months (Current + Past 3)
                     const targetMonths = [];
                     for (let i = 0; i < 4; i++) {
                         const y = targetDate.getFullYear();
@@ -187,17 +259,13 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                         targetDate.setMonth(targetDate.getMonth() - 1);
                     }
 
-                    // 3. Process Target Months
                     const statementPromises = targetMonths.map(async (month) => {
-                        // A. Find existing summary (if any)
                         const existingSummary = allCardSummaries.find(s => s.month === month);
 
-                        // B. OPTIMIZATION: If finalized, skip fetch
                         if (existingSummary && (existingSummary.statementAmount > 0 || existingSummary.reviewed)) {
                             return createStatementObject(existingSummary);
                         }
 
-                        // C. Fetch Active/Missing Data
                         try {
                             const res = await fetch(`${API_BASE_URL}/transactions?month=${month}&filterBy=statementMonth&cardId=${card.id}`);
                             if (!res.ok) throw new Error('Failed');
@@ -214,8 +282,6 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                                 isSynthetic: true
                             };
 
-                            // NOTE: For synthetic data (not yet in monthly summary), we don't have 'finalAmount' from Notion formulas,
-                            // so we fall back to 'spend' (sum of transactions).
                             return createStatementObject({ ...base, spend, cashback });
 
                         } catch (err) {
@@ -226,13 +292,11 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 
                     const activeStatements = (await Promise.all(statementPromises)).filter(Boolean);
 
-                    // 4. Handle Older Statements (Not in target window)
                     const activeMonthsSet = new Set(activeStatements.map(s => s.month));
                     const olderSummaries = allCardSummaries
                         .filter(s => !activeMonthsSet.has(s.month))
                         .map(createStatementObject);
 
-                    // 5. Partition
                     finalResult = processAndFinalize(activeStatements, olderSummaries);
 
                 } else {
@@ -257,7 +321,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
             setIsLoading(false);
         };
         calculatePaymentData();
-    }, [cards, monthlySummary, daysLeftFn]);
+    }, [cards, monthlySummary, daysLeftFn, getApplicableCredits]);
 
     const handleLogPaymentClick = (statement) => {
         setActiveStatement(statement);
@@ -277,17 +341,16 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
         const pastDue = [];
         const upcoming = [];
         const completed = [];
-        const closed = []; // NEW: Bucket for Closed cards
+        const closed = [];
 
         paymentData.forEach(p => {
             if (!p.mainStatement) {
                 return;
             }
 
-            // Check if card is closed
             if (p.mainStatement.card && p.mainStatement.card.status === 'Closed') {
                 closed.push(p);
-                return; // Skip the rest of logic for closed cards, they go straight to their own bucket
+                return;
             }
 
             const {
@@ -295,12 +358,12 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                 statementAmount: rawStatementAmount = 0,
                 paidAmount = 0,
                 spend = 0,
-            finalAmount = 0,
-                cashback = 0
+                finalAmount = 0,
+                applicableCashback = 0
             } = p.mainStatement;
 
-        const estimatedBalance = (finalAmount || spend) - cashback;
-        const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
+            const estimatedBalance = (finalAmount || spend) - applicableCashback;
+            const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
             const remaining = finalStatementAmount - paidAmount;
 
             if (daysLeft === null && remaining > 0) {
@@ -402,100 +465,134 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                <StatCard title="Total Upcoming" value={currencyFn(summaryStats.totalDue)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
-                <StatCard title="Upcoming Bills" value={summaryStats.billCount} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
-                <StatCard title="Next Payment" value={currencyFn(summaryStats.nextPaymentAmount)} icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />} valueClassName="text-orange-600" />
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 flex-1 w-full">
+                    <StatCard title="Total Upcoming" value={currencyFn(summaryStats.totalDue)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
+                    <StatCard title="Upcoming Bills" value={summaryStats.billCount} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
+                    <StatCard title="Next Payment" value={currencyFn(summaryStats.nextPaymentAmount)} icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />} valueClassName="text-orange-600" />
+                </div>
+
+                {/* View Toggle */}
+                <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex shrink-0">
+                    <Button
+                        variant={viewMode === 'list' ? 'white' : 'ghost'}
+                        size="sm"
+                        onClick={() => setViewMode('list')}
+                        className={cn("h-8 gap-2", viewMode === 'list' && "bg-white dark:bg-slate-900 shadow-sm")}
+                    >
+                        <List className="h-4 w-4" />
+                        List
+                    </Button>
+                    <Button
+                        variant={viewMode === 'calendar' ? 'white' : 'ghost'}
+                        size="sm"
+                        onClick={() => setViewMode('calendar')}
+                        className={cn("h-8 gap-2", viewMode === 'calendar' && "bg-white dark:bg-slate-900 shadow-sm")}
+                    >
+                        <CalendarDays className="h-4 w-4" />
+                        Calendar
+                    </Button>
+                </div>
             </div>
-            <div className="space-y-8">
-                {paymentGroups.pastDue.length > 0 && (
-                    <div className="space-y-4">
-                        <h2 className="text-xl font-bold text-red-600">Past Due</h2>
-                        {paymentGroups.pastDue.map(({ mainStatement, ...rest }) => (
-                            <PaymentCard
-                                key={mainStatement.id}
-                                statement={mainStatement}
-                                {...rest}
-                                onLogPayment={handleLogPaymentClick}
-                                onLogStatement={handleLogStatementClick}
-                                onViewTransactions={onViewTransactions}
-                                currencyFn={currencyFn}
-                                fmtYMShortFn={fmtYMShortFn}
-                                onLoadMore={handleLoadMore}
-                                isLoadingMore={isLoadingMore}
-                            />
-                        ))}
-                    </div>
-                )}
 
-                {paymentGroups.upcoming.length > 0 && (
-                    <div className="space-y-4">
-                        <h2 className="text-xl font-bold text-slate-700">Upcoming</h2>
-                        {paymentGroups.upcoming.map(({ mainStatement, ...rest }) => (
-                            <PaymentCard
-                                key={mainStatement.id}
-                                statement={mainStatement}
-                                {...rest}
-                                onLogPayment={handleLogPaymentClick}
-                                onLogStatement={handleLogStatementClick}
-                                onViewTransactions={onViewTransactions}
-                                currencyFn={currencyFn}
-                                fmtYMShortFn={fmtYMShortFn}
-                                onLoadMore={handleLoadMore}
-                                isLoadingMore={isLoadingMore}
-                            />
-                        ))}
-                    </div>
-                )}
+            {viewMode === 'calendar' ? (
+                 <PaymentsCalendarView
+                    paymentData={paymentData}
+                    currencyFn={currencyFn}
+                    onLogPayment={handleLogPaymentClick}
+                 />
+            ) : (
+                <div className="space-y-8 animate-in fade-in duration-300">
+                    {paymentGroups.pastDue.length > 0 && (
+                        <div className="space-y-4">
+                            <h2 className="text-xl font-bold text-red-600">Past Due</h2>
+                            {paymentGroups.pastDue.map(({ mainStatement, ...rest }) => (
+                                <PaymentCard
+                                    key={mainStatement.id}
+                                    statement={mainStatement}
+                                    {...rest}
+                                    onLogPayment={handleLogPaymentClick}
+                                    onLogStatement={handleLogStatementClick}
+                                    onViewTransactions={onViewTransactions}
+                                    currencyFn={currencyFn}
+                                    fmtYMShortFn={fmtYMShortFn}
+                                    onLoadMore={handleLoadMore}
+                                    isLoadingMore={isLoadingMore}
+                                />
+                            ))}
+                        </div>
+                    )}
 
-                {paymentGroups.completed.length > 0 && (
-                    <div className="space-y-4">
-                        <h2 className="text-xl font-bold text-slate-700">Completed</h2>
-                        {paymentGroups.completed.map(({ mainStatement, ...rest }) => (
-                            <PaymentCard
-                                key={mainStatement.id}
-                                statement={mainStatement}
-                                {...rest}
-                                onLogPayment={handleLogPaymentClick}
-                                onLogStatement={handleLogStatementClick}
-                                onViewTransactions={onViewTransactions}
-                                currencyFn={currencyFn}
-                                fmtYMShortFn={fmtYMShortFn}
-                                onLoadMore={handleLoadMore}
-                                isLoadingMore={isLoadingMore}
-                            />
-                        ))}
-                    </div>
-                )}
+                    {paymentGroups.upcoming.length > 0 && (
+                        <div className="space-y-4">
+                            <h2 className="text-xl font-bold text-slate-700">Upcoming</h2>
+                            {paymentGroups.upcoming.map(({ mainStatement, ...rest }) => (
+                                <PaymentCard
+                                    key={mainStatement.id}
+                                    statement={mainStatement}
+                                    {...rest}
+                                    onLogPayment={handleLogPaymentClick}
+                                    onLogStatement={handleLogStatementClick}
+                                    onViewTransactions={onViewTransactions}
+                                    currencyFn={currencyFn}
+                                    fmtYMShortFn={fmtYMShortFn}
+                                    onLoadMore={handleLoadMore}
+                                    isLoadingMore={isLoadingMore}
+                                />
+                            ))}
+                        </div>
+                    )}
 
-                {paymentGroups.closed.length > 0 && (
-                    <Accordion type="single" collapsible className="w-full pt-4">
-                        <AccordionItem value="closed-cards-payments">
-                            <AccordionTrigger className="text-base font-semibold text-muted-foreground">
-                                Show Closed Cards ({paymentGroups.closed.length})
-                            </AccordionTrigger>
-                            <AccordionContent>
-                                <div className="space-y-4 pt-4">
-                                    {paymentGroups.closed.map(({ mainStatement, ...rest }) => (
-                                        <PaymentCard
-                                            key={mainStatement.id}
-                                            statement={mainStatement}
-                                            {...rest}
-                                            onLogPayment={handleLogPaymentClick}
-                                            onLogStatement={handleLogStatementClick}
-                                            onViewTransactions={onViewTransactions}
-                                            currencyFn={currencyFn}
-                                            fmtYMShortFn={fmtYMShortFn}
-                                            onLoadMore={handleLoadMore}
-                                            isLoadingMore={isLoadingMore}
-                                        />
-                                    ))}
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                )}
-            </div>
+                    {paymentGroups.completed.length > 0 && (
+                        <div className="space-y-4">
+                            <h2 className="text-xl font-bold text-slate-700">Completed</h2>
+                            {paymentGroups.completed.map(({ mainStatement, ...rest }) => (
+                                <PaymentCard
+                                    key={mainStatement.id}
+                                    statement={mainStatement}
+                                    {...rest}
+                                    onLogPayment={handleLogPaymentClick}
+                                    onLogStatement={handleLogStatementClick}
+                                    onViewTransactions={onViewTransactions}
+                                    currencyFn={currencyFn}
+                                    fmtYMShortFn={fmtYMShortFn}
+                                    onLoadMore={handleLoadMore}
+                                    isLoadingMore={isLoadingMore}
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {paymentGroups.closed.length > 0 && (
+                        <Accordion type="single" collapsible className="w-full pt-4">
+                            <AccordionItem value="closed-cards-payments">
+                                <AccordionTrigger className="text-base font-semibold text-muted-foreground">
+                                    Show Closed Cards ({paymentGroups.closed.length})
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <div className="space-y-4 pt-4">
+                                        {paymentGroups.closed.map(({ mainStatement, ...rest }) => (
+                                            <PaymentCard
+                                                key={mainStatement.id}
+                                                statement={mainStatement}
+                                                {...rest}
+                                                onLogPayment={handleLogPaymentClick}
+                                                onLogStatement={handleLogStatementClick}
+                                                onViewTransactions={onViewTransactions}
+                                                currencyFn={currencyFn}
+                                                fmtYMShortFn={fmtYMShortFn}
+                                                onLoadMore={handleLoadMore}
+                                                isLoadingMore={isLoadingMore}
+                                            />
+                                        ))}
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                    )}
+                </div>
+            )}
+
             {activeStatement && (
                  <PaymentLogDialog
                     isOpen={dialogOpen}
@@ -523,15 +620,15 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement, onLogPayment, onLogStatement, onViewTransactions, currencyFn, fmtYMShortFn, onLoadMore, isLoadingMore }) {
     const [historyOpen, setHistoryOpen] = useState(false);
 
-    // --- UPDATED: Balance Calculation Logic ---
     const {
         card,
         daysLeft,
-        statementAmount: rawStatementAmount = 0, // Get the raw amount
+        statementAmount: rawStatementAmount = 0,
         paidAmount = 0,
         spend = 0,
         finalAmount = 0,
-        cashback = 0,
+        cashback = 0, // Old simple cashback
+        applicableCashback = 0, // New logic
         statementDateObj
     } = statement;
 
@@ -539,19 +636,17 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
     today.setHours(0, 0, 0, 0);
     const isNotFinalized = statementDateObj && today < statementDateObj;
 
-    // Calculate estimated balance first
-    // UPDATED: Use 'finalAmount' (from Monthly Final Amount) if available, falling back to spend
-    // However, if the card uses Statement Month for payments, we MUST rely on the calculated 'spend'
-    // because the 'finalAmount' in the monthly summary (Notion) corresponds to the calendar month, not the statement cycle.
+    // Use 'finalAmount' if available, otherwise 'spend'
     const baseAmount = card.useStatementMonthForPayments ? spend : (finalAmount || spend);
-    const estimatedBalance = baseAmount - cashback;
-    // Use the actual amount if it exists, otherwise fall back to the estimated balance
+
+    // Use the NEW applicableCashback for the deduction
+    const estimatedBalance = baseAmount - applicableCashback;
+
+    // If rawStatementAmount is set (manual override or finalized), use it. Else use estimated.
     const statementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
 
     const remaining = statementAmount - paidAmount;
-    // A card is considered "paid" if there was a balance and it's now cleared.
     const isPaid = statementAmount > 0 && remaining <= 0;
-    // No payment is needed if the final balance is zero or negative (e.g., cashback > spend).
     const noPaymentNeeded = statementAmount <= 0;
     const isPartiallyPaid = paidAmount > 0 && !isPaid;
 
@@ -622,7 +717,10 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
             <div className="p-4">
                 <div className="flex justify-between items-start mb-4">
                     <div>
-                        <p className="font-bold text-slate-800 dark:text-slate-200 text-lg">{card.name} <span className="text-base font-medium text-slate-400">•••• {card.last4}</span></p>
+                        <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-800 dark:text-slate-200 text-lg">{card.name} <span className="text-base font-medium text-slate-400">•••• {card.last4}</span></p>
+                            {isNotFinalized && <Badge variant="secondary" className="bg-sky-100 text-sky-700 hover:bg-sky-200">Provisional</Badge>}
+                        </div>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
                             <span>
                                 Statement: <span className="font-medium text-slate-600 dark:text-slate-300">{fmtYMShortFn(statement.month)}</span>
@@ -642,7 +740,6 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                     </div>
                 </div>
 
-                {/* --- NEW: "Not Finalized" Banner --- */}
                 {isNotFinalized && (
                     <div className="mb-4 p-3 rounded-lg bg-sky-50 border border-sky-200">
                         <div className="flex items-start gap-3">
@@ -667,10 +764,8 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                     ) : (
                         <>
                             <div className="flex-1 bg-slate-100/80 dark:bg-slate-800/50 rounded-lg p-3">
-                                {/* Label changed from ACTUAL BALANCE */}
                                 <div className="flex items-center gap-2">
                                     <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">STATEMENT BALANCE</p>
-                                    {/* Move the badge logic here and remove the top margin */}
                                     {(rawStatementAmount === 0 || rawStatementAmount === null) && <Badge variant="outline">Estimated</Badge>}
                                 </div>
                                 <p className="text-3xl font-extrabold text-slate-800 dark:text-slate-200 tracking-tight">{currencyFn(statementAmount)}</p>
@@ -680,12 +775,13 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                 </div>
                             </div>
                             <div className="w-full md:w-64 bg-slate-50/70 dark:bg-slate-800/30 rounded-lg p-3">
-                                {/* Label changed from ESTIMATED BALANCE */}
                                 <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">SPEND SUMMARY</p>
                                 <p className="text-2xl font-bold text-slate-500 dark:text-slate-400 tracking-tight">{currencyFn(estimatedBalance)}</p>
                                 <div className="mt-2 space-y-1 text-sm">
                                     <div className="flex justify-between items-center"><span className="text-slate-500 dark:text-slate-400">Total Spend:</span><span className="font-medium text-slate-600 dark:text-slate-300">{currencyFn(spend)}</span></div>
-                                    <div className="flex justify-between items-center"><span className="text-slate-500 dark:text-slate-400">Cashback:</span><span className="font-medium text-emerald-600">-{currencyFn(cashback)}</span></div>
+                                    <div className="flex justify-between items-center"><span className="text-slate-500 dark:text-slate-400">Credits Applied:</span><span className="font-medium text-emerald-600">-{currencyFn(applicableCashback)}</span></div>
+                                    {/* Optional tooltip to explain credits */}
+                                    <div className="text-[10px] text-slate-400 text-right mt-1">Based on cashback landing in this period</div>
                                 </div>
                             </div>
                         </>
@@ -792,7 +888,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                             <div className="md:text-right">
                                 <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Current Est. Balance</p>
                                 <p className="text-2xl font-extrabold text-sky-900 tracking-tight">
-                                    {currencyFn(nextUpcomingStatement.spend - nextUpcomingStatement.cashback)}
+                                    {currencyFn(nextUpcomingStatement.spend - nextUpcomingStatement.applicableCashback)}
                                 </p>
                             </div>
                         </div>
@@ -811,6 +907,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
     );
 }
 
+// ... StatementHistoryTable remains unchanged
 function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, isLoadingMore, currencyFn, fmtYMShortFn, onViewTransactions }) {
     if (!statements || statements.length === 0) {
         return null; // Don't render anything if there are no statements
@@ -850,7 +947,7 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                                     <td className="p-2">{stmt.statementDate}</td>
                                     <td className="p-2">{stmt.paymentDate}</td>
                                     <td className="p-2 text-right">{currencyFn(stmt.spend)}</td>
-                                    <td className="p-2 text-right text-emerald-600">-{currencyFn(stmt.cashback)}</td>
+                                    <td className="p-2 text-right text-emerald-600">-{currencyFn(stmt.applicableCashback || stmt.cashback)}</td>
                                     <td className="p-2 text-right font-bold text-slate-700 dark:text-slate-300">{currencyFn(stmt.statementAmount)}</td>
                                     <td className="p-2 text-right">{currencyFn(stmt.paidAmount)}</td>
                                     <td className="p-2 text-center">
