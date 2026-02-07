@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { DayPicker } from 'react-day-picker';
-import { format, isSameDay, startOfMonth } from 'date-fns';
+import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight, Info, CheckCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { Button } from '../../ui/button';
-import { Badge } from '../../ui/badge';
 import {
     Dialog,
     DialogContent,
@@ -88,9 +87,6 @@ export default function PaymentsCalendarView({ paymentData, currencyFn, onLogPay
     const modifiersStyles = {
         hasEvent: { fontWeight: 'bold' }
     };
-
-    // Custom Day Content to show indicators
-    const footer = selectedDate ? `Selected: ${format(selectedDate, 'PP')}` : "Pick a day.";
 
     return (
         <div className="flex flex-col items-center bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Wallet, CalendarClock, AlertTriangle, Check, Plus, History, FilePenLine, List, ChevronDown, CalendarDays, Coins } from 'lucide-react';
+import { Loader2, Wallet, CalendarClock, AlertTriangle, Check, Plus, History, FilePenLine, List, ChevronDown, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '../../../lib/utils';
@@ -98,8 +98,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                 const spend = transactions.reduce((acc, tx) => acc + (tx['Amount'] || 0), 0);
                 // Note: We don't use 'estCashback' from transactions for the balance calc anymore,
                 // but we keep it for reference or if getApplicableCredits fails.
-                const cashback = transactions.reduce((acc, tx) => acc + (tx.estCashback || 0), 0);
-                return { ...stmt, spend, cashback };
+                return { ...stmt, spend };
             });
 
             const newPastStatements = await Promise.all(statementPromises);
@@ -627,7 +626,6 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
         paidAmount = 0,
         spend = 0,
         finalAmount = 0,
-        cashback = 0, // Old simple cashback
         applicableCashback = 0, // New logic
         statementDateObj
     } = statement;
