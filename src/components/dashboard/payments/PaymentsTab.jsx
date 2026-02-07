@@ -541,7 +541,10 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
     // Calculate estimated balance first
     // UPDATED: Use 'finalAmount' (from Monthly Final Amount) if available, falling back to spend
-    const estimatedBalance = (finalAmount || spend) - cashback;
+    // However, if the card uses Statement Month for payments, we MUST rely on the calculated 'spend'
+    // because the 'finalAmount' in the monthly summary (Notion) corresponds to the calendar month, not the statement cycle.
+    const baseAmount = card.useStatementMonthForPayments ? spend : (finalAmount || spend);
+    const estimatedBalance = baseAmount - cashback;
     // Use the actual amount if it exists, otherwise fall back to the estimated balance
     const statementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
 
