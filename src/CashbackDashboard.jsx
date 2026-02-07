@@ -118,20 +118,27 @@ export default function CashbackDashboard() {
 
 
     // --- SYNC LOGIC ---
-    const handleBackgroundSyncSuccess = useCallback((updatedTransaction) => {
+    const handleBackgroundSyncSuccess = useCallback((updatedTransaction, oldId) => {
+        const targetId = oldId || updatedTransaction.id;
+
         // Find and replace the transaction in the list for an instant UI update
         // without disrupting the user or closing the form
         setMonthlyTransactions(prevTxs =>
-            prevTxs.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
+            prevTxs.map(tx => tx.id === targetId ? updatedTransaction : tx)
         );
 
         // Also update the recent transactions carousel
         setRecentTransactions(prevRecent =>
-            prevRecent.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx)
+            prevRecent.map(tx => tx.id === targetId ? updatedTransaction : tx)
+        );
+
+        // Update Live Transactions (Critical for "Appears Faster")
+        setLiveTransactions(prevLive =>
+            prevLive.map(tx => tx.id === targetId ? updatedTransaction : tx)
         );
 
         setReviewTransactions(prevReview =>
-            prevReview.filter(tx => tx.id !== updatedTransaction.id)
+            prevReview.filter(tx => tx.id !== targetId && tx.id !== updatedTransaction.id)
         );
 
         // Quietly refresh other data, skipping static resources (cards, rules)
@@ -496,6 +503,38 @@ export default function CashbackDashboard() {
 
         refreshData(true, true);
     }, [refreshData, setRecentTransactions, setReviewTransactions]);
+
+    // NEW: Optimistic updates from TransactionReview actions
+    const handleTransactionReviewUpdate = useCallback((action, txId, updatedData) => {
+        if (action === 'delete') {
+            setMonthlyTransactions(prev => prev.filter(tx => tx.id !== txId));
+            setLiveTransactions(prev => prev.filter(tx => tx.id !== txId));
+            setRecentTransactions(prev => prev.filter(tx => tx.id !== txId));
+            setReviewTransactions(prev => prev.filter(tx => tx.id !== txId));
+        } else if (action === 'update' && updatedData) {
+            // Update in lists if exists, otherwise append if it matches current view criteria?
+            // For simplicity and safety, we mainly update existing items.
+            // "Quick Approve" might move it from Review to Main lists if it wasn't there (but usually it is).
+
+            const updateList = (list) => list.map(tx => tx.id === txId ? updatedData : tx);
+
+            setMonthlyTransactions(updateList);
+            setLiveTransactions(updateList);
+            setRecentTransactions(updateList);
+
+            // For Review list, we usually remove it if it's approved/fixed?
+            // Or update it if it still needs review?
+            // TransactionReview component handles removing it from its own list via optimistic state.
+            // But we should sync the prop `reviewTransactions` too.
+            // If updatedData.status is 'Review Needed' or similar, keep it.
+            // If 'Automated' is false and Match is true, it might not be in "needs-review" anymore.
+            // For now, let's assume if we update it here, we update it everywhere.
+             setReviewTransactions(prev => prev.map(tx => tx.id === txId ? updatedData : tx));
+        }
+
+        // We do NOT trigger full refreshData here to keep it instant.
+        // The background refresh is triggered by the caller if needed (e.g. onRefresh prop in TransactionReview).
+    }, [setRecentTransactions, setReviewTransactions]);
 
 
 
@@ -1127,6 +1166,7 @@ export default function CashbackDashboard() {
                             isDesktop={isDesktop}
                             mccMap={mccMap}
                             setReviewTransactions={setReviewTransactions}
+                            onReviewUpdate={handleTransactionReviewUpdate}
                         />
                         <TransactionsList
                             isDesktop={isDesktop}

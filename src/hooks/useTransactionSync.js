@@ -122,7 +122,7 @@ export default function useTransactionSync({ cards, monthlySummary, monthlyCateg
 
                         // Trigger success callback (updates UI)
                         if (onSyncSuccess) {
-                            onSyncSuccess(syncedTransaction);
+                            onSyncSuccess(syncedTransaction, transaction.id);
                         }
 
                         toast.success(`Synced "${syncedTransaction['Transaction Name'] || 'Transaction'}"`);

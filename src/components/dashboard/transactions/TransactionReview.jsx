@@ -34,7 +34,8 @@ const TransactionReview = React.memo(({
     onEditTransaction,
     isDesktop,
     mccMap,
-    setReviewTransactions // NEW PROP for Optimistic Updates
+    setReviewTransactions, // NEW PROP for Optimistic Updates
+    onReviewUpdate // NEW PROP for Optimistic Main List Updates
 }) => {
     // FIX 1: Set initial state to false so it does not auto-expand on load
     const [isOpen, setIsOpen] = useState(false);
@@ -286,6 +287,13 @@ const TransactionReview = React.memo(({
 
                 if (!updateRes.ok) throw new Error("Update failed.");
 
+                const updatedTx = await updateRes.json();
+
+                // Optimistic Update Main Lists
+                if (onReviewUpdate) {
+                    onReviewUpdate('update', tx.id, updatedTx);
+                }
+
                 toast.success("Mismatch fixed & approved.");
                 onRefresh();
             }
@@ -297,6 +305,15 @@ const TransactionReview = React.memo(({
                     body: JSON.stringify({ ids: [tx.id] })
                 });
                 if (!res.ok) throw new Error("Finalize failed");
+
+                // Optimistic Update Main Lists
+                if (onReviewUpdate) {
+                    // "Quick Approve" implies accepting it as is (Automated=false is usually the backend side effect)
+                    // We optimistically update the flag locally
+                    const optimisticTx = { ...tx, Automated: false };
+                    onReviewUpdate('update', tx.id, optimisticTx);
+                }
+
                 toast.success("Transaction approved.");
                 // Background refresh only - do not block UI
                 onRefresh();
@@ -360,6 +377,11 @@ const TransactionReview = React.memo(({
         // Optimistic Update
         if (setReviewTransactions) {
             setReviewTransactions(prev => prev.filter(t => t.id !== id));
+        }
+
+        // Optimistic Update Main Lists
+        if (onReviewUpdate) {
+            onReviewUpdate('delete', id);
         }
 
         try {
