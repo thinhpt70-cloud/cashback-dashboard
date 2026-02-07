@@ -19,7 +19,7 @@ import {
 import { format } from "date-fns";
 
 import { cn } from "../../../lib/utils";
-import { formatDate } from "../../../lib/date";
+import { formatDate, formatTransactionDate } from "../../../lib/date";
 import { Checkbox } from "../../ui/checkbox";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -157,8 +157,9 @@ const TransactionsList = React.memo(({
             label: 'Date',
             sortKey: 'Transaction Date',
             defaultVisible: true,
-            width: 'w-[120px]',
-            renderCell: (tx) => formatDate(tx.effectiveDate)
+            width: 'w-[170px]',
+            cellClass: "whitespace-nowrap",
+            renderCell: (tx) => formatTransactionDate(tx.effectiveDate)
         },
         {
             id: 'name',

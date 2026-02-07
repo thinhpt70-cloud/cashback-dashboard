@@ -19,6 +19,7 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "../../ui/select";
 import { cn } from "../../../lib/utils";
+import { formatTransactionDate } from "../../../lib/date";
 import { toast } from 'sonner';
 import BulkEditDialog from '../dialogs/BulkEditDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../ui/tooltip";
@@ -876,7 +877,7 @@ const TransactionReview = React.memo(({
                                                                 />
                                                             </TableCell>
                                                             <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                                                                {tx['Transaction Date']}
+                                                                {formatTransactionDate(tx['Transaction Date'])}
                                                             </TableCell>
                                                             <TableCell>
                                                                 <div className="font-medium text-sm dark:text-slate-200">{tx['Transaction Name']}</div>
@@ -1025,7 +1026,7 @@ const TransactionReview = React.memo(({
                                                                     <div className="flex-col overflow-hidden">
                                                                         <p className="font-semibold text-sm truncate">{tx['Transaction Name']}</p>
                                                                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                                                            <span>{tx['Transaction Date']}</span>
+                                                                            <span>{formatTransactionDate(tx['Transaction Date'])}</span>
                                                                         </div>
                                                                     </div>
                                                                     <div className="text-right flex-shrink-0">

@@ -225,6 +225,35 @@ export const formatDateTime = (dateStr) => {
 };
 
 /**
+ * Formats a date string for transactions.
+ * Includes time if the input string indicates presence of time (e.g. ISO format).
+ * Returns "DD MMM YYYY" or "DD MMM YYYY • HH:mm".
+ * @param {string} dateStr - The date string to format.
+ * @returns {string} - The formatted string.
+ */
+export const formatTransactionDate = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+
+        // Simple heuristic: YYYY-MM-DD is 10 chars. ISO string with time is longer.
+        const hasTime = dateStr.length > 10;
+
+        const datePart = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+        if (hasTime) {
+            const timePart = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+            return `${datePart} • ${timePart}`;
+        }
+
+        return datePart;
+    } catch (e) {
+        return dateStr;
+    }
+};
+
+/**
  * Formats a date string into a full verbose date and time format (e.g., "Tuesday, 06 Jan 2026 at 00:32").
  * @param {string} dateStr - The date string to format.
  * @returns {string} - The formatted full date and time string.
