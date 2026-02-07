@@ -122,8 +122,8 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                 setHasTime(true);
             }
 
-            setCardId(sourceData['Card'] ? String(sourceData['Card'][0]) : '');
-            setApplicableRuleId(sourceData['Applicable Rule'] ? String(sourceData['Applicable Rule'][0]) : '');
+            setCardId(sourceData['Card'] && sourceData['Card'].length > 0 ? String(sourceData['Card'][0]) : '');
+            setApplicableRuleId(sourceData['Applicable Rule'] && sourceData['Applicable Rule'].length > 0 ? String(sourceData['Applicable Rule'][0]) : '');
             setCardSummaryCategoryId(sourceData['Card Summary Category'] ? sourceData['Card Summary Category'][0] : 'new'); // <-- ADDED THIS
             setCategory(sourceData['Category'] || '');
             setMccCode(sourceData['MCC Code'] || '');

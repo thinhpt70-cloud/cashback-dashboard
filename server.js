@@ -1525,7 +1525,7 @@ app.post('/api/summaries', async (req, res) => {
     try {
         const { cardId, month, ruleId } = req.body;
 
-        if (!cardId || !month || !ruleId) {
+        if (!cardId || !month || !ruleId || cardId === 'undefined' || ruleId === 'undefined') {
             return res.status(400).json({ error: 'cardId, month, and ruleId are required' });
         }
 
