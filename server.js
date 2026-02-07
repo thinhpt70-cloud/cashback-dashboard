@@ -1015,7 +1015,7 @@ app.patch('/api/transactions/:id', async (req, res) => {
         if (merchant) propertiesToUpdate['Transaction Name'] = { title: [{ text: { content: merchant } }] };
         if (typeof amount === 'number') propertiesToUpdate['Amount'] = { number: amount };
         if (date) propertiesToUpdate['Transaction Date'] = { date: { start: date } };
-        if (cardId) propertiesToUpdate['Card'] = { relation: [{ id: cardId }] };
+        if (cardId && cardId !== 'undefined') propertiesToUpdate['Card'] = { relation: [{ id: cardId }] };
         if (category !== undefined) propertiesToUpdate['Category'] = category ? { select: { name: category } } : { select: null };
         if (mccCode !== undefined) propertiesToUpdate['MCC Code'] = { rich_text: mccCode ? [{ text: { content: String(mccCode) } }] : [] };
         if (merchantLookup !== undefined) propertiesToUpdate['Merchant'] = { rich_text: merchantLookup ? [{ text: { content: merchantLookup } }] : [] };
@@ -1029,8 +1029,8 @@ app.patch('/api/transactions/:id', async (req, res) => {
         if (typeof exchangeRate === 'number') propertiesToUpdate['Exchange Rate'] = { number: exchangeRate };
         if (foreignCurrency) propertiesToUpdate['Foreign Currency'] = { select: { name: foreignCurrency } };
         if (typeof conversionFee === 'number') propertiesToUpdate['Conversion Fee'] = { number: conversionFee };
-        if (applicableRuleId !== undefined) propertiesToUpdate['Applicable Rule'] = applicableRuleId ? { relation: [{ id: applicableRuleId }] } : { relation: [] };
-        if (cardSummaryCategoryId !== undefined) propertiesToUpdate['Card Summary Category'] = cardSummaryCategoryId ? { relation: [{ id: cardSummaryCategoryId }] } : { relation: [] };
+        if (applicableRuleId !== undefined && applicableRuleId !== 'undefined') propertiesToUpdate['Applicable Rule'] = applicableRuleId ? { relation: [{ id: applicableRuleId }] } : { relation: [] };
+        if (cardSummaryCategoryId !== undefined && cardSummaryCategoryId !== 'undefined') propertiesToUpdate['Card Summary Category'] = cardSummaryCategoryId ? { relation: [{ id: cardSummaryCategoryId }] } : { relation: [] };
         if (method !== undefined) propertiesToUpdate['Method'] = method ? { select: { name: method } } : { select: null };
 
         propertiesToUpdate['Automated'] = { checkbox: false };
@@ -1396,8 +1396,11 @@ app.post('/api/transactions', async (req, res) => {
             'Transaction Name': { title: [{ text: { content: merchant } }] },
             'Amount': { number: numericAmount },
             'Transaction Date': { date: { start: date } },
-            'Card': { relation: [{ id: cardId }] },
         };
+
+        if (cardId && cardId !== 'undefined') {
+            properties['Card'] = { relation: [{ id: cardId }] };
+        }
 
         // --- CONDITIONALLY ADD ALL NEW & EXISTING OPTIONAL PROPERTIES ---
         if (category) {
@@ -1409,8 +1412,8 @@ app.post('/api/transactions', async (req, res) => {
         }
         if (mccCode) properties['MCC Code'] = { rich_text: [{ text: { content: String(mccCode) } }] };
         if (merchantLookup) properties['Merchant'] = { rich_text: [{ text: { content: String(merchantLookup) } }] };
-        if (applicableRuleId) properties['Applicable Rule'] = { relation: [{ id: applicableRuleId }] };
-        if (cardSummaryCategoryId) properties['Card Summary Category'] = { relation: [{ id: cardSummaryCategoryId }] };
+        if (applicableRuleId && applicableRuleId !== 'undefined') properties['Applicable Rule'] = { relation: [{ id: applicableRuleId }] };
+        if (cardSummaryCategoryId && cardSummaryCategoryId !== 'undefined') properties['Card Summary Category'] = { relation: [{ id: cardSummaryCategoryId }] };
         
         // New Properties
         if (notes) properties['Notes'] = { rich_text: [{ text: { content: notes } }] };
