@@ -216,8 +216,9 @@ describe('TransactionReview', () => {
     const rows = screen.getAllByRole('row');
     const cells = screen.getAllByRole('cell');
 
-    const date1Header = cells.find(c => c.textContent.includes('2023-01-01') && c.getAttribute('colSpan'));
-    const date2Header = cells.find(c => c.textContent.includes('2023-01-05') && c.getAttribute('colSpan'));
+    // Dates are formatted as 'DD MMM YYYY' by formatDate
+    const date1Header = cells.find(c => c.textContent.includes('01 Jan 2023') && c.getAttribute('colSpan'));
+    const date2Header = cells.find(c => c.textContent.includes('05 Jan 2023') && c.getAttribute('colSpan'));
 
     expect(date1Header).toBeInTheDocument();
     expect(date2Header).toBeInTheDocument();
