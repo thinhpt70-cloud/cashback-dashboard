@@ -97,7 +97,9 @@ const TransactionsList = React.memo(({
     dateRange,
     onDateRangeChange,
     getCurrentCashbackMonthForCard,
-    isAppending = false
+    isAppending = false,
+    processingIds = new Set(),
+    syncingIds = new Set()
 }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -961,6 +963,8 @@ const TransactionsList = React.memo(({
                                 onClick={onViewDetails}
                                 cardMap={cardMap}
                                 currencyFn={currency}
+                                isDeleting={processingIds.has(tx.id)}
+                                isUpdating={syncingIds.has(tx.id)}
                             />
                         );
                     })}
@@ -1033,6 +1037,8 @@ const TransactionsList = React.memo(({
                                         onViewDetails={onViewDetails}
                                         onEdit={handleEdit}
                                         onDelete={handleDelete}
+                                        isDeleting={processingIds.has(tx.id)}
+                                        isUpdating={syncingIds.has(tx.id)}
                                     />
                                 );
                             })}

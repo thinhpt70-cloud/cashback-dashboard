@@ -1,4 +1,5 @@
 import React from "react";
+import { Loader2 } from "lucide-react";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
 import { formatDateTime } from "../../lib/date";
@@ -10,11 +11,14 @@ const MobileTransactionItem = React.memo(({
     onSelect,
     onClick,
     cardMap,
-    currencyFn
+    currencyFn,
+    isDeleting,
+    isUpdating
 }) => {
     const tx = transaction;
     const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
     const effectiveDate = tx['billingDate'] || tx['Transaction Date'];
+    const isProcessing = isDeleting || isUpdating;
 
     return (
         <div
@@ -22,10 +26,16 @@ const MobileTransactionItem = React.memo(({
                 "relative flex items-center gap-3 p-3 bg-white dark:bg-slate-950 rounded-xl shadow-sm border transition-all cursor-pointer",
                 isSelected
                     ? "border-blue-500 bg-blue-50/30 dark:bg-blue-900/20 ring-1 ring-blue-500/20"
-                    : "border-slate-100 hover:border-slate-200 dark:border-slate-800"
+                    : "border-slate-100 hover:border-slate-200 dark:border-slate-800",
+                isProcessing && "opacity-60 pointer-events-none"
             )}
-            onClick={() => onClick && onClick(tx)}
+            onClick={() => !isProcessing && onClick && onClick(tx)}
         >
+            {isProcessing && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/20 dark:bg-black/20 backdrop-blur-[1px] rounded-xl">
+                    <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+                </div>
+            )}
             {/* Checkbox Area */}
             <div className="shrink-0" onClick={(e) => { e.stopPropagation(); onSelect && onSelect(tx.id, !isSelected); }}>
                 <Checkbox
