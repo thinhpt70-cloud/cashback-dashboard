@@ -121,7 +121,7 @@ describe('TransactionsList', () => {
     );
 
     // 1. Enable Category Column
-    const columnsBtn = screen.getByText('Columns'); // From Button text
+    const columnsBtn = screen.getByLabelText('Columns'); // From Button text
 
     // In our new mock, DropdownMenuContent renders children directly.
     // So "Category" checkbox item should be present.
