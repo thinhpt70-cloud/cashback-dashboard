@@ -91,6 +91,9 @@ export default function CashbackDashboard() {
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [isFinderOpen, setIsFinderOpen] = useState(false);
 
+    // --- LOADING STATES ---
+    const [processingIds, setProcessingIds] = useState(new Set());
+
     // --- LIVE TRANSACTIONS STATE ---
     const [liveTransactions, setLiveTransactions] = useState([]);
     const [liveCursor, setLiveCursor] = useState(null);
@@ -160,6 +163,9 @@ export default function CashbackDashboard() {
         onSyncSuccess: handleBackgroundSyncSuccess
     });
 
+    const syncingIds = useMemo(() => {
+        return new Set(needsSyncing.filter(t => t.status === 'pending').map(t => t.id));
+    }, [needsSyncing]);
 
     // Fetch review transactions when tab is active
     useEffect(() => {
@@ -383,6 +389,12 @@ export default function CashbackDashboard() {
             return;
         }
 
+        setProcessingIds(prev => {
+            const next = new Set(prev);
+            next.add(deletedTxId);
+            return next;
+        });
+
         try {
             // 2. Call the backend API to archive the page in Notion
             const response = await fetch(`${API_BASE_URL}/transactions/${deletedTxId}`, {
@@ -413,6 +425,12 @@ export default function CashbackDashboard() {
         } catch (error) {
             console.error("Delete failed:", error);
             toast.error("Could not delete the transaction. Please try again.");
+        } finally {
+            setProcessingIds(prev => {
+                const next = new Set(prev);
+                next.delete(deletedTxId);
+                return next;
+            });
         }
     }, [setRecentTransactions, setReviewTransactions, refreshData]);
 
@@ -438,6 +456,12 @@ export default function CashbackDashboard() {
             return;
         }
 
+        setProcessingIds(prev => {
+            const next = new Set(prev);
+            transactionIds.forEach(id => next.add(id));
+            return next;
+        });
+
         try {
             const response = await fetch(`${API_BASE_URL}/transactions/bulk-delete`, {
                 method: 'POST',
@@ -460,6 +484,12 @@ export default function CashbackDashboard() {
         } catch (error) {
             console.error("Bulk delete failed:", error);
             toast.error("Could not delete transactions. Please try again.");
+        } finally {
+            setProcessingIds(prev => {
+                const next = new Set(prev);
+                transactionIds.forEach(id => next.delete(id));
+                return next;
+            });
         }
     }, [setRecentTransactions, setReviewTransactions, refreshData]);
 
@@ -1196,6 +1226,8 @@ export default function CashbackDashboard() {
                             fmtYMShortFn={fmtYMShort}
                             rules={cashbackRules}
                             getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                            processingIds={processingIds}
+                            syncingIds={syncingIds}
 
                             // Server-side props
                             isServerSide={activeMonth === 'live'}
