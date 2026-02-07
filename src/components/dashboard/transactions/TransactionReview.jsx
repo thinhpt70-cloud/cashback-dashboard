@@ -413,6 +413,11 @@ const TransactionReview = React.memo(({
              setSelectedIds(new Set());
         }
 
+        // Optimistic Update Main Lists
+        if (onReviewUpdate) {
+            onReviewUpdate('delete', ids);
+        }
+
         try {
             const res = await fetch('/api/transactions/bulk-delete', {
                 method: 'POST',

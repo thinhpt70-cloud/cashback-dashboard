@@ -397,6 +397,7 @@ export default function CashbackDashboard() {
             // 3. If successful, update the UI
             // Remove the transaction from the main list to update the UI instantly
             setMonthlyTransactions(prevTxs => prevTxs.filter(tx => tx.id !== deletedTxId));
+            setLiveTransactions(prev => prev.filter(tx => tx.id !== deletedTxId)); // Optimistic Live Update
 
             // Also remove it from the recent transactions carousel for consistency
             setRecentTransactions(prevRecent => prevRecent.filter(tx => tx.id !== deletedTxId));
@@ -448,9 +449,12 @@ export default function CashbackDashboard() {
                 throw new Error('Failed to delete transactions on the server.');
             }
 
-            setMonthlyTransactions(prevTxs => prevTxs.filter(tx => !transactionIds.includes(tx.id)));
-            setRecentTransactions(prevRecent => prevRecent.filter(tx => !transactionIds.includes(tx.id)));
-            setReviewTransactions(prevReview => prevReview.filter(tx => !transactionIds.includes(tx.id)));
+            const idsSet = new Set(transactionIds);
+
+            setMonthlyTransactions(prevTxs => prevTxs.filter(tx => !idsSet.has(tx.id)));
+            setLiveTransactions(prev => prev.filter(tx => !idsSet.has(tx.id))); // Optimistic Live Update
+            setRecentTransactions(prevRecent => prevRecent.filter(tx => !idsSet.has(tx.id)));
+            setReviewTransactions(prevReview => prevReview.filter(tx => !idsSet.has(tx.id)));
             toast.success(`${transactionIds.length} transactions deleted successfully!`);
             refreshData(true, true);
         } catch (error) {
@@ -505,18 +509,20 @@ export default function CashbackDashboard() {
     }, [refreshData, setRecentTransactions, setReviewTransactions]);
 
     // NEW: Optimistic updates from TransactionReview actions
-    const handleTransactionReviewUpdate = useCallback((action, txId, updatedData) => {
+    const handleTransactionReviewUpdate = useCallback((action, txIdOrIds, updatedData) => {
         if (action === 'delete') {
-            setMonthlyTransactions(prev => prev.filter(tx => tx.id !== txId));
-            setLiveTransactions(prev => prev.filter(tx => tx.id !== txId));
-            setRecentTransactions(prev => prev.filter(tx => tx.id !== txId));
-            setReviewTransactions(prev => prev.filter(tx => tx.id !== txId));
+            const idsToDelete = Array.isArray(txIdOrIds) ? new Set(txIdOrIds) : new Set([txIdOrIds]);
+
+            setMonthlyTransactions(prev => prev.filter(tx => !idsToDelete.has(tx.id)));
+            setLiveTransactions(prev => prev.filter(tx => !idsToDelete.has(tx.id)));
+            setRecentTransactions(prev => prev.filter(tx => !idsToDelete.has(tx.id)));
+            setReviewTransactions(prev => prev.filter(tx => !idsToDelete.has(tx.id)));
         } else if (action === 'update' && updatedData) {
             // Update in lists if exists, otherwise append if it matches current view criteria?
             // For simplicity and safety, we mainly update existing items.
             // "Quick Approve" might move it from Review to Main lists if it wasn't there (but usually it is).
 
-            const updateList = (list) => list.map(tx => tx.id === txId ? updatedData : tx);
+            const updateList = (list) => list.map(tx => tx.id === txIdOrIds ? updatedData : tx);
 
             setMonthlyTransactions(updateList);
             setLiveTransactions(updateList);
@@ -529,7 +535,7 @@ export default function CashbackDashboard() {
             // If updatedData.status is 'Review Needed' or similar, keep it.
             // If 'Automated' is false and Match is true, it might not be in "needs-review" anymore.
             // For now, let's assume if we update it here, we update it everywhere.
-             setReviewTransactions(prev => prev.map(tx => tx.id === txId ? updatedData : tx));
+             setReviewTransactions(prev => prev.map(tx => tx.id === txIdOrIds ? updatedData : tx));
         }
 
         // We do NOT trigger full refreshData here to keep it instant.
