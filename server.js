@@ -1529,6 +1529,10 @@ app.post('/api/summaries', async (req, res) => {
             return res.status(400).json({ error: 'cardId, month, and ruleId are required' });
         }
 
+        if (cardId === 'undefined' || ruleId === 'undefined') {
+            return res.status(400).json({ error: 'Invalid cardId or ruleId (value is "undefined" string).' });
+        }
+
         // --- Step 1: Get names needed to build the unique IDs ---
         const cardPage = await notion.pages.retrieve({ page_id: cardId });
         const bankName = cardPage.properties['Bank']?.select?.name || 'Untitled Bank';
