@@ -1220,10 +1220,18 @@ const TransactionsList = React.memo(({
 
                                     {/* Group By */}
                                     <Select value={groupBy} onValueChange={setGroupBy}>
-                                        <SelectTrigger className="hidden md:flex w-full md:w-[160px] h-10">
-                                            <div className="flex items-center gap-2">
-                                                <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                                                <span className="truncate">Group: {groupBy === 'none' ? 'None' : groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</span>
+                                        <SelectTrigger
+                                            className={cn(
+                                                "hidden md:flex h-10 w-10 p-0 items-center justify-center [&>svg]:hidden",
+                                                groupBy !== 'none' && "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-900 dark:border-slate-100"
+                                            )}
+                                            aria-label="Group by"
+                                        >
+                                            <div className="flex items-center justify-center">
+                                                <Layers className={cn(
+                                                    "h-4 w-4",
+                                                    groupBy === 'none' ? "text-muted-foreground" : "text-white dark:text-slate-900"
+                                                )} />
                                             </div>
                                         </SelectTrigger>
                                         <SelectContent>
@@ -1239,9 +1247,8 @@ const TransactionsList = React.memo(({
                                     {/* Columns Selection - REFACTORED */}
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="outline" className="h-10">
-                                                <Settings2 className="h-3.5 w-3.5 mr-2" />
-                                                Columns
+                                            <Button variant="outline" size="icon" className="h-10 w-10" aria-label="Columns">
+                                                <Settings2 className="h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-[180px]">
