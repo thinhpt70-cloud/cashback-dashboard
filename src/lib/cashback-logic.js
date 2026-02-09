@@ -6,6 +6,7 @@
  * @param {number} monthlyLimit - The "Overall Monthly Limit" of the card (Tier 1 cap).
  * @returns {{ total: number, tier1: number, tier2: number }}
  */
+// Calculates cashback split for Tier 1 and Tier 2
 export const calculateCashbackSplit = (actualCashback, adjustment, monthlyLimit) => {
     // ACTUAL CASHBACK from Notion already includes the adjustment (via Formula).
     // So we use it directly as the total.
