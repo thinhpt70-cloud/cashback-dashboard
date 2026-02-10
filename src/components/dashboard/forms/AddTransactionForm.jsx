@@ -555,7 +555,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                             <input
                                 ref={dateInputRef}
                                 type={hasTime ? "datetime-local" : "date"}
-                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                className={cn("absolute inset-0 opacity-0 cursor-pointer", isDesktop && "pointer-events-none")}
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
                                 required
