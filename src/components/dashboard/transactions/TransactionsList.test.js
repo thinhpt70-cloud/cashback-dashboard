@@ -84,6 +84,14 @@ jest.mock('./TransactionRow', () => ({ transaction }) => (
   </tr>
 ));
 
+// Mock TableFilters to avoid ESM issues with react-day-picker
+jest.mock('./TableFilters', () => ({
+  TableFilterText: () => <div>Filter Text</div>,
+  TableFilterDateRange: () => <div>Filter Date</div>,
+  TableFilterMultiSelect: () => <div>Filter Multi</div>,
+  TableFilterNumeric: () => <div>Filter Numeric</div>
+}));
+
 describe('TransactionsList', () => {
   const mockTransactions = [
     {
