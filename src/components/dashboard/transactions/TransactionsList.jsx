@@ -63,6 +63,12 @@ import MethodIndicator from "../../shared/MethodIndicator";
 import TransactionRow from "./TransactionRow";
 import useDebounce from "../../../hooks/useDebounce";
 import BulkEditDialog from "../dialogs/BulkEditDialog";
+import {
+    TableFilterText,
+    TableFilterDateRange,
+    TableFilterMultiSelect,
+    TableFilterNumeric
+} from './TableFilters';
 
 // Moved currency function outside to be stable
 const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
@@ -113,6 +119,7 @@ const TransactionsList = React.memo(({
     const [groupBy, setGroupBy] = useState("date");
     const [sortByValue, setSortByValue] = useState('Newest');
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
+    const [columnFilters, setColumnFilters] = useState({});
 
     const effectiveDateRange = isServerSide ? dateRange : internalDateRange;
 
@@ -138,6 +145,19 @@ const TransactionsList = React.memo(({
     // ------------------------------------------------------------------
     // 1. Column Configuration
     // ------------------------------------------------------------------
+
+    const categories = useMemo(() => {
+        // Use provided categories prop if available, otherwise derive from transactions
+        const baseCategories = allCategoriesProp && allCategoriesProp.length > 0
+            ? allCategoriesProp
+            : Array.from(new Set(transactions.map(tx => tx['Category']).filter(Boolean)));
+
+        // Ensure we sort and remove duplicates just in case
+        const uniqueCategories = Array.from(new Set(baseCategories));
+        uniqueCategories.sort((a, b) => a.localeCompare(b));
+        return ["all", ...uniqueCategories];
+    }, [transactions, allCategoriesProp]);
+
     const ruleMap = useMemo(() => {
         if (!rules) return new Map();
         return new Map(rules.map(r => [r.id, r]));
@@ -159,6 +179,8 @@ const TransactionsList = React.memo(({
             defaultVisible: true,
             width: 'w-[170px]',
             cellClass: "whitespace-nowrap",
+            filterType: 'date-range',
+            accessor: (tx) => tx.effectiveDate,
             renderCell: (tx) => formatTransactionDate(tx.effectiveDate)
         },
         {
@@ -166,6 +188,8 @@ const TransactionsList = React.memo(({
             label: 'Transaction Name',
             sortKey: 'Transaction Name',
             defaultVisible: true,
+            filterType: 'text',
+            accessor: (tx) => tx['Transaction Name'],
             renderCell: (tx) => (
                 <div className="flex items-center gap-2">
                     <MethodIndicator method={tx['Method']} />
@@ -183,6 +207,8 @@ const TransactionsList = React.memo(({
             defaultVisible: true,
             headerClass: "text-right",
             cellClass: "text-right",
+            filterType: 'numeric',
+            accessor: (tx) => tx['Amount'],
             renderCell: (tx) => currency(tx['Amount'])
         },
         {
@@ -192,6 +218,8 @@ const TransactionsList = React.memo(({
             defaultVisible: true,
             headerClass: "text-right",
             cellClass: "text-right font-medium text-emerald-600",
+            filterType: 'numeric',
+            accessor: (tx) => tx.estCashback,
             renderCell: (tx) => currency(tx.estCashback)
         },
         {
@@ -199,6 +227,9 @@ const TransactionsList = React.memo(({
             label: 'Card Name',
             sortKey: 'Card',
             defaultVisible: true,
+            filterType: 'multi-select',
+            accessor: (tx) => tx['Card'] && tx['Card'][0],
+            filterOptions: allCards.map(c => ({ label: c.name, value: c.id })),
             renderCell: (tx) => {
                 const card = tx['Card'] ? cardMap.get(tx['Card'][0]) : null;
                 return card ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{card.name}</Badge> : 'N/A';
@@ -209,12 +240,18 @@ const TransactionsList = React.memo(({
             label: 'Category',
             sortKey: 'Category',
             defaultVisible: false,
+            filterType: 'multi-select',
+            accessor: (tx) => tx['Category'],
+            filterOptions: categories.filter(c => c !== 'all').map(c => ({ label: c, value: c })),
             renderCell: (tx) => tx['Category'] || ''
         },
         {
             id: 'rule',
             label: 'Applicable Rule',
             defaultVisible: false,
+            filterType: 'multi-select',
+            accessor: (tx) => tx['Applicable Rule'] && tx['Applicable Rule'][0],
+            filterOptions: rules.map(r => ({ label: r.ruleName || r.name, value: r.id })),
             renderCell: (tx) => {
                 const ruleId = tx['Applicable Rule'] && tx['Applicable Rule'][0];
                 const rule = ruleId ? ruleMap.get(ruleId) : null;
@@ -226,12 +263,16 @@ const TransactionsList = React.memo(({
             id: 'mcc',
             label: 'MCC Code',
             defaultVisible: false,
+            filterType: 'text',
+            accessor: (tx) => tx['MCC Code'],
             renderCell: (tx) => tx['MCC Code'] ? `${tx['MCC Code']} - ${mccNameFn ? mccNameFn(tx['MCC Code']) : ''}` : ''
         },
         {
             id: 'notes',
             label: 'Notes',
             defaultVisible: false,
+            filterType: 'text',
+            accessor: (tx) => tx['Notes'],
             renderCell: (tx) => tx['Notes'] || ''
         },
         {
@@ -241,6 +282,8 @@ const TransactionsList = React.memo(({
             defaultVisible: true,
             headerClass: "text-center",
             cellClass: "text-center",
+            filterType: 'numeric',
+            accessor: (tx) => tx.rate ? tx.rate * 100 : 0,
             renderCell: (tx) => (
                 <Badge variant="outline" className={cn("font-mono", getRateColor(tx.rate))}>
                     {(tx.rate * 100).toFixed(1)}%
@@ -252,6 +295,8 @@ const TransactionsList = React.memo(({
             label: 'Paid for',
             sortKey: 'Paid for',
             defaultVisible: false,
+            filterType: 'text',
+            accessor: (tx) => tx.paidFor,
             renderCell: (tx) => tx.paidFor ? <Badge variant="secondary">{tx.paidFor}</Badge> : ''
         },
         {
@@ -259,6 +304,9 @@ const TransactionsList = React.memo(({
             label: 'Method',
             sortKey: 'Method',
             defaultVisible: false,
+            filterType: 'multi-select',
+            accessor: (tx) => tx['Method'],
+            filterOptions: [{label: 'POS', value: 'POS'}, {label: 'eCom', value: 'eCom'}, {label: 'International', value: 'International'}],
             renderCell: (tx) => tx['Method'] && (
                 <Badge variant="outline" className={cn(
                     "font-mono font-normal",
@@ -271,7 +319,7 @@ const TransactionsList = React.memo(({
                 </Badge>
             )
         }
-    ], [cardMap, ruleMap, mccNameFn]);
+    ], [cardMap, ruleMap, mccNameFn, allCards, categories, rules]);
 
     // Initialize visibility state based on config defaults
     const [visibleColumnIds, setVisibleColumnIds] = useState(() => {
@@ -307,18 +355,6 @@ const TransactionsList = React.memo(({
         else if (sortConfig.key === 'Amount' && sortConfig.direction === 'ascending') setSortByValue('Amount: Low');
         else setSortByValue('Custom');
     }, [sortConfig]);
-
-    const categories = useMemo(() => {
-        // Use provided categories prop if available, otherwise derive from transactions
-        const baseCategories = allCategoriesProp && allCategoriesProp.length > 0
-            ? allCategoriesProp
-            : Array.from(new Set(transactions.map(tx => tx['Category']).filter(Boolean)));
-
-        // Ensure we sort and remove duplicates just in case
-        const uniqueCategories = Array.from(new Set(baseCategories));
-        uniqueCategories.sort((a, b) => a.localeCompare(b));
-        return ["all", ...uniqueCategories];
-    }, [transactions, allCategoriesProp]);
 
     const enrichedTransactions = useMemo(() => {
         return transactions.map(tx => {
@@ -393,6 +429,50 @@ const TransactionsList = React.memo(({
             );
         }
 
+        // Column Filters
+        const activeColumnFilters = Object.entries(columnFilters).filter(([_, val]) => val !== undefined && val !== '');
+        if (activeColumnFilters.length > 0) {
+            items = items.filter(tx => {
+                return activeColumnFilters.every(([colId, filterValue]) => {
+                    const colConfig = columnsConfig.find(c => c.id === colId);
+                    if (!colConfig || !colConfig.accessor) return true;
+
+                    const rawValue = colConfig.accessor(tx);
+
+                    if (colConfig.filterType === 'text') {
+                        if (!filterValue) return true;
+                        return String(rawValue || '').toLowerCase().includes(filterValue.toLowerCase());
+                    }
+
+                    if (colConfig.filterType === 'date-range') {
+                        if (!filterValue || !filterValue.from) return true;
+                        // rawValue is YYYY-MM-DD string
+                        const fromStr = format(filterValue.from, 'yyyy-MM-dd');
+                        const toStr = filterValue.to ? format(filterValue.to, 'yyyy-MM-dd') : fromStr;
+                        return rawValue >= fromStr && rawValue <= toStr;
+                    }
+
+                    if (colConfig.filterType === 'numeric') {
+                        if (!filterValue || !filterValue.value) return true;
+                        const numVal = parseFloat(filterValue.value);
+                        const txVal = parseFloat(rawValue || 0);
+                        if (isNaN(numVal)) return true;
+
+                        if (filterValue.operator === 'gt') return txVal > numVal;
+                        if (filterValue.operator === 'lt') return txVal < numVal;
+                        return Math.abs(txVal - numVal) < 0.001;
+                    }
+
+                    if (colConfig.filterType === 'multi-select') {
+                        if (!filterValue || filterValue.length === 0) return true;
+                        return filterValue.includes(rawValue);
+                    }
+
+                    return true;
+                });
+            });
+        }
+
         items = items
         .filter(tx => cardFilter === "all" || (tx['Card'] && tx['Card'][0] === cardFilter))
         .filter(tx => categoryFilter === "all" || tx['Category'] === categoryFilter)
@@ -411,7 +491,7 @@ const TransactionsList = React.memo(({
 
         // No need to sort here! 'items' retains the order from 'sortedTransactions'.
         return items;
-    }, [sortedTransactions, searchTerm, cardFilter, categoryFilter, methodFilter, isServerSide, effectiveDateRange]);
+    }, [sortedTransactions, searchTerm, cardFilter, categoryFilter, methodFilter, isServerSide, effectiveDateRange, columnFilters, columnsConfig]);
 
     useEffect(() => {
         // Reset visible count when filters change or mode changes
@@ -1012,6 +1092,42 @@ const TransactionsList = React.memo(({
                                 ))}
 
                                 <TableHead className="w-[100px] text-center">Actions</TableHead>
+                            </TableRow>
+                            {/* Filter Row */}
+                            <TableRow className="hover:bg-transparent bg-slate-50/50 dark:bg-slate-900/50">
+                                <TableHead className="p-2"></TableHead>
+                                <TableHead></TableHead>
+                                {activeColumns.map(col => (
+                                    <TableHead key={`filter-${col.id}`} className="p-2 align-top h-auto">
+                                        {col.filterType === 'text' && (
+                                            <TableFilterText
+                                                value={columnFilters[col.id]}
+                                                onChange={(val) => setColumnFilters(prev => ({ ...prev, [col.id]: val }))}
+                                                placeholder={`Filter...`}
+                                            />
+                                        )}
+                                        {col.filterType === 'date-range' && (
+                                            <TableFilterDateRange
+                                                value={columnFilters[col.id]}
+                                                onChange={(val) => setColumnFilters(prev => ({ ...prev, [col.id]: val }))}
+                                            />
+                                        )}
+                                        {col.filterType === 'numeric' && (
+                                            <TableFilterNumeric
+                                                value={columnFilters[col.id]}
+                                                onChange={(val) => setColumnFilters(prev => ({ ...prev, [col.id]: val }))}
+                                            />
+                                        )}
+                                        {col.filterType === 'multi-select' && (
+                                            <TableFilterMultiSelect
+                                                value={columnFilters[col.id]}
+                                                options={col.filterOptions || []}
+                                                onChange={(val) => setColumnFilters(prev => ({ ...prev, [col.id]: val }))}
+                                            />
+                                        )}
+                                    </TableHead>
+                                ))}
+                                <TableHead></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
