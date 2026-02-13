@@ -86,7 +86,7 @@ export default function CardInfoSheet({ card, rules, mccMap, isDesktop }) {
                 side={side}
                 className={cn(
                     "flex flex-col p-0",
-                    isDesktop ? "w-full sm:max-w-2xl" : "h-[90dvh]"
+                    isDesktop ? "w-full sm:max-w-2xl" : "h-[90vh]"
                 )}
                 {...sheetProps}
             >

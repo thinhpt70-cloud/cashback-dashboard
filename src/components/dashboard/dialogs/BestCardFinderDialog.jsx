@@ -885,7 +885,7 @@ export default function BestCardFinderDialog(props) {
     // --- MOBILE: DRAWER ---
     return (
         <Drawer open={isOpen} onOpenChange={onOpenChange}>
-            <DrawerContent className="h-[92dvh] rounded-t-xl overflow-hidden flex flex-col">
+            <DrawerContent className="h-[92vh] rounded-t-xl overflow-hidden flex flex-col">
                 <DrawerHeader className="sr-only">
                     <DrawerTitle>Card Finder</DrawerTitle>
                     <DrawerDescription>Search for the best card</DrawerDescription>

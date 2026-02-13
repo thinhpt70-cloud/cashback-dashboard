@@ -984,7 +984,7 @@ export default function CashbackDashboard() {
                                 className={cn(
                                     "flex flex-col p-0",
                                     "w-full sm:max-w-2xl",
-                                    !isDesktop && "h-[90dvh]"
+                                    !isDesktop && "h-[90vh]"
                                 )}
                             >
                                 <SheetHeader className="px-6 pt-6">
@@ -1012,7 +1012,7 @@ export default function CashbackDashboard() {
                         <Sheet open={!!editingTransaction} onOpenChange={(isOpen) => !isOpen && setEditingTransaction(null)}>
                             <SheetContent
                                 side={addTxSheetSide}
-                                className={cn("flex flex-col p-0", "w-full sm:max-w-2xl", !isDesktop && "h-[90dvh]")}
+                                className={cn("flex flex-col p-0", "w-full sm:max-w-2xl", !isDesktop && "h-[90vh]")}
                             >
                                 <SheetHeader className="px-6 pt-6">
                                     <SheetTitle>Edit Transaction</SheetTitle>
