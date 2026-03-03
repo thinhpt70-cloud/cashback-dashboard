@@ -498,7 +498,10 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                  <PaymentsCalendarView
                     paymentData={paymentData}
                     currencyFn={currencyFn}
+                    fmtYMShortFn={fmtYMShortFn}
                     onLogPayment={handleLogPaymentClick}
+                    onLogStatement={handleLogStatementClick}
+                    onViewTransactions={onViewTransactions}
                  />
             ) : (
                 <div className="space-y-8 animate-in fade-in duration-300">
