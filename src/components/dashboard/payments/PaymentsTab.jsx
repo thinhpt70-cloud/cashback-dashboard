@@ -127,52 +127,49 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const activeWindowStatements = allStatements
-            .filter(s => s.statementDateObj && s.paymentDateObj && today >= s.statementDateObj && today <= s.paymentDateObj)
-            .sort((a, b) => a.paymentDateObj - b.paymentDateObj);
+        // Sort by payment date
+        const sortedStatements = [...allStatements].sort((a, b) => a.paymentDateObj - b.paymentDateObj);
 
-        if (activeWindowStatements.length > 0) {
-            const mainStatement = activeWindowStatements[0];
-            const otherStatements = allStatements.filter(s => s.id !== mainStatement.id);
+        // 1. Prioritize ANY unpaid statement that has passed its statement date (Actual bill to pay)
+        const firstUnpaidFinalizedIndex = sortedStatements.findIndex(s => {
+            const isFinalized = s.statementDateObj && today >= s.statementDateObj;
+            const remaining = s.statementAmount > 0 ? (s.statementAmount - (s.paidAmount || 0)) : ((s.finalAmount || s.spend) - (s.applicableCashback || 0) - (s.paidAmount || 0));
+            return isFinalized && remaining > 0;
+        });
 
-            const upcomingStatements = otherStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
-            const pastStatements = otherStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
+        // 2. If no unpaid finalized statement, look for the current active window estimate
+        const activeWindowIndex = sortedStatements.findIndex(s => s.statementDateObj && s.paymentDateObj && today >= s.statementDateObj && today <= s.paymentDateObj);
 
-            return {
-                mainStatement,
-                upcomingStatements,
-                pastStatements
-            };
-        }
-
-        const upcoming = allStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
-        const past = allStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
-
-        const firstUnpaidUpcomingIndex = upcoming.findIndex(s => (s.statementAmount - (s.paidAmount || 0)) > 0);
-        const firstUnpaidPastIndex = past.findIndex(s => (s.statementAmount - (s.paidAmount || 0)) > 0);
+        // 3. If neither, fallback to the first unpaid of any kind
+        const firstUnpaidIndex = sortedStatements.findIndex(s => {
+            const remaining = s.statementAmount > 0 ? (s.statementAmount - (s.paidAmount || 0)) : ((s.finalAmount || s.spend) - (s.applicableCashback || 0) - (s.paidAmount || 0));
+            return remaining > 0;
+        });
 
         let mainStatement = null;
-        let finalUpcoming = [...upcoming];
-        let finalPast = [...past];
+        let otherStatements = [...sortedStatements];
 
-        if (firstUnpaidUpcomingIndex !== -1) {
-            mainStatement = finalUpcoming[firstUnpaidUpcomingIndex];
-            finalUpcoming.splice(firstUnpaidUpcomingIndex, 1);
-        } else if (firstUnpaidPastIndex !== -1) {
-            mainStatement = finalPast[firstUnpaidPastIndex];
-            finalPast.splice(firstUnpaidPastIndex, 1);
-        } else {
-            if (finalUpcoming.length > 0) {
-                mainStatement = finalUpcoming.shift();
-            } else if (finalPast.length > 0) {
-                mainStatement = finalPast.shift();
-            }
+        if (firstUnpaidFinalizedIndex !== -1) {
+            mainStatement = otherStatements[firstUnpaidFinalizedIndex];
+            otherStatements.splice(firstUnpaidFinalizedIndex, 1);
+        } else if (activeWindowIndex !== -1) {
+            mainStatement = otherStatements[activeWindowIndex];
+            otherStatements.splice(activeWindowIndex, 1);
+        } else if (firstUnpaidIndex !== -1) {
+            mainStatement = otherStatements[firstUnpaidIndex];
+            otherStatements.splice(firstUnpaidIndex, 1);
+        } else if (otherStatements.length > 0) {
+            mainStatement = otherStatements[0];
+            otherStatements.splice(0, 1);
         }
 
+        const upcomingStatements = otherStatements.filter(s => s.daysLeft !== null).sort((a, b) => a.daysLeft - b.daysLeft);
+        const pastStatements = otherStatements.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
+
         return {
-            mainStatement: mainStatement,
-            upcomingStatements: finalUpcoming,
-            pastStatements: finalPast
+            mainStatement,
+            upcomingStatements,
+            pastStatements
         };
     };
 
@@ -334,13 +331,16 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 
     const paymentGroups = useMemo(() => {
         if (!paymentData) {
-            return { pastDue: [], upcoming: [], completed: [] };
+            return { actionRequired: [], currentEstimates: [], completed: [], closed: [] };
         }
 
-        const pastDue = [];
-        const upcoming = [];
+        const actionRequired = [];
+        const currentEstimates = [];
         const completed = [];
         const closed = [];
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
         paymentData.forEach(p => {
             if (!p.mainStatement) {
@@ -358,25 +358,48 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                 paidAmount = 0,
                 spend = 0,
                 finalAmount = 0,
-                applicableCashback = 0
+                applicableCashback = 0,
+                statementDateObj
             } = p.mainStatement;
 
-            const estimatedBalance = (finalAmount || spend) - applicableCashback;
+            const baseAmount = p.mainStatement.card.useStatementMonthForPayments ? spend : (finalAmount || spend);
+            const estimatedBalance = baseAmount - applicableCashback;
             const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
             const remaining = finalStatementAmount - paidAmount;
 
-            if (daysLeft === null && remaining > 0) {
-                pastDue.push(p);
-            }
-            else if (daysLeft !== null && remaining > 0) {
-                upcoming.push(p);
-            }
-            else {
+            const isPaid = finalStatementAmount > 0 && remaining <= 0;
+            const noPaymentNeeded = finalStatementAmount <= 0;
+            const isFinalized = statementDateObj && today >= statementDateObj;
+
+            if (noPaymentNeeded || isPaid || daysLeft === null) {
+                // Keep past due out of completed
+                if (daysLeft === null && remaining > 0) {
+                    actionRequired.push(p);
+                } else {
+                    completed.push(p);
+                }
+            } else if (isFinalized && remaining > 0) {
+                // Statement generated, payment needed soon
+                actionRequired.push(p);
+            } else if (!isFinalized && remaining > 0) {
+                // Current cycle, statement not yet generated
+                currentEstimates.push(p);
+            } else {
                 completed.push(p);
             }
         });
 
-        return { pastDue, upcoming, completed, closed };
+        // Sort Action Required: highest priority (past due) first, then soonest payment date
+        actionRequired.sort((a, b) => {
+            const aDays = a.mainStatement.daysLeft;
+            const bDays = b.mainStatement.daysLeft;
+            if (aDays === null && bDays !== null) return -1;
+            if (aDays !== null && bDays === null) return 1;
+            if (aDays !== null && bDays !== null) return aDays - bDays;
+            return a.mainStatement.paymentDateObj - b.mainStatement.paymentDateObj;
+        });
+
+        return { actionRequired, currentEstimates, completed, closed };
     }, [paymentData]);
 
     const handleSavePayment = async (statementId, newPaidAmount) => {
@@ -505,10 +528,13 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                  />
             ) : (
                 <div className="space-y-8 animate-in fade-in duration-300">
-                    {paymentGroups.pastDue.length > 0 && (
+                    {paymentGroups.actionRequired.length > 0 && (
                         <div className="space-y-4">
-                            <h2 className="text-xl font-bold text-red-600">Past Due</h2>
-                            {paymentGroups.pastDue.map(({ mainStatement, ...rest }) => (
+                            <h2 className="text-xl font-bold text-red-600 flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5" />
+                                Action Required / Due Soon
+                            </h2>
+                            {paymentGroups.actionRequired.map(({ mainStatement, ...rest }) => (
                                 <PaymentCard
                                     key={mainStatement.id}
                                     statement={mainStatement}
@@ -525,10 +551,14 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                         </div>
                     )}
 
-                    {paymentGroups.upcoming.length > 0 && (
+                    {paymentGroups.currentEstimates.length > 0 && (
                         <div className="space-y-4">
-                            <h2 className="text-xl font-bold text-slate-700">Upcoming</h2>
-                            {paymentGroups.upcoming.map(({ mainStatement, ...rest }) => (
+                            <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
+                                <CalendarClock className="h-5 w-5" />
+                                Current Cycle Estimates
+                            </h2>
+                            <p className="text-sm text-slate-500 mb-2">Statements generating soon. No immediate payment required.</p>
+                            {paymentGroups.currentEstimates.map(({ mainStatement, ...rest }) => (
                                 <PaymentCard
                                     key={mainStatement.id}
                                     statement={mainStatement}
@@ -547,7 +577,10 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 
                     {paymentGroups.completed.length > 0 && (
                         <div className="space-y-4">
-                            <h2 className="text-xl font-bold text-slate-700">Completed</h2>
+                            <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
+                                <Check className="h-5 w-5" />
+                                Completed / No Payment Needed
+                            </h2>
                             {paymentGroups.completed.map(({ mainStatement, ...rest }) => (
                                 <PaymentCard
                                     key={mainStatement.id}
@@ -662,6 +695,14 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
             className: 'bg-emerald-100 text-emerald-800',
             icon: <Check className="h-3 w-3 mr-1.5" />
         };
+        if (daysLeft === null && remaining > 0) {
+            const overdueDays = Math.floor((new Date() - new Date(statement.paymentDate)) / (1000 * 60 * 60 * 24));
+            return {
+                text: `${overdueDays > 0 ? overdueDays + ' Days Overdue' : 'Overdue'}`,
+                className: 'bg-red-100 text-red-800 border border-red-200 shadow-sm animate-pulse',
+                icon: <AlertTriangle className="h-3 w-3 mr-1.5 text-red-600" />
+            };
+        }
         if (isPartiallyPaid) return {
             text: 'Partially Paid',
             className: 'bg-yellow-100 text-yellow-800'
@@ -757,35 +798,61 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
                 <div className="flex flex-col md:flex-row gap-4">
                     {noPaymentNeeded ? (
-                        <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 flex flex-col items-center justify-center text-center h-40">
+                        <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 flex flex-col items-center justify-center text-center h-32">
                             <Wallet className="h-8 w-8 text-slate-400 dark:text-slate-500 mb-2" />
                             <p className="font-semibold text-slate-700 dark:text-slate-300">No Balance This Month</p>
                             <p className="text-sm text-slate-500 dark:text-slate-400">You're all clear for this statement cycle.</p>
                         </div>
                     ) : (
-                        <>
-                            <div className="flex-1 bg-slate-100/80 dark:bg-slate-800/50 rounded-lg p-3">
+                        <div className="flex-1 bg-slate-100/80 dark:bg-slate-800/50 rounded-lg p-4">
+                            <div className="flex justify-between items-start mb-2">
                                 <div className="flex items-center gap-2">
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">STATEMENT BALANCE</p>
-                                    {(rawStatementAmount === 0 || rawStatementAmount === null) && <Badge variant="outline">Estimated</Badge>}
-                                </div>
-                                <p className="text-3xl font-extrabold text-slate-800 dark:text-slate-200 tracking-tight">{currencyFn(statementAmount)}</p>
-                                <div className="mt-2 space-y-1 text-sm">
-                                    <div className="flex justify-between items-center"><span className="text-slate-500 dark:text-slate-400">Paid:</span><span className="font-medium text-slate-600 dark:text-slate-300">{currencyFn(paidAmount)}</span></div>
-                                    <div className="flex justify-between items-center font-bold"><span className="text-slate-500 dark:text-slate-400">Remaining:</span><span className={cn(isPaid ? "text-emerald-600" : "text-red-600")}>{currencyFn(remaining)}</span></div>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wide">
+                                        {isNotFinalized && !rawStatementAmount ? "Estimated Statement Balance" : "Statement Balance"}
+                                    </p>
+                                    {(rawStatementAmount === 0 || rawStatementAmount === null) && isNotFinalized && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">Estimated</Badge>}
+                                    {rawStatementAmount > 0 && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-50 text-emerald-700 border-emerald-200">Logged</Badge>}
                                 </div>
                             </div>
-                            <div className="w-full md:w-64 bg-slate-50/70 dark:bg-slate-800/30 rounded-lg p-3">
-                                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">SPEND SUMMARY</p>
-                                <p className="text-2xl font-bold text-slate-500 dark:text-slate-400 tracking-tight">{currencyFn(estimatedBalance)}</p>
-                                <div className="mt-2 space-y-1 text-sm">
-                                    <div className="flex justify-between items-center"><span className="text-slate-500 dark:text-slate-400">Total Spend:</span><span className="font-medium text-slate-600 dark:text-slate-300">{currencyFn(spend)}</span></div>
-                                    <div className="flex justify-between items-center"><span className="text-slate-500 dark:text-slate-400">Credits Applied:</span><span className="font-medium text-emerald-600">-{currencyFn(applicableCashback)}</span></div>
-                                    {/* Optional tooltip to explain credits */}
-                                    <div className="text-[10px] text-slate-400 text-right mt-1">Based on cashback landing in this period</div>
+
+                            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                                <div>
+                                    <p className="text-3xl font-extrabold text-slate-800 dark:text-slate-200 tracking-tight">{currencyFn(statementAmount)}</p>
+
+                                    {isNotFinalized && !rawStatementAmount && (
+                                        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                            <span>Spend: <span className="font-medium text-slate-600 dark:text-slate-300">{currencyFn(spend)}</span></span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="w-full md:w-64 space-y-2 flex flex-col justify-end">
+                                    <div className="flex flex-col gap-1.5 w-full bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 p-2 text-xs shadow-sm">
+                                        <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+                                            <span>Cashback Earned:</span>
+                                            <span className="font-semibold text-emerald-600">+{currencyFn(statement.actualCashback || 0)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-1.5">
+                                            <span>Credits Applied:</span>
+                                            <span className="font-semibold text-emerald-600">-{currencyFn(applicableCashback)}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-between items-center text-sm mb-1.5 px-0.5 mt-2">
+                                        <span className="text-slate-500 dark:text-slate-400">Paid: <span className="font-medium text-slate-700 dark:text-slate-300">{currencyFn(paidAmount)}</span></span>
+                                        <span className="font-bold text-slate-700 dark:text-slate-300">Remaining: <span className={cn(isPaid ? "text-emerald-600" : "text-red-600")}>{currencyFn(remaining)}</span></span>
+                                    </div>
+
+                                    {/* Progress Bar */}
+                                    <div className="h-2.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mt-1">
+                                        <div
+                                            className={cn("h-full rounded-full transition-all duration-500", isPaid ? "bg-emerald-500" : "bg-blue-500")}
+                                            style={{ width: `${Math.min(100, (paidAmount / statementAmount) * 100)}%` }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                        </>
+                        </div>
                     )}
                 </div>
 

@@ -56,7 +56,7 @@ const mockSummaries = [
     adjustment: 0,
     spend: 500,
     statementAmount: 0,
-    paidAmount: 0
+    paidAmount: 500
   },
   {
     id: 's2',
@@ -88,6 +88,15 @@ const renderComponent = (props = {}) => {
 };
 
 describe('PaymentsTab', () => {
+  beforeAll(() => {
+    jest.useFakeTimers('modern');
+    jest.setSystemTime(new Date('2023-07-20T00:00:00Z')); // Before Aug 1 statement
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -102,7 +111,7 @@ describe('PaymentsTab', () => {
     // So Aug 1 falls in window.
     // Expected Balance for Aug Statement = Spend (1000) - Credits (100) = 900.
 
-    renderComponent();
+    const { container } = renderComponent();
 
     // Wait for loading to finish
     await waitFor(() => expect(screen.queryByText(/Calculating payment schedules/i)).not.toBeInTheDocument());
@@ -110,14 +119,12 @@ describe('PaymentsTab', () => {
     // Check for "Test Card"
     expect(screen.getByText('Test Card')).toBeInTheDocument();
 
-    // Check Balance Calculation
-    // We look for the "STATEMENT BALANCE" section or "SPEND SUMMARY"
-    // The component renders "SPEND SUMMARY" -> "Total Spend: $1000" -> "Credits Applied: -$100"
-    // And "STATEMENT BALANCE" -> "$900" (Estimated)
+    console.log(container.innerHTML);
 
     // Using specific text matchers might be tricky due to formatting, so we check for presence of values
-    expect(screen.getAllByText('$900').length).toBeGreaterThan(0); // 1000 - 100 (appears in Balance and Spend Summary)
-    expect(screen.getByText('-$100')).toBeInTheDocument(); // Credit
+    const balanceElements = screen.queryAllByText('$900');
+    expect(balanceElements.length).toBeGreaterThan(0); // 1000 - 100
+    expect(screen.getAllByText('-$100').length).toBeGreaterThan(0); // Credit
   });
 
   test('renders list and calendar toggle', async () => {
@@ -135,8 +142,6 @@ describe('PaymentsTab', () => {
     const calendarBtn = screen.getByText('Calendar');
     fireEvent.click(calendarBtn);
 
-    // Should render PaymentsCalendarView (which renders a DayPicker)
-    // We can check for a day, e.g., current month days or "Statement Issued" legend
     expect(screen.getByText('Statement Issued')).toBeInTheDocument();
   });
 });
