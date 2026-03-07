@@ -695,6 +695,14 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
             className: 'bg-emerald-100 text-emerald-800',
             icon: <Check className="h-3 w-3 mr-1.5" />
         };
+        if (daysLeft === null && remaining > 0) {
+            const overdueDays = Math.floor((new Date() - new Date(statement.paymentDate)) / (1000 * 60 * 60 * 24));
+            return {
+                text: `${overdueDays > 0 ? overdueDays + ' Days Overdue' : 'Overdue'}`,
+                className: 'bg-red-100 text-red-800 border border-red-200 shadow-sm animate-pulse',
+                icon: <AlertTriangle className="h-3 w-3 mr-1.5 text-red-600" />
+            };
+        }
         if (isPartiallyPaid) return {
             text: 'Partially Paid',
             className: 'bg-yellow-100 text-yellow-800'
@@ -814,21 +822,29 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                     {isNotFinalized && !rawStatementAmount && (
                                         <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                                             <span>Spend: <span className="font-medium text-slate-600 dark:text-slate-300">{currencyFn(spend)}</span></span>
-                                            {applicableCashback > 0 && (
-                                                <span className="ml-3">Cashback Applied: <span className="font-medium text-emerald-600">-{currencyFn(applicableCashback)}</span></span>
-                                            )}
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="w-full md:w-64 space-y-2">
-                                    <div className="flex justify-between text-sm">
+                                <div className="w-full md:w-64 space-y-2 flex flex-col justify-end">
+                                    <div className="flex flex-col gap-1.5 w-full bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 p-2 text-xs shadow-sm">
+                                        <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+                                            <span>Cashback Earned:</span>
+                                            <span className="font-semibold text-emerald-600">+{currencyFn(statement.actualCashback || 0)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-1.5">
+                                            <span>Credits Applied:</span>
+                                            <span className="font-semibold text-emerald-600">-{currencyFn(applicableCashback)}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-between items-center text-sm mb-1.5 px-0.5 mt-2">
                                         <span className="text-slate-500 dark:text-slate-400">Paid: <span className="font-medium text-slate-700 dark:text-slate-300">{currencyFn(paidAmount)}</span></span>
                                         <span className="font-bold text-slate-700 dark:text-slate-300">Remaining: <span className={cn(isPaid ? "text-emerald-600" : "text-red-600")}>{currencyFn(remaining)}</span></span>
                                     </div>
 
                                     {/* Progress Bar */}
-                                    <div className="h-2.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div className="h-2.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mt-1">
                                         <div
                                             className={cn("h-full rounded-full transition-all duration-500", isPaid ? "bg-emerald-500" : "bg-blue-500")}
                                             style={{ width: `${Math.min(100, (paidAmount / statementAmount) * 100)}%` }}

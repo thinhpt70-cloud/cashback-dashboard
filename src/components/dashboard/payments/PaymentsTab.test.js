@@ -124,7 +124,7 @@ describe('PaymentsTab', () => {
     // Using specific text matchers might be tricky due to formatting, so we check for presence of values
     const balanceElements = screen.queryAllByText('$900');
     expect(balanceElements.length).toBeGreaterThan(0); // 1000 - 100
-    expect(screen.getByText('-$100')).toBeInTheDocument(); // Credit
+    expect(screen.getAllByText('-$100').length).toBeGreaterThan(0); // Credit
   });
 
   test('renders list and calendar toggle', async () => {
