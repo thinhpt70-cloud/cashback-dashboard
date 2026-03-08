@@ -331,11 +331,12 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 
     const paymentGroups = useMemo(() => {
         if (!paymentData) {
-            return { actionRequired: [], currentEstimates: [], completed: [], closed: [] };
+            return { actionRequired: [], currentStatements: [], upcoming: [], completed: [], closed: [] };
         }
 
         const actionRequired = [];
-        const currentEstimates = [];
+        const currentStatements = [];
+        const upcoming = [];
         const completed = [];
         const closed = [];
 
@@ -359,7 +360,8 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                 spend = 0,
                 finalAmount = 0,
                 applicableCashback = 0,
-                statementDateObj
+                statementDateObj,
+                month
             } = p.mainStatement;
 
             const baseAmount = p.mainStatement.card.useStatementMonthForPayments ? spend : (finalAmount || spend);
@@ -371,20 +373,41 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
             const noPaymentNeeded = finalStatementAmount <= 0;
             const isFinalized = statementDateObj && today >= statementDateObj;
 
-            if (noPaymentNeeded || isPaid || daysLeft === null) {
-                // Keep past due out of completed
-                if (daysLeft === null && remaining > 0) {
-                    actionRequired.push(p);
+            // Calculate cycles difference for "No Payment Needed" screen
+            // Compare statement month to current month
+            // `month` format is either YYYYMM or YYYY-MM
+            let stmtYear, stmtMonth;
+            if (month.includes('-')) {
+                stmtYear = parseInt(month.split('-')[0], 10);
+                stmtMonth = parseInt(month.split('-')[1], 10);
+            } else {
+                stmtYear = parseInt(month.slice(0, 4), 10);
+                stmtMonth = parseInt(month.slice(4, 6), 10);
+            }
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth() + 1;
+
+            const cyclesDiff = (currentYear - stmtYear) * 12 + (currentMonth - stmtMonth);
+            p.mainStatement.isMoreThanTwoCycles = cyclesDiff > 2 && (isPaid || noPaymentNeeded);
+            p.mainStatement.isFinalized = isFinalized;
+
+            if (daysLeft === null && remaining > 0) {
+                // Past due date
+                actionRequired.push(p);
+            } else if (daysLeft !== null && remaining > 0) {
+                // Unpaid, in the payment window (whether estimated or finalized)
+                currentStatements.push(p);
+            } else if (isPaid && p.nextUpcomingStatement) {
+                const nextBaseAmount = p.mainStatement.card.useStatementMonthForPayments ? p.nextUpcomingStatement.spend : (p.nextUpcomingStatement.finalAmount || p.nextUpcomingStatement.spend);
+                const nextEstimatedBalance = nextBaseAmount - p.nextUpcomingStatement.applicableCashback;
+
+                if (nextEstimatedBalance > 0) {
+                    upcoming.push(p);
                 } else {
                     completed.push(p);
                 }
-            } else if (isFinalized && remaining > 0) {
-                // Statement generated, payment needed soon
-                actionRequired.push(p);
-            } else if (!isFinalized && remaining > 0) {
-                // Current cycle, statement not yet generated
-                currentEstimates.push(p);
             } else {
+                // Completed / No Payment Needed
                 completed.push(p);
             }
         });
@@ -399,7 +422,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
             return a.mainStatement.paymentDateObj - b.mainStatement.paymentDateObj;
         });
 
-        return { actionRequired, currentEstimates, completed, closed };
+        return { actionRequired, currentStatements, upcoming, completed, closed };
     }, [paymentData]);
 
     const handleSavePayment = async (statementId, newPaidAmount) => {
@@ -463,18 +486,49 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
     };
 
     const summaryStats = useMemo(() => {
-        const upcomingBills = paymentData.filter(p => p.mainStatement.daysLeft !== null && (p.mainStatement.statementAmount - (p.mainStatement.paidAmount || 0) > 0));
+        const calculateRemaining = (p) => {
+            const { rawStatementAmount = 0, finalAmount = 0, spend = 0, applicableCashback = 0, paidAmount = 0, statementAmount = 0 } = p.mainStatement;
 
-        const totalDue = upcomingBills.reduce((acc, curr) => acc + (curr.mainStatement.statementAmount - (curr.mainStatement.paidAmount || 0)), 0);
-        const nextPayment = upcomingBills.length > 0 ? upcomingBills[0] : null;
+            // if statementAmount is available (from API logic), use it.
+            if (statementAmount > 0) return statementAmount - paidAmount;
+
+            const baseAmount = p.mainStatement.card.useStatementMonthForPayments ? spend : (finalAmount || spend);
+            const estimatedBalance = baseAmount - applicableCashback;
+            const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
+            return finalStatementAmount - paidAmount;
+        };
+
+        const attentionRequiredAmount = paymentGroups.actionRequired.reduce((acc, curr) => acc + calculateRemaining(curr), 0);
+        const currentStatementsCount = paymentGroups.currentStatements.length;
+
+        let currentStatementsAmount = 0;
+        let currentStatementsFinalizedAmount = 0;
+
+        paymentGroups.currentStatements.forEach(p => {
+            const remaining = calculateRemaining(p);
+            currentStatementsAmount += remaining;
+            if (p.mainStatement.isFinalized) {
+                currentStatementsFinalizedAmount += remaining;
+            }
+        });
+
+        let upcomingStatementAmount = 0;
+        paymentGroups.upcoming.forEach(p => {
+            if (p.nextUpcomingStatement) {
+                const nextBaseAmount = p.mainStatement.card.useStatementMonthForPayments ? p.nextUpcomingStatement.spend : (p.nextUpcomingStatement.finalAmount || p.nextUpcomingStatement.spend);
+                const nextEstimatedBalance = nextBaseAmount - p.nextUpcomingStatement.applicableCashback;
+                upcomingStatementAmount += nextEstimatedBalance;
+            }
+        });
 
         return {
-            totalDue,
-            billCount: upcomingBills.length,
-            nextPaymentAmount: nextPayment ? (nextPayment.mainStatement.statementAmount - (nextPayment.mainStatement.paidAmount || 0)) : 0,
-            nextPaymentCard: nextPayment ? nextPayment.mainStatement.card.name : 'N/A',
+            attentionRequiredAmount,
+            currentStatementsCount,
+            currentStatementsAmount,
+            currentStatementsFinalizedAmount,
+            upcomingStatementAmount
         };
-    }, [paymentData]);
+    }, [paymentGroups]);
 
     if (isLoading) {
         return (
@@ -488,10 +542,16 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 flex-1 w-full">
-                    <StatCard title="Total Upcoming" value={currencyFn(summaryStats.totalDue)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
-                    <StatCard title="Upcoming Bills" value={summaryStats.billCount} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
-                    <StatCard title="Next Payment" value={currencyFn(summaryStats.nextPaymentAmount)} icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />} valueClassName="text-orange-600" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 flex-1 w-full">
+                    <StatCard title="Attention Required" value={currencyFn(summaryStats.attentionRequiredAmount)} icon={<AlertTriangle className="h-4 w-4 text-red-600" />} />
+                    <StatCard title="Current Statements" value={summaryStats.currentStatementsCount} icon={<CalendarClock className="h-4 w-4 text-slate-600" />} />
+                    <StatCard
+                        title="Current Statement Amount"
+                        value={currencyFn(summaryStats.currentStatementsAmount)}
+                        icon={<Wallet className="h-4 w-4 text-slate-600" />}
+                        currentMonthLabel={`Finalized Amount: ${currencyFn(summaryStats.currentStatementsFinalizedAmount)}`}
+                    />
+                    <StatCard title="Upcoming Amount" value={currencyFn(summaryStats.upcomingStatementAmount)} icon={<CalendarDays className="h-4 w-4 text-sky-600" />} />
                 </div>
 
                 {/* View Toggle */}
@@ -532,7 +592,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                         <div className="space-y-4">
                             <h2 className="text-xl font-bold text-red-600 flex items-center gap-2">
                                 <AlertTriangle className="h-5 w-5" />
-                                Action Required / Due Soon
+                                Attention Required
                             </h2>
                             {paymentGroups.actionRequired.map(({ mainStatement, ...rest }) => (
                                 <PaymentCard
@@ -551,14 +611,36 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                         </div>
                     )}
 
-                    {paymentGroups.currentEstimates.length > 0 && (
+                    {paymentGroups.currentStatements.length > 0 && (
                         <div className="space-y-4">
                             <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
                                 <CalendarClock className="h-5 w-5" />
-                                Current Cycle Estimates
+                                Current Statements
                             </h2>
-                            <p className="text-sm text-slate-500 mb-2">Statements generating soon. No immediate payment required.</p>
-                            {paymentGroups.currentEstimates.map(({ mainStatement, ...rest }) => (
+                            {paymentGroups.currentStatements.map(({ mainStatement, ...rest }) => (
+                                <PaymentCard
+                                    key={mainStatement.id}
+                                    statement={mainStatement}
+                                    {...rest}
+                                    onLogPayment={handleLogPaymentClick}
+                                    onLogStatement={handleLogStatementClick}
+                                    onViewTransactions={onViewTransactions}
+                                    currencyFn={currencyFn}
+                                    fmtYMShortFn={fmtYMShortFn}
+                                    onLoadMore={handleLoadMore}
+                                    isLoadingMore={isLoadingMore}
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {paymentGroups.upcoming.length > 0 && (
+                        <div className="space-y-4">
+                            <h2 className="text-xl font-bold text-sky-600 flex items-center gap-2">
+                                <CalendarDays className="h-5 w-5" />
+                                Upcoming
+                            </h2>
+                            {paymentGroups.upcoming.map(({ mainStatement, ...rest }) => (
                                 <PaymentCard
                                     key={mainStatement.id}
                                     statement={mainStatement}
@@ -577,7 +659,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 
                     {paymentGroups.completed.length > 0 && (
                         <div className="space-y-4">
-                            <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
+                            <h2 className="text-xl font-bold text-emerald-600 flex items-center gap-2">
                                 <Check className="h-5 w-5" />
                                 Completed / No Payment Needed
                             </h2>
@@ -663,7 +745,8 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
         spend = 0,
         finalAmount = 0,
         applicableCashback = 0, // New logic
-        statementDateObj
+        statementDateObj,
+        isMoreThanTwoCycles
     } = statement;
 
     const today = new Date();
@@ -798,10 +881,16 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
                 <div className="flex flex-col md:flex-row gap-4">
                     {noPaymentNeeded ? (
-                        <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 flex flex-col items-center justify-center text-center h-32">
+                        <div className={cn("flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 flex flex-col items-center justify-center text-center", isMoreThanTwoCycles ? "h-auto" : "h-32")}>
                             <Wallet className="h-8 w-8 text-slate-400 dark:text-slate-500 mb-2" />
                             <p className="font-semibold text-slate-700 dark:text-slate-300">No Balance This Month</p>
                             <p className="text-sm text-slate-500 dark:text-slate-400">You're all clear for this statement cycle.</p>
+                            {isMoreThanTwoCycles && (
+                                <p className="text-xs text-slate-500 mt-3 font-medium bg-slate-100/80 px-3 py-1.5 rounded-full inline-flex items-center gap-2">
+                                    <History className="h-3 w-3" />
+                                    Most Recent Statement: {fmtYMShortFn(statement.month)} - Amount: {currencyFn(statementAmount)}
+                                </p>
+                            )}
                         </div>
                     ) : (
                         <div className="flex-1 bg-slate-100/80 dark:bg-slate-800/50 rounded-lg p-4">
@@ -810,7 +899,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                     <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wide">
                                         {isNotFinalized && !rawStatementAmount ? "Estimated Statement Balance" : "Statement Balance"}
                                     </p>
-                                    {(rawStatementAmount === 0 || rawStatementAmount === null) && isNotFinalized && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">Estimated</Badge>}
+                                    {(rawStatementAmount === 0 || rawStatementAmount === null) && isNotFinalized && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-yellow-50 text-yellow-700 border-yellow-200">Estimated</Badge>}
                                     {rawStatementAmount > 0 && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-50 text-emerald-700 border-emerald-200">Logged</Badge>}
                                 </div>
                             </div>
@@ -862,10 +951,10 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                             <TooltipTrigger asChild>
                                 <Button onClick={() => onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month))} variant="outline" size="icon" className="sm:w-auto sm:px-3">
                                     <History className="h-4 w-4" />
-                                    <span className="hidden sm:inline ml-1.5">Transaction Details</span>
+                                    <span className="hidden sm:inline ml-1.5">Statement Details</span>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent className="sm:hidden"><p>Transaction Details</p></TooltipContent>
+                            <TooltipContent className="sm:hidden"><p>Statement Details</p></TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
@@ -895,10 +984,10 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                     className="sm:w-auto sm:px-3"
                                 >
                                     <List className="h-4 w-4" />
-                                    <span className="hidden sm:inline ml-1.5">Statements</span>
+                                    <span className="hidden sm:inline ml-1.5">View All</span>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent className="sm:hidden"><p>Statements</p></TooltipContent>
+                            <TooltipContent className="sm:hidden"><p>View All</p></TooltipContent>
                         </Tooltip>
 
                         {!noPaymentNeeded && (
