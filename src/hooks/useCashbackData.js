@@ -254,6 +254,15 @@ export default function useCashbackData(isAuthenticated) {
         error,
         reviewLoading,
         
+        // Update Helpers
+        updateCard: (updatedCard) => {
+            setAllCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
+            setCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
+        },
+        updateRule: (ruleId, newStatus) => {
+            setRules(prev => prev.map(r => r.id === ruleId ? { ...r, status: newStatus } : r));
+        },
+
         // Action
         refreshData: fetchData, // Provide the fetch function under a clearer name
         fetchReviewTransactions,
