@@ -1056,6 +1056,34 @@ app.patch('/api/transactions/:id', async (req, res) => {
     }
 });
 
+// PATCH /api/cards/:id - Update Card Information
+app.patch('/api/cards/:id', async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    try {
+        const propertiesToUpdate = {};
+
+        if (status !== undefined) {
+            propertiesToUpdate['Status'] = { status: { name: status } };
+        }
+
+        if (Object.keys(propertiesToUpdate).length === 0) {
+            return res.status(400).json({ error: 'No valid fields provided to update.' });
+        }
+
+        const updatedPage = await notion.pages.update({
+            page_id: id,
+            properties: propertiesToUpdate,
+        });
+
+        res.status(200).json({ success: true, message: 'Card updated successfully.', id: updatedPage.id });
+    } catch (error) {
+        console.error('Error updating card in Notion:', error.body || error);
+        res.status(500).json({ error: 'Failed to update card.' });
+    }
+});
+
 // Fetch All Cards
 app.get('/api/cards', async (req, res) => {
     const { includeClosed } = req.query;
@@ -1069,8 +1097,10 @@ app.get('/api/cards', async (req, res) => {
                 name: parsed['Card Name'],
                 bank: parsed['Bank'],
                 cardType: parsed['Card Type'],
+                network: parsed['Network'],
                 creditLimit: parsed['Credit Limit'],
                 last4: parsed['Last 4 Digits'],
+                first6: parsed['First 6 Digits'],
                 statementDay: parsed['Statement Day'],
                 paymentDueDay: parsed['Payment Due Day'],
                 interestRateMonthly: parsed['Interest Rate (Monthly)'],
@@ -1087,10 +1117,23 @@ app.get('/api/cards', async (req, res) => {
                 tier2MinSpend: parsed['Tier 2 Minimum Monthly Spend'],
                 tier2Limit: parsed['Tier 2 Monthly Limit'],
                 foreignFee: parsed['Foreign Fee'],
+                foreignFeeMin: parsed['Foreign Fee - Minimum'],
+                overseasLocalTxFee: parsed['Overseas Local Transaction Fee'],
+                overseasLocalTxFeeMin: parsed['Overseas Local Transaction Fee - Minimum'],
                 tier1PaymentType: parsed['Tier 1 Cashback Payment Type'],
                 tier2PaymentType: parsed['Tier 2 Cashback Payment Type'],
                 minPointsRedeem: parsed['Minimum Points Redeem'],
                 totalAmountRedeemed: parsed['Total Amount Redeemed'],
+                defaultCashbackRate: parsed['Default Cashback Rate'],
+                latePaymentFeeMax: parsed['Late Payment Fee - Maximum'],
+                latePaymentFeeMin: parsed['Late Payment Fee - Minimum'],
+                latePaymentFee: parsed['Late Payment Fee'],
+                cashWithdrawalInterest: parsed['Cash Withdrawal Interest - '],
+                cashWithdrawalFee: parsed['Cash Withdrawal Fee'],
+                totalStatementAmount: parsed['Total Statement Amount'],
+                totalPaymentAmount: parsed['Total Payment Amount'],
+                totalFinalAmount: parsed['Total Final Amount'],
+                feeWaiverThreshold: parsed['Fee Waiver Threshold'],
             };
         });
 
@@ -1106,6 +1149,84 @@ app.get('/api/cards', async (req, res) => {
     }
 });
 
+
+// PATCH /api/rules/:id - Update Rule Information
+app.patch('/api/rules/:id', async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    try {
+        const propertiesToUpdate = {};
+
+        if (status !== undefined) {
+            propertiesToUpdate['Status'] = { status: { name: status } };
+        }
+
+        if (Object.keys(propertiesToUpdate).length === 0) {
+            return res.status(400).json({ error: 'No valid fields provided to update.' });
+        }
+
+        const updatedPage = await notion.pages.update({
+            page_id: id,
+            properties: propertiesToUpdate,
+        });
+
+        res.status(200).json({ success: true, message: 'Rule updated successfully.', id: updatedPage.id });
+    } catch (error) {
+        console.error('Error updating rule in Notion:', error.body || error);
+        res.status(500).json({ error: 'Failed to update rule.' });
+    }
+});
+
+// GET /api/cards/:id/analysis - Fetch analysis data for a card
+app.get('/api/cards/:id/analysis', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // Query transactions for this card
+        const transactionsResponse = await notion.databases.query({
+            database_id: transactionsDbId,
+            filter: {
+                property: 'Card',
+                relation: { contains: id }
+            }
+        });
+
+        // Map transactions
+        const transactions = transactionsResponse.results.map(mapTransaction);
+
+        // Aggregate spending and cashback by Applicable Rule
+        const ruleAnalysis = {};
+
+        transactions.forEach(tx => {
+            const ruleId = tx['Applicable Rule'] && tx['Applicable Rule'].length > 0 ? tx['Applicable Rule'][0] : 'unassigned';
+            // mapTransaction maps 'Final Amount' to 'Amount' and 'Amount' to 'grossAmount'
+            const amount = tx['Amount'] || 0;
+            const cashback = tx['estCashback'] || 0;
+
+            if (!ruleAnalysis[ruleId]) {
+                ruleAnalysis[ruleId] = {
+                    ruleId,
+                    totalSpend: 0,
+                    totalCashback: 0,
+                    transactionCount: 0
+                };
+            }
+
+            ruleAnalysis[ruleId].totalSpend += amount;
+            ruleAnalysis[ruleId].totalCashback += cashback;
+            ruleAnalysis[ruleId].transactionCount += 1;
+        });
+
+        // Convert to array
+        const analysisResults = Object.values(ruleAnalysis);
+
+        res.json(analysisResults);
+    } catch (error) {
+        console.error('Failed to fetch card analysis data:', error.body || error);
+        res.status(500).json({ error: 'Failed to fetch analysis data.' });
+    }
+});
 
 // Fetch All Rules
 app.get('/api/rules', async (req, res) => {
@@ -1132,6 +1253,7 @@ app.get('/api/rules', async (req, res) => {
                 tier2Rate: parsed['Tier 2 Cashback Rate'],
                 tier2CategoryLimit: parsed['Tier 2 Category Limit'],
                 method: parsed['Method'],
+                notes: parsed['Notes'],
                 // NEW: Default flag and Excluded MCC Codes
                 isDefault: parsed['Default'] || false,
                 excludedMccCodes: parsed['Excluded MCC Code'] ? parsed['Excluded MCC Code'].split(',').map(c => c.trim()) : [],

@@ -8,7 +8,7 @@ import { cn } from "../../../lib/utils";
 import { cardThemes } from "../../../lib/constants";
 import { getCurrentCashbackMonthForCard, calculateFeeCycleProgress } from "../../../lib/date";
 import StatCard from "../../shared/StatCard";
-import CardInfoSheet from "../dialogs/CardInfoSheet";
+import CardDetailsDialog from "../dialogs/CardDetailsDialog";
 
 export default function CardsTab({
   cards,
@@ -19,7 +19,9 @@ export default function CardsTab({
   currencyFn,
   fmtYMShortFn,
   mccMap,
-  isDesktop
+  isDesktop,
+  onUpdateCard,
+  onUpdateRule
 }) {
   const [cardView, setCardView] = useState('month'); // 'month', 'ytd', or 'roi'
 
@@ -77,6 +79,8 @@ export default function CardsTab({
         view={cardView}
         mccMap={mccMap}
         isDesktop={isDesktop}
+        onUpdateCard={onUpdateCard}
+        onUpdateRule={onUpdateRule}
       />
     );
   };
@@ -176,7 +180,7 @@ function MetricItem({ label, value, valueClassName, icon: Icon, isPrimary = fals
   );
 }
 
-function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn, view, mccMap, isDesktop }) {
+function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, fmtYMShortFn, calculateFeeCycleProgressFn, view, mccMap, isDesktop, onUpdateCard, onUpdateRule }) {
   const totalSpendMonth = cardMonthSummary?.spend || 0;
   const estCashbackMonth = cardMonthSummary?.cashback || 0;
   const monthlyEffectiveRate = totalSpendMonth > 0 ? (estCashbackMonth / totalSpendMonth) * 100 : 0;
@@ -296,11 +300,13 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
         </div>
 
         <div className="mt-auto pt-4 flex justify-end">
-          <CardInfoSheet
+          <CardDetailsDialog
             card={card}
             rules={rules}
             mccMap={mccMap}
             isDesktop={isDesktop}
+            onUpdateCard={onUpdateCard}
+            onUpdateRule={onUpdateRule}
           />
         </div>
       </div>
