@@ -331,11 +331,12 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 
     const paymentGroups = useMemo(() => {
         if (!paymentData) {
-            return { actionRequired: [], currentEstimates: [], completed: [], closed: [] };
+            return { actionRequired: [], currentStatements: [], upcoming: [], completed: [], closed: [] };
         }
 
         const actionRequired = [];
-        const currentEstimates = [];
+        const currentStatements = [];
+        const upcoming = [];
         const completed = [];
         const closed = [];
 
@@ -359,7 +360,8 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                 spend = 0,
                 finalAmount = 0,
                 applicableCashback = 0,
-                statementDateObj
+                statementDateObj,
+                month
             } = p.mainStatement;
 
             const baseAmount = p.mainStatement.card.useStatementMonthForPayments ? spend : (finalAmount || spend);
@@ -371,20 +373,41 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
             const noPaymentNeeded = finalStatementAmount <= 0;
             const isFinalized = statementDateObj && today >= statementDateObj;
 
-            if (noPaymentNeeded || isPaid || daysLeft === null) {
-                // Keep past due out of completed
-                if (daysLeft === null && remaining > 0) {
-                    actionRequired.push(p);
+            // Calculate cycles difference for "No Payment Needed" screen
+            // Compare statement month to current month
+            // `month` format is either YYYYMM or YYYY-MM
+            let stmtYear, stmtMonth;
+            if (month.includes('-')) {
+                stmtYear = parseInt(month.split('-')[0], 10);
+                stmtMonth = parseInt(month.split('-')[1], 10);
+            } else {
+                stmtYear = parseInt(month.slice(0, 4), 10);
+                stmtMonth = parseInt(month.slice(4, 6), 10);
+            }
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth() + 1;
+
+            const cyclesDiff = (currentYear - stmtYear) * 12 + (currentMonth - stmtMonth);
+            p.mainStatement.isMoreThanTwoCycles = cyclesDiff > 2 && (isPaid || noPaymentNeeded);
+            p.mainStatement.isFinalized = isFinalized;
+
+            if (daysLeft === null && remaining > 0) {
+                // Past due date
+                actionRequired.push(p);
+            } else if (daysLeft !== null && remaining > 0) {
+                // Unpaid, in the payment window (whether estimated or finalized)
+                currentStatements.push(p);
+            } else if (isPaid && p.nextUpcomingStatement) {
+                const nextBaseAmount = p.mainStatement.card.useStatementMonthForPayments ? p.nextUpcomingStatement.spend : (p.nextUpcomingStatement.finalAmount || p.nextUpcomingStatement.spend);
+                const nextEstimatedBalance = nextBaseAmount - p.nextUpcomingStatement.applicableCashback;
+
+                if (nextEstimatedBalance > 0) {
+                    upcoming.push(p);
                 } else {
                     completed.push(p);
                 }
-            } else if (isFinalized && remaining > 0) {
-                // Statement generated, payment needed soon
-                actionRequired.push(p);
-            } else if (!isFinalized && remaining > 0) {
-                // Current cycle, statement not yet generated
-                currentEstimates.push(p);
             } else {
+                // Completed / No Payment Needed
                 completed.push(p);
             }
         });
@@ -399,7 +422,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
             return a.mainStatement.paymentDateObj - b.mainStatement.paymentDateObj;
         });
 
-        return { actionRequired, currentEstimates, completed, closed };
+        return { actionRequired, currentStatements, upcoming, completed, closed };
     }, [paymentData]);
 
     const handleSavePayment = async (statementId, newPaidAmount) => {
@@ -463,18 +486,49 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
     };
 
     const summaryStats = useMemo(() => {
-        const upcomingBills = paymentData.filter(p => p.mainStatement.daysLeft !== null && (p.mainStatement.statementAmount - (p.mainStatement.paidAmount || 0) > 0));
+        const calculateRemaining = (p) => {
+            const { rawStatementAmount = 0, finalAmount = 0, spend = 0, applicableCashback = 0, paidAmount = 0, statementAmount = 0 } = p.mainStatement;
 
-        const totalDue = upcomingBills.reduce((acc, curr) => acc + (curr.mainStatement.statementAmount - (curr.mainStatement.paidAmount || 0)), 0);
-        const nextPayment = upcomingBills.length > 0 ? upcomingBills[0] : null;
+            // if statementAmount is available (from API logic), use it.
+            if (statementAmount > 0) return statementAmount - paidAmount;
+
+            const baseAmount = p.mainStatement.card.useStatementMonthForPayments ? spend : (finalAmount || spend);
+            const estimatedBalance = baseAmount - applicableCashback;
+            const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
+            return finalStatementAmount - paidAmount;
+        };
+
+        const attentionRequiredAmount = paymentGroups.actionRequired.reduce((acc, curr) => acc + calculateRemaining(curr), 0);
+        const currentStatementsCount = paymentGroups.currentStatements.length;
+
+        let currentStatementsAmount = 0;
+        let currentStatementsFinalizedAmount = 0;
+
+        paymentGroups.currentStatements.forEach(p => {
+            const remaining = calculateRemaining(p);
+            currentStatementsAmount += remaining;
+            if (p.mainStatement.isFinalized) {
+                currentStatementsFinalizedAmount += remaining;
+            }
+        });
+
+        let upcomingStatementAmount = 0;
+        paymentGroups.upcoming.forEach(p => {
+            if (p.nextUpcomingStatement) {
+                const nextBaseAmount = p.mainStatement.card.useStatementMonthForPayments ? p.nextUpcomingStatement.spend : (p.nextUpcomingStatement.finalAmount || p.nextUpcomingStatement.spend);
+                const nextEstimatedBalance = nextBaseAmount - p.nextUpcomingStatement.applicableCashback;
+                upcomingStatementAmount += nextEstimatedBalance;
+            }
+        });
 
         return {
-            totalDue,
-            billCount: upcomingBills.length,
-            nextPaymentAmount: nextPayment ? (nextPayment.mainStatement.statementAmount - (nextPayment.mainStatement.paidAmount || 0)) : 0,
-            nextPaymentCard: nextPayment ? nextPayment.mainStatement.card.name : 'N/A',
+            attentionRequiredAmount,
+            currentStatementsCount,
+            currentStatementsAmount,
+            currentStatementsFinalizedAmount,
+            upcomingStatementAmount
         };
-    }, [paymentData]);
+    }, [paymentGroups]);
 
     if (isLoading) {
         return (
@@ -488,10 +542,16 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 flex-1 w-full">
-                    <StatCard title="Total Upcoming" value={currencyFn(summaryStats.totalDue)} icon={<Wallet className="h-4 w-4 text-muted-foreground" />} />
-                    <StatCard title="Upcoming Bills" value={summaryStats.billCount} icon={<CalendarClock className="h-4 w-4 text-muted-foreground" />} />
-                    <StatCard title="Next Payment" value={currencyFn(summaryStats.nextPaymentAmount)} icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />} valueClassName="text-orange-600" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 flex-1 w-full">
+                    <StatCard title="Attention Required" value={currencyFn(summaryStats.attentionRequiredAmount)} icon={<AlertTriangle className="h-4 w-4 text-red-600" />} />
+                    <StatCard title="Current Statements" value={summaryStats.currentStatementsCount} icon={<CalendarClock className="h-4 w-4 text-slate-600" />} />
+                    <StatCard
+                        title="Current Statement Amount"
+                        value={currencyFn(summaryStats.currentStatementsAmount)}
+                        icon={<Wallet className="h-4 w-4 text-slate-600" />}
+                        currentMonthLabel={`Finalized Amount: ${currencyFn(summaryStats.currentStatementsFinalizedAmount)}`}
+                    />
+                    <StatCard title="Upcoming Amount" value={currencyFn(summaryStats.upcomingStatementAmount)} icon={<CalendarDays className="h-4 w-4 text-sky-600" />} />
                 </div>
 
                 {/* View Toggle */}
@@ -532,7 +592,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                         <div className="space-y-4">
                             <h2 className="text-xl font-bold text-red-600 flex items-center gap-2">
                                 <AlertTriangle className="h-5 w-5" />
-                                Action Required / Due Soon
+                                Attention Required
                             </h2>
                             {paymentGroups.actionRequired.map(({ mainStatement, ...rest }) => (
                                 <PaymentCard
@@ -551,14 +611,36 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                         </div>
                     )}
 
-                    {paymentGroups.currentEstimates.length > 0 && (
+                    {paymentGroups.currentStatements.length > 0 && (
                         <div className="space-y-4">
                             <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
                                 <CalendarClock className="h-5 w-5" />
-                                Current Cycle Estimates
+                                Current Statements
                             </h2>
-                            <p className="text-sm text-slate-500 mb-2">Statements generating soon. No immediate payment required.</p>
-                            {paymentGroups.currentEstimates.map(({ mainStatement, ...rest }) => (
+                            {paymentGroups.currentStatements.map(({ mainStatement, ...rest }) => (
+                                <PaymentCard
+                                    key={mainStatement.id}
+                                    statement={mainStatement}
+                                    {...rest}
+                                    onLogPayment={handleLogPaymentClick}
+                                    onLogStatement={handleLogStatementClick}
+                                    onViewTransactions={onViewTransactions}
+                                    currencyFn={currencyFn}
+                                    fmtYMShortFn={fmtYMShortFn}
+                                    onLoadMore={handleLoadMore}
+                                    isLoadingMore={isLoadingMore}
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {paymentGroups.upcoming.length > 0 && (
+                        <div className="space-y-4">
+                            <h2 className="text-xl font-bold text-sky-600 flex items-center gap-2">
+                                <CalendarDays className="h-5 w-5" />
+                                Upcoming
+                            </h2>
+                            {paymentGroups.upcoming.map(({ mainStatement, ...rest }) => (
                                 <PaymentCard
                                     key={mainStatement.id}
                                     statement={mainStatement}
@@ -577,7 +659,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 
                     {paymentGroups.completed.length > 0 && (
                         <div className="space-y-4">
-                            <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
+                            <h2 className="text-xl font-bold text-emerald-600 flex items-center gap-2">
                                 <Check className="h-5 w-5" />
                                 Completed / No Payment Needed
                             </h2>
@@ -652,8 +734,12 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
     );
 }
 
-function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement, onLogPayment, onLogStatement, onViewTransactions, currencyFn, fmtYMShortFn, onLoadMore, isLoadingMore }) {
+function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement, onLogPayment, onLogStatement, onViewTransactions, currencyFn, fmtYMShortFn, onLoadMore, isLoadingMore, isUpcomingView }) {
     const [historyOpen, setHistoryOpen] = useState(false);
+
+    // Swap statements for Upcoming view
+    const displayStatement = isUpcomingView && nextUpcomingStatement ? { ...nextUpcomingStatement, card: statement.card } : statement;
+    const completedStatement = isUpcomingView && nextUpcomingStatement ? statement : null;
 
     const {
         card,
@@ -663,8 +749,9 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
         spend = 0,
         finalAmount = 0,
         applicableCashback = 0, // New logic
-        statementDateObj
-    } = statement;
+        statementDateObj,
+        isMoreThanTwoCycles
+    } = displayStatement;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -696,7 +783,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
             icon: <Check className="h-3 w-3 mr-1.5" />
         };
         if (daysLeft === null && remaining > 0) {
-            const overdueDays = Math.floor((new Date() - new Date(statement.paymentDate)) / (1000 * 60 * 60 * 24));
+            const overdueDays = Math.floor((new Date() - new Date(displayStatement.paymentDate)) / (1000 * 60 * 60 * 24));
             return {
                 text: `${overdueDays > 0 ? overdueDays + ' Days Overdue' : 'Overdue'}`,
                 className: 'bg-red-100 text-red-800 border border-red-200 shadow-sm animate-pulse',
@@ -744,8 +831,8 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                     <div key={stmt.id} className="flex justify-between items-center">
                                         <span>Statement for {fmtYMShortFn(stmt.month)}:</span>
                                         <div className="text-xs text-slate-500 mt-2 flex items-center gap-4">
-                                            <span>Statement Date: <span className="font-medium text-slate-600">{statement.statementDate}</span></span>
-                                            <span>Payment Due: <span className="font-medium text-slate-600">{statement.paymentDate}</span></span>
+                                            <span>Statement Date: <span className="font-medium text-slate-600">{stmt.statementDate}</span></span>
+                                            <span>Payment Due: <span className="font-medium text-slate-600">{stmt.paymentDate}</span></span>
                                         </div>
                                         <span className="font-semibold ml-2">{currencyFn(stmt.statementAmount - (stmt.paidAmount || 0))}</span>
                                     </div>
@@ -756,29 +843,30 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                 </div>
             )}
 
-            <div className="p-4">
+            <div className={cn("p-4 transition-colors", isUpcomingView && "bg-sky-50/50 dark:bg-sky-900/10")}>
                 <div className="flex justify-between items-start mb-4">
                     <div>
                         <div className="flex items-center gap-2">
-                            <p className="font-bold text-slate-800 dark:text-slate-200 text-lg">{card.name} <span className="text-base font-medium text-slate-400">•••• {card.last4}</span></p>
+                            <p className={cn("font-bold text-lg", isUpcomingView ? "text-sky-900 dark:text-sky-100" : "text-slate-800 dark:text-slate-200")}>{card.name} <span className={cn("text-base font-medium", isUpcomingView ? "text-sky-600/60 dark:text-sky-400/60" : "text-slate-400")}>•••• {card.last4}</span></p>
                             {isNotFinalized && <Badge variant="secondary" className="bg-sky-100 text-sky-700 hover:bg-sky-200">Provisional</Badge>}
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
+                        <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-1 text-sm", isUpcomingView ? "text-sky-700/80 dark:text-sky-300/80" : "text-slate-500 dark:text-slate-400")}>
                             <span>
-                                Statement: <span className="font-medium text-slate-600 dark:text-slate-300">{fmtYMShortFn(statement.month)}</span>
+                                Statement: <span className={cn("font-medium", isUpcomingView ? "text-sky-800 dark:text-sky-200" : "text-slate-600 dark:text-slate-300")}>{fmtYMShortFn(displayStatement.month)}</span>
                             </span>
-                            <span className="text-slate-400">•</span>
+                            <span className={isUpcomingView ? "text-sky-400/50" : "text-slate-400"}>•</span>
                             <span>
-                                Issued: <span className="font-medium text-slate-600 dark:text-slate-300">{statement.statementDate}</span>
+                                Issued: <span className={cn("font-medium", isUpcomingView ? "text-sky-800 dark:text-sky-200" : "text-slate-600 dark:text-slate-300")}>{displayStatement.statementDate}</span>
                             </span>
-                            <span className="text-slate-400">•</span>
+                            <span className={isUpcomingView ? "text-sky-400/50" : "text-slate-400"}>•</span>
                             <span>
-                                Due: <span className="font-medium text-slate-600 dark:text-slate-300">{statement.paymentDate}</span>
+                                Due: <span className={cn("font-medium", isUpcomingView ? "text-sky-800 dark:text-sky-200" : "text-slate-600 dark:text-slate-300")}>{displayStatement.paymentDate}</span>
                             </span>
                         </div>
                     </div>
-                    <div className={cn("text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 inline-flex items-center", status.className)}>
-                        {status.icon}{status.text}
+                    <div className={cn("text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 inline-flex items-center", isUpcomingView ? "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300" : status.className)}>
+                        {isUpcomingView ? <CalendarDays className="h-3 w-3 mr-1.5" /> : status.icon}
+                        {isUpcomingView ? "Upcoming" : status.text}
                     </div>
                 </div>
 
@@ -798,49 +886,59 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
                 <div className="flex flex-col md:flex-row gap-4">
                     {noPaymentNeeded ? (
-                        <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 flex flex-col items-center justify-center text-center h-32">
+                        <div className={cn("flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 flex flex-col items-center justify-center text-center", isMoreThanTwoCycles ? "h-auto" : "h-32")}>
                             <Wallet className="h-8 w-8 text-slate-400 dark:text-slate-500 mb-2" />
                             <p className="font-semibold text-slate-700 dark:text-slate-300">No Balance This Month</p>
                             <p className="text-sm text-slate-500 dark:text-slate-400">You're all clear for this statement cycle.</p>
+                            {isMoreThanTwoCycles && (
+                                <p className="text-xs text-slate-500 mt-3 font-medium bg-slate-100/80 px-3 py-1.5 rounded-full inline-flex items-center gap-2 flex-wrap">
+                                    <History className="h-3 w-3 flex-shrink-0" />
+                                    <span>Most Recent Statement: <span className="font-semibold">{fmtYMShortFn(displayStatement.month)}</span></span>
+                                    <span className="text-slate-300 mx-1">•</span>
+                                    <span>Payment Date: <span className="font-semibold">{displayStatement.paymentDate}</span></span>
+                                    <span className="text-slate-300 mx-1">•</span>
+                                    <span>Amount: <span className="font-semibold">{currencyFn(statementAmount)}</span></span>
+                                </p>
+                            )}
                         </div>
                     ) : (
-                        <div className="flex-1 bg-slate-100/80 dark:bg-slate-800/50 rounded-lg p-4">
+                        <div className={cn("flex-1 rounded-lg p-4", isUpcomingView ? "bg-sky-50 dark:bg-sky-900/20" : "bg-slate-100/80 dark:bg-slate-800/50")}>
                             <div className="flex justify-between items-start mb-2">
                                 <div className="flex items-center gap-2">
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wide">
+                                    <p className={cn("text-xs font-bold uppercase tracking-wide", isUpcomingView ? "text-sky-700 dark:text-sky-300" : "text-slate-500 dark:text-slate-400")}>
                                         {isNotFinalized && !rawStatementAmount ? "Estimated Statement Balance" : "Statement Balance"}
                                     </p>
-                                    {(rawStatementAmount === 0 || rawStatementAmount === null) && isNotFinalized && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">Estimated</Badge>}
+                                    {(rawStatementAmount === 0 || rawStatementAmount === null) && isNotFinalized && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-yellow-50 text-yellow-700 border-yellow-200">Estimated</Badge>}
                                     {rawStatementAmount > 0 && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-50 text-emerald-700 border-emerald-200">Logged</Badge>}
                                 </div>
                             </div>
 
                             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                                 <div>
-                                    <p className="text-3xl font-extrabold text-slate-800 dark:text-slate-200 tracking-tight">{currencyFn(statementAmount)}</p>
+                                    <p className={cn("text-3xl font-extrabold tracking-tight", isUpcomingView ? "text-sky-900 dark:text-sky-100" : "text-slate-800 dark:text-slate-200")}>{currencyFn(statementAmount)}</p>
 
                                     {isNotFinalized && !rawStatementAmount && (
-                                        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                            <span>Spend: <span className="font-medium text-slate-600 dark:text-slate-300">{currencyFn(spend)}</span></span>
+                                        <div className={cn("mt-2 text-xs", isUpcomingView ? "text-sky-600/80 dark:text-sky-400/80" : "text-slate-500 dark:text-slate-400")}>
+                                            <span>Spend: <span className={cn("font-medium", isUpcomingView ? "text-sky-800 dark:text-sky-200" : "text-slate-600 dark:text-slate-300")}>{currencyFn(spend)}</span></span>
                                         </div>
                                     )}
                                 </div>
 
                                 <div className="w-full md:w-64 space-y-2 flex flex-col justify-end">
-                                    <div className="flex flex-col gap-1.5 w-full bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 p-2 text-xs shadow-sm">
-                                        <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+                                    <div className={cn("flex flex-col gap-1.5 w-full rounded border p-2 text-xs shadow-sm", isUpcomingView ? "bg-white/80 dark:bg-sky-900/50 border-sky-100 dark:border-sky-800" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800")}>
+                                        <div className={cn("flex justify-between items-center", isUpcomingView ? "text-sky-700 dark:text-sky-300" : "text-slate-500 dark:text-slate-400")}>
                                             <span>Cashback Earned:</span>
-                                            <span className="font-semibold text-emerald-600">+{currencyFn(statement.actualCashback || 0)}</span>
+                                            <span className="font-semibold text-emerald-600">+{currencyFn(displayStatement.actualCashback || 0)}</span>
                                         </div>
-                                        <div className="flex justify-between items-center text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-1.5">
+                                        <div className={cn("flex justify-between items-center border-t pt-1.5", isUpcomingView ? "text-sky-700 dark:text-sky-300 border-sky-100 dark:border-sky-800" : "text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-800")}>
                                             <span>Credits Applied:</span>
                                             <span className="font-semibold text-emerald-600">-{currencyFn(applicableCashback)}</span>
                                         </div>
                                     </div>
 
                                     <div className="flex justify-between items-center text-sm mb-1.5 px-0.5 mt-2">
-                                        <span className="text-slate-500 dark:text-slate-400">Paid: <span className="font-medium text-slate-700 dark:text-slate-300">{currencyFn(paidAmount)}</span></span>
-                                        <span className="font-bold text-slate-700 dark:text-slate-300">Remaining: <span className={cn(isPaid ? "text-emerald-600" : "text-red-600")}>{currencyFn(remaining)}</span></span>
+                                        <span className={isUpcomingView ? "text-sky-700 dark:text-sky-300" : "text-slate-500 dark:text-slate-400"}>Paid: <span className={cn("font-medium", isUpcomingView ? "text-sky-900 dark:text-sky-100" : "text-slate-700 dark:text-slate-300")}>{currencyFn(paidAmount)}</span></span>
+                                        <span className={cn("font-bold", isUpcomingView ? "text-sky-900 dark:text-sky-100" : "text-slate-700 dark:text-slate-300")}>Remaining: <span className={cn(isPaid ? "text-emerald-600" : "text-red-600")}>{currencyFn(remaining)}</span></span>
                                     </div>
 
                                     {/* Progress Bar */}
@@ -860,19 +958,19 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button onClick={() => onViewTransactions(card.id, card.name, statement.month, fmtYMShortFn(statement.month))} variant="outline" size="icon" className="sm:w-auto sm:px-3">
+                                <Button onClick={() => onViewTransactions(card.id, card.name, displayStatement.month, fmtYMShortFn(displayStatement.month))} variant="outline" size="icon" className="sm:w-auto sm:px-3">
                                     <History className="h-4 w-4" />
-                                    <span className="hidden sm:inline ml-1.5">Transaction Details</span>
+                                    <span className="hidden sm:inline ml-1.5">Statement Details</span>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent className="sm:hidden"><p>Transaction Details</p></TooltipContent>
+                            <TooltipContent className="sm:hidden"><p>Statement Details</p></TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
-                                    onClick={() => onLogStatement(statement)}
-                                    disabled={statement.isSynthetic}
+                                    onClick={() => onLogStatement(displayStatement)}
+                                    disabled={displayStatement.isSynthetic}
                                     variant="outline"
                                     size="icon"
                                     className="sm:w-auto sm:px-3"
@@ -882,7 +980,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>{statement.isSynthetic ? "Wait for month to finalize" : "Log Statement Amount"}</p>
+                                <p>{displayStatement.isSynthetic ? "Wait for month to finalize" : "Log Statement Amount"}</p>
                             </TooltipContent>
                         </Tooltip>
 
@@ -895,18 +993,18 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                     className="sm:w-auto sm:px-3"
                                 >
                                     <List className="h-4 w-4" />
-                                    <span className="hidden sm:inline ml-1.5">Statements</span>
+                                    <span className="hidden sm:inline ml-1.5">View All</span>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent className="sm:hidden"><p>Statements</p></TooltipContent>
+                            <TooltipContent className="sm:hidden"><p>View All</p></TooltipContent>
                         </Tooltip>
 
                         {!noPaymentNeeded && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
-                                        onClick={() => onLogPayment(statement)}
-                                        disabled={isPaid || statement.isSynthetic}
+                                        onClick={() => onLogPayment(displayStatement)}
+                                        disabled={isPaid || displayStatement.isSynthetic}
                                         size="icon"
                                         className="sm:w-auto sm:px-3"
                                     >
@@ -915,7 +1013,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>{statement.isSynthetic ? "Wait for month to finalize" : (isPaid ? 'Paid' : 'Log Payment')}</p>
+                                    <p>{displayStatement.isSynthetic ? "Wait for month to finalize" : (isPaid ? 'Paid' : 'Log Payment')}</p>
                                 </TooltipContent>
                             </Tooltip>
                         )}
@@ -923,7 +1021,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                 </div>
             </div>
 
-            {isPaid && nextUpcomingStatement && (
+            {!isUpcomingView && isPaid && nextUpcomingStatement && (
                 <div className="p-4 border-t border-slate-200 bg-slate-50/50">
                     <div className="p-4 rounded-lg bg-sky-50 border border-sky-200">
                         {/* Header Section */}
@@ -957,6 +1055,55 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                                 <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Current Est. Balance</p>
                                 <p className="text-2xl font-extrabold text-sky-900 tracking-tight">
                                     {currencyFn(nextUpcomingStatement.spend - nextUpcomingStatement.applicableCashback)}
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            )}
+
+            {isUpcomingView && completedStatement && (
+                <div className="p-4 border-t border-slate-200 bg-slate-50/50">
+                    <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200">
+                        {/* Header Section */}
+                        <div className="flex items-center gap-2 mb-3">
+                            <Check className="h-5 w-5 text-emerald-600" />
+                            <h4 className="font-bold text-sm text-emerald-800">Current Statement</h4>
+                            <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 h-4 bg-emerald-100 text-emerald-800 border-emerald-300">Fully Paid</Badge>
+                        </div>
+
+                        {/* Horizontally Aligned Content */}
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-center md:text-left">
+                            {/* --- Statement Month --- */}
+                            <div>
+                                <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wider">Statement Month</p>
+                                <p className="text-lg font-bold text-emerald-900">{fmtYMShortFn(completedStatement.month)}</p>
+                            </div>
+
+                            {/* --- Issued Date --- */}
+                            <div>
+                                <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wider">Issued Date</p>
+                                <p className="text-lg font-bold text-emerald-900">{completedStatement.statementDate}</p>
+                            </div>
+
+                            {/* --- Payment Date --- */}
+                            <div>
+                                <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wider">Payment Date</p>
+                                <p className="text-lg font-bold text-emerald-900">{completedStatement.paymentDate}</p>
+                            </div>
+
+                            {/* --- Cashback --- */}
+                            <div>
+                                <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wider">Cashback</p>
+                                <p className="text-lg font-bold text-emerald-900">+{currencyFn(completedStatement.actualCashback || 0)}</p>
+                            </div>
+
+                            {/* --- Amount --- */}
+                            <div className="md:text-right">
+                                <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wider">Amount Paid</p>
+                                <p className="text-2xl font-extrabold text-emerald-900 tracking-tight">
+                                    {currencyFn(completedStatement.paidAmount || (completedStatement.statementAmount || completedStatement.finalAmount || completedStatement.spend))}
                                 </p>
                             </div>
                         </div>
