@@ -116,7 +116,7 @@ export default function CashbackDashboard() {
         setRecentTransactions, setReviewTransactions,
         cashbackRules, monthlyCashbackCategories, liveSummary,
         fetchReviewTransactions, reviewLoading, fetchCategorySummaryForMonth,
-        definitions
+        definitions, updateCard, updateRule
     } = useCashbackData(isAuthenticated);
 
 
@@ -1254,6 +1254,8 @@ export default function CashbackDashboard() {
                         fmtYMShortFn={fmtYMShort}
                         mccMap={mccMap}
                         isDesktop={isDesktop}
+                        onUpdateCard={updateCard}
+                        onUpdateRule={updateRule}
                     />
                 )}
 
