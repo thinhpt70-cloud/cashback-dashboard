@@ -606,7 +606,6 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                                     fmtYMShortFn={fmtYMShortFn}
                                     onLoadMore={handleLoadMore}
                                     isLoadingMore={isLoadingMore}
-                                    isUpcomingView={true}
                                 />
                             ))}
                         </div>
@@ -630,6 +629,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                                     fmtYMShortFn={fmtYMShortFn}
                                     onLoadMore={handleLoadMore}
                                     isLoadingMore={isLoadingMore}
+                                    isUpcomingView={true}
                                 />
                             ))}
                         </div>
@@ -828,7 +828,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
     const isPastDue = (daysLeft === null && remaining > 0) || (daysLeft !== null && daysLeft < 0 && remaining > 0);
 
     return (
-        <div className={cn("bg-card text-card-foreground rounded-xl shadow-sm overflow-hidden border",
+        <div className={cn("bg-card text-card-foreground rounded-xl shadow-sm overflow-hidden border flex flex-col",
             (isPaid || shouldShowMinimalView) && "opacity-80",
             !isPaid && daysLeft !== null && daysLeft <= 3 && "border-2 border-red-500",
             isPartiallyPaid && !isPastDue && "border-2 border-yellow-500",
@@ -1044,32 +1044,30 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                             <h4 className="font-bold text-sm text-sky-800">Next Statement Preview</h4>
                         </div>
 
-                        {/* Horizontally Aligned Content */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center md:text-left">
-                            {/* --- Statement Month --- */}
-                            <div>
-                                <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Statement Month</p>
-                                <p className="text-lg font-bold text-sky-900">{fmtYMShortFn(nextUpcomingStatement.month)}</p>
+                        <div className="flex flex-col gap-3">
+                            {/* Row 1: Simple text line for dates */}
+                            <div className="text-sm text-sky-800 font-medium">
+                                <span>{fmtYMShortFn(nextUpcomingStatement.month)}</span>
+                                <span className="text-sky-400 mx-2">•</span>
+                                <span>Issued: {nextUpcomingStatement.statementDate}</span>
+                                <span className="text-sky-400 mx-2">•</span>
+                                <span>Due: {nextUpcomingStatement.paymentDate}</span>
                             </div>
 
-                            {/* --- NEW: Est. Statement Due --- */}
-                            <div>
-                                <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Est. Statement Due</p>
-                                <p className="text-lg font-bold text-sky-900">{nextUpcomingStatement.statementDate}</p>
-                            </div>
-
-                            {/* --- Est. Payment Due --- */}
-                            <div>
-                                <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Est. Payment Due</p>
-                                <p className="text-lg font-bold text-sky-900">{nextUpcomingStatement.paymentDate}</p>
-                            </div>
-
-                            {/* --- Current Est. Balance --- */}
-                            <div className="md:text-right">
-                                <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider">Current Est. Balance</p>
-                                <p className="text-2xl font-extrabold text-sky-900 tracking-tight">
-                                    {currencyFn(nextUpcomingStatement.spend - nextUpcomingStatement.applicableCashback)}
-                                </p>
+                            {/* Row 2: Balances */}
+                            <div className="flex justify-between items-center pt-2 border-t border-sky-200/50">
+                                <div>
+                                    <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider mb-0.5">Balance</p>
+                                    <p className="text-xl font-extrabold text-sky-900 tracking-tight">
+                                        {currencyFn(nextUpcomingStatement.spend - nextUpcomingStatement.applicableCashback)}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-sky-700 font-semibold uppercase tracking-wider mb-0.5">Paid</p>
+                                    <p className="text-lg font-bold text-sky-900 tracking-tight">
+                                        {currencyFn(nextUpcomingStatement.paidAmount || 0)}
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
@@ -1078,8 +1076,8 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
             )}
 
             {isUpcomingView && completedStatement && (
-                <div className="p-4 border-t border-slate-200 bg-slate-50/50">
-                    <div className="p-4 rounded-lg bg-slate-100 border border-slate-200">
+                <div className="p-4 border-t border-slate-200 bg-slate-50/50 flex order-last">
+                    <div className="p-4 rounded-lg bg-slate-100 border border-slate-200 w-full">
                         {/* Header Section */}
                         <div className="flex items-center gap-2 mb-3">
                             <Check className="h-5 w-5 text-slate-500" />
@@ -1087,38 +1085,30 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                             <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 h-4 bg-slate-200 text-slate-600 border-slate-300">Fully Paid</Badge>
                         </div>
 
-                        {/* Horizontally Aligned Content */}
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-center md:text-left">
-                            {/* --- Statement Month --- */}
-                            <div>
-                                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Statement Month</p>
-                                <p className="text-lg font-bold text-slate-800">{fmtYMShortFn(completedStatement.month)}</p>
+                        <div className="flex flex-col gap-3">
+                            {/* Row 1: Simple text line for dates */}
+                            <div className="text-sm text-slate-700 font-medium flex flex-wrap gap-x-2 gap-y-1">
+                                <span>{fmtYMShortFn(completedStatement.month)}</span>
+                                <span className="text-slate-400">•</span>
+                                <span>Issued: {completedStatement.statementDate}</span>
+                                <span className="text-slate-400">•</span>
+                                <span>Due: {completedStatement.paymentDate}</span>
                             </div>
 
-                            {/* --- Issued Date --- */}
-                            <div>
-                                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Issued Date</p>
-                                <p className="text-lg font-bold text-slate-800">{completedStatement.statementDate}</p>
-                            </div>
-
-                            {/* --- Payment Date --- */}
-                            <div>
-                                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Payment Date</p>
-                                <p className="text-lg font-bold text-slate-800">{completedStatement.paymentDate}</p>
-                            </div>
-
-                            {/* --- Cashback --- */}
-                            <div>
-                                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Cashback</p>
-                                <p className="text-lg font-bold text-slate-800">+{currencyFn(completedStatement.actualCashback || 0)}</p>
-                            </div>
-
-                            {/* --- Amount --- */}
-                            <div className="md:text-right">
-                                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Amount Paid</p>
-                                <p className="text-2xl font-extrabold text-slate-800 tracking-tight">
-                                    {currencyFn(completedStatement.paidAmount || (completedStatement.statementAmount || completedStatement.finalAmount || completedStatement.spend))}
-                                </p>
+                            {/* Row 2: Balances */}
+                            <div className="flex justify-between items-center pt-2 border-t border-slate-200/80">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-0.5">Balance</p>
+                                    <p className="text-xl font-extrabold text-slate-800 tracking-tight">
+                                        {currencyFn(completedStatement.statementAmount || completedStatement.finalAmount || completedStatement.spend)}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-0.5">Amount Paid</p>
+                                    <p className="text-xl font-extrabold text-slate-800 tracking-tight">
+                                        {currencyFn(completedStatement.paidAmount || (completedStatement.statementAmount || completedStatement.finalAmount || completedStatement.spend))}
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
