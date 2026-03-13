@@ -616,7 +616,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 
                     {paymentGroups.currentStatements.length > 0 && (
                         <div className="space-y-4">
-                            <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
+                            <h2 className="text-xl font-bold text-slate-700 dark:text-white flex items-center gap-2">
                                 <CalendarClock className="h-5 w-5" />
                                 Current Statements
                             </h2>
@@ -632,7 +632,6 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                                     fmtYMShortFn={fmtYMShortFn}
                                     onLoadMore={handleLoadMore}
                                     isLoadingMore={isLoadingMore}
-                                    isUpcomingView={true}
                                 />
                             ))}
                         </div>
@@ -656,6 +655,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                                     fmtYMShortFn={fmtYMShortFn}
                                     onLoadMore={handleLoadMore}
                                     isLoadingMore={isLoadingMore}
+                                    isUpcomingView={true}
                                 />
                             ))}
                         </div>
