@@ -606,6 +606,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                                     fmtYMShortFn={fmtYMShortFn}
                                     onLoadMore={handleLoadMore}
                                     isLoadingMore={isLoadingMore}
+                                    isUpcomingView={true}
                                 />
                             ))}
                         </div>
@@ -790,6 +791,14 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                 icon: <AlertTriangle className="h-3 w-3 mr-1.5 text-red-600" />
             };
         }
+        if (daysLeft !== null && daysLeft < 0 && remaining > 0) {
+            const overdueDays = Math.abs(daysLeft);
+            return {
+                text: `${overdueDays} Days Overdue`,
+                className: 'bg-red-100 text-red-800 border border-red-200 shadow-sm animate-pulse',
+                icon: <AlertTriangle className="h-3 w-3 mr-1.5 text-red-600" />
+            };
+        }
         if (isPartiallyPaid) return {
             text: 'Partially Paid',
             className: 'bg-yellow-100 text-yellow-800'
@@ -813,12 +822,14 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
     };
 
     const status = getStatus();
+    const isPastDue = (daysLeft === null && remaining > 0) || (daysLeft !== null && daysLeft < 0 && remaining > 0);
 
     return (
         <div className={cn("bg-card text-card-foreground rounded-xl shadow-sm overflow-hidden border",
             (isPaid || noPaymentNeeded) && "opacity-80",
             !isPaid && daysLeft !== null && daysLeft <= 3 && "border-2 border-red-500",
-            isPartiallyPaid && "border-2 border-yellow-500"
+            isPartiallyPaid && !isPastDue && "border-2 border-yellow-500",
+            isPastDue && "border-2 border-red-500"
         )}>
             {pastDueStatements && pastDueStatements.length > 0 && (
                 <div className="p-4 bg-orange-50 border-b border-orange-200">
@@ -1065,44 +1076,44 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
             {isUpcomingView && completedStatement && (
                 <div className="p-4 border-t border-slate-200 bg-slate-50/50">
-                    <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200">
+                    <div className="p-4 rounded-lg bg-slate-100 border border-slate-200">
                         {/* Header Section */}
                         <div className="flex items-center gap-2 mb-3">
-                            <Check className="h-5 w-5 text-emerald-600" />
-                            <h4 className="font-bold text-sm text-emerald-800">Current Statement</h4>
-                            <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 h-4 bg-emerald-100 text-emerald-800 border-emerald-300">Fully Paid</Badge>
+                            <Check className="h-5 w-5 text-slate-500" />
+                            <h4 className="font-bold text-sm text-slate-700">Current Statement</h4>
+                            <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 h-4 bg-slate-200 text-slate-600 border-slate-300">Fully Paid</Badge>
                         </div>
 
                         {/* Horizontally Aligned Content */}
                         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-center md:text-left">
                             {/* --- Statement Month --- */}
                             <div>
-                                <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wider">Statement Month</p>
-                                <p className="text-lg font-bold text-emerald-900">{fmtYMShortFn(completedStatement.month)}</p>
+                                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Statement Month</p>
+                                <p className="text-lg font-bold text-slate-800">{fmtYMShortFn(completedStatement.month)}</p>
                             </div>
 
                             {/* --- Issued Date --- */}
                             <div>
-                                <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wider">Issued Date</p>
-                                <p className="text-lg font-bold text-emerald-900">{completedStatement.statementDate}</p>
+                                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Issued Date</p>
+                                <p className="text-lg font-bold text-slate-800">{completedStatement.statementDate}</p>
                             </div>
 
                             {/* --- Payment Date --- */}
                             <div>
-                                <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wider">Payment Date</p>
-                                <p className="text-lg font-bold text-emerald-900">{completedStatement.paymentDate}</p>
+                                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Payment Date</p>
+                                <p className="text-lg font-bold text-slate-800">{completedStatement.paymentDate}</p>
                             </div>
 
                             {/* --- Cashback --- */}
                             <div>
-                                <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wider">Cashback</p>
-                                <p className="text-lg font-bold text-emerald-900">+{currencyFn(completedStatement.actualCashback || 0)}</p>
+                                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Cashback</p>
+                                <p className="text-lg font-bold text-slate-800">+{currencyFn(completedStatement.actualCashback || 0)}</p>
                             </div>
 
                             {/* --- Amount --- */}
                             <div className="md:text-right">
-                                <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wider">Amount Paid</p>
-                                <p className="text-2xl font-extrabold text-emerald-900 tracking-tight">
+                                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Amount Paid</p>
+                                <p className="text-2xl font-extrabold text-slate-800 tracking-tight">
                                     {currencyFn(completedStatement.paidAmount || (completedStatement.statementAmount || completedStatement.finalAmount || completedStatement.spend))}
                                 </p>
                             </div>
