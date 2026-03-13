@@ -394,9 +394,12 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
             if (daysLeft === null && remaining > 0) {
                 // Past due date
                 actionRequired.push(p);
-            } else if (daysLeft !== null && remaining > 0) {
-                // Unpaid, in the payment window (whether estimated or finalized)
+            } else if (daysLeft !== null && remaining > 0 && isFinalized) {
+                // Unpaid, in the payment window (finalized)
                 currentStatements.push(p);
+            } else if (daysLeft !== null && remaining > 0 && !isFinalized) {
+                // Unpaid, but not yet finalized (provisional) -> move to upcoming
+                upcoming.push(p);
             } else if (isPaid && p.nextUpcomingStatement) {
                 const nextBaseAmount = p.mainStatement.card.useStatementMonthForPayments ? p.nextUpcomingStatement.spend : (p.nextUpcomingStatement.finalAmount || p.nextUpcomingStatement.spend);
                 const nextEstimatedBalance = nextBaseAmount - p.nextUpcomingStatement.applicableCashback;
@@ -862,7 +865,6 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                     <div>
                         <div className="flex items-center gap-2">
                             <p className={cn("font-bold text-lg", isUpcomingView ? "text-sky-900 dark:text-sky-100" : "text-slate-800 dark:text-slate-200")}>{card.name} <span className={cn("text-base font-medium", isUpcomingView ? "text-sky-600/60 dark:text-sky-400/60" : "text-slate-400")}>•••• {card.last4}</span></p>
-                            {isNotFinalized && <Badge variant="secondary" className="bg-sky-100 text-sky-700 hover:bg-sky-200">Provisional</Badge>}
                         </div>
                         <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-1 text-sm", isUpcomingView ? "text-sky-700/80 dark:text-sky-300/80" : "text-slate-500 dark:text-slate-400")}>
                             <span>
