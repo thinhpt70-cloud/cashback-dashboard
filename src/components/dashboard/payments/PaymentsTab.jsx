@@ -772,6 +772,9 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
     const noPaymentNeeded = statementAmount <= 0;
     const isPartiallyPaid = paidAmount > 0 && !isPaid;
 
+    // Conditionally show minimalistic view
+    const shouldShowMinimalView = noPaymentNeeded || (isMoreThanTwoCycles && remaining === 0);
+
     const getStatus = () => {
         if (noPaymentNeeded) return {
             text: 'No Payment Needed',
@@ -826,7 +829,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
     return (
         <div className={cn("bg-card text-card-foreground rounded-xl shadow-sm overflow-hidden border",
-            (isPaid || noPaymentNeeded) && "opacity-80",
+            (isPaid || shouldShowMinimalView) && "opacity-80",
             !isPaid && daysLeft !== null && daysLeft <= 3 && "border-2 border-red-500",
             isPartiallyPaid && !isPastDue && "border-2 border-yellow-500",
             isPastDue && "border-2 border-red-500"
@@ -896,11 +899,11 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                 )}
 
                 <div className="flex flex-col md:flex-row gap-4">
-                    {noPaymentNeeded ? (
+                    {shouldShowMinimalView ? (
                         <div className={cn("flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 flex flex-col items-center justify-center text-center", isMoreThanTwoCycles ? "h-auto" : "h-32")}>
                             <Wallet className="h-8 w-8 text-slate-400 dark:text-slate-500 mb-2" />
-                            <p className="font-semibold text-slate-700 dark:text-slate-300">No Balance This Month</p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">You're all clear for this statement cycle.</p>
+                            <p className="font-semibold text-slate-700 dark:text-slate-300">{noPaymentNeeded ? "No Balance This Month" : "Statement Fully Paid"}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{noPaymentNeeded ? "You're all clear for this statement cycle." : "No further payments needed for this statement cycle."}</p>
                             {isMoreThanTwoCycles && (
                                 <p className="text-xs text-slate-500 mt-3 font-medium bg-slate-100/80 px-3 py-1.5 rounded-full inline-flex items-center gap-2 flex-wrap">
                                     <History className="h-3 w-3 flex-shrink-0" />
@@ -1010,7 +1013,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                             <TooltipContent className="sm:hidden"><p>View All</p></TooltipContent>
                         </Tooltip>
 
-                        {!noPaymentNeeded && (
+                        {!shouldShowMinimalView && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
