@@ -517,10 +517,19 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 
         let upcomingStatementAmount = 0;
         paymentGroups.upcoming.forEach(p => {
-            if (p.nextUpcomingStatement) {
+            const { statementAmount: rawStatementAmount = 0, finalAmount = 0, spend = 0, applicableCashback = 0, paidAmount = 0 } = p.mainStatement;
+            const baseAmount = p.mainStatement.card.useStatementMonthForPayments ? spend : (finalAmount || spend);
+            const estimatedBalance = baseAmount - applicableCashback;
+            const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
+            const remaining = finalStatementAmount - paidAmount;
+            const isPaid = finalStatementAmount > 0 && remaining <= 0;
+
+            if (isPaid && p.nextUpcomingStatement) {
                 const nextBaseAmount = p.mainStatement.card.useStatementMonthForPayments ? p.nextUpcomingStatement.spend : (p.nextUpcomingStatement.finalAmount || p.nextUpcomingStatement.spend);
                 const nextEstimatedBalance = nextBaseAmount - p.nextUpcomingStatement.applicableCashback;
                 upcomingStatementAmount += nextEstimatedBalance;
+            } else if (!isPaid) {
+                upcomingStatementAmount += estimatedBalance;
             }
         });
 
@@ -741,9 +750,18 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueStatements, nextUpcomingStatement, onLogPayment, onLogStatement, onViewTransactions, currencyFn, fmtYMShortFn, onLoadMore, isLoadingMore, isUpcomingView }) {
     const [historyOpen, setHistoryOpen] = useState(false);
 
-    // Swap statements for Upcoming view
-    const displayStatement = isUpcomingView && nextUpcomingStatement ? { ...nextUpcomingStatement, card: statement.card } : statement;
-    const completedStatement = isUpcomingView && nextUpcomingStatement ? statement : null;
+    // Determine if the main statement is fully paid
+    const isMainStatementPaid = useMemo(() => {
+        const { statementAmount: rawStatementAmount = 0, finalAmount = 0, spend = 0, applicableCashback = 0, paidAmount = 0, card } = statement;
+        const baseAmount = card.useStatementMonthForPayments ? spend : (finalAmount || spend);
+        const estimatedBalance = baseAmount - applicableCashback;
+        const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
+        return finalStatementAmount > 0 && (finalStatementAmount - paidAmount) <= 0;
+    }, [statement]);
+
+    // Swap statements for Upcoming view only if the main statement is fully paid
+    const displayStatement = isUpcomingView && isMainStatementPaid && nextUpcomingStatement ? { ...nextUpcomingStatement, card: statement.card } : statement;
+    const completedStatement = isUpcomingView && isMainStatementPaid && nextUpcomingStatement ? statement : null;
 
     const {
         card,
