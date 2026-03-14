@@ -517,7 +517,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
 
         let upcomingStatementAmount = 0;
         paymentGroups.upcoming.forEach(p => {
-            const { rawStatementAmount = 0, finalAmount = 0, spend = 0, applicableCashback = 0, paidAmount = 0 } = p.mainStatement;
+            const { statementAmount: rawStatementAmount = 0, finalAmount = 0, spend = 0, applicableCashback = 0, paidAmount = 0 } = p.mainStatement;
             const baseAmount = p.mainStatement.card.useStatementMonthForPayments ? spend : (finalAmount || spend);
             const estimatedBalance = baseAmount - applicableCashback;
             const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
@@ -752,7 +752,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
     // Determine if the main statement is fully paid
     const isMainStatementPaid = useMemo(() => {
-        const { rawStatementAmount = 0, finalAmount = 0, spend = 0, applicableCashback = 0, paidAmount = 0, card } = statement;
+        const { statementAmount: rawStatementAmount = 0, finalAmount = 0, spend = 0, applicableCashback = 0, paidAmount = 0, card } = statement;
         const baseAmount = card.useStatementMonthForPayments ? spend : (finalAmount || spend);
         const estimatedBalance = baseAmount - applicableCashback;
         const finalStatementAmount = rawStatementAmount > 0 ? rawStatementAmount : estimatedBalance;
