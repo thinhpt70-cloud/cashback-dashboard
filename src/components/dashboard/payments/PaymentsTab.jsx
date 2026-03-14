@@ -1118,42 +1118,46 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                 </div>
             )}
 
-            {historyOpen && (
-                <div className="p-4 border-t border-slate-200 bg-slate-50/50 space-y-4">
-                    {displayStatement && (
+            {historyOpen && (() => {
+                // Combine and deduplicate statements
+                const allStmts = [displayStatement, ...(upcomingStatements || []), ...(pastStatements || [])].filter(Boolean);
+                const uniqueStmts = Array.from(new Map(allStmts.map(s => [s.id, s])).values());
+
+                // Sort by payment date descending (like pastStatements) or ascending?
+                // Let's sort ascending for upcoming, descending for past to match previous behavior
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const currentAndUpcomingList = uniqueStmts.filter(s => s.daysLeft !== null).sort((a, b) => a.paymentDateObj - b.paymentDateObj);
+                const pastList = uniqueStmts.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
+
+                return (
+                    <div className="p-4 border-t border-slate-200 bg-slate-50/50 space-y-4">
                         <StatementHistoryTable
-                            title="Current Statement"
-                            statements={[displayStatement]}
+                            title="Current & Upcoming Statements"
+                            statements={currentAndUpcomingList}
                             currencyFn={currencyFn}
                             fmtYMShortFn={fmtYMShortFn}
                             onViewTransactions={onViewTransactions}
                             onLogStatement={onLogStatement}
                             onLogPayment={onLogPayment}
                         />
-                    )}
-                    <StatementHistoryTable
-                        title="Upcoming Statements"
-                        statements={upcomingStatements}
-                        currencyFn={currencyFn}
-                        fmtYMShortFn={fmtYMShortFn}
-                        onViewTransactions={onViewTransactions}
-                        onLogStatement={onLogStatement}
-                        onLogPayment={onLogPayment}
-                    />
-                    <StatementHistoryTable
-                        title="Past Statements"
-                        statements={pastStatements}
-                        remainingCount={statement.remainingPastSummaries?.length || 0}
-                        onLoadMore={() => onLoadMore(statement.card.id)}
-                        isLoadingMore={isLoadingMore[statement.card.id]}
-                        currencyFn={currencyFn}
-                        fmtYMShortFn={fmtYMShortFn}
-                        onViewTransactions={onViewTransactions}
-                        onLogStatement={onLogStatement}
-                        onLogPayment={onLogPayment}
-                    />
-                </div>
-            )}
+                        <StatementHistoryTable
+                            title="Past Statements"
+                            statements={pastList}
+                            remainingCount={statement.remainingPastSummaries?.length || 0}
+                            onLoadMore={() => onLoadMore(statement.card.id)}
+                            isLoadingMore={isLoadingMore[statement.card.id]}
+                            currencyFn={currencyFn}
+                            fmtYMShortFn={fmtYMShortFn}
+                            onViewTransactions={onViewTransactions}
+                            onLogStatement={onLogStatement}
+                            onLogPayment={onLogPayment}
+                        />
+                    </div>
+                );
+            })()}
         </div>
     );
 }
@@ -1194,9 +1198,19 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
                         {statements.map(stmt => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+
+                            const finalStatementAmount = stmt.statementAmount > 0 ? stmt.statementAmount : ((stmt.card?.useStatementMonthForPayments ? stmt.spend : (stmt.finalAmount || stmt.spend)) - (stmt.applicableCashback || stmt.cashback || 0));
+                            const remaining = finalStatementAmount - (stmt.paidAmount || 0);
+
                             let statusBadge;
-                            if (stmt.daysLeft === null) {
+                            if (remaining <= 0) {
                                 statusBadge = <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">Completed</span>;
+                            } else if (stmt.daysLeft === null || (stmt.daysLeft !== null && stmt.daysLeft < 0)) {
+                                statusBadge = <span className="bg-red-100 text-red-800 border border-red-200 text-xs font-bold px-2 py-0.5 rounded-full">Overdue</span>;
+                            } else if (stmt.statementDateObj && today >= stmt.statementDateObj && today <= stmt.paymentDateObj) {
+                                statusBadge = <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded-full">Current</span>;
                             } else {
                                 statusBadge = <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2 py-0.5 rounded-full">Upcoming</span>;
                             }
