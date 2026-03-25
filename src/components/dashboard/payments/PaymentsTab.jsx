@@ -1120,7 +1120,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
 
             {historyOpen && (() => {
                 // Combine and deduplicate statements
-                const allStmts = [displayStatement, ...(upcomingStatements || []), ...(pastStatements || [])].filter(Boolean);
+                const allStmts = [statement, displayStatement, completedStatement, ...(upcomingStatements || []), ...(pastStatements || [])].filter(Boolean);
                 const uniqueStmts = Array.from(new Map(allStmts.map(s => [s.id, s])).values());
 
                 // Sort by payment date descending (like pastStatements) or ascending?
