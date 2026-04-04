@@ -14,6 +14,7 @@ import StatementLogDialog from '../dialogs/StatementLogDialog';
 import PaymentsCalendarView from './PaymentsCalendarView';
 
 import { calculateCashbackSplit, calculatePaymentDate } from '../../../lib/cashback-logic';
+import { getZonedDate } from '../../../lib/timezone';
 
 const API_BASE_URL = '/api';
 
@@ -124,7 +125,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
     }, [paymentData]);
 
     const partitionStatements = (allStatements) => {
-        const today = new Date();
+        const today = getZonedDate();
         today.setHours(0, 0, 0, 0);
 
         // Sort by payment date
@@ -241,7 +242,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
                 };
 
                 if (card.useStatementMonthForPayments) {
-                    const today = new Date();
+                    const today = getZonedDate();
                     let targetDate = new Date(today.getFullYear(), today.getMonth(), 1);
                     if (today.getDate() > card.statementDay) {
                         targetDate.setMonth(targetDate.getMonth() + 1);
@@ -340,7 +341,7 @@ export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMSh
         const completed = [];
         const closed = [];
 
-        const today = new Date();
+        const today = getZonedDate();
         today.setHours(0, 0, 0, 0);
 
         paymentData.forEach(p => {
@@ -775,7 +776,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
         isMoreThanTwoCycles
     } = displayStatement;
 
-    const today = new Date();
+    const today = getZonedDate();
     today.setHours(0, 0, 0, 0);
     const isNotFinalized = statementDateObj && today < statementDateObj;
 
@@ -808,7 +809,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
             icon: <Check className="h-3 w-3 mr-1.5" />
         };
         if (daysLeft === null && remaining > 0) {
-            const overdueDays = Math.floor((new Date() - new Date(displayStatement.paymentDate)) / (1000 * 60 * 60 * 24));
+            const overdueDays = Math.floor((getZonedDate() - new Date(displayStatement.paymentDate)) / (1000 * 60 * 60 * 24));
             return {
                 text: `${overdueDays > 0 ? overdueDays + ' Days Overdue' : 'Overdue'}`,
                 className: 'bg-red-100 text-red-800 border border-red-200 shadow-sm animate-pulse',
@@ -1144,7 +1145,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                 // Sort by payment date descending (like pastStatements) or ascending?
                 // Let's sort ascending for upcoming, descending for past to match previous behavior
 
-                const today = new Date();
+                const today = getZonedDate();
                 today.setHours(0, 0, 0, 0);
 
                 const currentAndUpcomingList = uniqueStmts.filter(s => s.daysLeft !== null).sort((a, b) => a.paymentDateObj - b.paymentDateObj);
@@ -1216,7 +1217,7 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
                         {statements.map(stmt => {
-                            const today = new Date();
+                            const today = getZonedDate();
                             today.setHours(0, 0, 0, 0);
 
                             const finalStatementAmount = stmt.statementAmount > 0 ? stmt.statementAmount : ((stmt.card?.useStatementMonthForPayments ? stmt.spend : (stmt.finalAmount || stmt.spend)) - (stmt.applicableCashback || stmt.cashback || 0));

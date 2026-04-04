@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Gift, AlertCircle, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useMediaQuery from '@/hooks/useMediaQuery';
+import { getZonedDate } from '../../../../lib/timezone';
 
 // Helper for currency formatting
 const formatCurrency = (value) => {
@@ -37,7 +38,7 @@ export function RedeemPointsDialog({ isOpen, onClose, onConfirm, target }) {
             setAmount('');
             setNotes('');
             // Default to current local time in YYYY-MM-DDTHH:MM format
-            const now = new Date();
+            const now = getZonedDate();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');

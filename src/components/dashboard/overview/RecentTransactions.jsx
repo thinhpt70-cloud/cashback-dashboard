@@ -86,7 +86,7 @@ const RecentTransactions = React.memo(({ transactions, cardMap, currencyFn, isLo
     }, [transactions]);
 
     const filteredTransactions = useMemo(() => {
-        const today = startOfDay(new Date());
+        const today = startOfDay(getZonedDate());
         const options = { weekStartsOn: 1 };
         let interval;
 

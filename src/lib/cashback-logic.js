@@ -105,7 +105,7 @@ export const isStatementFinalized = (cashbackMonth, statementDay) => {
     const statementDate = new Date(year, month - 1, statementDay);
     statementDate.setHours(23, 59, 59, 999); // End of the statement day
 
-    const now = new Date();
+    const now = getZonedDate();
     return now > statementDate;
 };
 
@@ -133,7 +133,7 @@ export const getPaymentStatus = (amountDue, amountPaid, dueDate) => {
 
     // It is unpaid. Check if overdue.
     if (dueDate instanceof Date) {
-        const today = new Date();
+        const today = getZonedDate();
         today.setHours(0,0,0,0);
         // If due date is strictly before today, it's overdue
         if (dueDate < today) {
