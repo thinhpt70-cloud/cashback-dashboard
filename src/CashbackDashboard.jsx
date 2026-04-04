@@ -27,8 +27,7 @@ import AddTransactionForm from './components/dashboard/forms/AddTransactionForm'
 // Import overview tab components
 import CardSpendsCap from "./components/dashboard/overview/CardSpendsCap";
 import EnhancedSuggestions from "./components/dashboard/overview/EnhancedSuggestions";
-import SpendByCardChart from "./components/dashboard/overview/SpendByCardChart";
-import CashbackByCardChart from "./components/dashboard/overview/CashbackByCardChart";
+import CombinedCardStatsChart from "./components/dashboard/overview/CombinedCardStatsChart";
 import CummulativeResultsChart from "./components/dashboard/overview/CummulativeResultsChart";
 import RecentTransactions from './components/dashboard/overview/RecentTransactions';
 import CurrentCashflowChart from "./components/dashboard/overview/CurrentCashflowChart";
@@ -756,29 +755,24 @@ export default function CashbackDashboard() {
     }, [activeMonth, monthlySummary, liveSummary]);
 
 
-    // --- RENAMED: This hook now ONLY calculates pie chart data ---
     const overviewChartStats = useMemo(() => {
-        // Filter the summary data for only the currently selected month
         const monthData = monthlySummary.filter(s => s.month === activeMonth);
 
-        // Prepare data formatted for the pie charts
-        const spendByCard = monthData.map(item => ({
-            name: cardMap.get(item.cardId)?.name || "Unknown Card",
-            value: item.spend || 0,
-        })).sort((a, b) => b.value - a.value);
+        const combinedData = cards.map(card => {
+            const summary = monthData.find(s => s.cardId === card.id);
+            return {
+                name: card.name,
+                spend: summary?.spend || 0,
+                cashback: summary?.cashback || 0
+            };
+        });
 
-        const cashbackByCard = monthData.map(item => ({
-            name: cardMap.get(item.cardId)?.name || "Unknown Card",
-            value: item.cashback || 0,
-        })).sort((a, b) => b.value - a.value);
-
-        // --- Removed totalSpend, totalCashback, effectiveRate ---
-        return { spendByCard, cashbackByCard };
-    }, [activeMonth, monthlySummary, cardMap]);
+        return combinedData;
+    }, [activeMonth, monthlySummary, cards]);
 
     // --- NEW: Live Chart Stats (12M, 6M, 1M, LM, 1W) ---
     const liveOverviewChartStats = useMemo(() => {
-        if (activeMonth !== 'live') return { spendByCard: [], cashbackByCard: [] };
+        if (activeMonth !== 'live') return [];
 
         const spendMap = new Map();
         const cashbackMap = new Map();
@@ -839,17 +833,13 @@ export default function CashbackDashboard() {
             });
         }
 
-        const spendByCard = cards.map(card => ({
+        const combinedData = cards.map(card => ({
             name: card.name,
-            value: spendMap.get(card.id) || 0
-        })).sort((a, b) => b.value - a.value);
+            spend: spendMap.get(card.id) || 0,
+            cashback: cashbackMap.get(card.id) || 0
+        }));
 
-        const cashbackByCard = cards.map(card => ({
-            name: card.name,
-            value: cashbackMap.get(card.id) || 0
-        })).sort((a, b) => b.value - a.value);
-
-        return { spendByCard, cashbackByCard };
+        return combinedData;
     }, [activeMonth, liveChartPeriod, cards, monthlySummary, recentTransactions, monthlyTransactions]);
 
     // cardsTabStats MOVED TO CardsTab
@@ -1227,31 +1217,13 @@ export default function CashbackDashboard() {
                         </div>
 
                         {/* --- 4. SPEND AND CASHBACK BY CARD CHARTS --- */}
-                        {activeMonth === 'live' && (
-                            <div className="flex justify-end mb-2">
-                                <select
-                                    value={liveChartPeriod}
-                                    onChange={(e) => setLiveChartPeriod(e.target.value)}
-                                    className="h-9 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                                >
-                                    <option value="12M">12M</option>
-                                    <option value="6M">6M</option>
-                                    <option value="1M">1M</option>
-                                    <option value="LM">LM</option>
-                                    <option value="1W">1W</option>
-                                </select>
-                            </div>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <SpendByCardChart
-                                spendData={activeMonth === 'live' ? liveOverviewChartStats.spendByCard : overviewChartStats.spendByCard}
+                        <div className="grid gap-4 mt-4">
+                            <CombinedCardStatsChart
+                                data={activeMonth === 'live' ? liveOverviewChartStats : overviewChartStats}
                                 currencyFn={currency}
-                                cardColorMap={cardColorMap}
-                            />
-                            <CashbackByCardChart
-                                cashbackData={activeMonth === 'live' ? liveOverviewChartStats.cashbackByCard : overviewChartStats.cashbackByCard}
-                                currencyFn={currency}
-                                cardColorMap={cardColorMap}
+                                isLiveView={activeMonth === 'live'}
+                                period={liveChartPeriod}
+                                onPeriodChange={setLiveChartPeriod}
                             />
                         </div>
                     </div>
