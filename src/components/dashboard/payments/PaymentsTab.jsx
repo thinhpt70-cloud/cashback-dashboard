@@ -1136,18 +1136,51 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                 </div>
             )}
 
-            {historyOpen && (
-                <div className="p-4 border-t border-slate-200 bg-slate-50/50 space-y-4">
-                    <StatementHistoryTable title="Upcoming Statements" statements={upcomingStatements} currencyFn={currencyFn} fmtYMShortFn={fmtYMShortFn} onViewTransactions={onViewTransactions} />
-                    <StatementHistoryTable title="Past Statements" statements={pastStatements} remainingCount={statement.remainingPastSummaries?.length || 0} onLoadMore={() => onLoadMore(statement.card.id)} isLoadingMore={isLoadingMore[statement.card.id]} currencyFn={currencyFn} fmtYMShortFn={fmtYMShortFn} onViewTransactions={onViewTransactions} />
-                </div>
-            )}
+            {historyOpen && (() => {
+                // Combine and deduplicate statements
+                const allStmts = [statement, displayStatement, completedStatement, ...(upcomingStatements || []), ...(pastStatements || [])].filter(Boolean);
+                const uniqueStmts = Array.from(new Map(allStmts.map(s => [s.id, s])).values());
+
+                // Sort by payment date descending (like pastStatements) or ascending?
+                // Let's sort ascending for upcoming, descending for past to match previous behavior
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const currentAndUpcomingList = uniqueStmts.filter(s => s.daysLeft !== null).sort((a, b) => a.paymentDateObj - b.paymentDateObj);
+                const pastList = uniqueStmts.filter(s => s.daysLeft === null).sort((a, b) => b.paymentDateObj - a.paymentDateObj);
+
+                return (
+                    <div className="p-4 border-t border-slate-200 bg-slate-50/50 space-y-4">
+                        <StatementHistoryTable
+                            title="Current & Upcoming Statements"
+                            statements={currentAndUpcomingList}
+                            currencyFn={currencyFn}
+                            fmtYMShortFn={fmtYMShortFn}
+                            onViewTransactions={onViewTransactions}
+                            onLogStatement={onLogStatement}
+                            onLogPayment={onLogPayment}
+                        />
+                        <StatementHistoryTable
+                            title="Past Statements"
+                            statements={pastList}
+                            remainingCount={statement.remainingPastSummaries?.length || 0}
+                            onLoadMore={() => onLoadMore(statement.card.id)}
+                            isLoadingMore={isLoadingMore[statement.card.id]}
+                            currencyFn={currencyFn}
+                            fmtYMShortFn={fmtYMShortFn}
+                            onViewTransactions={onViewTransactions}
+                            onLogStatement={onLogStatement}
+                            onLogPayment={onLogPayment}
+                        />
+                    </div>
+                );
+            })()}
         </div>
     );
 }
 
-// ... StatementHistoryTable remains unchanged
-function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, isLoadingMore, currencyFn, fmtYMShortFn, onViewTransactions }) {
+function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, isLoadingMore, currencyFn, fmtYMShortFn, onViewTransactions, onLogStatement, onLogPayment }) {
     if (!statements || statements.length === 0) {
         return null; // Don't render anything if there are no statements
     }
@@ -1156,7 +1189,18 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
         <div>
             <h3 className="text-sm font-semibold mb-2 text-slate-600 dark:text-slate-300">{title}</h3>
             <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-                <table className="w-full text-sm whitespace-nowrap">
+                <table className="w-full min-w-[1000px] text-sm whitespace-nowrap table-fixed">
+                    <colgroup>
+                        <col className="w-[8%]" />
+                        <col className="w-[10%]" />
+                        <col className="w-[12%]" />
+                        <col className="w-[12%]" />
+                        <col className="w-[12%]" />
+                        <col className="w-[12%]" />
+                        <col className="w-[12%]" />
+                        <col className="w-[12%]" />
+                        <col className="w-[10%]" />
+                    </colgroup>
                     <thead className="text-left text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800">
                         <tr>
                             <th className="sticky left-0 bg-slate-100 dark:bg-slate-800 p-2 font-medium">Month</th>
@@ -1172,9 +1216,19 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
                         {statements.map(stmt => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+
+                            const finalStatementAmount = stmt.statementAmount > 0 ? stmt.statementAmount : ((stmt.card?.useStatementMonthForPayments ? stmt.spend : (stmt.finalAmount || stmt.spend)) - (stmt.applicableCashback || stmt.cashback || 0));
+                            const remaining = finalStatementAmount - (stmt.paidAmount || 0);
+
                             let statusBadge;
-                            if (stmt.daysLeft === null) {
+                            if (remaining <= 0) {
                                 statusBadge = <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">Completed</span>;
+                            } else if (stmt.daysLeft === null || (stmt.daysLeft !== null && stmt.daysLeft < 0)) {
+                                statusBadge = <span className="bg-red-100 text-red-800 border border-red-200 text-xs font-bold px-2 py-0.5 rounded-full">Overdue</span>;
+                            } else if (stmt.statementDateObj && today >= stmt.statementDateObj && today <= stmt.paymentDateObj) {
+                                statusBadge = <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded-full">Current</span>;
                             } else {
                                 statusBadge = <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2 py-0.5 rounded-full">Upcoming</span>;
                             }
@@ -1187,15 +1241,54 @@ function StatementHistoryTable({ title, statements, remainingCount, onLoadMore, 
                                     <td className="p-2">{stmt.paymentDate}</td>
                                     <td className="p-2 text-right">{currencyFn(stmt.spend)}</td>
                                     <td className="p-2 text-right text-emerald-600">-{currencyFn(stmt.applicableCashback || stmt.cashback)}</td>
-                                    <td className="p-2 text-right font-bold text-slate-700 dark:text-slate-300">{currencyFn(stmt.statementAmount)}</td>
+                                    <td className="p-2 text-right font-bold text-slate-700 dark:text-slate-300">{currencyFn(stmt.statementAmount > 0 ? stmt.statementAmount : (stmt.card?.useStatementMonthForPayments ? stmt.spend : (stmt.finalAmount || stmt.spend)) - (stmt.applicableCashback || stmt.cashback || 0))}</td>
                                     <td className="p-2 text-right">{currencyFn(stmt.paidAmount)}</td>
                                     <td className="p-2 text-center">
-                                        <button
-                                            onClick={() => onViewTransactions(stmt.card.id, stmt.card.name, stmt.month, fmtYMShortFn(stmt.month))}
-                                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                                        >
-                                            <List className="h-5 w-5"/>
-                                        </button>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            onClick={() => onLogStatement && onLogStatement(stmt)}
+                                                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-50"
+                                                            disabled={stmt.isSynthetic}
+                                                        >
+                                                            <FilePenLine className="h-4 w-4" />
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Log Statement Amount</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            onClick={() => onLogPayment && onLogPayment(stmt)}
+                                                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-50"
+                                                            disabled={stmt.isSynthetic}
+                                                        >
+                                                            <Plus className="h-4 w-4" />
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Log Payment</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            onClick={() => onViewTransactions(stmt.card.id, stmt.card.name, stmt.month, fmtYMShortFn(stmt.month))}
+                                                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                                                        >
+                                                            <List className="h-4 w-4" />
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>View Statement Details</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
                                     </td>
                                 </tr>
                             );
