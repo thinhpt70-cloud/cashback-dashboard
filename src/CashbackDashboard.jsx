@@ -115,8 +115,8 @@ export default function CashbackDashboard() {
         error, refreshData, isShellReady, isDashboardLoading,
         setRecentTransactions, setReviewTransactions,
         cashbackRules, monthlyCashbackCategories, liveSummary,
-        fetchReviewTransactions, reviewLoading, fetchCategorySummaryForMonth,
-        definitions, updateCard, updateRule
+        fetchReviewTransactions, reviewLoading, fetchSummariesForMonth,
+        definitions, updateCard, updateRule, availableMonths
     } = useCashbackData(isAuthenticated);
 
 
@@ -181,40 +181,36 @@ export default function CashbackDashboard() {
         }
     }, [activeView, fetchReviewTransactions]);
 
-    // NEW: Trigger lazy load of category summaries when activeMonth changes
+    // Trigger lazy load of BOTH summaries when activeMonth changes
     useEffect(() => {
-        if (!monthlyCategorySummary) return;
+        if (!monthlyCategorySummary || !monthlySummary) return;
 
         if (activeMonth === 'live') {
-            // For live view, we need to check the current cashback month for ALL active cards
-            // because different cards might be in different statement cycles.
             const requiredMonths = new Set();
             cards.forEach(card => {
                 const currentMonth = getCurrentCashbackMonthForCard(card);
                 requiredMonths.add(currentMonth);
             });
 
-            // Find which of these required months are missing from our data
-            const loadedMonths = new Set(monthlyCategorySummary.map(item => item.month));
-            const missingMonths = [...requiredMonths].filter(m => !loadedMonths.has(m));
+            const loadedCatMonths = new Set(monthlyCategorySummary.map(item => item.month));
+            const loadedSummaryMonths = new Set(monthlySummary.map(item => item.month));
 
-            // Fetch any missing months
+            const missingMonths = [...requiredMonths].filter(m => !loadedCatMonths.has(m) || !loadedSummaryMonths.has(m));
+
             if (missingMonths.length > 0) {
-                // Fetch them one by one (or could batch if API supported it, but loop is fine for now)
                 missingMonths.forEach(month => {
-                    fetchCategorySummaryForMonth(month);
+                    fetchSummariesForMonth(month);
                 });
             }
-
         } else {
-            // Standard historical view: check if we have data for the specific selected month
-            const hasDataForMonth = monthlyCategorySummary.some(item => item.month === activeMonth);
+            const hasCatData = monthlyCategorySummary.some(item => item.month === activeMonth);
+            const hasSummaryData = monthlySummary.some(item => item.month === activeMonth);
 
-            if (!hasDataForMonth) {
-                fetchCategorySummaryForMonth(activeMonth);
+            if (!hasCatData || !hasSummaryData) {
+                fetchSummariesForMonth(activeMonth);
             }
         }
-    }, [activeMonth, monthlyCategorySummary, fetchCategorySummaryForMonth, cards]);
+    }, [activeMonth, monthlyCategorySummary, monthlySummary, fetchSummariesForMonth, cards]);
 
     const handleLogout = async () => {
         try {
@@ -574,12 +570,8 @@ export default function CashbackDashboard() {
 
 
 
-    // Dynamic list of available months from transactions
-    const statementMonths = useMemo(() => {
-        if (!monthlySummary || monthlySummary.length === 0) return [];
-        const uniqueMonths = [...new Set(monthlySummary.map(summary => summary.month))];
-        return uniqueMonths.sort().reverse();
-    }, [monthlySummary]);
+    // We now use availableMonths directly from useCashbackData
+    // Removed old statementMonths useMemo.
 
     // --- NEW: AUTHENTICATION CHECK EFFECT ---
 
@@ -957,14 +949,14 @@ export default function CashbackDashboard() {
                     )}
 
                     {/* Month Selector - visible on all screen sizes */}
-                    {statementMonths.length > 0 && (
+                    {availableMonths && availableMonths.length > 0 && (
                         <select
                             value={activeMonth}
                             onChange={(e) => setActiveMonth(e.target.value)}
                             className="h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
                         >
                             <option value="live">Live View</option>
-                            {statementMonths.map(m => (
+                            {availableMonths.map(m => (
                                 <option key={m} value={m}>{fmtYMShort(m)}</option>
                             ))}
                         </select>
@@ -1216,7 +1208,7 @@ export default function CashbackDashboard() {
                             allCards={cards}
                             filterType={transactionFilterType}
                             onFilterTypeChange={setTransactionFilterType}
-                            statementMonths={statementMonths}
+                            statementMonths={availableMonths}
                             onTransactionDeleted={handleTransactionDeleted}
                             onEditTransaction={handleEditClick}
                             onDuplicateTransaction={handleDuplicateClick}

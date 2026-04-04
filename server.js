@@ -87,6 +87,38 @@ const createRateLimiter = (windowMs, maxAttempts, message) => {
 const loginRateLimiter = createRateLimiter(15 * 60 * 1000, 5, 'Too many login attempts. Please try again later.');
 const lookupRateLimiter = createRateLimiter(60 * 1000, 30, 'Too many lookups. Please wait a moment.'); // 30 per min
 
+// --- GENERIC CACHE HELPER ---
+const appCache = {};
+
+const getCached = (key) => {
+    const entry = appCache[key];
+    if (entry && Date.now() - entry.timestamp < entry.ttl) {
+        return entry.data;
+    }
+    return null;
+};
+
+const setCache = (key, data, ttlMs = 5 * 60 * 1000) => {
+    appCache[key] = {
+        data,
+        timestamp: Date.now(),
+        ttl: ttlMs
+    };
+};
+
+const clearCache = (prefix) => {
+    if (prefix) {
+        Object.keys(appCache).forEach(k => {
+            if (k.startsWith(prefix)) {
+                delete appCache[k];
+            }
+        });
+    } else {
+        Object.keys(appCache).forEach(k => delete appCache[k]);
+    }
+};
+
+
 // --- SECURE LOGGING HELPER ---
 const secureLog = (message, error) => {
     let errorDetails = error;
@@ -850,6 +882,7 @@ app.post('/api/transactions/batch-update', async (req, res) => {
             return mapTransaction(updatedPage);
         }));
 
+        clearCache('cards_');
         res.status(200).json(results);
 
     } catch (error) {
@@ -886,6 +919,7 @@ app.post('/api/transactions/bulk-edit', async (req, res) => {
             return mapTransaction(updatedPage);
         }));
 
+        clearCache('cards_');
         res.status(200).json(updatedTransactions);
     } catch (error) {
         console.error('Error bulk editing transactions in Notion:', error.body || error);
@@ -908,6 +942,7 @@ app.delete('/api/transactions/:id', async (req, res) => {
             archived: true,
         });
 
+        clearCache('cards_');
         res.status(200).json({ success: true, message: 'Transaction deleted successfully.' });
     } catch (error) {
         console.error('Error deleting transaction in Notion:', error.body || error);
@@ -934,6 +969,7 @@ app.post('/api/transactions/bulk-delete', async (req, res) => {
             })
         ));
 
+        clearCache('cards_');
         res.status(200).json({ success: true, message: 'Transactions deleted successfully.' });
     } catch (error) {
         console.error('Error bulk deleting transactions in Notion:', error.body || error);
@@ -1075,6 +1111,7 @@ app.patch('/api/transactions/:id', async (req, res) => {
         const populatedPage = await notion.pages.retrieve({ page_id: updatedPage.id });
         const formattedTransaction = mapTransaction(populatedPage);
 
+        clearCache('cards_'); // Card balances might have updated
         res.status(200).json(formattedTransaction);
 
     } catch (error) {
@@ -1104,6 +1141,7 @@ app.patch('/api/cards/:id', async (req, res) => {
             properties: propertiesToUpdate,
         });
 
+        clearCache('cards_');
         res.status(200).json({ success: true, message: 'Card updated successfully.', id: updatedPage.id });
     } catch (error) {
         console.error('Error updating card in Notion:', error.body || error);
@@ -1114,6 +1152,9 @@ app.patch('/api/cards/:id', async (req, res) => {
 // Fetch All Cards
 app.get('/api/cards', async (req, res) => {
     const { includeClosed } = req.query;
+    const cacheKey = `cards_${includeClosed}`;
+    const cachedData = getCached(cacheKey);
+    if (cachedData) return res.json(cachedData);
     try {
         const response = await notion.databases.query({ database_id: cardsDbId });
         // UPDATED: Renaming properties to be more JS-friendly
@@ -1169,6 +1210,7 @@ app.get('/api/cards', async (req, res) => {
             results = results.filter(card => card.status !== 'Closed');
         }
 
+        setCache(cacheKey, results);
         res.json(results);
     } catch (error) {
         console.error('Failed to fetch cards:', error);
@@ -1198,6 +1240,7 @@ app.patch('/api/rules/:id', async (req, res) => {
             properties: propertiesToUpdate,
         });
 
+        clearCache('rules');
         res.status(200).json({ success: true, message: 'Rule updated successfully.', id: updatedPage.id });
     } catch (error) {
         console.error('Error updating rule in Notion:', error.body || error);
@@ -1257,6 +1300,10 @@ app.get('/api/cards/:id/analysis', async (req, res) => {
 
 // Fetch All Rules
 app.get('/api/rules', async (req, res) => {
+    const cacheKey = 'rules';
+    const cachedData = getCached(cacheKey);
+    if (cachedData) return res.json(cachedData);
+
     try {
         const response = await notion.databases.query({ database_id: rulesDbId });
          // UPDATED: Renaming properties to be more JS-friendly
@@ -1286,6 +1333,7 @@ app.get('/api/rules', async (req, res) => {
                 excludedMccCodes: parsed['Excluded MCC Code'] ? parsed['Excluded MCC Code'].split(',').map(c => c.trim()) : [],
             };
         });
+        setCache(cacheKey, results);
         res.json(results);
     } catch (error) {
         console.error('Failed to fetch rules:', error);
@@ -1294,12 +1342,71 @@ app.get('/api/rules', async (req, res) => {
 });
 
 // ADDED: Fetch Monthly Summary for Trend Chart
-app.get('/api/monthly-summary', async (req, res) => {
+
+// ADDED: Fetch available months from the database schema
+app.get('/api/available-months', async (req, res) => {
     try {
-        const response = await notion.databases.query({
-            database_id: monthlySummaryDbId,
-            sorts: [{ property: 'Month', direction: 'ascending' }] // Sort by month
-        });
+        const cacheKey = 'available_months';
+        const cachedData = getCached(cacheKey);
+        if (cachedData) return res.json(cachedData);
+
+        const db = await notion.databases.retrieve({ database_id: monthlySummaryDbId });
+        const monthProperty = db.properties['Month'];
+
+        let months = [];
+        if (monthProperty && monthProperty.select) {
+            months = monthProperty.select.options.map(o => o.name);
+        }
+
+        // Sort months descending (newest first)
+        months.sort().reverse();
+
+        setCache(cacheKey, months, 60 * 60 * 1000); // 1 hour TTL
+        res.json(months);
+    } catch (error) {
+        console.error('Failed to fetch available months:', error);
+        res.status(500).json({ error: 'Failed to fetch available months' });
+    }
+});
+
+app.get('/api/monthly-summary', async (req, res) => {
+    const { months } = req.query; // Expecting comma-separated YYYYMM
+    try {
+        let filter;
+        if (months) {
+            if (typeof months !== 'string') {
+                return res.status(400).json({ error: 'Invalid months format. Must be a comma-separated string.' });
+            }
+            const monthList = months.split(',').map(m => m.trim());
+            if (monthList.length > 0) {
+                // Ensure options exist to prevent Notion API validation error
+                await ensureSelectOptionsExist(monthlySummaryDbId, 'Month', monthList);
+                filter = {
+                    or: monthList.map(m => ({
+                        property: 'Month',
+                        select: { equals: m }
+                    }))
+                };
+            }
+        }
+
+        const allResults = [];
+        let nextCursor = undefined;
+
+        // Loop to handle Notion's pagination
+        do {
+            const response = await notion.databases.query({
+                database_id: monthlySummaryDbId,
+                filter: filter,
+                start_cursor: nextCursor,
+                sorts: [{ property: 'Month', direction: 'ascending' }]
+            });
+            allResults.push(...response.results);
+            nextCursor = response.next_cursor;
+        } while (nextCursor);
+
+        const response = { results: allResults }; // Mock response structure to match the old map logic
+
         const results = response.results.map(page => {
 
             const parsed = parseNotionPageProperties(page);
@@ -1331,6 +1438,11 @@ app.get('/api/monthly-summary', async (req, res) => {
 
 app.get('/api/mcc-codes', (req, res) => {
     // Simply send the cached data
+    const cacheKey = 'mcc_codes';
+    const cachedData = getCached(cacheKey);
+    if (cachedData) return res.json(cachedData);
+
+    setCache(cacheKey, mccData, 60 * 60 * 1000); // 1 hour TTL
     res.json(mccData);
 });
 
@@ -1607,6 +1719,7 @@ app.post('/api/transactions', async (req, res) => {
         const populatedPage = await notion.pages.retrieve({ page_id: newPage.id });
         const formattedTransaction = mapTransaction(newPage);
         
+        clearCache('cards_'); // Card balances might have updated
         res.status(201).json(formattedTransaction);
 
     } catch (error) {
@@ -1639,6 +1752,10 @@ app.get('/api/categories', async (req, res) => {
 
 // GET /api/definitions - Retrieve all select options for various fields
 app.get('/api/definitions', async (req, res) => {
+    const cacheKey = 'definitions';
+    const cachedData = getCached(cacheKey);
+    if (cachedData) return res.json(cachedData);
+
     try {
         const database = await getTransactionDatabaseSchema();
         const definitions = {
@@ -1664,6 +1781,7 @@ app.get('/api/definitions', async (req, res) => {
         definitions.foreignCurrencies = extractOptions('Foreign Currency');
         definitions.subCategories = extractOptions('Sub Category');
 
+        setCache(cacheKey, definitions, 60 * 60 * 1000); // 1 hour TTL
         res.json(definitions);
     } catch (error) {
         console.error('Error fetching definitions:', error);
@@ -1780,6 +1898,7 @@ app.post('/api/summaries', async (req, res) => {
             properties,
         });
 
+        clearCache('available_months');
         // Return 201 Created because we made a new one
         res.status(201).json({ id: newSummary.id, name: summaryName, cardId, month });
 
@@ -1877,6 +1996,10 @@ app.post('/api/monthly-summary/bulk-review', async (req, res) => {
 });
 
 app.get('/api/common-vendors', async (req, res) => {
+    const cacheKey = 'common_vendors';
+    const cachedData = getCached(cacheKey);
+    if (cachedData) return res.json(cachedData);
+
     try {
         const response = await notion.databases.query({
             database_id: vendorsDbId,
@@ -1912,6 +2035,7 @@ app.get('/api/common-vendors', async (req, res) => {
             };
         });
 
+        setCache(cacheKey, vendors);
         res.json(vendors);
     } catch (error) {
         console.error('Failed to fetch common vendors:', error.body || error);
