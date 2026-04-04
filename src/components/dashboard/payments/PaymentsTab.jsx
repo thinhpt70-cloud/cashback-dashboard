@@ -884,19 +884,21 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                         <div className="flex items-center gap-2">
                             <p className={cn("font-bold text-lg", isUpcomingView ? "text-sky-900 dark:text-sky-100" : "text-slate-800 dark:text-slate-200")}>{card.name} <span className={cn("text-base font-medium", isUpcomingView ? "text-sky-600/60 dark:text-sky-400/60" : "text-slate-400")}>•••• {card.last4}</span></p>
                         </div>
-                        <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-1 text-sm", isUpcomingView ? "text-sky-700/80 dark:text-sky-300/80" : "text-slate-500 dark:text-slate-400")}>
-                            <span>
-                                Statement: <span className={cn("font-medium", isUpcomingView ? "text-sky-800 dark:text-sky-200" : "text-slate-600 dark:text-slate-300")}>{fmtYMShortFn(displayStatement.month)}</span>
-                            </span>
-                            <span className={isUpcomingView ? "text-sky-400/50" : "text-slate-400"}>•</span>
-                            <span>
-                                Issued: <span className={cn("font-medium", isUpcomingView ? "text-sky-800 dark:text-sky-200" : "text-slate-600 dark:text-slate-300")}>{displayStatement.statementDate}</span>
-                            </span>
-                            <span className={isUpcomingView ? "text-sky-400/50" : "text-slate-400"}>•</span>
-                            <span>
-                                Due: <span className={cn("font-medium", isUpcomingView ? "text-sky-800 dark:text-sky-200" : "text-slate-600 dark:text-slate-300")}>{displayStatement.paymentDate}</span>
-                            </span>
-                        </div>
+                        {!(shouldShowMinimalView && isMoreThanTwoCycles) && (
+                            <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-1 text-sm", isUpcomingView ? "text-sky-700/80 dark:text-sky-300/80" : "text-slate-500 dark:text-slate-400")}>
+                                <span>
+                                    Statement: <span className={cn("font-medium", isUpcomingView ? "text-sky-800 dark:text-sky-200" : "text-slate-600 dark:text-slate-300")}>{fmtYMShortFn(displayStatement.month)}</span>
+                                </span>
+                                <span className={isUpcomingView ? "text-sky-400/50" : "text-slate-400"}>•</span>
+                                <span>
+                                    Issued: <span className={cn("font-medium", isUpcomingView ? "text-sky-800 dark:text-sky-200" : "text-slate-600 dark:text-slate-300")}>{displayStatement.statementDate}</span>
+                                </span>
+                                <span className={isUpcomingView ? "text-sky-400/50" : "text-slate-400"}>•</span>
+                                <span>
+                                    Due: <span className={cn("font-medium", isUpcomingView ? "text-sky-800 dark:text-sky-200" : "text-slate-600 dark:text-slate-300")}>{displayStatement.paymentDate}</span>
+                                </span>
+                            </div>
+                        )}
                     </div>
                     <div className={cn("text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 inline-flex items-center", isUpcomingView ? "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300" : status.className)}>
                         {isUpcomingView ? <CalendarDays className="h-3 w-3 mr-1.5" /> : status.icon}
