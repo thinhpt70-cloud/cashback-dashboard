@@ -10,6 +10,7 @@ export default function useCashbackData(isAuthenticated) {
     const [allCards, setAllCards] = useState([]); // NEW: Stores ALL cards, including Closed
     const [cards, setCards] = useState([]); // Stores only Active/Frozen cards (filtered)
     const [rules, setRules] = useState([]);
+    const [availableMonths, setAvailableMonths] = useState([]); // NEW: Stores all available statement months
     const [monthlySummary, setMonthlySummary] = useState([]);
     const [mccMap, setMccMap] = useState({});
     const [monthlyCategorySummary, setMonthlyCategorySummary] = useState([]);
@@ -43,14 +44,15 @@ export default function useCashbackData(isAuthenticated) {
             // --- STAGE 1: CRITICAL SHELL DATA ---
             // Fetch minimal data required to render the Sidebar, Header, and basic actions (Add Tx, Finder)
             if (!skipStatic) {
-                const [cardsRes, rulesRes, mccRes, definitionsRes] = await Promise.all([
+                const [cardsRes, rulesRes, mccRes, definitionsRes, monthsRes] = await Promise.all([
                     fetch(`${API_BASE_URL}/cards?includeClosed=true`),
                     fetch(`${API_BASE_URL}/rules`),
                     fetch(`${API_BASE_URL}/mcc-codes`),
                     fetch(`${API_BASE_URL}/definitions`),
+                    fetch(`${API_BASE_URL}/available-months`),
                 ]);
 
-                if (!cardsRes.ok || !rulesRes.ok || !mccRes.ok || !definitionsRes.ok) {
+                if (!cardsRes.ok || !rulesRes.ok || !mccRes.ok || !definitionsRes.ok || !monthsRes.ok) {
                     throw new Error('Failed to fetch critical shell data.');
                 }
 
@@ -58,6 +60,7 @@ export default function useCashbackData(isAuthenticated) {
                 const rulesData = await rulesRes.json();
                 const mccData = await mccRes.json();
                 const definitionsData = await definitionsRes.json();
+                const monthsData = await monthsRes.json();
 
                 setAllCards(cardsData);
                 setCards(cardsData.filter(c => c.status !== 'Closed'));
@@ -65,6 +68,7 @@ export default function useCashbackData(isAuthenticated) {
                 setMccMap(mccData.mccDescriptionMap || {});
                 setDefinitions(definitionsData);
                 setAllCategories(definitionsData.categories || []);
+                setAvailableMonths(monthsData || []);
 
                 // Shell is ready! The UI can render now.
                 hasShellLoaded = true;
@@ -83,9 +87,13 @@ export default function useCashbackData(isAuthenticated) {
             const pastMonths = getPastNMonths(currentMonth, 3);
             const monthsToFetch = [...new Set([...pastMonths, currentMonth])].join(',');
 
+            // Limit initial monthly summary fetch to the last 12 months for performance
+            const past12Months = getPastNMonths(currentMonth, 11);
+            const monthsToFetchSummary = [...new Set([...past12Months, currentMonth])].join(',');
+
             // MOVED: monthly-category-summary is now fetched here to prevent empty state flash in widgets
             const [monthlyRes, recentTxRes, monthlyCatRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/monthly-summary`),
+                fetch(`${API_BASE_URL}/monthly-summary?months=${monthsToFetchSummary}`),
                 fetch(`${API_BASE_URL}/recent-transactions`),
                 fetch(`${API_BASE_URL}/monthly-category-summary?months=${monthsToFetch}`),
             ]);
@@ -133,26 +141,33 @@ export default function useCashbackData(isAuthenticated) {
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // New dedicated function to lazy load category summaries for a specific month
-    const fetchCategorySummaryForMonth = useCallback(async (month) => {
+    // Renamed and expanded to fetch both summary types for a specific month
+    const fetchSummariesForMonth = useCallback(async (month) => {
         try {
-            const res = await fetch(`${API_BASE_URL}/monthly-category-summary?months=${month}`);
-            if (!res.ok) throw new Error('Failed to fetch category summary');
-            const newData = await res.json();
+            const [catRes, summaryRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/monthly-category-summary?months=${month}`),
+                fetch(`${API_BASE_URL}/monthly-summary?months=${month}`)
+            ]);
+
+            if (!catRes.ok || !summaryRes.ok) throw new Error('Failed to fetch summaries');
+
+            const newCatData = await catRes.json();
+            const newSummaryData = await summaryRes.json();
 
             setMonthlyCategorySummary(prevData => {
-                // Create a Map of existing items by ID to avoid duplicates
                 const existingMap = new Map(prevData.map(item => [item.id, item]));
+                newCatData.forEach(item => { existingMap.set(item.id, item); });
+                return Array.from(existingMap.values());
+            });
 
-                // Add new items to the map
-                newData.forEach(item => {
-                    existingMap.set(item.id, item);
-                });
-
+            setMonthlySummary(prevData => {
+                const existingMap = new Map(prevData.map(item => [item.id, item]));
+                newSummaryData.forEach(item => { existingMap.set(item.id, item); });
                 return Array.from(existingMap.values());
             });
         } catch (err) {
-            console.error(`Failed to fetch category summary for ${month}:`, err);
-            toast.error("Could not load category summary data.");
+            console.error(`Failed to fetch summaries for ${month}:`, err);
+            toast.error("Could not load summary data for the selected month.");
         }
     }, []);
 
@@ -266,7 +281,8 @@ export default function useCashbackData(isAuthenticated) {
         // Action
         refreshData: fetchData, // Provide the fetch function under a clearer name
         fetchReviewTransactions,
-        fetchCategorySummaryForMonth, // Expose the new function
+        fetchSummariesForMonth, // Expose the new function
         definitions,
+        availableMonths,
     };
 }
