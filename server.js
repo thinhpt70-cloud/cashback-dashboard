@@ -323,6 +323,33 @@ const parseNotionPageProperties = (page) => {
     return result;
 };
 
+const ensureSelectOptionsExist = async (dbId, propertyName, requiredOptions) => {
+    const db = await notion.databases.retrieve({ database_id: dbId });
+    const property = db.properties[propertyName];
+    if (!property || !property.select) {
+        throw new Error(`Property ${propertyName} is not a select property`);
+    }
+
+    const existingOptions = property.select.options.map(o => o.name);
+    const newOptions = requiredOptions.filter(reqOpt => !existingOptions.includes(reqOpt));
+
+    if (newOptions.length > 0) {
+        await notion.databases.update({
+            database_id: dbId,
+            properties: {
+                [propertyName]: {
+                    select: {
+                        options: [
+                            ...property.select.options,
+                            ...newOptions.map(name => ({ name }))
+                        ]
+                    }
+                }
+            }
+        });
+    }
+};
+
 const getSelectOptions = async (propertyName) => {
     const db = await getTransactionDatabaseSchema();
     return db.properties[propertyName].select.options;
@@ -1320,6 +1347,8 @@ app.get('/api/monthly-category-summary', async (req, res) => {
 
             const monthList = months.split(',').map(m => m.trim());
             if (monthList.length > 0) {
+                // Ensure options exist to prevent Notion API validation error
+                await ensureSelectOptionsExist(monthlyCategoryDbId, 'Month', monthList);
                 filter = {
                     or: monthList.map(m => ({
                         property: 'Month',
@@ -1650,6 +1679,10 @@ app.post('/api/summaries', async (req, res) => {
         if (!cardId || !month || !ruleId || cardId === 'undefined' || ruleId === 'undefined') {
             return res.status(400).json({ error: 'cardId, month, and ruleId are required' });
         }
+
+        // Ensure the month options exist before querying or creating pages
+        await ensureSelectOptionsExist(monthlyCategoryDbId, 'Month', [month]);
+        await ensureSelectOptionsExist(monthlySummaryDbId, 'Month', [month]);
 
         // --- Step 1: Get names needed to build the unique IDs ---
         const cardPage = await notion.pages.retrieve({ page_id: cardId });
