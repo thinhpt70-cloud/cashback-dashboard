@@ -130,11 +130,11 @@ export default function CurrentCashflowChart({ data, cards, currencyFn }) {
         <Card className="flex flex-col min-h-[350px]">
             <CardHeader className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle>Current Cashflow</CardTitle>
-                <div className="flex flex-row items-center gap-2">
+                <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
                     {/* Card Selector Dropdown */}
                     {cards && (
                         <Select value={selectedCardId} onValueChange={setSelectedCardId}>
-                            <SelectTrigger className="w-1/2 sm:w-[180px]">
+                            <SelectTrigger className="w-full sm:w-[180px]">
                                 <SelectValue placeholder="Select a card" />
                             </SelectTrigger>
                             <SelectContent>
@@ -150,7 +150,7 @@ export default function CurrentCashflowChart({ data, cards, currencyFn }) {
 
                     {/* View Toggle */}
                     <Select value={chartView} onValueChange={setChartView}>
-                        <SelectTrigger className="w-1/2 sm:w-[160px]">
+                        <SelectTrigger className="w-full sm:w-[160px]">
                             <SelectValue placeholder="Select a view" />
                         </SelectTrigger>
                         <SelectContent>

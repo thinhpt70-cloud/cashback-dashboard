@@ -66,11 +66,11 @@ export default function CombinedCardStatsChart({ data, currencyFn, isLiveView, p
 
   return (
     <Card className="flex flex-col w-full overflow-hidden">
-      <CardHeader className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between pb-2">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle>Spending & Cashback</CardTitle>
         {isLiveView && (
             <Select value={period} onValueChange={onPeriodChange}>
-                <SelectTrigger className="w-1/2 sm:w-[120px] h-8 text-xs">
+                <SelectTrigger className="w-[120px] h-8 text-xs">
                     <SelectValue placeholder="Period" />
                 </SelectTrigger>
                 <SelectContent>
