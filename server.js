@@ -33,7 +33,10 @@ app.use(cookieParser());
 const port = process.env.PORT || 3001;
 
 
-const notion = new Client({ auth: process.env.NOTION_API_KEY });
+// Use the native fetch if it exists (Node 18+), otherwise it will fall back to node-fetch
+// handled by the Notion SDK, or polyfilled in tests.
+const fetchImpl = typeof fetch !== 'undefined' ? fetch : undefined;
+const notion = new Client({ auth: process.env.NOTION_API_KEY, fetch: fetchImpl });
 
 const transactionsDbId = process.env.NOTION_TRANSACTIONS_DB_ID;
 const cardsDbId = process.env.NOTION_CARDS_DB_ID;
