@@ -6,19 +6,20 @@ import {
 import {
     Card, CardContent, CardHeader, CardTitle
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup,
-    DropdownMenuRadioItem, DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import { ChevronsUpDown } from 'lucide-react'; // For the dropdown button
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /**
  * Custom Tooltip Component
  * Updated to handle both currency (All/Spend/Cashback) and percentage (Rate) views.
  */
-const CustomRechartsTooltip = ({ active, payload, label, isRateView, isAllView }) => {
-    const currency = (n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+const CustomRechartsTooltip = ({ active, payload, label, isRateView, isAllView, currencyFn }) => {
+    const currency = currencyFn || ((n) => (n || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }));
     
     if (active && payload?.length) {
         // --- Rate View ---
@@ -80,25 +81,44 @@ const CustomRechartsTooltip = ({ active, payload, label, isRateView, isAllView }
 /**
  * Main Chart Component
  */
-export default function CurrentCashflowChart({ data }) {
+export default function CurrentCashflowChart({ data, cards, currencyFn }) {
     const [chartView, setChartView] = useState("all"); // "all", "spend", "cashback", "rate"
-    
-    // 1. Calculate effective rate for the chart data
+    const [selectedCardId, setSelectedCardId] = useState('all'); // 'all' or a card.id
+
+    // 1. Calculate the chart data
     const chartData = useMemo(() => {
-        return data.map(item => ({
-            ...item,
-            // Calculate rate as a decimal (e.g., 0.05 for 5%)
-            effectiveRate: item.spend > 0 ? (item.cashback / item.spend) : 0
-        }));
-    }, [data]);
-    
-    // 2. Labels for the dropdown
-    const viewLabels = {
-        all: "All",
-        spend: "Spending",
-        cashback: "Cashback",
-        rate: "Effective Rate"
-    };
+        if (!data || data.length === 0) return [];
+
+        return data.map(monthData => {
+            let spend = 0;
+            let cashback = 0;
+
+            if (selectedCardId === 'all') {
+                if (cards) {
+                    spend = cards.reduce((acc, card) => acc + (monthData[`${card.name} Spend`] || 0), 0);
+                    cashback = cards.reduce((acc, card) => acc + (monthData[`${card.name} Cashback`] || 0), 0);
+                } else {
+                    // Fallback if cards not provided but data has 'spend'/'cashback'
+                    spend = monthData.spend || 0;
+                    cashback = monthData.cashback || 0;
+                }
+            } else {
+                const selectedCard = cards?.find(c => c.id === selectedCardId);
+                if (selectedCard) {
+                    spend = monthData[`${selectedCard.name} Spend`] || 0;
+                    cashback = monthData[`${selectedCard.name} Cashback`] || 0;
+                }
+            }
+
+            return {
+                ...monthData,
+                spend,
+                cashback,
+                // Calculate rate as a decimal (e.g., 0.05 for 5%)
+                effectiveRate: spend > 0 ? (cashback / spend) : 0
+            };
+        });
+    }, [data, cards, selectedCardId]);
 
     const isRateViewOnly = chartView === 'rate'; // Only Effective Rate is visible
     const isAllView = chartView === 'all';
@@ -108,26 +128,39 @@ export default function CurrentCashflowChart({ data }) {
 
     return (
         <Card className="flex flex-col min-h-[350px]">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle>Current Cashflow</CardTitle>
-                
-                {/* 3. Add Dropdown Menu */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-[160px] justify-between">
-                            {viewLabels[chartView]}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-[160px]">
-                        <DropdownMenuRadioGroup value={chartView} onValueChange={setChartView}>
-                            <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="spend">Spending</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="cashback">Cashback</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="rate">Effective Rate</DropdownMenuRadioItem>
-                        </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex flex-row items-center gap-2">
+                    {/* Card Selector Dropdown */}
+                    {cards && (
+                        <Select value={selectedCardId} onValueChange={setSelectedCardId}>
+                            <SelectTrigger className="w-1/2 sm:w-[180px]">
+                                <SelectValue placeholder="Select a card" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Cards</SelectItem>
+                                {cards.map((card) => (
+                                    <SelectItem key={card.id} value={card.id}>
+                                        {card.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+
+                    {/* View Toggle */}
+                    <Select value={chartView} onValueChange={setChartView}>
+                        <SelectTrigger className="w-1/2 sm:w-[160px]">
+                            <SelectValue placeholder="Select a view" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="spend">Spending</SelectItem>
+                            <SelectItem value="cashback">Cashback</SelectItem>
+                            <SelectItem value="rate">Effective Rate</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </CardHeader>
             <CardContent className="flex-grow">
                 <ResponsiveContainer width="100%" height="100%">
@@ -210,7 +243,7 @@ export default function CurrentCashflowChart({ data }) {
                             />
                         )}
 
-                        <RechartsTooltip content={<CustomRechartsTooltip isRateView={isRateViewOnly} isAllView={isAllView} />} />
+                        <RechartsTooltip content={<CustomRechartsTooltip isRateView={isRateViewOnly} isAllView={isAllView} currencyFn={currencyFn} />} />
                         
                         <Legend 
                             verticalAlign="top" 

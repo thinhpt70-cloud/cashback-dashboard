@@ -27,8 +27,7 @@ import AddTransactionForm from './components/dashboard/forms/AddTransactionForm'
 // Import overview tab components
 import CardSpendsCap from "./components/dashboard/overview/CardSpendsCap";
 import EnhancedSuggestions from "./components/dashboard/overview/EnhancedSuggestions";
-import SpendByCardChart from "./components/dashboard/overview/SpendByCardChart";
-import CashbackByCardChart from "./components/dashboard/overview/CashbackByCardChart";
+import CombinedCardStatsChart from "./components/dashboard/overview/CombinedCardStatsChart";
 import CummulativeResultsChart from "./components/dashboard/overview/CummulativeResultsChart";
 import RecentTransactions from './components/dashboard/overview/RecentTransactions';
 import CurrentCashflowChart from "./components/dashboard/overview/CurrentCashflowChart";
@@ -106,6 +105,7 @@ export default function CashbackDashboard() {
     const [liveCardFilter, setLiveCardFilter] = useState('all');
     const [liveCategoryFilter, setLiveCategoryFilter] = useState('all');
     const [liveMethodFilter, setLiveMethodFilter] = useState('all');
+    const [liveChartPeriod, setLiveChartPeriod] = useState('1M'); // '12M', '6M', '1M', 'LM', '1W'
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
@@ -747,25 +747,92 @@ export default function CashbackDashboard() {
     }, [activeMonth, monthlySummary, liveSummary]);
 
 
-    // --- RENAMED: This hook now ONLY calculates pie chart data ---
     const overviewChartStats = useMemo(() => {
-        // Filter the summary data for only the currently selected month
         const monthData = monthlySummary.filter(s => s.month === activeMonth);
 
-        // Prepare data formatted for the pie charts
-        const spendByCard = monthData.map(item => ({
-            name: cardMap.get(item.cardId)?.name || "Unknown Card",
-            value: item.spend || 0,
-        })).sort((a, b) => b.value - a.value);
+        const combinedData = cards.map(card => {
+            const summary = monthData.find(s => s.cardId === card.id);
+            return {
+                name: card.name,
+                spend: summary?.spend || 0,
+                cashback: summary?.cashback || 0
+            };
+        });
 
-        const cashbackByCard = monthData.map(item => ({
-            name: cardMap.get(item.cardId)?.name || "Unknown Card",
-            value: item.cashback || 0,
-        })).sort((a, b) => b.value - a.value);
+        return combinedData;
+    }, [activeMonth, monthlySummary, cards]);
 
-        // --- Removed totalSpend, totalCashback, effectiveRate ---
-        return { spendByCard, cashbackByCard };
-    }, [activeMonth, monthlySummary, cardMap]);
+    // --- NEW: Live Chart Stats (12M, 6M, 1M, LM, 1W) ---
+    const liveOverviewChartStats = useMemo(() => {
+        if (activeMonth !== 'live') return [];
+
+        const spendMap = new Map();
+        const cashbackMap = new Map();
+
+        cards.forEach(card => {
+            spendMap.set(card.id, 0);
+            cashbackMap.set(card.id, 0);
+        });
+
+        if (liveChartPeriod === '1W') {
+            // For 1W, we filter transactions from the last 7 days.
+            // Using recentTransactions (and maybe monthlyTransactions if needed, but recent usually has the latest).
+            // Combine both to ensure we have recent ones, avoiding duplicates.
+            const allRecent = [...recentTransactions, ...monthlyTransactions];
+            const uniqueTxs = Array.from(new Map(allRecent.map(tx => [tx.id, tx])).values());
+
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            sevenDaysAgo.setHours(0, 0, 0, 0);
+
+            uniqueTxs.forEach(tx => {
+                const txDate = new Date(tx['Transaction Date']);
+                if (txDate >= sevenDaysAgo && tx['Card']) {
+                    const cardId = tx['Card'][0];
+                    if (spendMap.has(cardId)) {
+                        spendMap.set(cardId, spendMap.get(cardId) + (tx.Amount || 0));
+                        cashbackMap.set(cardId, cashbackMap.get(cardId) + (tx.Cashback || 0));
+                    }
+                }
+            });
+        } else {
+            // For month-based periods, we use monthlySummary
+            cards.forEach(card => {
+                const currentMonth = getCurrentCashbackMonthForCard(card);
+                let targetMonths = [];
+
+                if (liveChartPeriod === '1M') {
+                    targetMonths = [currentMonth];
+                } else if (liveChartPeriod === 'LM') {
+                    targetMonths = [getPreviousMonth(currentMonth)];
+                } else {
+                    const count = liveChartPeriod === '6M' ? 6 : 12;
+                    let m = currentMonth;
+                    for (let i = 0; i < count; i++) {
+                        targetMonths.push(m);
+                        m = getPreviousMonth(m);
+                    }
+                }
+
+                // Sum up for target months
+                targetMonths.forEach(m => {
+                    const summary = monthlySummary.find(s => s.month === m && s.cardId === card.id);
+                    if (summary) {
+                        spendMap.set(card.id, spendMap.get(card.id) + (summary.spend || 0));
+                        cashbackMap.set(card.id, cashbackMap.get(card.id) + (summary.cashback || 0));
+                    }
+                });
+            });
+        }
+
+        const combinedData = cards.map(card => ({
+            name: card.name,
+            spend: spendMap.get(card.id) || 0,
+            cashback: cashbackMap.get(card.id) || 0
+        }));
+
+        return combinedData;
+    }, [activeMonth, liveChartPeriod, cards, monthlySummary, recentTransactions, monthlyTransactions]);
 
     // cardsTabStats MOVED TO CardsTab
     // const cardsTabStats = useMemo(() => { ... }, [allCards]);
@@ -791,30 +858,6 @@ export default function CashbackDashboard() {
             return monthData;
         });
     }, [monthlySummary, cards]);
-
-    const monthlyChartData = useMemo(() => {
-        const aggregated = new Map(); // Use a Map to aggregate and preserve order
-
-        // Ensure monthlySummary is sorted by month before aggregating
-        const sortedSummary = [...monthlySummary].sort((a, b) => a.month.localeCompare(b.month));
-
-        sortedSummary.forEach(item => {
-            const monthCode = item.month; // e.g., "2024-07"
-            if (!aggregated.has(monthCode)) {
-                aggregated.set(monthCode, { month: monthCode, spend: 0, cashback: 0 });
-            }
-            const current = aggregated.get(monthCode);
-            current.spend += item.spend || 0;
-            current.cashback += item.cashback || 0;
-        });
-
-        // Convert map values to array and format the month label for display
-        return Array.from(aggregated.values())
-            .map(item => ({
-                ...item,
-                month: fmtYMShort(item.month) // Converts "2024-07" to "Jul 2024"
-            }));
-    }, [monthlySummary]);
 
     // calculateFeeCycleProgress MOVED TO lib/date.js
 
@@ -1149,7 +1192,11 @@ export default function CashbackDashboard() {
                         {/* --- 3. UNIFIED CONTEXTUAL COMPONENTS --- */}
 
                         <div className="grid gap-4">
-                            <CurrentCashflowChart data={monthlyChartData} />
+                            <CurrentCashflowChart
+                                data={cardPerformanceData}
+                                cards={cards}
+                                currencyFn={currency}
+                            />
                         </div>
 
                         <div className="mt-4">
@@ -1161,22 +1208,16 @@ export default function CashbackDashboard() {
                             />
                         </div>
 
-                        {/* --- 4. CONDITIONAL HISTORICAL CHARTS --- */}
-                        {/* These charts only render for historical months */}
-                        {activeMonth !== 'live' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <SpendByCardChart
-                                    spendData={overviewChartStats.spendByCard}
-                                    currencyFn={currency}
-                                    cardColorMap={cardColorMap}
-                                />
-                                <CashbackByCardChart
-                                    cashbackData={overviewChartStats.cashbackByCard}
-                                    currencyFn={currency}
-                                    cardColorMap={cardColorMap}
-                                />
-                            </div>
-                        )}
+                        {/* --- 4. SPEND AND CASHBACK BY CARD CHARTS --- */}
+                        <div className="grid gap-4 mt-4">
+                            <CombinedCardStatsChart
+                                data={activeMonth === 'live' ? liveOverviewChartStats : overviewChartStats}
+                                currencyFn={currency}
+                                isLiveView={activeMonth === 'live'}
+                                period={liveChartPeriod}
+                                onPeriodChange={setLiveChartPeriod}
+                            />
+                        </div>
                     </div>
                 )}
 
