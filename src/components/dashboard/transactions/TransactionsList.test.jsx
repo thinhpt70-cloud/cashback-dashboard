@@ -3,7 +3,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import TransactionsList from './TransactionsList';
 
 // Mock child components
-jest.mock('../../ui/table', () => ({
+vi.mock('../../ui/table', () => ({
   Table: ({ children }) => <table>{children}</table>,
   TableHeader: ({ children }) => <thead>{children}</thead>,
   TableBody: ({ children }) => <tbody>{children}</tbody>,
@@ -12,7 +12,7 @@ jest.mock('../../ui/table', () => ({
   TableCell: ({ children, colSpan, className }) => <td colSpan={colSpan} className={className}>{children}</td>,
 }));
 
-jest.mock('../../ui/dropdown-menu', () => ({
+vi.mock('../../ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }) => <div>{children}</div>,
   DropdownMenuTrigger: ({ children }) => <div>{children}</div>,
   DropdownMenuContent: ({ children }) => <div>{children}</div>,
@@ -25,7 +25,7 @@ jest.mock('../../ui/dropdown-menu', () => ({
   DropdownMenuLabel: ({ children }) => <div>{children}</div>,
 }));
 
-jest.mock('../../ui/checkbox', () => ({
+vi.mock('../../ui/checkbox', () => ({
   Checkbox: ({ onCheckedChange, checked, ...props }) => (
     <input
       type="checkbox"
@@ -36,7 +36,7 @@ jest.mock('../../ui/checkbox', () => ({
   )
 }));
 
-jest.mock('../../ui/select', () => ({
+vi.mock('../../ui/select', () => ({
   Select: ({ value, onValueChange, children }) => (
     <div data-testid="select-root">
       {/* Hidden select for testing interactions */}
@@ -61,7 +61,7 @@ jest.mock('../../ui/select', () => ({
   SelectValue: ({ placeholder }) => <span>{placeholder}</span>
 }));
 
-jest.mock('lucide-react', () => ({
+vi.mock('lucide-react', () => ({
   ChevronsUpDown: () => <span>Sort</span>,
   ArrowUp: () => <span>Asc</span>,
   ArrowDown: () => <span>Desc</span>,
@@ -78,11 +78,13 @@ jest.mock('lucide-react', () => ({
 }));
 
 // Mock TransactionRow to avoid complexity
-jest.mock('./TransactionRow', () => ({ transaction }) => (
-  <tr>
-    <td>{transaction['Transaction Name']}</td>
-  </tr>
-));
+vi.mock('./TransactionRow', () => ({
+  default: ({ transaction }) => (
+    <tr>
+      <td>{transaction['Transaction Name']}</td>
+    </tr>
+  )
+}));
 
 describe('TransactionsList', () => {
   const mockTransactions = [
@@ -181,7 +183,7 @@ describe('TransactionsList', () => {
   });
 
   test('calls onSortChange when server-side sorting is active and header is clicked', () => {
-    const onSortChange = jest.fn();
+    const onSortChange = vi.fn();
     render(
       <TransactionsList
         transactions={mockTransactions}
@@ -211,7 +213,7 @@ describe('TransactionsList', () => {
   });
 
   test('calls onFilterChange when server-side mode is active and filter changes', () => {
-    const onFilterChange = jest.fn();
+    const onFilterChange = vi.fn();
     render(
       <TransactionsList
         transactions={mockTransactions}

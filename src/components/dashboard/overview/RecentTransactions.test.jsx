@@ -5,25 +5,25 @@ import RecentTransactions from './RecentTransactions';
 import '@testing-library/jest-dom';
 
 // Mock UI components to simplify testing
-jest.mock('@/components/ui/card', () => ({
+vi.mock('@/components/ui/card', () => ({
     Card: ({ children, className }) => <div className={`mock-card ${className}`}>{children}</div>,
     CardHeader: ({ children }) => <div className="mock-card-header">{children}</div>,
     CardTitle: ({ children }) => <div className="mock-card-title">{children}</div>,
     CardContent: ({ children }) => <div className="mock-card-content">{children}</div>,
 }));
 
-jest.mock('@/components/ui/button', () => ({
+vi.mock('@/components/ui/button', () => ({
     Button: ({ children, onClick, ...props }) => <button onClick={onClick} {...props}>{children}</button>,
 }));
 
-jest.mock('@/components/ui/dropdown-menu', () => ({
+vi.mock('@/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }) => <div>{children}</div>,
     DropdownMenuTrigger: ({ children }) => <div>{children}</div>,
     DropdownMenuContent: ({ children }) => <div className="mock-dropdown-content">{children}</div>,
     DropdownMenuItem: ({ children, onSelect }) => <div onClick={onSelect}>{children}</div>,
 }));
 
-jest.mock('lucide-react', () => ({
+vi.mock('lucide-react', () => ({
     ChevronDown: () => <span>ChevronDown</span>,
     History: () => <span>History</span>,
 }));
@@ -57,12 +57,12 @@ const mockCurrencyFn = (amount) => `$${amount}`;
 describe('RecentTransactions', () => {
     beforeEach(() => {
         // Mock date to 2023-10-27 (Friday) so "This Week" includes the mock transactions
-        jest.useFakeTimers();
-        jest.setSystemTime(new Date('2023-10-27'));
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2023-10-27'));
     });
 
     afterEach(() => {
-        jest.useRealTimers();
+        vi.useRealTimers();
     });
 
     it('renders loading state correctly', () => {

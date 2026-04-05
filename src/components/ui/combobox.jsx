@@ -3,20 +3,20 @@
 import * as React from "react"
 import { Check, ChevronsUpDown } from "lucide-react"
 
-import { cn } from "src/lib/utils"
-import { Button } from "src/components/ui/button"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-} from "src/components/ui/command"
+} from "@/components/ui/command"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "src/components/ui/popover"
+} from "@/components/ui/popover"
 
 const Combobox = ({ options = [], value, onChange, placeholder, searchPlaceholder, disableAutoFocus = false, className, id }) => {
   const [open, setOpen] = React.useState(false)

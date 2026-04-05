@@ -1,10 +1,10 @@
 import React from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from 'src/components/ui/sheet';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'src/components/ui/table';
-import { Badge } from 'src/components/ui/badge';
-import { Button } from 'src/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Trash2, AlertCircle } from 'lucide-react';
-import { cn } from 'src/lib/utils';
+import { cn } from '@/lib/utils';
 
 export default function SyncQueueSheet({ isOpen, onOpenChange, queue, onRetry, onRemove, isSyncing }) {
     return (

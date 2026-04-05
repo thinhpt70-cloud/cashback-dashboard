@@ -2,18 +2,18 @@ import { renderHook, act } from '@testing-library/react';
 import useCashbackData from './useCashbackData';
 
 // Mock global fetch
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 // Mock sonner
-jest.mock('sonner', () => ({
+vi.mock('sonner', () => ({
   toast: {
-    error: jest.fn(),
+    error: vi.fn(),
   },
 }));
 
 // Mock lib/date
-jest.mock('../lib/date', () => ({
-  getCurrentCashbackMonthForCard: jest.fn(),
+vi.mock('../lib/date', () => ({
+  getCurrentCashbackMonthForCard: vi.fn(),
   getTodaysMonth: () => '2023-10',
   getPastNMonths: () => ['2023-09', '2023-08', '2023-07'],
 }));

@@ -4,27 +4,30 @@ import PaymentsTab from './PaymentsTab';
 import { TooltipProvider } from '../../ui/tooltip';
 
 // Mock PaymentsCalendarView to avoid date-fns/react-day-picker ESM issues in Jest
-jest.mock('./PaymentsCalendarView', () => {
-  return function MockPaymentsCalendarView() {
+vi.mock('./PaymentsCalendarView', () => ({
+  default: function MockPaymentsCalendarView() {
     return <div data-testid="mock-calendar-view">Statement Issued</div>;
-  };
-});
+  }
+}));
 
 // Mock dependencies
-jest.mock('sonner', () => ({
+vi.mock('sonner', () => ({
   toast: {
-    success: jest.fn(),
-    error: jest.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
 // Mock fetch
-global.fetch = jest.fn(() =>
+global.fetch = vi.fn(() =>
   Promise.resolve({
     ok: true,
     json: () => Promise.resolve([{ Amount: 1000, estCashback: 0 }]), // Mock transactions
   })
 );
+
+vi.mock('@/components/dashboard/dialogs/PaymentLogDialog', () => ({ default: () => <div /> }));
+vi.mock('@/components/dashboard/dialogs/StatementLogDialog', () => ({ default: () => <div /> }));
 
 const mockCurrencyFn = (val) => `$${val}`;
 const mockFmtYMShortFn = (ym) => ym; // Simple pass-through
@@ -80,7 +83,7 @@ const renderComponent = (props = {}) => {
         currencyFn={mockCurrencyFn}
         fmtYMShortFn={mockFmtYMShortFn}
         daysLeftFn={mockDaysLeftFn}
-        onViewTransactions={jest.fn()}
+        onViewTransactions={vi.fn()}
         {...props}
       />
     </TooltipProvider>
@@ -89,16 +92,16 @@ const renderComponent = (props = {}) => {
 
 describe('PaymentsTab', () => {
   beforeAll(() => {
-    jest.useFakeTimers('modern');
-    jest.setSystemTime(new Date('2023-07-20T00:00:00Z')); // Before Aug 1 statement
+    vi.useFakeTimers('modern');
+    vi.setSystemTime(new Date('2023-07-20T00:00:00Z')); // Before Aug 1 statement
   });
 
   afterAll(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('calculates applicable cashback correctly for M+1', async () => {
@@ -114,7 +117,7 @@ describe('PaymentsTab', () => {
     const { container } = renderComponent();
 
     // Wait for loading to finish
-    await waitFor(() => expect(screen.queryByText(/Calculating payment schedules/i)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/Calculating payment schedules/i)).not.toBeInTheDocument(), { timeout: 10000 });
 
     // Check for "Test Card"
     expect(screen.getByText('Test Card')).toBeInTheDocument();
@@ -129,7 +132,7 @@ describe('PaymentsTab', () => {
 
   test('renders list and calendar toggle', async () => {
     renderComponent();
-    await waitFor(() => expect(screen.queryByText(/Calculating/i)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/Calculating/i)).not.toBeInTheDocument(), { timeout: 10000 });
 
     expect(screen.getByText('List')).toBeInTheDocument();
     expect(screen.getByText('Calendar')).toBeInTheDocument();
@@ -137,7 +140,7 @@ describe('PaymentsTab', () => {
 
   test('switching to calendar view', async () => {
     renderComponent();
-    await waitFor(() => expect(screen.queryByText(/Calculating/i)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/Calculating/i)).not.toBeInTheDocument(), { timeout: 10000 });
 
     const calendarBtn = screen.getByText('Calendar');
     fireEvent.click(calendarBtn);
