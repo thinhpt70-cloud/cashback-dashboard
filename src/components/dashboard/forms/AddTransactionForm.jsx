@@ -684,14 +684,16 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                 <label className="text-xs text-muted-foreground">Currency</label>
                                 <Select value={foreignCurrency} onValueChange={setForeignCurrency}>
                                     <SelectTrigger className="bg-white dark:bg-slate-900">
-                                        <SelectValue />
+                                        <SelectValue>
+                                            {foreignCurrency || ''}
+                                        </SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
                                         {(definitions?.foreignCurrencies?.length > 0
                                             ? definitions.foreignCurrencies
                                             : ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'SGD', 'THB', 'KRW']
                                         ).map(curr => (
-                                            <SelectItem key={curr} value={curr}>{curr}</SelectItem>
+                                            <SelectItem key={curr} value={curr} label={curr}>{curr}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -728,11 +730,13 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                         <label htmlFor="card" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Card</label>
                         <Select value={cardId} onValueChange={(value) => { handleCardSelect(value); localStorage.setItem('lastUsedCardId', value); }}>
                             <SelectTrigger id="card">
-                                <SelectValue placeholder="Select a card..." />
+                                <SelectValue placeholder="Select a card...">
+                                    {cards.find(c => c.id === cardId)?.name || 'Select a card...'}
+                                </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                                 {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(card => (
-                                    <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>
+                                    <SelectItem key={card.id} value={card.id} label={card.name}>{card.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -743,11 +747,13 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                         <div className="flex items-center gap-2">
                             <Select value={applicableRuleId} onValueChange={(val) => val && setApplicableRuleId(val)} disabled={filteredRules.length === 0}>
                                 <SelectTrigger id="rule" className="flex-1 min-w-0 [&>span]:min-w-0">
-                                    <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules' : 'Select rule...'} />
+                                    <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules' : 'Select rule...'}>
+                                        {filteredRules.find(r => r.id === applicableRuleId)?.ruleName || (filteredRules.length === 0 ? 'No active rules' : 'Select rule...')}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent className="w-[var(--radix-select-trigger-width)]">
                                     {filteredRules.map(rule => (
-                                        <SelectItem key={rule.id} value={rule.id} disabled={rule.status === 'Inactive'} className="[&>span]:min-w-0">
+                                        <SelectItem key={rule.id} value={rule.id} label={rule.ruleName} disabled={rule.status === 'Inactive'} className="[&>span]:min-w-0">
                                             <div className="flex w-full items-center justify-between gap-2 overflow-hidden">
                                                 <span className="truncate">{rule.ruleName}</span>
                                                 <Badge variant="secondary" className="ml-auto text-xs shrink-0">{(rule.rate * 100).toFixed(1)}%</Badge>

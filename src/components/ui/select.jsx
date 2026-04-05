@@ -8,7 +8,14 @@ const Select = BaseSelect.Root
 
 const SelectGroup = BaseSelect.Group
 
-const SelectValue = BaseSelect.Value
+const SelectValue = React.forwardRef(({ children, ...props }, ref) => {
+  return (
+    <BaseSelect.Value ref={ref} {...props}>
+      {children}
+    </BaseSelect.Value>
+  )
+})
+SelectValue.displayName = "SelectValue"
 
 const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) => (
   <BaseSelect.Trigger
@@ -80,9 +87,10 @@ const SelectLabel = React.forwardRef(({ className, ...props }, ref) => (
 ))
 SelectLabel.displayName = "SelectLabel"
 
-const SelectItem = React.forwardRef(({ className, children, ...props }, ref) => (
+const SelectItem = React.forwardRef(({ className, children, label, ...props }, ref) => (
   <BaseSelect.Item
     ref={ref}
+    label={label}
     className={cn(
       "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
