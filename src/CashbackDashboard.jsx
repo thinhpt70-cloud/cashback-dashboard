@@ -1,28 +1,20 @@
 // CashbackDashboard.jsx
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CreditCard, DollarSign, AlertTriangle, Search, Loader2, Plus, LayoutDashboard, ArrowLeftRight, Banknote, Menu, RefreshCw, LogOut, Settings } from "lucide-react";
+import { CreditCard, DollarSign, AlertTriangle, Loader2, LayoutDashboard, ArrowLeftRight, Banknote, Settings } from "lucide-react";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
 import { cn } from "./lib/utils";
-import { format } from "date-fns";
-import { getMetricSparkline } from './lib/stats';
-import { getTodaysMonth, getPreviousMonth, getCurrentCashbackMonthForCard } from './lib/date';
+import { getCurrentCashbackMonthForCard } from './lib/date';
 
 // Import UI components
-import { Button } from "./components/ui/button";
 import { TooltipProvider } from "./components/ui/tooltip";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./components/ui/sheet";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "./components/ui/drawer";
 
 // Import dialog components
-import MobileThemeToggle from "./components/dashboard/header/MobileThemeToggle";
 import BestCardFinderDialog from './components/dashboard/dialogs/BestCardFinderDialog';
 import SyncQueueSheet from './components/shared/SyncQueueSheet';
-
-// Import form components
-import AddTransactionForm from './components/dashboard/forms/AddTransactionForm';
+import DashboardHeader from "./components/dashboard/header/DashboardHeader";
 
 // Import overview tab components
 import CardSpendsCap from "./components/dashboard/overview/CardSpendsCap";
@@ -58,13 +50,13 @@ import StatCards from './components/dashboard/overview/OverviewStatCards';
 import useMediaQuery from "./hooks/useMediaQuery";
 import useCashbackData from "./hooks/useCashbackData";
 import useTransactionSync from "./hooks/useTransactionSync";
+import useLiveTransactions from "./hooks/useLiveTransactions";
+import useDashboardStats from "./hooks/useDashboardStats";
 
 // Import constants and utilities
 import { COLORS } from './lib/constants';
 import { calculateDaysLeft } from './lib/date';
 import { currency, fmtYMShort } from './lib/formatters';
-
-const API_BASE_URL = '/api';
 
 const navItems = [
     { view: 'overview', icon: LayoutDashboard, label: 'Overview' },
@@ -76,6 +68,25 @@ const navItems = [
 ];
 
 export default function CashbackDashboard() {
+    const {
+        liveTransactions, setLiveTransactions,
+        liveCursor, setLiveCursor,
+        liveHasMore, setLiveHasMore,
+        isLiveLoading, setIsLiveLoading,
+        isLiveAppending, setIsLiveAppending,
+        liveSearchTerm, setLiveSearchTerm,
+        liveDateRange, setLiveDateRange,
+        liveSort, setLiveSort,
+        liveCardFilter, setLiveCardFilter,
+        liveCategoryFilter, setLiveCategoryFilter,
+        liveMethodFilter, setLiveMethodFilter,
+        fetchLiveTransactions,
+        handleLiveLoadMore,
+        handleLiveSearch,
+        handleLiveDateRangeChange,
+        handleLiveSortChange,
+        handleLiveFilterChange
+    } = useLiveTransactions();
 
     const [activeMonth, setActiveMonth] = useState("live");
     const [monthlyTransactions, setMonthlyTransactions] = useState([]);
@@ -97,19 +108,6 @@ export default function CashbackDashboard() {
     // --- LOADING STATES ---
     const [processingIds, setProcessingIds] = useState(new Set());
 
-    // --- LIVE TRANSACTIONS STATE ---
-    const [liveTransactions, setLiveTransactions] = useState([]);
-    const [liveCursor, setLiveCursor] = useState(null);
-    const [liveHasMore, setLiveHasMore] = useState(false);
-    const [isLiveLoading, setIsLiveLoading] = useState(false);
-    const [isLiveAppending, setIsLiveAppending] = useState(false);
-    const [liveSearchTerm, setLiveSearchTerm] = useState('');
-    const [liveDateRange, setLiveDateRange] = useState(undefined);
-    const [liveSort, setLiveSort] = useState({ key: 'Transaction Date', direction: 'descending' });
-    const [liveCardFilter, setLiveCardFilter] = useState('all');
-    const [liveCategoryFilter, setLiveCategoryFilter] = useState('all');
-    const [liveMethodFilter, setLiveMethodFilter] = useState('all');
-    const [liveChartPeriod, setLiveChartPeriod] = useState('1M'); // '12M', '6M', '1M', 'LM', '1W'
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const addTxSheetSide = isDesktop ? 'right' : 'bottom';
 
@@ -228,115 +226,6 @@ export default function CashbackDashboard() {
             toast.error("Logout failed. Please try again.");
         }
     };
-
-    // --- LIVE TRANSACTIONS LOGIC ---
-    const fetchLiveTransactions = useCallback(async (cursor = null, search = '', isAppend = false, dateRangeOverride = null, sortOverride = null, filterOverride = null) => {
-        if (isAppend) {
-            setIsLiveAppending(true);
-        } else {
-            setIsLiveLoading(true);
-        }
-
-        try {
-            const params = new URLSearchParams();
-            if (cursor) params.append('cursor', cursor);
-            if (search) params.append('search', search);
-
-            const range = dateRangeOverride !== null ? dateRangeOverride : liveDateRange;
-            if (range && range.from) {
-                params.append('startDate', format(range.from, 'yyyy-MM-dd'));
-                if (range.to) {
-                    params.append('endDate', format(range.to, 'yyyy-MM-dd'));
-                } else {
-                    params.append('endDate', format(range.from, 'yyyy-MM-dd'));
-                }
-            }
-
-            const sort = sortOverride || liveSort;
-            if (sort) {
-                params.append('sortKey', sort.key);
-                params.append('sortDirection', sort.direction);
-            }
-
-            // Apply Filters
-            const card = filterOverride?.card ?? liveCardFilter;
-            if (card && card !== 'all') params.append('cardId', card);
-
-            const category = filterOverride?.category ?? liveCategoryFilter;
-            if (category && category !== 'all') params.append('category', category);
-
-            const method = filterOverride?.method ?? liveMethodFilter;
-            if (method && method !== 'all') params.append('method', method);
-
-            const res = await fetch(`${API_BASE_URL}/transactions/query?${params.toString()}`);
-            if (!res.ok) throw new Error('Failed to fetch live transactions');
-
-            const data = await res.json();
-
-            setLiveTransactions(prev => isAppend ? [...prev, ...data.results] : data.results);
-            setLiveCursor(data.nextCursor);
-            setLiveHasMore(data.hasMore);
-        } catch (error) {
-            console.error("Error fetching live transactions:", error);
-            toast.error("Failed to load transactions.");
-        } finally {
-            if (isAppend) {
-                setIsLiveAppending(false);
-            } else {
-                setIsLiveLoading(false);
-            }
-        }
-    }, [liveDateRange, liveSort, liveCardFilter, liveCategoryFilter, liveMethodFilter]);
-
-    const handleLiveLoadMore = useCallback(() => {
-        if (liveHasMore && liveCursor) {
-            fetchLiveTransactions(liveCursor, liveSearchTerm, true);
-        }
-    }, [liveHasMore, liveCursor, liveSearchTerm, fetchLiveTransactions]);
-
-    const handleLiveSearch = useCallback((term) => {
-        setLiveSearchTerm(term);
-        // Reset list and fetch new results
-        fetchLiveTransactions(null, term, false);
-    }, [fetchLiveTransactions]);
-
-    const handleLiveDateRangeChange = useCallback((range) => {
-        setLiveDateRange(range);
-        // Reset list and fetch new results
-        fetchLiveTransactions(null, liveSearchTerm, false, range);
-    }, [fetchLiveTransactions, liveSearchTerm]);
-
-    const handleLiveSortChange = useCallback((newSortConfig) => {
-        setLiveSort(newSortConfig);
-        // Reset list and fetch new results with new sort
-        // Explicitly pass newSortConfig to avoid race conditions with state update
-        setLiveTransactions([]);
-        setLiveCursor(null);
-        setLiveHasMore(false);
-        fetchLiveTransactions(null, liveSearchTerm, false, null, newSortConfig);
-    }, [fetchLiveTransactions, liveSearchTerm]);
-
-    const handleLiveFilterChange = useCallback(({ type, value }) => {
-        // Create an override object to pass to fetch
-        const filterOverride = {};
-
-        if (type === 'card') {
-            setLiveCardFilter(value);
-            filterOverride.card = value;
-        } else if (type === 'category') {
-            setLiveCategoryFilter(value);
-            filterOverride.category = value;
-        } else if (type === 'method') {
-            setLiveMethodFilter(value);
-            filterOverride.method = value;
-        }
-
-        // Reset and Fetch
-        setLiveTransactions([]);
-        setLiveCursor(null);
-        setLiveHasMore(false);
-        fetchLiveTransactions(null, liveSearchTerm, false, null, null, filterOverride);
-    }, [fetchLiveTransactions, liveSearchTerm]);
 
     // ⚡ Bolt Optimization: Memoize handlers to prevent re-renders
     const handleTransactionAdded = useCallback((newTransaction) => {
@@ -679,189 +568,17 @@ export default function CashbackDashboard() {
     }, [allCards]);
 
 
-    // --- NEW: CONSOLIDATED STATS LOGIC ---
-    // This single hook provides all stats for the StatCards,
-    // for both 'live' and 'historical' views.
-    const displayStats = useMemo(() => {
-        const today = getTodaysMonth(); // e.g., '2024-07'
-        const lastCompletedMonth = getPreviousMonth(today); // e.g., '2024-06'
-
-        // --- Helper to get data for a specific month ---
-        const getMonthStats = (month) => {
-            if (!month) return { totalSpend: 0, totalCashback: 0, effectiveRate: 0 };
-            const monthData = monthlySummary.filter(s => s.month === month);
-            const totalSpend = monthData.reduce((acc, curr) => acc + (curr.spend || 0), 0);
-            const totalCashback = monthData.reduce((acc, curr) => acc + (curr.cashback || 0), 0);
-            const effectiveRate = totalSpend > 0 ? totalCashback / totalSpend : 0;
-            return { totalSpend, totalCashback, effectiveRate };
-        };
-
-        // --- Calculate sparkline data (last 6 completed months) ---
-        const sparklineBaseMonth = activeMonth === 'live' ? lastCompletedMonth : activeMonth;
-        const spendSparkline = getMetricSparkline(monthlySummary, sparklineBaseMonth, 6, 'spend');
-        const cashbackSparkline = getMetricSparkline(monthlySummary, sparklineBaseMonth, 6, 'cashback');
-        const rateSparkline = getMetricSparkline(monthlySummary, sparklineBaseMonth, 6, 'cashback')
-            .map((cb, i) => {
-                const spend = spendSparkline[i];
-                return spend > 0 ? cb / spend : 0;
-            });
-
-
-        // --- CASE 1: LIVE VIEW ---
-        if (activeMonth === 'live') {
-            const { totalSpend: prevMonthSpend, totalCashback: prevMonthCashback, effectiveRate: prevMonthRate } = getMonthStats(lastCompletedMonth);
-
-            // Assuming liveSummary is passed from useCashbackData
-            const totalSpend = liveSummary?.liveSpend || 0;
-            const totalCashback = liveSummary?.liveCashback || 0;
-            const effectiveRate = totalSpend > 0 ? totalCashback / totalSpend : 0;
-
-            return {
-                label: "Latest", // <-- Changed from "Live"
-                totalSpend,
-                totalCashback,
-                effectiveRate,
-                prevMonthSpend,
-                prevMonthCashback,
-                prevMonthRate,
-                spendSparkline,
-                cashbackSparkline,
-                rateSparkline
-            };
-        }
-
-        // --- CASE 2: HISTORICAL VIEW ---
-        const { totalSpend, totalCashback, effectiveRate } = getMonthStats(activeMonth);
-        const prevMonth = getPreviousMonth(activeMonth);
-        const { totalSpend: prevMonthSpend, totalCashback: prevMonthCashback, effectiveRate: prevMonthRate } = getMonthStats(prevMonth);
-
-        return {
-            label: fmtYMShort(activeMonth),
-            totalSpend,
-            totalCashback,
-            effectiveRate,
-            prevMonthSpend,
-            prevMonthCashback,
-            prevMonthRate,
-            spendSparkline,
-            cashbackSparkline,
-            rateSparkline
-        };
-
-    }, [activeMonth, monthlySummary, liveSummary]);
-
-
-    const overviewChartStats = useMemo(() => {
-        const monthData = monthlySummary.filter(s => s.month === activeMonth);
-
-        const combinedData = cards.map(card => {
-            const summary = monthData.find(s => s.cardId === card.id);
-            return {
-                name: card.name,
-                spend: summary?.spend || 0,
-                cashback: summary?.cashback || 0
-            };
-        });
-
-        return combinedData;
-    }, [activeMonth, monthlySummary, cards]);
-
-    // --- NEW: Live Chart Stats (12M, 6M, 1M, LM, 1W) ---
-    const liveOverviewChartStats = useMemo(() => {
-        if (activeMonth !== 'live') return [];
-
-        const spendMap = new Map();
-        const cashbackMap = new Map();
-
-        cards.forEach(card => {
-            spendMap.set(card.id, 0);
-            cashbackMap.set(card.id, 0);
-        });
-
-        if (liveChartPeriod === '1W') {
-            // For 1W, we filter transactions from the last 7 days.
-            // Using recentTransactions (and maybe monthlyTransactions if needed, but recent usually has the latest).
-            // Combine both to ensure we have recent ones, avoiding duplicates.
-            const allRecent = [...recentTransactions, ...monthlyTransactions];
-            const uniqueTxs = Array.from(new Map(allRecent.map(tx => [tx.id, tx])).values());
-
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-            sevenDaysAgo.setHours(0, 0, 0, 0);
-
-            uniqueTxs.forEach(tx => {
-                const txDate = new Date(tx['Transaction Date']);
-                if (txDate >= sevenDaysAgo && tx['Card']) {
-                    const cardId = tx['Card'][0];
-                    if (spendMap.has(cardId)) {
-                        spendMap.set(cardId, spendMap.get(cardId) + (tx.Amount || 0));
-                        cashbackMap.set(cardId, cashbackMap.get(cardId) + (tx.Cashback || 0));
-                    }
-                }
-            });
-        } else {
-            // For month-based periods, we use monthlySummary
-            cards.forEach(card => {
-                const currentMonth = getCurrentCashbackMonthForCard(card);
-                let targetMonths = [];
-
-                if (liveChartPeriod === '1M') {
-                    targetMonths = [currentMonth];
-                } else if (liveChartPeriod === 'LM') {
-                    targetMonths = [getPreviousMonth(currentMonth)];
-                } else {
-                    const count = liveChartPeriod === '6M' ? 6 : 12;
-                    let m = currentMonth;
-                    for (let i = 0; i < count; i++) {
-                        targetMonths.push(m);
-                        m = getPreviousMonth(m);
-                    }
-                }
-
-                // Sum up for target months
-                targetMonths.forEach(m => {
-                    const summary = monthlySummary.find(s => s.month === m && s.cardId === card.id);
-                    if (summary) {
-                        spendMap.set(card.id, spendMap.get(card.id) + (summary.spend || 0));
-                        cashbackMap.set(card.id, cashbackMap.get(card.id) + (summary.cashback || 0));
-                    }
-                });
-            });
-        }
-
-        const combinedData = cards.map(card => ({
-            name: card.name,
-            spend: spendMap.get(card.id) || 0,
-            cashback: cashbackMap.get(card.id) || 0
-        }));
-
-        return combinedData;
-    }, [activeMonth, liveChartPeriod, cards, monthlySummary, recentTransactions, monthlyTransactions]);
+    const {
+        liveChartPeriod, setLiveChartPeriod,
+        displayStats, overviewChartStats,
+        liveOverviewChartStats, cardPerformanceData
+    } = useDashboardStats({
+        activeMonth, monthlySummary, liveSummary,
+        cards, recentTransactions, monthlyTransactions
+    });
 
     // cardsTabStats MOVED TO CardsTab
     // const cardsTabStats = useMemo(() => { ... }, [allCards]);
-
-    const cardPerformanceData = useMemo(() => {
-        const allMonths = [...new Set(monthlySummary.map(s => s.month))].sort();
-        const summaryMap = new Map();
-        monthlySummary.forEach(s => {
-            const key = `${s.month}-${s.cardId}`;
-            summaryMap.set(key, s);
-        });
-
-        return allMonths.map(month => {
-            const monthData = { month: fmtYMShort(month) };
-            cards.forEach(card => {
-                const key = `${month}-${card.id}`;
-                const summary = summaryMap.get(key);
-
-                // THIS IS THE FIX: Default to null instead of 0
-                monthData[`${card.name} Spend`] = summary ? summary.spend : null;
-                monthData[`${card.name} Cashback`] = summary ? summary.cashback : null;
-            });
-            return monthData;
-        });
-    }, [monthlySummary, cards]);
 
     // calculateFeeCycleProgress MOVED TO lib/date.js
 
@@ -913,234 +630,42 @@ export default function CashbackDashboard() {
                 "flex flex-col w-full transition-all duration-300 ease-in-out",
                 isSidebarCollapsed ? "md:pl-16" : "md:pl-56"
             )}>
-            {/* --- RESPONSIVE HEADER --- */}
-            <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 shadow-sm sm:px-6 md:px-6">
-                <div className="md:hidden">
-                    <Sheet>
-                        <SheetTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                                <Menu className="h-6 w-6" />
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="left" className="w-56 p-2 flex flex-col">
-                            <div>
-                                <div className="flex items-center justify-center h-16 border-b mb-2">
-                                    <img src="/favicon.svg" alt="Cardifier" className="h-8 w-8" />
-                                </div>
-                                <nav className="space-y-2">
-                                {navItems.map((item) => (
-                                    <SheetTrigger asChild key={item.view}>
-                                        <Button
-                                            variant={activeView === item.view ? 'default' : 'ghost'}
-                                            className="w-full justify-start h-10"
-                                            onClick={() => setActiveView(item.view)}
-                                        >
-                                            <item.icon className="h-5 w-5 mr-3" />
-                                            <span>{item.label}</span>
-                                        </Button>
-                                    </SheetTrigger>
-                                ))}
-                            </nav>
-                            <div className="mt-auto flex flex-col gap-2 pt-2 border-t">
-                                <SheetTrigger asChild>
-                                    <Button variant="ghost" className="w-full justify-start h-10" onClick={() => setIsFinderOpen(true)}>
-                                        <Search className="h-5 w-5 mr-3" />
-                                        <span>Card Finder</span>
-                                    </Button>
-                                </SheetTrigger>
-                                <SheetTrigger asChild>
-                                    <Button variant="ghost" className="w-full justify-start h-10" onClick={() => refreshData(false)}>
-                                        <RefreshCw className="h-5 w-5 mr-3" />
-                                        <span>Refresh</span>
-                                    </Button>
-                                </SheetTrigger>
-                                <MobileThemeToggle />
-                                <SheetTrigger asChild>
-                                    <Button variant="ghost" className="w-full justify-start h-10" onClick={handleLogout}>
-                                        <LogOut className="h-5 w-5 mr-3" />
-                                        <span>Logout</span>
-                                    </Button>
-                                </SheetTrigger>
-                            </div>
-                            </div>
-                        </SheetContent>
-                    </Sheet>
-                </div>
-                <h1 className="text-xl font-semibold md:hidden">Cardifer</h1>
-                <h1 className="text-xl font-semibold hidden md:flex items-center gap-2 shrink-0 dark:text-white">
-                    <span className="hidden md:inline">Cardifier | Cashback Optimizer</span>
-                </h1>
-
-                {/* Right-aligned container for all controls */}
-                <div className="ml-auto flex items-center gap-2">
-                    {/* Status Indicator for Sync */}
-                    {needsSyncing.length > 0 && (
-                         <Button
-                             variant="ghost"
-                             size="sm"
-                             className="h-8 gap-1.5 px-2 text-muted-foreground hover:text-foreground"
-                             onClick={() => setIsSyncingSheetOpen(true)}
-                         >
-                            {isSyncing ? (
-                                <>
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    <span className="hidden sm:inline text-xs">Syncing...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
-                                    <span className="hidden sm:inline text-xs">Saved Offline</span>
-                                </>
-                            )}
-                         </Button>
-                    )}
-
-                    {/* Month Selector - visible on all screen sizes */}
-                    {availableMonths && availableMonths.length > 0 && (
-                        <select
-                            value={activeMonth}
-                            onChange={(e) => setActiveMonth(e.target.value)}
-                            className="h-10 text-sm rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                        >
-                            <option value="live">Live View</option>
-                            {availableMonths.map(m => (
-                                <option key={m} value={m}>{fmtYMShort(m)}</option>
-                            ))}
-                        </select>
-                    )}
-
-                    {/* --- Desktop Controls (hidden on mobile) --- */}
-                    <div className="hidden md:flex items-center gap-2">
-                        <Sheet open={isAddTxDialogOpen && isDesktop} onOpenChange={setIsAddTxDialogOpen}>
-                            <SheetTrigger asChild>
-                                <Button variant="default" className="h-10">
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    New Transaction
-                                </Button>
-                            </SheetTrigger>
-                            <SheetContent
-                                side={addTxSheetSide}
-                                className={cn(
-                                    "flex flex-col p-0",
-                                    "w-full sm:max-w-2xl",
-                                    !isDesktop && "h-[90vh]"
-                                )}
-                            >
-                                <SheetHeader className="px-6 pt-6">
-                                    <SheetTitle>Add a New Transaction</SheetTitle>
-                                </SheetHeader>
-                                <div className="flex-grow overflow-y-auto px-6 pb-6">
-                                    <AddTransactionForm
-                                        cards={cards}
-                                        categories={allCategories}
-                                        definitions={definitions}
-                                        rules={cashbackRules}
-                                        monthlyCategories={monthlyCashbackCategories}
-                                        mccMap={mccMap}
-                                        onTransactionAdded={handleTransactionAdded}
-                                        commonVendors={commonVendors}
-                                        monthlySummary={monthlySummary}
-                                        monthlyCategorySummary={monthlyCategorySummary}
-                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                        addToQueue={addToQueue}
-                                        prefillData={duplicateTransaction}
-                                    />
-                                </div>
-                            </SheetContent>
-                        </Sheet>
-                        <Sheet open={!!editingTransaction} onOpenChange={(isOpen) => !isOpen && setEditingTransaction(null)}>
-                            <SheetContent
-                                side={addTxSheetSide}
-                                className={cn("flex flex-col p-0", "w-full sm:max-w-2xl", !isDesktop && "h-[90vh]")}
-                            >
-                                <SheetHeader className="px-6 pt-6">
-                                    <SheetTitle>Edit Transaction</SheetTitle>
-                                </SheetHeader>
-                                <div className="flex-grow overflow-y-auto px-6 pb-6">
-                                    <AddTransactionForm
-                                        cards={cards}
-                                        categories={allCategories}
-                                        definitions={definitions}
-                                        rules={cashbackRules}
-                                        monthlyCategories={monthlyCashbackCategories}
-                                        mccMap={mccMap}
-                                        commonVendors={commonVendors}
-                                        monthlySummary={monthlySummary}
-                                        monthlyCategorySummary={monthlyCategorySummary}
-                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                        initialData={editingTransaction}
-                                        onTransactionUpdated={handleTransactionUpdated}
-                                        onClose={() => setEditingTransaction(null)}
-                                        addToQueue={addToQueue}
-                                    />
-                                </div>
-                            </SheetContent>
-                        </Sheet>
-                    </div>
-
-                    {/* --- Mobile Controls (hidden on desktop) --- */}
-                    <div className="flex items-center gap-2 md:hidden">
-                        <Drawer open={isAddTxDialogOpen && !isDesktop} onOpenChange={setIsAddTxDialogOpen}>
-                            <DrawerTrigger asChild>
-                                <Button variant="default" size="icon" className="h-10 w-10 rounded-full shadow-lg">
-                                    <Plus className="h-6 w-6" />
-                                </Button>
-                            </DrawerTrigger>
-                            <DrawerContent className="h-[90vh]">
-                                <DrawerHeader>
-                                    <DrawerTitle>Add Transaction</DrawerTitle>
-                                </DrawerHeader>
-                                <div className="px-4 pb-4 overflow-y-auto">
-                                    <AddTransactionForm
-                                        cards={cards}
-                                        categories={allCategories}
-                                        definitions={definitions}
-                                        rules={cashbackRules}
-                                        monthlyCategories={monthlyCashbackCategories}
-                                        mccMap={mccMap}
-                                        onTransactionAdded={handleTransactionAdded}
-                                        commonVendors={commonVendors}
-                                        monthlySummary={monthlySummary}
-                                        monthlyCategorySummary={monthlyCategorySummary}
-                                        getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                        addToQueue={addToQueue}
-                                        prefillData={duplicateTransaction}
-                                        onClose={() => setIsAddTxDialogOpen(false)}
-                                    />
-                                </div>
-                            </DrawerContent>
-                        </Drawer>
-
-                        {/* Mobile Edit Transaction Drawer */}
-                        {editingTransaction && !isDesktop && (
-                             <Drawer open={!!editingTransaction} onOpenChange={(isOpen) => !isOpen && setEditingTransaction(null)}>
-                                <DrawerContent className="h-[90vh]">
-                                    <DrawerHeader>
-                                        <DrawerTitle>Edit Transaction</DrawerTitle>
-                                    </DrawerHeader>
-                                    <div className="px-4 pb-4 overflow-y-auto">
-                                        <AddTransactionForm
-                                            cards={cards}
-                                            categories={allCategories}
-                                            rules={cashbackRules}
-                                            monthlyCategories={monthlyCashbackCategories}
-                                            mccMap={mccMap}
-                                            commonVendors={commonVendors}
-                                            monthlySummary={monthlySummary}
-                                            monthlyCategorySummary={monthlyCategorySummary}
-                                            getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
-                                            initialData={editingTransaction}
-                                            onTransactionUpdated={handleTransactionUpdated}
-                                            onClose={() => setEditingTransaction(null)}
-                                            addToQueue={addToQueue}
-                                        />
-                                    </div>
-                                </DrawerContent>
-                            </Drawer>
-                        )}
-                    </div>
-                </div>
-            </header>
+            <DashboardHeader
+                activeView={activeView}
+                setActiveView={setActiveView}
+                isFinderOpen={isFinderOpen}
+                setIsFinderOpen={setIsFinderOpen}
+                handleLogout={handleLogout}
+                refreshData={refreshData}
+                needsSyncing={needsSyncing}
+                isSyncing={isSyncing}
+                isSyncingSheetOpen={isSyncingSheetOpen}
+                setIsSyncingSheetOpen={setIsSyncingSheetOpen}
+                activeMonth={activeMonth}
+                setActiveMonth={setActiveMonth}
+                availableMonths={availableMonths}
+                isAddTxDialogOpen={isAddTxDialogOpen}
+                setIsAddTxDialogOpen={setIsAddTxDialogOpen}
+                duplicateTransaction={duplicateTransaction}
+                editingTransaction={editingTransaction}
+                setEditingTransaction={setEditingTransaction}
+                addToQueue={addToQueue}
+                handleTransactionAdded={handleTransactionAdded}
+                handleTransactionUpdated={handleTransactionUpdated}
+                isDesktop={isDesktop}
+                addTxSheetSide={addTxSheetSide}
+                cards={cards}
+                allCategories={allCategories}
+                definitions={definitions}
+                cashbackRules={cashbackRules}
+                monthlyCashbackCategories={monthlyCashbackCategories}
+                mccMap={mccMap}
+                commonVendors={commonVendors}
+                monthlySummary={monthlySummary}
+                monthlyCategorySummary={monthlyCategorySummary}
+                getCurrentCashbackMonthForCard={getCurrentCashbackMonthForCard}
+                navItems={navItems}
+            />
             <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
 
                 {activeView === 'overview' && (
