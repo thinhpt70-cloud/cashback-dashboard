@@ -26,6 +26,14 @@ global.fetch = vi.fn(() =>
   })
 );
 
+vi.mock('../../../lib/cashback-logic', () => ({
+  calculateCashbackSplit: (cashback, adj, limit) => ({ tier1: cashback, tier2: 0 }),
+  calculatePaymentDate: (month, type, day) => {
+    // Return a dummy date for M+1
+    return new Date('2023-08-01T00:00:00Z');
+  }
+}));
+
 vi.mock('@/components/dashboard/dialogs/PaymentLogDialog', () => ({ default: () => <div /> }));
 vi.mock('@/components/dashboard/dialogs/StatementLogDialog', () => ({ default: () => <div /> }));
 
@@ -92,7 +100,7 @@ const renderComponent = (props = {}) => {
 
 describe('PaymentsTab', () => {
   beforeAll(() => {
-    vi.useFakeTimers('modern');
+    vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2023-07-20T00:00:00Z')); // Before Aug 1 statement
   });
 
@@ -117,12 +125,10 @@ describe('PaymentsTab', () => {
     const { container } = renderComponent();
 
     // Wait for loading to finish
-    await waitFor(() => expect(screen.queryByText(/Calculating payment schedules/i)).not.toBeInTheDocument(), { timeout: 10000 });
+    await waitFor(() => expect(screen.queryByText(/Calculating payment schedules/i)).not.toBeInTheDocument(), { timeout: 1000 });
 
     // Check for "Test Card"
     expect(screen.getByText('Test Card')).toBeInTheDocument();
-
-    console.log(container.innerHTML);
 
     // Using specific text matchers might be tricky due to formatting, so we check for presence of values
     const balanceElements = screen.queryAllByText('$900');
@@ -132,7 +138,7 @@ describe('PaymentsTab', () => {
 
   test('renders list and calendar toggle', async () => {
     renderComponent();
-    await waitFor(() => expect(screen.queryByText(/Calculating/i)).not.toBeInTheDocument(), { timeout: 10000 });
+    await waitFor(() => expect(screen.queryByText(/Calculating payment schedules/i)).not.toBeInTheDocument(), { timeout: 1000 });
 
     expect(screen.getByText('List')).toBeInTheDocument();
     expect(screen.getByText('Calendar')).toBeInTheDocument();
@@ -140,7 +146,7 @@ describe('PaymentsTab', () => {
 
   test('switching to calendar view', async () => {
     renderComponent();
-    await waitFor(() => expect(screen.queryByText(/Calculating/i)).not.toBeInTheDocument(), { timeout: 10000 });
+    await waitFor(() => expect(screen.queryByText(/Calculating payment schedules/i)).not.toBeInTheDocument(), { timeout: 1000 });
 
     const calendarBtn = screen.getByText('Calendar');
     fireEvent.click(calendarBtn);
