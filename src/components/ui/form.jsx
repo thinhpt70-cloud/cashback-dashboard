@@ -1,6 +1,5 @@
 "use client";
 import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
 import { Controller, FormProvider, useFormContext } from "react-hook-form";
 
 import { cn } from "@/lib/utils"
@@ -75,21 +74,33 @@ const FormLabel = React.forwardRef(({ className, ...props }, ref) => {
 })
 FormLabel.displayName = "FormLabel"
 
-const FormControl = React.forwardRef(({ ...props }, ref) => {
+const FormControl = React.forwardRef(({ children, ...props }, ref) => {
   const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
 
-  return (
-    <Slot
-      ref={ref}
-      id={formItemId}
-      aria-describedby={
-        !error
-          ? `${formDescriptionId}`
-          : `${formDescriptionId} ${formMessageId}`
+  if (!React.isValidElement(children)) {
+    return null;
+  }
+
+  return React.cloneElement(children, {
+    ref: (node) => {
+      if (ref) {
+        if (typeof ref === 'function') ref(node);
+        else ref.current = node;
       }
-      aria-invalid={!!error}
-      {...props} />
-  );
+      if (children.ref) {
+        if (typeof children.ref === 'function') children.ref(node);
+        else children.ref.current = node;
+      }
+    },
+    id: formItemId,
+    "aria-describedby": !error
+      ? `${formDescriptionId}`
+      : `${formDescriptionId} ${formMessageId}`,
+    "aria-invalid": !!error,
+    ...props,
+    ...children.props, // Ensure children props overwrite if needed
+    className: cn(props.className, children.props.className),
+  });
 })
 FormControl.displayName = "FormControl"
 

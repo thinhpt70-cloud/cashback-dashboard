@@ -1,5 +1,4 @@
 import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
 import { cva } from "class-variance-authority";
 
 import { cn } from "@/lib/utils"
@@ -34,13 +33,45 @@ const buttonVariants = cva(
   }
 )
 
-const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
-  const Comp = asChild ? Slot : "button"
+const Button = React.forwardRef(({ className, variant, size, asChild = false, render, children, ...props }, ref) => {
+  const mergedClassName = cn(buttonVariants({ variant, size, className }));
+
+  if (asChild) {
+    if (React.isValidElement(children)) {
+      return React.cloneElement(children, {
+        className: cn(mergedClassName, children.props.className),
+        ref: (node) => {
+          if (ref) {
+            if (typeof ref === 'function') ref(node);
+            else ref.current = node;
+          }
+          if (children.ref) {
+            if (typeof children.ref === 'function') children.ref(node);
+            else children.ref.current = node;
+          }
+        },
+        ...props,
+      });
+    }
+    return null;
+  }
+
+  if (render) {
+    return React.cloneElement(render, {
+      className: cn(mergedClassName, render.props.className),
+      ref,
+      ...props
+    }, render.props.children || children);
+  }
+
   return (
-    <Comp
-      className={cn(buttonVariants({ variant, size, className }))}
+    <button
+      className={mergedClassName}
       ref={ref}
-      {...props} />
+      {...props}
+    >
+      {children}
+    </button>
   );
 })
 Button.displayName = "Button"
