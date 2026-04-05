@@ -183,6 +183,8 @@ export default function CashbackDashboard() {
         }
     }, [activeView, fetchReviewTransactions]);
 
+    const fetchedMonthsRef = React.useRef(new Set());
+
     // Trigger lazy load of BOTH summaries when activeMonth changes
     useEffect(() => {
         if (!monthlyCategorySummary || !monthlySummary) return;
@@ -194,21 +196,17 @@ export default function CashbackDashboard() {
                 requiredMonths.add(currentMonth);
             });
 
-            const loadedCatMonths = new Set(monthlyCategorySummary.map(item => item.month));
-            const loadedSummaryMonths = new Set(monthlySummary.map(item => item.month));
-
-            const missingMonths = [...requiredMonths].filter(m => !loadedCatMonths.has(m) || !loadedSummaryMonths.has(m));
+            const missingMonths = [...requiredMonths].filter(m => !fetchedMonthsRef.current.has(m));
 
             if (missingMonths.length > 0) {
                 missingMonths.forEach(month => {
+                    fetchedMonthsRef.current.add(month);
                     fetchSummariesForMonth(month);
                 });
             }
         } else {
-            const hasCatData = monthlyCategorySummary.some(item => item.month === activeMonth);
-            const hasSummaryData = monthlySummary.some(item => item.month === activeMonth);
-
-            if (!hasCatData || !hasSummaryData) {
+            if (!fetchedMonthsRef.current.has(activeMonth)) {
+                fetchedMonthsRef.current.add(activeMonth);
                 fetchSummariesForMonth(activeMonth);
             }
         }

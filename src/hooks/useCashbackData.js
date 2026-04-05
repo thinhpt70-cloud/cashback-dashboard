@@ -155,15 +155,29 @@ export default function useCashbackData(isAuthenticated) {
             const newSummaryData = await summaryRes.json();
 
             setMonthlyCategorySummary(prevData => {
+                if (!newCatData || newCatData.length === 0) return prevData;
                 const existingMap = new Map(prevData.map(item => [item.id, item]));
-                newCatData.forEach(item => { existingMap.set(item.id, item); });
-                return Array.from(existingMap.values());
+                let changed = false;
+                newCatData.forEach(item => {
+                    if (!existingMap.has(item.id) || JSON.stringify(existingMap.get(item.id)) !== JSON.stringify(item)) {
+                        existingMap.set(item.id, item);
+                        changed = true;
+                    }
+                });
+                return changed ? Array.from(existingMap.values()) : prevData;
             });
 
             setMonthlySummary(prevData => {
+                if (!newSummaryData || newSummaryData.length === 0) return prevData;
                 const existingMap = new Map(prevData.map(item => [item.id, item]));
-                newSummaryData.forEach(item => { existingMap.set(item.id, item); });
-                return Array.from(existingMap.values());
+                let changed = false;
+                newSummaryData.forEach(item => {
+                    if (!existingMap.has(item.id) || JSON.stringify(existingMap.get(item.id)) !== JSON.stringify(item)) {
+                        existingMap.set(item.id, item);
+                        changed = true;
+                    }
+                });
+                return changed ? Array.from(existingMap.values()) : prevData;
             });
         } catch (err) {
             console.error(`Failed to fetch summaries for ${month}:`, err);
