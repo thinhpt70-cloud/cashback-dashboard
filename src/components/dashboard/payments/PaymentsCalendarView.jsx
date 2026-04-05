@@ -4,6 +4,7 @@ import 'react-day-picker/style.css';
 import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight, CheckCircle, Calendar, Wallet, FilePenLine, History, DollarSign } from 'lucide-react';
 import { cn } from '../../../lib/utils';
+import { getZonedDate } from '../../../lib/timezone';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 
