@@ -9,7 +9,7 @@ import { Switch } from '../../ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 import { Textarea } from '../../ui/textarea';
-import { Combobox } from '../../ui/combobox';
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem, ComboboxEmpty } from '../../ui/combobox';
 import { TagsInputField } from '../../ui/tag-input';
 import QuickAddButtons from './QuickAddButtons';
 import CardRecommendations from './CardRecommendations';
@@ -639,16 +639,28 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                     {/* Category - Promoted to main view */}
                     <div className="space-y-2">
                          <label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</label>
-                        <Combobox
-        id="category"
-                            options={categories.map(c => ({ value: c, label: c }))}
+                         <Combobox
+                            id="category"
                             value={category}
-                            onChange={setCategory}
-                            placeholder="Select category"
-                            searchPlaceholder="Search..."
-                            className="h-12"
-                                        disableAutoFocus={!isDesktop} // Disable on mobile to prevent keyboard jump
-                        />
+                            onValueChange={(val) => {
+                                if(val) setCategory(val);
+                            }}
+                        >
+                            <ComboboxInput
+                                placeholder="Select category"
+                                className="h-12 w-full"
+                            />
+                            <ComboboxContent>
+                                <ComboboxList>
+                                    <ComboboxEmpty>No results found.</ComboboxEmpty>
+                                    {categories.map(c => (
+                                        <ComboboxItem key={c} value={c}>
+                                            {c}
+                                        </ComboboxItem>
+                                    ))}
+                                </ComboboxList>
+                            </ComboboxContent>
+                        </Combobox>
                     </div>
                 </div>
 
@@ -861,17 +873,30 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                 <div className="space-y-2">
                                     <label htmlFor="paidFor">Paid For</label>
                                     <Combobox
-        id="paidFor"
-                                        options={(definitions?.paidFor?.length > 0
-                                            ? definitions.paidFor
-                                            : ['Personal', 'Family', 'Work']
-                                        ).map(c => ({ value: c, label: c }))}
+                                        id="paidFor"
                                         value={paidFor}
-                                        onChange={setPaidFor}
-                                        placeholder="Who is this for?"
-                                        searchPlaceholder="Search..."
-                                        disableAutoFocus={!isDesktop} // Disable on mobile
-                                    />
+                                        onValueChange={(val) => {
+                                            if(val) setPaidFor(val);
+                                        }}
+                                    >
+                                        <ComboboxInput
+                                            placeholder="Who is this for?"
+                                            className="w-full"
+                                        />
+                                        <ComboboxContent>
+                                            <ComboboxList>
+                                                <ComboboxEmpty>No results found.</ComboboxEmpty>
+                                                {(definitions?.paidFor?.length > 0
+                                                    ? definitions.paidFor
+                                                    : ['Personal', 'Family', 'Work']
+                                                ).map(c => (
+                                                    <ComboboxItem key={c} value={c}>
+                                                        {c}
+                                                    </ComboboxItem>
+                                                ))}
+                                            </ComboboxList>
+                                        </ComboboxContent>
+                                    </Combobox>
                                 </div>
                             </div>
 

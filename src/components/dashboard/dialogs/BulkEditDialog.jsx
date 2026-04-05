@@ -5,7 +5,7 @@ import { Label } from "../../ui/label";
 import { Input } from "../../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../ui/table";
-import { Combobox } from "../../ui/combobox";
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } from "../../ui/combobox";
 import { Loader2, AlertTriangle, ArrowRight, Info } from "lucide-react";
 import { toast } from 'sonner';
 import { cn } from "../../../lib/utils";
@@ -251,11 +251,20 @@ export default function BulkEditDialog({
             case 'Category':
                 return (
                     <Combobox
-                        options={sortedCategories.map(c => ({ value: c, label: c }))}
                         value={value}
-                        onChange={setValue}
-                        placeholder="Select category..."
-                    />
+                        onValueChange={(val) => {
+                            if (val) setValue(val);
+                        }}
+                    >
+                        <ComboboxInput placeholder="Select category..." />
+                        <ComboboxContent>
+                            <ComboboxList>
+                                {sortedCategories.map(c => (
+                                    <ComboboxItem key={c} value={c}>{c}</ComboboxItem>
+                                ))}
+                            </ComboboxList>
+                        </ComboboxContent>
+                    </Combobox>
                 );
             case 'Applicable Rule':
                 return (
