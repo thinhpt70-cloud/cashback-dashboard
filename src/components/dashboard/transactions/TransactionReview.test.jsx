@@ -4,7 +4,7 @@ import TransactionReview from './TransactionReview';
 import { TooltipProvider } from '../../ui/tooltip';
 
 // Mock child components
-jest.mock('../../ui/table', () => ({
+vi.mock('../../ui/table', () => ({
   Table: ({ children }) => <table>{children}</table>,
   TableHeader: ({ children }) => <thead>{children}</thead>,
   TableBody: ({ children }) => <tbody>{children}</tbody>,
@@ -13,7 +13,7 @@ jest.mock('../../ui/table', () => ({
   TableCell: ({ children, colSpan, className }) => <td colSpan={colSpan} className={className}>{children}</td>,
 }));
 
-jest.mock('../../ui/dropdown-menu', () => ({
+vi.mock('../../ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }) => <div>{children}</div>,
   DropdownMenuTrigger: ({ children }) => <div>{children}</div>,
   DropdownMenuContent: ({ children }) => <div>{children}</div>,
@@ -22,7 +22,7 @@ jest.mock('../../ui/dropdown-menu', () => ({
 }));
 
 // Improved Checkbox mock to handle Radix UI -> HTML Input mapping
-jest.mock('../../ui/checkbox', () => ({
+vi.mock('../../ui/checkbox', () => ({
   Checkbox: ({ onCheckedChange, checked, ...props }) => (
     <input
       type="checkbox"
@@ -34,7 +34,7 @@ jest.mock('../../ui/checkbox', () => ({
 }));
 
 // Mock Select to support finding options and triggering changes
-jest.mock('../../ui/select', () => ({
+vi.mock('../../ui/select', () => ({
   Select: ({ value, onValueChange, children }) => (
     <div data-testid="select-root">
       <select
@@ -59,7 +59,7 @@ jest.mock('../../ui/select', () => ({
 }));
 
 // Mock Lucide icons
-jest.mock('lucide-react', () => ({
+vi.mock('lucide-react', () => ({
   Check: () => <span>Check</span>,
   Trash2: () => <span>Trash2</span>,
   FilePenLine: () => <span>FilePenLine</span>,

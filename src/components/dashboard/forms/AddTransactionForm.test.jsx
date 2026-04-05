@@ -4,12 +4,12 @@ import AddTransactionForm from './AddTransactionForm';
 import '@testing-library/jest-dom';
 
 // Mock the hooks
-jest.mock('../../../hooks/useCardRecommendations', () => ({
+vi.mock('../../../hooks/useCardRecommendations', () => ({
     __esModule: true,
     default: () => [],
 }));
 
-jest.mock('../../../hooks/useMediaQuery', () => ({
+vi.mock('../../../hooks/useMediaQuery', () => ({
     __esModule: true,
     default: () => true, // Default to desktop
 }));

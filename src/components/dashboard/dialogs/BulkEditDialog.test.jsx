@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import BulkEditDialog from './BulkEditDialog';
 
 // Mock UI components
-jest.mock('../../ui/dialog', () => ({
+vi.mock('../../ui/dialog', () => ({
   Dialog: ({ open, children }) => open ? <div role="dialog">{children}</div> : null,
   DialogContent: ({ children }) => <div>{children}</div>,
   DialogHeader: ({ children }) => <div>{children}</div>,
@@ -12,7 +12,7 @@ jest.mock('../../ui/dialog', () => ({
   DialogFooter: ({ children }) => <div>{children}</div>,
 }));
 
-jest.mock('../../ui/table', () => ({
+vi.mock('../../ui/table', () => ({
     Table: ({ children }) => <table>{children}</table>,
     TableHeader: ({ children }) => <thead>{children}</thead>,
     TableHead: ({ children }) => <th>{children}</th>,
@@ -21,7 +21,7 @@ jest.mock('../../ui/table', () => ({
     TableCell: ({ children }) => <td>{children}</td>,
 }));
 
-jest.mock('../../ui/select', () => ({
+vi.mock('../../ui/select', () => ({
     Select: ({ value, onValueChange, children, disabled }) => (
         <div data-testid="mock-select" data-disabled={disabled}>
             <select
@@ -46,7 +46,7 @@ jest.mock('../../ui/select', () => ({
 }));
 
 // Mock Combobox
-jest.mock('../../ui/combobox', () => ({
+vi.mock('../../ui/combobox', () => ({
     Combobox: (props) => (
         <div data-testid="mock-combobox">
             <input
@@ -59,8 +59,8 @@ jest.mock('../../ui/combobox', () => ({
 }));
 
 describe('BulkEditDialog', () => {
-    const mockOnClose = jest.fn();
-    const mockOnUpdateComplete = jest.fn();
+    const mockOnClose = vi.fn();
+    const mockOnUpdateComplete = vi.fn();
     const categories = ['Dining', 'Travel'];
     const cards = [{ id: 'c1', name: 'Card A' }, { id: 'c2', name: 'Card B' }];
     const rules = [
@@ -77,7 +77,7 @@ describe('BulkEditDialog', () => {
     const tx3 = { id: '3', 'Transaction Date': '2023-01-03', 'Transaction Name': 'Tx 3', 'Amount': 300, 'Card': ['c1'] };
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('renders correctly and shows preview table', () => {

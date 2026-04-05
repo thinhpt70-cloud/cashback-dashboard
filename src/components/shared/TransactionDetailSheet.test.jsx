@@ -4,12 +4,12 @@ import TransactionDetailSheet from './TransactionDetailSheet';
 import useMediaQuery from '../../hooks/useMediaQuery';
 
 // Mock dependencies
-jest.mock('../../hooks/useMediaQuery', () => ({
+vi.mock('../../hooks/useMediaQuery', () => ({
   __esModule: true,
-  default: jest.fn(),
+  default: vi.fn(),
 }));
 
-jest.mock('../ui/sheet', () => ({
+vi.mock('../ui/sheet', () => ({
   Sheet: ({ children, open }) => open ? <div data-testid="sheet">{children}</div> : null,
   SheetContent: ({ children }) => <div data-testid="sheet-content">{children}</div>,
   SheetHeader: ({ children }) => <div>{children}</div>,
@@ -18,7 +18,7 @@ jest.mock('../ui/sheet', () => ({
   SheetFooter: ({ children }) => <div>{children}</div>,
 }));
 
-jest.mock('../ui/drawer', () => ({
+vi.mock('../ui/drawer', () => ({
   Drawer: ({ children, open }) => open ? <div data-testid="drawer">{children}</div> : null,
   DrawerContent: ({ children }) => <div data-testid="drawer-content">{children}</div>,
   DrawerHeader: ({ children }) => <div>{children}</div>,
@@ -27,12 +27,12 @@ jest.mock('../ui/drawer', () => ({
   DrawerFooter: ({ children }) => <div>{children}</div>,
 }));
 
-jest.mock('../../lib/utils', () => ({
+vi.mock('../../lib/utils', () => ({
     cn: (...args) => args.join(' '),
 }));
 
 // Mock Lucide icons
-jest.mock('lucide-react', () => ({
+vi.mock('lucide-react', () => ({
   Calendar: () => <span data-testid="icon-calendar" />,
   CreditCard: () => <span data-testid="icon-credit-card" />,
   Tag: () => <span data-testid="icon-tag" />,
@@ -64,7 +64,7 @@ describe('TransactionDetailSheet', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders Gross Amount in Fees section when no foreign data', () => {

@@ -4,7 +4,7 @@ import CardSpendsCap from '../components/dashboard/overview/CardSpendsCap';
 import { currencyFn } from '../lib/formatters';
 
 // Mock dependencies
-jest.mock('lucide-react', () => ({
+vi.mock('lucide-react', () => ({
   ChevronDown: () => <div data-testid="ChevronDown" />,
   CheckCircle2: () => <div data-testid="CheckCircle2" />,
   Circle: () => <div data-testid="Circle" />,
@@ -15,33 +15,35 @@ jest.mock('lucide-react', () => ({
   Snowflake: () => <div data-testid="Snowflake" />,
 }));
 
-jest.mock('@/components/ui/card', () => ({
+vi.mock('@/components/ui/card', () => ({
     Card: ({ children, className }) => <div className={`card ${className}`}>{children}</div>,
     CardContent: ({ children, className }) => <div className={`card-content ${className}`}>{children}</div>,
 }));
 
-jest.mock('@/components/ui/badge', () => ({
+vi.mock('@/components/ui/badge', () => ({
     Badge: ({ children, className }) => <div className={`badge ${className}`}>{children}</div>,
 }));
 
-jest.mock('@/components/ui/progress', () => ({
+vi.mock('@/components/ui/progress', () => ({
     Progress: ({ value, className }) => <div className={`progress ${className}`} data-value={value} />,
 }));
 
-jest.mock('@/components/ui/button', () => ({
+vi.mock('@/components/ui/button', () => ({
     Button: ({ children }) => <button>{children}</button>,
 }));
 
-jest.mock('@/components/ui/skeleton', () => ({
+vi.mock('@/components/ui/skeleton', () => ({
     Skeleton: () => <div data-testid="skeleton" />,
 }));
 
-jest.mock('@/lib/date', () => ({
+vi.mock('@/lib/date', () => ({
     calculateDaysLeftInCashbackMonth: () => ({ days: 10, status: 'Active' }),
     calculateDaysUntilStatement: () => ({ days: 10, status: 'Active' }),
 }));
 
-jest.mock('@/components/shared/SharedTransactionsDialog', () => () => <div data-testid="shared-transactions-dialog" />);
+vi.mock('@/components/shared/SharedTransactionsDialog', () => ({
+  default: () => <div data-testid="shared-transactions-dialog" />
+}));
 
 // Mock currency function
 const mockCurrencyFn = (val) => `$${val}`;
@@ -80,10 +82,10 @@ describe('CardSpendsCap', () => {
         monthlyCategorySummary: [],
         currencyFn: mockCurrencyFn,
         getCurrentCashbackMonthForCard: () => '2023-10',
-        onEditTransaction: jest.fn(),
-        onTransactionDeleted: jest.fn(),
-        onBulkDelete: jest.fn(),
-        onViewTransactionDetails: jest.fn(),
+        onEditTransaction: vi.fn(),
+        onTransactionDeleted: vi.fn(),
+        onBulkDelete: vi.fn(),
+        onViewTransactionDetails: vi.fn(),
         cardMap: {},
         isLoading: false
     };

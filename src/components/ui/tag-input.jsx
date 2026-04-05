@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   useFormContext,
 } from "react-hook-form";
-import { cn } from "src/lib/utils";
-import { Badge } from "src/components/ui/badge";
-import { Input } from "src/components/ui/input";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   FormControl,
   FormDescription,
@@ -15,7 +15,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "src/components/ui/form";
+} from "@/components/ui/form";
 
 const TagsInputFieldBase = ({
   name,
