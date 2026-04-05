@@ -14,11 +14,11 @@ const PopoverAnchor = React.forwardRef((props, ref) => <div ref={ref} {...props}
 
 const PopoverContent = React.forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
   <BasePopover.Portal>
-    <BasePopover.Positioner sideOffset={sideOffset} alignment={align}>
+    <BasePopover.Positioner sideOffset={sideOffset} alignment={align} className="z-50">
       <BasePopover.Popup
         ref={ref}
         className={cn(
-          "z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[starting-style]:animate-in data-[ending-style]:animate-out data-[ending-style]:fade-out-0 data-[starting-style]:fade-in-0 data-[ending-style]:zoom-out-95 data-[starting-style]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+          "z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none transition-[opacity,transform] duration-150 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[starting-style]:scale-95",
           className
         )}
         {...props} />

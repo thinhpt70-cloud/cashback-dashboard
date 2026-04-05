@@ -48,7 +48,7 @@ const Combobox = ({ options = [], value, onChange, placeholder, searchPlaceholde
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between h-10", className)}
+          className={cn("w-full justify-between h-12 font-normal", className)}
         >
           {/* --- FIX 1: Added fallback to 'value' --- */}
           {value
@@ -57,7 +57,7 @@ const Combobox = ({ options = [], value, onChange, placeholder, searchPlaceholde
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
+      <PopoverContent className="w-[var(--anchor-width)] p-0">
         <Command>
           <CommandInput
             ref={inputRef}

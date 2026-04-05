@@ -16,7 +16,7 @@ const SheetPortal = BaseDialog.Portal
 const SheetOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <BaseDialog.Backdrop
     className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[starting-style]:animate-in data-[ending-style]:animate-out data-[ending-style]:fade-out-0 data-[starting-style]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/80 transition-opacity duration-300 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0",
       className
     )}
     {...props}
@@ -25,16 +25,16 @@ const SheetOverlay = React.forwardRef(({ className, ...props }, ref) => (
 SheetOverlay.displayName = "SheetOverlay"
 
 const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[ending-style]:duration-300 data-[starting-style]:duration-500 data-[starting-style]:animate-in data-[ending-style]:animate-out",
+  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition-transform ease-in-out duration-300",
   {
     variants: {
       side: {
-        top: "inset-x-0 top-0 border-b data-[ending-style]:slide-out-to-top data-[starting-style]:slide-in-from-top",
+        top: "inset-x-0 top-0 border-b data-[ending-style]:-translate-y-full data-[starting-style]:-translate-y-full",
         bottom:
-          "inset-x-0 bottom-0 border-t data-[ending-style]:slide-out-to-bottom data-[starting-style]:slide-in-from-bottom rounded-t-xl sm:rounded-t-lg",
-        left: "inset-y-0 left-0 h-full w-3/4 border-r data-[ending-style]:slide-out-to-left data-[starting-style]:slide-in-from-left sm:max-w-sm",
+          "inset-x-0 bottom-0 border-t data-[ending-style]:translate-y-full data-[starting-style]:translate-y-full rounded-t-xl sm:rounded-t-lg",
+        left: "inset-y-0 left-0 h-full w-3/4 border-r data-[ending-style]:-translate-x-full data-[starting-style]:-translate-x-full sm:max-w-sm",
         right:
-          "inset-y-0 right-0 h-full w-3/4 border-l data-[ending-style]:slide-out-to-right data-[starting-style]:slide-in-from-right sm:max-w-sm",
+          "inset-y-0 right-0 h-full w-3/4 border-l data-[ending-style]:translate-x-full data-[starting-style]:translate-x-full sm:max-w-sm",
       },
     },
     defaultVariants: {
