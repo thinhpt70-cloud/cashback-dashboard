@@ -1,7 +1,7 @@
 // CashbackDashboard.jsx
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CreditCard, DollarSign, AlertTriangle, Search, Loader2, Plus, LayoutDashboard, ArrowLeftRight, Banknote, Menu, RefreshCw, LogOut } from "lucide-react";
+import { CreditCard, DollarSign, AlertTriangle, Search, Loader2, Plus, LayoutDashboard, ArrowLeftRight, Banknote, Menu, RefreshCw, LogOut, Settings } from "lucide-react";
 import { Toaster, toast } from 'sonner';
 
 // Import utility functions
@@ -42,6 +42,9 @@ import CardsTab from "./components/dashboard/cards/CardsTab";
 // Import new PaymentsTab component
 import PaymentsTab from "./components/dashboard/payments/PaymentsTab";
 
+// Import new SettingsTab component
+import SettingsTab from "./components/dashboard/settings/SettingsTab";
+
 // Import authentication component
 import LoginScreen from './components/auth/LoginScreen';
 
@@ -69,6 +72,7 @@ const navItems = [
     { view: 'cards', icon: CreditCard, label: 'My Cards' },
     { view: 'cashback', icon: DollarSign, label: 'Cashback' },
     { view: 'payments', icon: Banknote, label: 'Payments' },
+    { view: 'settings', icon: Settings, label: 'Settings' },
 ];
 
 export default function CashbackDashboard() {
@@ -1319,6 +1323,12 @@ export default function CashbackDashboard() {
                             daysLeftFn={calculateDaysLeft}
                             onViewTransactions={handleViewTransactions}
                         />
+                    </div>
+                )}
+
+                {activeView === 'settings' && (
+                    <div className="space-y-4 pt-4">
+                        <SettingsTab />
                     </div>
                 )}
             </main>

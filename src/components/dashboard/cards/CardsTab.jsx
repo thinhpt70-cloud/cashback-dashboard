@@ -5,6 +5,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "..
 import { Badge } from "../../ui/badge";
 import { Progress } from "../../ui/progress";
 import { cn } from "../../../lib/utils";
+import { getTimezone } from "../../../lib/timezone";
 import { cardThemes } from "../../../lib/constants";
 import { getCurrentCashbackMonthForCard, calculateFeeCycleProgress } from "../../../lib/date";
 import StatCard from "../../shared/StatCard";
@@ -198,8 +199,8 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
     }
   };
 
-  const formattedOpenDate = card.cardOpenDate ? new Date(card.cardOpenDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
-  const formattedNextFeeDate = card.nextAnnualFeeDate ? new Date(card.nextAnnualFeeDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+  const formattedOpenDate = card.cardOpenDate ? new Date(card.cardOpenDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: getTimezone() }) : 'N/A';
+  const formattedNextFeeDate = card.nextAnnualFeeDate ? new Date(card.nextAnnualFeeDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: getTimezone() }) : 'N/A';
 
   return (
     <div className={cn(

@@ -4,6 +4,7 @@ import 'react-day-picker/style.css';
 import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight, CheckCircle, Calendar, Wallet, FilePenLine, History, DollarSign } from 'lucide-react';
 import { cn } from '../../../lib/utils';
+import { getZonedDate } from '../../../lib/timezone';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 
@@ -115,7 +116,7 @@ export default function PaymentsCalendarView({ paymentData, currencyFn, fmtYMSho
                             const hasDue = dayEvents?.some(e => e.type === 'due');
                             const hasStatement = dayEvents?.some(e => e.type === 'statement');
                             const isPaid = dayEvents?.every(e => e.type !== 'due' || e.isPaid); // All dues paid
-                            const isOverdue = hasDue && !isPaid && date < new Date().setHours(0,0,0,0);
+                            const isOverdue = hasDue && !isPaid && date < getZonedDate().setHours(0,0,0,0);
 
                             return (
                                 <div className="relative w-full h-full flex items-center justify-center p-2">

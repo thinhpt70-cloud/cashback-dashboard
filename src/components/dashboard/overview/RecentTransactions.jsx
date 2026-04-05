@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ChevronDown, History } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
+import { getZonedDate } from "../../../lib/timezone";
 import { 
     subWeeks, 
     startOfDay, 
@@ -86,7 +87,7 @@ const RecentTransactions = React.memo(({ transactions, cardMap, currencyFn, isLo
     }, [transactions]);
 
     const filteredTransactions = useMemo(() => {
-        const today = startOfDay(new Date());
+        const today = startOfDay(getZonedDate());
         const options = { weekStartsOn: 1 };
         let interval;
 

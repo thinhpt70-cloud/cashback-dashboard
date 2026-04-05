@@ -1,9 +1,11 @@
+import { getZonedDate, getTimezone } from './timezone';
+
 /**
  * Gets the current month and year string in YYYYMM format.
- * @param {Date} [date=new Date()] - The date object to use.
+ * @param {Date} [date] - The date object to use. Defaults to zoned current time.
  * @returns {string} - The formatted string (e.g., "202510").
  */
-export function getTodaysMonth(date = new Date()) {
+export function getTodaysMonth(date = getZonedDate()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   return `${year}${month}`; // Returns 'YYYYMM'
@@ -65,7 +67,7 @@ export const getPastNMonths = (endMonth, length) => {
 export const calculateDaysLeft = (paymentDateString) => {
     if (!paymentDateString || paymentDateString === "N/A") return null;
 
-    const today = new Date(); 
+    const today = getZonedDate();
     today.setHours(0, 0, 0, 0);
     const dueDate = new Date(paymentDateString);
     dueDate.setHours(0, 0, 0, 0);
@@ -86,7 +88,7 @@ export const calculateDaysLeft = (paymentDateString) => {
 export const calculateDaysLeftInCashbackMonth = (cashbackMonth) => {
     if (!cashbackMonth) return { days: null, status: 'N/A' };
 
-    const today = new Date();
+    const today = getZonedDate();
     today.setHours(0, 0, 0, 0);
 
     const year = parseInt(cashbackMonth.slice(0, 4), 10);
@@ -114,7 +116,7 @@ export const calculateDaysLeftInCashbackMonth = (cashbackMonth) => {
 export const calculateDaysUntilStatement = (statementDay, activeMonth) => {
     if (!statementDay || !activeMonth) return { days: null, status: 'N/A' };
 
-    const today = new Date();
+    const today = getZonedDate();
     today.setHours(0, 0, 0, 0);
 
     const year = parseInt(activeMonth.slice(0, 4), 10);
@@ -142,7 +144,9 @@ export const calculateDaysUntilStatement = (statementDay, activeMonth) => {
  * @returns {string} - The current month in 'YYYYMM' format.
  */
 export const getCurrentCashbackMonthForCard = (card = null, transactionDateStr = null) => {
-    const effectiveDate = transactionDateStr ? new Date(transactionDateStr) : new Date();
+    // If a transaction date string is provided, we still use getZonedDate to interpret it in our timezone,
+    // unless it's just a pure date string we want to keep absolute. But typically transactions have times.
+    const effectiveDate = transactionDateStr ? getZonedDate(new Date(transactionDateStr)) : getZonedDate();
 
     let year = effectiveDate.getFullYear();
     let month = effectiveDate.getMonth(); // 0-indexed
@@ -170,6 +174,7 @@ export const getCurrentCashbackMonthForCard = (card = null, transactionDateStr =
     const finalMonth = month + 1;
     return `${year}${String(finalMonth).padStart(2, '0')}`;
 };
+
 /**
  * Calculates the progress of the annual fee cycle.
  * @param {string} openDateStr - The card open date string.
@@ -181,7 +186,7 @@ export const calculateFeeCycleProgress = (openDateStr, nextFeeDateStr) => {
 
     const openDate = new Date(openDateStr);
     const nextFeeDate = new Date(nextFeeDateStr);
-    const today = new Date();
+    const today = getZonedDate();
 
     const totalDuration = nextFeeDate.getTime() - openDate.getTime();
     const elapsedDuration = today.getTime() - openDate.getTime();
@@ -203,7 +208,7 @@ export const formatDate = (dateStr) => {
     if (!dateStr) return '';
     try {
         const d = new Date(dateStr);
-        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: getTimezone() });
     } catch (e) {
         return dateStr;
     }
@@ -218,7 +223,8 @@ export const formatDateTime = (dateStr) => {
     if (!dateStr) return '';
     try {
         const d = new Date(dateStr);
-        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' • ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const tz = getTimezone();
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: tz }) + ' • ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz });
     } catch (e) {
         return dateStr;
     }
@@ -237,13 +243,14 @@ export const formatTransactionDate = (dateStr) => {
         const d = new Date(dateStr);
         if (isNaN(d.getTime())) return dateStr;
 
+        const tz = getTimezone();
         // Simple heuristic: YYYY-MM-DD is 10 chars. ISO string with time is longer.
         const hasTime = dateStr.length > 10;
 
-        const datePart = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const datePart = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: tz });
 
         if (hasTime) {
-            const timePart = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+            const timePart = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz });
             return `${datePart} • ${timePart}`;
         }
 
@@ -262,7 +269,8 @@ export const formatFullDateTime = (dateStr) => {
     if (!dateStr) return '';
     try {
         const d = new Date(dateStr);
-        return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const tz = getTimezone();
+        return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric', timeZone: tz }) + ' at ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz });
     } catch (e) {
         return dateStr;
     }

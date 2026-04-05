@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { getZonedDate, getTimezone } from "../../../lib/timezone";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import { Checkbox } from "../../ui/checkbox";
@@ -40,7 +41,7 @@ const currency = (n) => new Intl.NumberFormat('en-US', { style: 'decimal', maxim
 
 function getCardActivities(items, statementDay) {
     const activities = [];
-    const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+    const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric', timeZone: getTimezone()});
     const fmtDateTime = (d) => {
         const date = new Date(d);
         // Display format: 30 Oct 2025 18:59
@@ -63,7 +64,7 @@ function getCardActivities(items, statementDay) {
             if (mStr.length === 6) {
                 return [Number(mStr.substring(0, 4)), Number(mStr.substring(4, 6))];
             }
-            return [new Date().getFullYear(), new Date().getMonth() + 1]; // Fallback
+            return [getZonedDate().getFullYear(), getZonedDate().getMonth() + 1]; // Fallback
         };
 
         const [y, m] = getYearMonth(item.month);
@@ -892,7 +893,9 @@ export default function CashbackTracker({
             // Use provided date (YYYY-MM-DDTHH:mm) or fallback to simple date.
             // We want format YYYY-MM-DD HH:mm for the log.
             // Input 'date' is from datetime-local, which is YYYY-MM-DDTHH:mm
-            const formattedDate = date ? date.replace('T', ' ') : new Date().toISOString().slice(0, 16).replace('T', ' ');
+            const zonedNow = getZonedDate();
+            const localZonedDateStr = `${zonedNow.getFullYear()}-${String(zonedNow.getMonth() + 1).padStart(2, '0')}-${String(zonedNow.getDate()).padStart(2, '0')} ${String(zonedNow.getHours()).padStart(2, '0')}:${String(zonedNow.getMinutes()).padStart(2, '0')}`;
+            const formattedDate = date ? date.replace('T', ' ') : localZonedDateStr;
 
             const noteEntry = `[Redeemed ${redeemFromThis} on ${formattedDate}${notes ? ': ' + notes : ''}]`;
             const newNotes = item.notes ? `${item.notes}\n${noteEntry}` : noteEntry;

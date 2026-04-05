@@ -18,6 +18,7 @@ import { Edit2, ClipboardCheck, Eye, Trash2, ArrowDown } from "lucide-react";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 import { fmtYMShort } from "@/lib/formatters";
+import { getZonedDate, getTimezone } from "../../../../lib/timezone";
 import { isStatementFinalized, groupRedemptionEvents } from "@/lib/cashback-logic";
 
 export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleReviewed, onViewTransactions, onUndoRedemption, currencyFn }) {
@@ -140,7 +141,7 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
             )}
             {historyEvents.map((event) => {
                 const isEarned = event.type === 'earned';
-                const today = new Date();
+                const today = getZonedDate();
                 today.setHours(0, 0, 0, 0);
 
                 let dateDisplay;
@@ -148,7 +149,7 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
 
                 if (isEarned) {
                      eventDateObj = new Date(event.date);
-                     dateDisplay = eventDateObj.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+                     dateDisplay = eventDateObj.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric', timeZone: getTimezone()});
                 } else {
                      // Check if it has time
                      const hasTime = event.date && event.date.includes(':');
@@ -161,10 +162,11 @@ export function PointsDetailSheet({ isOpen, onClose, cardData, onEdit, onToggleR
                             year: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit',
-                            hour12: false
+                            hour12: false,
+                            timeZone: getTimezone()
                         }).replace(',', '');
                      } else {
-                         dateDisplay = eventDateObj.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+                         dateDisplay = eventDateObj.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric', timeZone: getTimezone()});
                      }
                 }
 

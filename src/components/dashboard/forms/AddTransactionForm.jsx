@@ -18,6 +18,7 @@ import useCardRecommendations from '../../../hooks/useCardRecommendations';
 import useMediaQuery from '../../../hooks/useMediaQuery'; // Added useMediaQuery
 import { useForm, FormProvider } from 'react-hook-form';
 import { cn } from '@/lib/utils';
+import { getZonedDate, getTimezone } from '../../../lib/timezone';
 
 
 export default function AddTransactionForm({ cards, categories, definitions, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, prefillData, onClose, addToQueue }) {
@@ -35,10 +36,10 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
     // Initialize date state with datetime-local format support (YYYY-MM-DDTHH:mm) or just date (YYYY-MM-DD)
     const [date, setDate] = useState(() => {
         // Default to current datetime for new transactions
-        const now = new Date();
+        const now = getZonedDate();
         // Adjust for timezone offset to get local ISO string like 'YYYY-MM-DDTHH:mm'
-        const offset = now.getTimezoneOffset() * 60000;
-        const localIso = new Date(now.getTime() - offset).toISOString().slice(0, 16);
+
+        const localIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         return localIso;
     });
 
@@ -116,9 +117,9 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                 }
             } else {
                 // Fallback for new/empty
-                const now = new Date();
-                const offset = now.getTimezoneOffset() * 60000;
-                setDate(new Date(now.getTime() - offset).toISOString().slice(0, 16));
+                const now = getZonedDate();
+
+                setDate(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
                 setHasTime(true);
             }
 
@@ -431,7 +432,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
     const handleSubmit = async (data) => {
         let finalMerchant = merchant;
         const transactionData = {
-            id: initialData ? initialData.id : new Date().toISOString(),
+            id: initialData ? initialData.id : getZonedDate().toISOString(),
             'Transaction Name': finalMerchant,
             'Amount': parseFloat(String(amount).replace(/,/g, '')),
             'Transaction Date': date,
@@ -548,8 +549,8 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                             >
                                 <CalendarClock className="h-4 w-4 text-muted-foreground" />
                                 {hasTime
-                                    ? new Date(date).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                                    : new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                                    ? new Date(date).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: getTimezone() })
+                                    : new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: getTimezone() })
                                 }
                             </button>
                             <input
@@ -574,8 +575,8 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                     // Switch to datetime-local: append current time or 00:00
                                     // If date was YYYY-MM-DD, make it YYYY-MM-DDTHH:mm
                                     // Better: use current time if switching ON
-                                    const now = new Date();
-                                    const timeStr = now.toTimeString().slice(0, 5); // HH:mm
+                                    const now = getZonedDate();
+                                    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                                     setDate(`${date}T${timeStr}`);
                                 } else {
                                     // Switch to date-only: slice the string
