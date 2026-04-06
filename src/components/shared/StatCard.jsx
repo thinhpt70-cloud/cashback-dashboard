@@ -159,10 +159,10 @@ export default function StatCard({
     }
 
     return (
-        <Card className="flex flex-col justify-between shadow-sm border border-slate-200 overflow-hidden">
-            <CardContent className="p-4 flex-grow flex flex-col justify-between">
+        <Card className="flex flex-col justify-between overflow-hidden">
+            <CardContent className="p-6 flex-grow flex flex-col justify-between h-full min-h-[140px]">
                 {/* --- Top Row: Title and Trend Badge --- */}
-                <div className="flex items-start justify-between mb-2">
+                <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center text-sm font-medium text-muted-foreground">
                         {icon && <span className="mr-2">{icon}</span>}
                         {title}
@@ -179,12 +179,12 @@ export default function StatCard({
                 </div>
 
                 {/* --- Middle Content: Value and Month Label --- */}
-                <div className="mb-2"> 
-                    <p className="text-2xl font-bold tracking-tight leading-none mt-1">
+                <div className="mt-auto">
+                    <p className="text-3xl font-semibold tracking-tight leading-none">
                         {value}
                     </p>
                     {currentMonthLabel && (
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-sm text-muted-foreground mt-2">
                             {currentMonthLabel}
                         </p>
                     )}
@@ -194,7 +194,7 @@ export default function StatCard({
             
             {/* Sparkline Integration */}
             {sparklineData && sparklineData.length > 1 && (
-                <div className="px-1 -mt-2"> {/* Pull sparkline up a bit */}
+                <div className="px-1 -mt-4 pb-2"> {/* Pull sparkline up a bit */}
                      <SparklineChart
                         data={sparklineData}
                         lineColor={lineColor}
