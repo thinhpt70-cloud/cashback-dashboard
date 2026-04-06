@@ -5,12 +5,15 @@ const ThemeProviderContext = createContext({
   setTheme: () => null,
 })
 
-export function ThemeProvider({
-  children,
-  defaultTheme = "system",
-  storageKey = "vite-ui-theme",
-  ...props
-}) {
+export const ThemeProvider = React.forwardRef((
+  {
+    children,
+    defaultTheme = "system",
+    storageKey = "vite-ui-theme",
+    ...props
+  },
+  ref
+) => {
   const [theme, setTheme] = useState(
     () => localStorage.getItem(storageKey) || defaultTheme
   )
@@ -48,11 +51,11 @@ export function ThemeProvider({
   }
 
   return (
-    <ThemeProviderContext.Provider {...props} value={value}>
+    <ThemeProviderContext.Provider ref={ref} {...props} value={value}>
       {children}
     </ThemeProviderContext.Provider>
-  )
-}
+  );
+});
 
 export const useTheme = () => {
   const context = useContext(ThemeProviderContext)
