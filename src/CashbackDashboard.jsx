@@ -58,6 +58,8 @@ import { COLORS } from './lib/constants';
 import { calculateDaysLeft } from './lib/date';
 import { currency, fmtYMShort } from './lib/formatters';
 
+const API_BASE_URL = '/api';
+
 const navItems = [
     { view: 'overview', icon: LayoutDashboard, label: 'Overview' },
     { view: 'transactions', icon: ArrowLeftRight, label: 'Transactions' },
