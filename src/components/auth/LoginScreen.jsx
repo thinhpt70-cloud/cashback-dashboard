@@ -3,6 +3,8 @@ import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import PinInput from './PinInput';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+
 export default function LoginScreen({ onLoginSuccess }) {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -12,7 +14,7 @@ export default function LoginScreen({ onLoginSuccess }) {
         setError('');
 
         try {
-            const response = await fetch('/api/login', {
+            const response = await fetch(`${API_BASE_URL}/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

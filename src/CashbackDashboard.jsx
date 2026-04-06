@@ -58,6 +58,8 @@ import { COLORS } from './lib/constants';
 import { calculateDaysLeft } from './lib/date';
 import { currency, fmtYMShort } from './lib/formatters';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+
 const navItems = [
     { view: 'overview', icon: LayoutDashboard, label: 'Overview' },
     { view: 'transactions', icon: ArrowLeftRight, label: 'Transactions' },
@@ -214,7 +216,7 @@ export default function CashbackDashboard() {
 
     const handleLogout = async () => {
         try {
-            await fetch('/api/logout', {
+            await fetch(`${API_BASE_URL}/logout`, {
                 method: 'POST',
                 credentials: 'include'
             });
@@ -470,7 +472,7 @@ export default function CashbackDashboard() {
         const checkAuthStatus = async () => {
             try {
                 // Use fetch with 'credentials: "include"' to send cookies
-                const response = await fetch('/api/verify-auth', {
+                const response = await fetch(`${API_BASE_URL}/verify-auth`, {
                     credentials: 'include'
                 });
 

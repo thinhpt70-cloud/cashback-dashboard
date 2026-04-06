@@ -39,6 +39,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+
 // --- SUB-COMPONENTS ---
 
 function MethodSelector({ method, setMethod }) {
@@ -457,7 +459,7 @@ function CardFinderContent({
         } else {
             setIsLoading(true);
             try {
-                const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(term)}`);
+                const res = await fetch(`${API_BASE_URL}/lookup-merchant?keyword=${encodeURIComponent(term)}`);
                 if (!res.ok) throw new Error('Failed to fetch');
                 const data = await res.json();
                 setSearchResult(data);

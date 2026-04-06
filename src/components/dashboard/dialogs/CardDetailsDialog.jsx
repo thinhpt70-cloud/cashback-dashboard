@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { cn } from '../../../lib/utils';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+
 export default function CardDetailsDialog({ card, rules, mccMap, isDesktop, onUpdateCard, onUpdateRule }) {
     // --- State for search and expansion ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -86,7 +88,7 @@ export default function CardDetailsDialog({ card, rules, mccMap, isDesktop, onUp
     const handleStatusChange = async (newStatus) => {
         setIsUpdatingStatus(true);
         try {
-            const response = await fetch(`/api/cards/${card.id}`, {
+            const response = await fetch(`${API_BASE_URL}/cards/${card.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus }),
@@ -109,7 +111,7 @@ export default function CardDetailsDialog({ card, rules, mccMap, isDesktop, onUp
     const handleRuleStatusChange = async (ruleId, newStatus) => {
         setUpdatingRuleId(ruleId);
         try {
-            const response = await fetch(`/api/rules/${ruleId}`, {
+            const response = await fetch(`${API_BASE_URL}/rules/${ruleId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus }),
@@ -133,7 +135,7 @@ export default function CardDetailsDialog({ card, rules, mccMap, isDesktop, onUp
         if (hasFetchedAnalysis || isAnalysisLoading) return;
         setIsAnalysisLoading(true);
         try {
-            const response = await fetch(`/api/cards/${card.id}/analysis`);
+            const response = await fetch(`${API_BASE_URL}/cards/${card.id}/analysis`);
             if (!response.ok) throw new Error('Failed to fetch analysis');
             const data = await response.json();
 

@@ -10,6 +10,8 @@ import { Loader2, AlertTriangle, ArrowRight, Info } from "lucide-react";
 import { toast } from 'sonner';
 import { cn } from "../../../lib/utils";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+
 export default function BulkEditDialog({
     isOpen,
     onClose,
@@ -119,7 +121,7 @@ export default function BulkEditDialog({
                         let summaryId = summaryCache.get(cacheKey);
 
                         if (!summaryId) {
-                            const res = await fetch('/api/summaries', {
+                            const res = await fetch(`${API_BASE_URL}/summaries`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
@@ -147,7 +149,7 @@ export default function BulkEditDialog({
                 updates.push(updatePayload);
             }
 
-            const res = await fetch('/api/transactions/batch-update', {
+            const res = await fetch(`${API_BASE_URL}/transactions/batch-update`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ updates }),

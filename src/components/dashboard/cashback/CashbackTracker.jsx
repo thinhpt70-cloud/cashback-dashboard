@@ -31,11 +31,12 @@ import { UpdateDetailsDialog } from './components/UpdateDetailsDialog';
 import { calculateCashbackSplit, calculatePaymentDate, getPaymentStatus, isStatementFinalized, RE_REDEMPTION_LOG } from '../../../lib/cashback-logic';
 import { fmtYMShort } from '../../../lib/formatters';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+
 // ==========================================
 // 1. HELPERS & SUB-COMPONENTS
 // ==========================================
 
-const API_BASE_URL = '/api';
 
 const currency = (n) => new Intl.NumberFormat('en-US', { style: 'decimal', maximumFractionDigits: 0 }).format(n);
 

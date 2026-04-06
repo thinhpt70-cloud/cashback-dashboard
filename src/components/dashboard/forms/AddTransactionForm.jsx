@@ -20,6 +20,8 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { cn } from '@/lib/utils';
 import { getZonedDate, getTimezone } from '../../../lib/timezone';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+
 
 export default function AddTransactionForm({ cards, categories, definitions, rules, monthlyCategories, mccMap, onTransactionAdded, commonVendors, monthlySummary, monthlyCategorySummary, getCurrentCashbackMonthForCard, onTransactionUpdated, initialData, prefillData, onClose, addToQueue }) {
     const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -395,7 +397,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
         setShowLookupButton(false);
 
         try {
-            const res = await fetch(`/api/lookup-merchant?keyword=${encodeURIComponent(trimmedMerchant)}`);
+            const res = await fetch(`${API_BASE_URL}/lookup-merchant?keyword=${encodeURIComponent(trimmedMerchant)}`);
             if (!res.ok) throw new Error("Server responded with an error.");
             
             const data = await res.json();

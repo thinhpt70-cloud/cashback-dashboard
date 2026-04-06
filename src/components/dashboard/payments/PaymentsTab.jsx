@@ -16,7 +16,8 @@ import PaymentsCalendarView from './PaymentsCalendarView';
 import { calculateCashbackSplit, calculatePaymentDate } from '../../../lib/cashback-logic';
 import { getZonedDate } from '../../../lib/timezone';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+
 
 export default function PaymentsTab({ cards, monthlySummary, currencyFn, fmtYMShortFn, daysLeftFn, onViewTransactions }) {
     const [paymentData, setPaymentData] = useState([]);
