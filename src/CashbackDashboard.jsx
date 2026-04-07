@@ -58,7 +58,7 @@ import { COLORS } from './lib/constants';
 import { calculateDaysLeft } from './lib/date';
 import { currency, fmtYMShort } from './lib/formatters';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const navItems = [
     { view: 'overview', icon: LayoutDashboard, label: 'Overview' },

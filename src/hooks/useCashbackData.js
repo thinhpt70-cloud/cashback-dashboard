@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { getCurrentCashbackMonthForCard, getTodaysMonth, getPastNMonths } from '../lib/date'; // This import now gets the correct function
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export default function useCashbackData(isAuthenticated) {
     

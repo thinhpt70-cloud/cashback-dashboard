@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export default function useLiveTransactions() {
     const [liveTransactions, setLiveTransactions] = useState([]);

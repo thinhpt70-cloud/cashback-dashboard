@@ -35,7 +35,7 @@ import { fmtYMShort } from '../../../lib/formatters';
 // 1. HELPERS & SUB-COMPONENTS
 // ==========================================
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const currency = (n) => new Intl.NumberFormat('en-US', { style: 'decimal', maximumFractionDigits: 0 }).format(n);
 
