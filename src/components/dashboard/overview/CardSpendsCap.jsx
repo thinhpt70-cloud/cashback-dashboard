@@ -11,7 +11,7 @@ import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '@
 import { toast } from 'sonner';
 import SharedTransactionsDialog from '@/components/shared/SharedTransactionsDialog';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, currencyFn, isTier2Met, onSelectCategory }) {
     const categoryCapData = useMemo(() => {

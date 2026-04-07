@@ -266,7 +266,7 @@ const TransactionReview = React.memo(({
                 const month = getCurrentCashbackMonthForCard(card, tx['Transaction Date']);
 
                 // 2. Find/Create Summary
-                const summaryRes = await fetch('/api/summaries', {
+                const summaryRes = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/summaries`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ cardId, month, ruleId })
@@ -276,7 +276,7 @@ const TransactionReview = React.memo(({
                 const summary = await summaryRes.json();
 
                 // 3. Update Transaction (Link Summary + Uncheck Automated)
-                const updateRes = await fetch(`/api/transactions/${tx.id}`, {
+                const updateRes = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/transactions/${tx.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -300,7 +300,7 @@ const TransactionReview = React.memo(({
             }
             // STATE 2: QUICK APPROVE (Green Status) -> FINALIZE
             else if (tx.status === 'Quick Approve') {
-                const res = await fetch('/api/transactions/finalize', {
+                const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/transactions/finalize`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ids: [tx.id] })
@@ -350,7 +350,7 @@ const TransactionReview = React.memo(({
 
             // 1. Process Quick Approves (Finalize)
             if (quickApproveIds.length > 0) {
-                await fetch('/api/transactions/finalize', {
+                await fetch(`${import.meta.env.VITE_API_URL || '/api'}/transactions/finalize`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ids: quickApproveIds })
@@ -386,7 +386,7 @@ const TransactionReview = React.memo(({
         }
 
         try {
-             const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
+             const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/transactions/${id}`, { method: 'DELETE' });
              if (!res.ok) throw new Error("Delete failed");
 
              const newSelected = new Set(selectedIds);
@@ -420,7 +420,7 @@ const TransactionReview = React.memo(({
         }
 
         try {
-            const res = await fetch('/api/transactions/bulk-delete', {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/transactions/bulk-delete`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids })
