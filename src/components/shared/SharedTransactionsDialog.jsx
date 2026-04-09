@@ -407,14 +407,14 @@ export default function SharedTransactionsDialog({
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 pb-6 pt-0">
+            <div className="flex-1 overflow-y-auto pb-0 pt-0 flex flex-col">
                     {/* Mobile Header (Filters) - Rendered INSIDE scroll area but sticky */}
-                    <div className="md:hidden">
+                    <div className="md:hidden px-6">
                     {renderMobileFilters()}
                     </div>
 
                     {/* Mobile Bulk Bar - Rendered OUTSIDE normal flow but fixed via CSS */}
-                    <div className="md:hidden">
+                    <div className="md:hidden px-6">
                     {selectedRows.size > 0 && renderBulkBar()}
                     </div>
 
@@ -425,11 +425,11 @@ export default function SharedTransactionsDialog({
                 ) : filteredAndSortedData.length > 0 ? (
                     <>
                         {/* Desktop Table View */}
-                        <div className="hidden md:block">
+                        <div className="hidden md:block flex-1">
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b">
-                                        <th className="p-2 w-10">
+                                        <th className="p-2 pl-6 w-10">
                                             <Checkbox
                                                 checked={isAllSelected}
                                                 onCheckedChange={handleSelectAll}
@@ -446,7 +446,7 @@ export default function SharedTransactionsDialog({
                                         {visibleColumns['MCC Code'] && <th className="text-left p-2">MCC</th>}
                                         {visibleColumns['Notes'] && <th className="text-left p-2">Notes</th>}
                                         {visibleColumns['Cashback Rate'] && <th className="text-right p-2">Rate</th>}
-                                        <th className="text-center p-2 w-12">Actions</th>
+                                        <th className="text-center p-2 pr-6 w-12">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -455,7 +455,7 @@ export default function SharedTransactionsDialog({
 
                                         return (
                                             <tr key={t.id} className="border-b">
-                                                <td className="p-2">
+                                                <td className="p-2 pl-6">
                                                     <Checkbox
                                                         checked={selectedRows.has(t.id)}
                                                         onCheckedChange={(checked) => handleSelectRow(t.id, checked)}
@@ -500,7 +500,7 @@ export default function SharedTransactionsDialog({
                                                     </td>
                                                 )}
 
-                                                <td className="text-center p-2">
+                                                <td className="text-center p-2 pr-6">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
                                                             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -519,44 +519,44 @@ export default function SharedTransactionsDialog({
                                     })}
                                 </tbody>
 
-                                <tfoot>
-                                    <tr className="border-t-2 font-semibold bg-slate-50/50">
-                                        <td className="p-2"></td>
-                                        {visibleColumns['Date'] && <td className="p-2"></td>}
+                                <tfoot className="sticky bottom-0 z-10">
+                                    <tr className="border-t font-semibold bg-slate-100 dark:bg-slate-900 border-t-slate-200 dark:border-t-slate-800">
+                                        <td className="p-2 pl-6 py-4"></td>
+                                        {visibleColumns['Date'] && <td className="p-2 py-4"></td>}
 
                                         {/* Logic to place 'Total' label correctly */}
                                         {visibleColumns['Transaction Name'] && (
-                                            <td className="p-2 text-right text-slate-500">Total</td>
+                                            <td className="p-2 py-4 text-right text-slate-500">Total</td>
                                         )}
                                         {visibleColumns['Merchant'] && !visibleColumns['Transaction Name'] && (
-                                            <td className="p-2 text-right text-slate-500">Total</td>
+                                            <td className="p-2 py-4 text-right text-slate-500">Total</td>
                                         )}
-                                        {visibleColumns['Merchant'] && visibleColumns['Transaction Name'] && <td className="p-2"></td>}
+                                        {visibleColumns['Merchant'] && visibleColumns['Transaction Name'] && <td className="p-2 py-4"></td>}
 
 
                                         {visibleColumns['Amount'] && (
-                                            <td className="p-2 text-right">{currencyFn(totals.amount)}</td>
+                                            <td className="p-2 py-4 text-right">{currencyFn(totals.amount)}</td>
                                         )}
 
                                         {visibleColumns['Estimated Cashback'] && (
-                                            <td className="p-2 text-right text-emerald-600 font-bold">{currencyFn(totals.cashback)}</td>
+                                            <td className="p-2 py-4 text-right text-emerald-600 font-bold">{currencyFn(totals.cashback)}</td>
                                         )}
 
-                                        {visibleColumns['Card Name'] && <td className="p-2"></td>}
-                                        {visibleColumns['Category'] && <td className="p-2"></td>}
-                                        {visibleColumns['Applicable Rule'] && <td className="p-2"></td>}
-                                        {visibleColumns['MCC Code'] && <td className="p-2"></td>}
-                                        {visibleColumns['Notes'] && <td className="p-2"></td>}
-                                        {visibleColumns['Cashback Rate'] && <td className="p-2"></td>}
+                                        {visibleColumns['Card Name'] && <td className="p-2 py-4"></td>}
+                                        {visibleColumns['Category'] && <td className="p-2 py-4"></td>}
+                                        {visibleColumns['Applicable Rule'] && <td className="p-2 py-4"></td>}
+                                        {visibleColumns['MCC Code'] && <td className="p-2 py-4"></td>}
+                                        {visibleColumns['Notes'] && <td className="p-2 py-4"></td>}
+                                        {visibleColumns['Cashback Rate'] && <td className="p-2 py-4"></td>}
 
-                                        <td className="p-2"></td>
+                                        <td className="p-2 pr-6 py-4"></td>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
 
                         {/* Mobile List View */}
-                        <div className="md:hidden space-y-2.5 pb-20">
+                        <div className="md:hidden space-y-2.5 pb-20 px-6">
                                 {/* Select All Row */}
                             {filteredAndSortedData.length > 0 && (
                                 <div className="flex items-center justify-between px-2 pt-1 pb-1">
@@ -620,7 +620,7 @@ export default function SharedTransactionsDialog({
             <>
                 <Dialog open={isOpen} onOpenChange={onClose}>
                     <DialogContent
-                        className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0"
+                        className="max-w-5xl lg:max-w-6xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
                         onOpenAutoFocus={(e) => e.preventDefault()}
                     >
                         <DialogHeader className="p-6 pb-2">
