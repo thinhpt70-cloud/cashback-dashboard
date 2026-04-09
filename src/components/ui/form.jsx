@@ -60,6 +60,7 @@ const FormItem = React.forwardRef(({ className, ...props }, ref) => {
     </FormItemContext.Provider>
   );
 })
+FormItem.displayName = "FormItem";
 FormItem.displayName = "FormItem"
 
 const FormLabel = React.forwardRef(({ className, ...props }, ref) => {
@@ -73,6 +74,7 @@ const FormLabel = React.forwardRef(({ className, ...props }, ref) => {
       {...props} />
   );
 })
+FormLabel.displayName = "FormLabel";
 FormLabel.displayName = "FormLabel"
 
 const FormControl = React.forwardRef(({ ...props }, ref) => {
@@ -91,6 +93,7 @@ const FormControl = React.forwardRef(({ ...props }, ref) => {
       {...props} />
   );
 })
+FormControl.displayName = "FormControl";
 FormControl.displayName = "FormControl"
 
 const FormDescription = React.forwardRef(({ className, ...props }, ref) => {
@@ -104,6 +107,7 @@ const FormDescription = React.forwardRef(({ className, ...props }, ref) => {
       {...props} />
   );
 })
+FormDescription.displayName = "FormDescription";
 FormDescription.displayName = "FormDescription"
 
 const FormMessage = React.forwardRef(({ className, children, ...props }, ref) => {
@@ -124,6 +128,7 @@ const FormMessage = React.forwardRef(({ className, children, ...props }, ref) =>
     </p>
   );
 })
+FormMessage.displayName = "FormMessage";
 FormMessage.displayName = "FormMessage"
 
 export {

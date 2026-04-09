@@ -1,3 +1,4 @@
+import * as React from "react"
 "use client";
 import { memo, useState, useRef, useEffect } from "react";
 import { X, Plus, Tag } from "lucide-react";
