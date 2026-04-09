@@ -162,7 +162,7 @@ export default function CurrentCashflowChart({ data, cards, currencyFn }) {
                     </Select>
                 </div>
             </CardHeader>
-            <CardContent className="flex-grow">
+            <CardContent className="grow">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} 
                         margin={{ 

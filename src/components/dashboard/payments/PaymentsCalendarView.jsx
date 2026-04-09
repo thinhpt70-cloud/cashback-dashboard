@@ -187,7 +187,7 @@ export default function PaymentsCalendarView({ paymentData, currencyFn, fmtYMSho
                                  {selectedDayEvents.map((evt, idx) => (
                                      <div key={idx} className="flex flex-col md:flex-row gap-4 p-4 rounded-xl border bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800">
                                          {/* Icon Column */}
-                                         <div className="flex-shrink-0">
+                                         <div className="shrink-0">
                                              <div className={cn("h-10 w-10 rounded-full flex items-center justify-center",
                                                  evt.type === 'due'
                                                      ? (evt.isPaid ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400" : "bg-orange-100 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400")

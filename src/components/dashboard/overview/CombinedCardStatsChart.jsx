@@ -83,7 +83,7 @@ export default function CombinedCardStatsChart({ data, currencyFn, isLiveView, p
             </Select>
         )}
       </CardHeader>
-      <CardContent className="px-0 sm:px-6 flex-grow">
+      <CardContent className="px-0 sm:px-6 grow">
         <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart
             data={sortedData}

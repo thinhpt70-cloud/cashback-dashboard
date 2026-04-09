@@ -1029,7 +1029,7 @@ const TransactionReview = React.memo(({
                                                                             <span>{formatTransactionDate(tx['Transaction Date'])}</span>
                                                                         </div>
                                                                     </div>
-                                                                    <div className="text-right flex-shrink-0">
+                                                                    <div className="text-right shrink-0">
                                                                         <p className="font-bold text-sm">{currency(tx['Amount'])}</p>
                                                                     </div>
                                                                 </div>

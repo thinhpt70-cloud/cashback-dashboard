@@ -117,10 +117,12 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--color-border);
+    outline-color: color-mix(in oklab, var(--color-ring) 50%, transparent);
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
   }
   .theme {
     --font-heading: var(--font-sans);
@@ -194,7 +196,7 @@
     --sidebar-ring: oklch(0.56 0.021 213.5);
   }
   html {
-    @apply font-sans;
+    font-family: var(--font-sans);
   }
 }
 

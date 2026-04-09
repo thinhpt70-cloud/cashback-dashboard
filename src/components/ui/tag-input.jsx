@@ -157,7 +157,7 @@ const TagsInputFieldBase = ({
               <div ref={containerRef} className="relative">
                 <div
                   className={cn(
-                    "min-h-[2.5rem] p-2 rounded-md flex flex-wrap gap-2 items-center ",
+                    "min-h-10 p-2 rounded-md flex flex-wrap gap-2 items-center ",
                     styles.container,
                     disabled && "opacity-50 cursor-not-allowed"
                   )}

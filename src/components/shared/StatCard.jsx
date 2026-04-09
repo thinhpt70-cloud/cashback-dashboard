@@ -160,7 +160,7 @@ export default function StatCard({
 
     return (
         <Card className="flex flex-col justify-between overflow-hidden">
-            <CardContent className="p-6 flex-grow flex flex-col justify-between h-full min-h-[140px]">
+            <CardContent className="p-6 grow flex flex-col justify-between h-full min-h-[140px]">
                 {/* --- Top Row: Title and Trend Badge --- */}
                 <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center text-sm font-medium text-muted-foreground">

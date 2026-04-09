@@ -14,7 +14,7 @@ function RateStatusBadge({ suggestion }) {
     if (suggestion.isBoosted) {
         return (
             // Using green for active boost, which works well on light/dark
-            <Badge variant="default" className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white dark:text-green-100 text-xs h-5 px-2 whitespace-nowrap overflow-hidden text-ellipsis shrink-[3] min-w-[40px]">
+            <Badge variant="default" className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white dark:text-green-100 text-xs h-5 px-2 whitespace-nowrap overflow-hidden text-ellipsis shrink-3 min-w-[40px]">
                 ✨ Tier 2 Active
             </Badge>
         );
@@ -23,7 +23,7 @@ function RateStatusBadge({ suggestion }) {
     if (suggestion.hasTier2) {
         return (
              // Adding specific dark mode styles for the outline badge
-            <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700 text-xs h-5 px-2 whitespace-nowrap overflow-hidden text-ellipsis shrink-[3] min-w-[40px]">
+            <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700 text-xs h-5 px-2 whitespace-nowrap overflow-hidden text-ellipsis shrink-3 min-w-[40px]">
                 Tier 2 Available
             </Badge>
         );
@@ -40,7 +40,7 @@ function SuggestionInfoCallout({ suggestion, currencyFn }) {
     if (s.isBoosted) {
         return (
             <div className="flex items-start gap-3 text-sm p-3 rounded-md bg-green-50 dark:bg-green-900/50 border border-green-200 dark:border-green-800">
-                <Sparkles className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                <Sparkles className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
                 <div>
                     <p className="font-semibold text-green-800 dark:text-green-300">Tier 2 Active</p>
                     <p className="text-green-700 dark:text-green-400 text-xs">
@@ -54,7 +54,7 @@ function SuggestionInfoCallout({ suggestion, currencyFn }) {
     if (s.hasTier2) {
         return (
             <div className="flex items-start gap-3 text-sm p-3 rounded-md bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800">
-                <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                 <div>
                     <p className="font-semibold text-blue-800 dark:text-blue-300">Tier 2 Available</p>
                     <p className="text-blue-700 dark:text-blue-400 text-xs">
@@ -94,7 +94,7 @@ function SuggestionDetails({ suggestion, currencyFn }) {
 
                 {!s.hasMetMinSpend && (
                     <div className="flex items-start gap-2 text-sm p-3 rounded-md bg-orange-50 dark:bg-orange-900/50 border border-orange-200 dark:border-orange-800">
-                        <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                        <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />
                         <div>
                             <p className="font-semibold text-orange-800 dark:text-orange-300">Minimum Spend Not Met</p>
                             <p className="text-orange-700 dark:text-orange-400 text-xs">
@@ -105,7 +105,7 @@ function SuggestionDetails({ suggestion, currencyFn }) {
                 )}
                 {s.hasBetterChallenger && s.challengerDetails && (
                      <div className="flex items-start gap-2 text-sm p-3 rounded-md bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800">
-                        <ArrowUpCircle className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                        <ArrowUpCircle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
                         <div>
                             <p className="font-semibold text-blue-800 dark:text-blue-300">Better Offer Available</p>
                             <p className="text-blue-700 dark:text-blue-400 text-xs">
@@ -397,12 +397,12 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-1.5">
                                                         {!topSuggestion.hasMetMinSpend && (
-                                                            <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                                                            <AlertTriangle className="h-5 w-5 text-orange-500 shrink-0" />
                                                         )}
                                                         {topSuggestion.hasBetterChallenger && (
-                                                            <ArrowUpCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                                                            <ArrowUpCircle className="h-5 w-5 text-blue-500 shrink-0" />
                                                         )}
-                                                        <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 break-words" title={topSuggestion.suggestionFor}>
+                                                        <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 wrap-break-word" title={topSuggestion.suggestionFor}>
                                                             {topSuggestion.suggestionFor}
                                                         </h3>
                                                     </div>
@@ -414,7 +414,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                     </div>
                                                 </div>
                                                 {/* Right Column: Rate */}
-                                                <div className="flex-shrink-0 sm:text-right">
+                                                <div className="shrink-0 sm:text-right">
                                                     <p className="text-4xl font-bold text-sky-700 dark:text-sky-400">
                                                         {(topSuggestion.rate * 100).toFixed(1)}%
                                                     </p>
@@ -443,7 +443,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                 <div className="flex flex-col flex-1">
                                     <div className="flex items-center gap-3 my-3">
                                         <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">Other Suggestions</h4>
-                                        <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                                        <div className="grow border-t border-slate-200 dark:border-slate-700"></div>
                                     </div>
 
                                     <Accordion type="single" collapsible className="flex-1 space-y-2">
@@ -462,10 +462,10 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                                                     <span className="text-sm font-semibold text-sky-600 dark:text-sky-400">#{index + 2}</span>
                                                                     {!s.hasMetMinSpend && (
-                                                                        <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                                                                        <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />
                                                                     )}
                                                                     {s.hasBetterChallenger && (
-                                                                        <ArrowUpCircle className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                                                                        <ArrowUpCircle className="h-4 w-4 text-blue-500 shrink-0" />
                                                                     )}
                                                                     <p className="font-medium text-slate-800 dark:text-slate-200 truncate" title={s.suggestionFor}>{s.suggestionFor}</p>
                                                                     {/* --- MODIFIED: Badge is here, and conditional --- */}
@@ -474,7 +474,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                                     )}
                                                                 </div>
                                                                 {/* Right side: Card Name, Rate */}
-                                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                                <div className="flex items-center gap-2 shrink-0">
                                                                     <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">{s.cardName}</span>
                                                                     <Badge variant="outline" className="text-base font-bold text-sky-700 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/50 border-sky-200 dark:border-sky-800">
                                                                         {(s.rate * 100).toFixed(1)}%
