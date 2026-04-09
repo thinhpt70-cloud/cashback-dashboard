@@ -63,6 +63,17 @@ export default function SharedTransactionsDialog({
     allCards,
     monthlyCategorySummary
 }) {
+
+    const ruleMap = useMemo(() => {
+        const map = new Map();
+        if (rules && Array.isArray(rules)) {
+            rules.forEach(rule => {
+                map.set(rule.id, rule);
+            });
+        }
+        return map;
+    }, [rules]);
+
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const [selectedRows, setSelectedRows] = useState(new Set());
     const [isSelectionActive, setIsSelectionActive] = useState(false);
@@ -482,7 +493,11 @@ export default function SharedTransactionsDialog({
 
                                                 {visibleColumns['Applicable Rule'] && (
                                                     <td className="p-2 text-xs font-mono text-slate-500">
-                                                        {t['Applicable Rule']?.length > 0 ? t['Applicable Rule'][0].slice(0, 8) + '...' : ''}
+                                                        {(() => {
+                                                            const ruleId = t['Applicable Rule'] && t['Applicable Rule'][0];
+                                                            const rule = ruleId ? ruleMap.get(ruleId) : null;
+                                                            return rule ? (rule.ruleName || rule.name) : (ruleId ? ruleId.slice(0, 8) + '...' : '');
+                                                        })()}
                                                     </td>
                                                 )}
 
