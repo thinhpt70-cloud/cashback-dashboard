@@ -93,7 +93,7 @@ function QuickAmounts({ selected, onSelect }) {
                         type="button"
                         onClick={() => onSelect(amt.value)}
                         className={cn(
-                            "flex-shrink-0 px-2.5 py-1 text-xs font-medium rounded-md transition-colors border",
+                            "shrink-0 px-2.5 py-1 text-xs font-medium rounded-md transition-colors border",
                             isActive
                                 ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 border-transparent"
                                 : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border-transparent hover:border-slate-300 dark:hover:border-slate-600"
@@ -718,7 +718,7 @@ function CardFinderContent({
             </div>
 
             {/* --- MIDDLE: CONTENT AREA --- */}
-            <div className="flex-grow overflow-y-auto p-4">
+            <div className="grow overflow-y-auto p-4">
                 {/* STATE: INITIAL (Empty / History) */}
                 {view === 'initial' && (
                     <div className="flex flex-col items-center justify-center text-center h-full text-slate-400 py-10">

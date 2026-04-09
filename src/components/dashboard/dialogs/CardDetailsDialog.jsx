@@ -198,7 +198,7 @@ export default function CardDetailsDialog({ card, rules, mccMap, isDesktop, onUp
                     </div>
                 </DialogHeader>
 
-                <Tabs defaultValue="info" className="flex flex-col flex-grow overflow-hidden" onValueChange={(val) => {
+                <Tabs defaultValue="info" className="flex flex-col grow overflow-hidden" onValueChange={(val) => {
                     if (val === 'analytics') fetchAnalysisData();
                 }}>
                     <TabsList className="mx-6 mt-4 grid w-full max-w-md grid-cols-3 shrink-0">
@@ -207,7 +207,7 @@ export default function CardDetailsDialog({ card, rules, mccMap, isDesktop, onUp
                         <TabsTrigger value="analytics" className="flex items-center gap-2"><PieChart className="h-4 w-4"/>Analytics</TabsTrigger>
                     </TabsList>
 
-                    <div className="flex-grow overflow-y-auto px-6 py-4">
+                    <div className="grow overflow-y-auto px-6 py-4">
                         <TabsContent value="info" className="mt-0 h-full focus-visible:outline-none focus-visible:ring-0">
                             <div className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
                                 {infoItems.map(item => item.value ? (

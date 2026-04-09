@@ -28,7 +28,7 @@ const WinnerCard = ({ item, onSelectCard, selectedCardId, currencyFn }) => {
             )}
         >
             {/* Background Decoration */}
-            <div className="absolute -top-6 -right-6 w-24 h-24 bg-gradient-to-br from-emerald-400/20 to-sky-400/20 blur-2xl rounded-full pointer-events-none" />
+            <div className="absolute -top-6 -right-6 w-24 h-24 bg-linear-to-br from-emerald-400/20 to-sky-400/20 blur-2xl rounded-full pointer-events-none" />
 
             <div className="relative flex justify-between items-start mb-2">
                 <div className="space-y-1">

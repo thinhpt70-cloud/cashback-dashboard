@@ -1446,7 +1446,7 @@ export default function CashbackTracker({
                     {/* Points Hero Stats */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Available Balance */}
-                        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                        <div className="bg-linear-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
                             <div className="absolute top-0 right-0 -mr-10 -mt-10 bg-white/10 h-64 w-64 rounded-full blur-3xl pointer-events-none"></div>
                             <div className="relative z-10">
                                 <p className="text-indigo-100 font-medium mb-1">Total Rewards Value</p>
@@ -1458,7 +1458,7 @@ export default function CashbackTracker({
                         </div>
 
                         {/* Redeemed Balance */}
-                        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                        <div className="bg-linear-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
                             <div className="absolute top-0 right-0 -mr-10 -mt-10 bg-white/10 h-64 w-64 rounded-full blur-3xl pointer-events-none"></div>
                             <div className="relative z-10">
                                 <p className="text-emerald-100 font-medium mb-1">Total Redeemed</p>

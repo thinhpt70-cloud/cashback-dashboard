@@ -745,7 +745,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                 <SelectTrigger id="rule" className="flex-1 min-w-0 [&>span]:min-w-0">
                                     <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules' : 'Select rule...'} />
                                 </SelectTrigger>
-                                <SelectContent className="w-[var(--radix-select-trigger-width)]">
+                                <SelectContent className="w-(--radix-select-trigger-width)">
                                     {filteredRules.map(rule => (
                                         <SelectItem key={rule.id} value={rule.id} disabled={rule.status === 'Inactive'} className="[&>span]:min-w-0">
                                             <div className="flex w-full items-center justify-between gap-2 overflow-hidden">

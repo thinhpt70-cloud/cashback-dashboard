@@ -209,7 +209,7 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
       card.status === 'Frozen' && 'opacity-75'
     )}>
       <div className={cn(
-        "relative rounded-t-xl p-4 flex-shrink-0 overflow-hidden",
+        "relative rounded-t-xl p-4 shrink-0 overflow-hidden",
         theme.gradient,
         theme.textColor
       )}>
@@ -227,19 +227,19 @@ function EnhancedCard({ card, activeMonth, cardMonthSummary, rules, currencyFn, 
             </Badge>
           </div>
           <div className="flex justify-between items-end mt-2 gap-4">
-            <p className="font-mono text-base tracking-wider flex-shrink-0">•••• {card.last4}</p>
+            <p className="font-mono text-base tracking-wider shrink-0">•••• {card.last4}</p>
             <p className="font-semibold text-base truncate text-right min-w-0">{card.name}</p>
           </div>
         </div>
       </div>
 
-      <div className="p-4 flex-grow flex flex-col">
+      <div className="p-4 grow flex flex-col">
         <div className="text-xs text-slate-500 dark:text-slate-400 grid grid-cols-2 gap-x-4">
           <p>Statement: <span className="font-medium text-slate-600 dark:text-slate-300">Day {card.statementDay}</span></p>
           <p>Payment Due: <span className="font-medium text-slate-600 dark:text-slate-300">Day {card.paymentDueDay}</span></p>
         </div>
 
-        <div className="flex-grow flex flex-col justify-center mt-4">
+        <div className="grow flex flex-col justify-center mt-4">
           {view === 'month' && (
             <div className="grid grid-cols-2 gap-3">
               <MetricItem

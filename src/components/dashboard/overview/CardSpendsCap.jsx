@@ -71,12 +71,12 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                     {categoryCapData.map(cap => (
                         <div key={cap.id}>
                             <div className="flex justify-between items-start text-sm mb-1.5 gap-2">
-                                <p className="font-medium text-slate-700 dark:text-slate-300 flex-1 min-w-0 break-words" title={cap.category}>
+                                <p className="font-medium text-slate-700 dark:text-slate-300 flex-1 min-w-0 wrap-break-word" title={cap.category}>
                                     {cap.category}
                                     {cap.isBoosted && ' ✨'}
                                 </p>
                                 {cap.limit > 0 && (
-                                    <span className="font-mono text-xs font-semibold text-slate-500 dark:text-slate-400 flex-shrink-0">{cap.usedPct}%</span>
+                                    <span className="font-mono text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">{cap.usedPct}%</span>
                                 )}
                             </div>
                             {cap.limit > 0 ? (
@@ -148,20 +148,20 @@ function SingleCapCard({
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2 min-w-0">
                         <div className={cn(
-                            "w-2 h-2 rounded-full flex-shrink-0",
+                            "w-2 h-2 rounded-full shrink-0",
                             getDotColorClass(p.dotStatus)
                         )} />
                         <div className="flex items-center gap-1.5 min-w-0">
-                            {p.isFrozen && <Snowflake className="h-4 w-4 text-sky-500 flex-shrink-0" />}
+                            {p.isFrozen && <Snowflake className="h-4 w-4 text-sky-500 shrink-0" />}
                             <p className={cn(
                                 "font-semibold truncate",
                                 { "text-slate-400 font-normal": p.isCapReached || p.isFrozen }
                             )} title={p.cardName}>{p.cardName}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                         <DaysLeftBadge status={p.cycleStatus} days={p.daysLeft} />
-                        <ChevronDown className={cn( "h-5 w-5 text-muted-foreground transition-transform duration-200 flex-shrink-0",
+                        <ChevronDown className={cn( "h-5 w-5 text-muted-foreground transition-transform duration-200 shrink-0",
                             isExpanded && "rotate-180"
                         )} />
                     </div>

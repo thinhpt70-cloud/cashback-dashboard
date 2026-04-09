@@ -136,7 +136,7 @@ export default function DashboardHeader({
                             <SheetHeader className="px-6 pt-6">
                                 <SheetTitle>Add a New Transaction</SheetTitle>
                             </SheetHeader>
-                            <div className="flex-grow overflow-y-auto px-6 pb-6">
+                            <div className="grow overflow-y-auto px-6 pb-6">
                                 <AddTransactionForm
                                     cards={cards}
                                     categories={allCategories}
@@ -163,7 +163,7 @@ export default function DashboardHeader({
                             <SheetHeader className="px-6 pt-6">
                                 <SheetTitle>Edit Transaction</SheetTitle>
                             </SheetHeader>
-                            <div className="flex-grow overflow-y-auto px-6 pb-6">
+                            <div className="grow overflow-y-auto px-6 pb-6">
                                 <AddTransactionForm
                                     cards={cards}
                                     categories={allCategories}

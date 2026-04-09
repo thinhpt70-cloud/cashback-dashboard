@@ -46,11 +46,11 @@ const RecentTransactionItem = React.memo(({ tx, cardMap, currencyFn }) => {
                 <p className="text-sm text-slate-500 dark:text-slate-400">{cardName}</p>
             </div>
             {/* Date Column */}
-            <div className="w-28 text-sm text-slate-600 dark:text-slate-300 text-left px-2 flex-shrink-0 hidden sm:block">
+            <div className="w-28 text-sm text-slate-600 dark:text-slate-300 text-left px-2 shrink-0 hidden sm:block">
                 {formattedDate}
             </div>
             {/* Amount Column */}
-            <div className="w-28 text-right flex-shrink-0">
+            <div className="w-28 text-right shrink-0">
                 <p className="font-semibold text-slate-900 dark:text-slate-100">{currencyFn(tx['Amount'])}</p>
                 <p className="text-sm text-emerald-600 dark:text-emerald-500 font-medium">+ {currencyFn(tx.estCashback)}</p>
             </div>
@@ -150,10 +150,10 @@ const RecentTransactions = React.memo(({ transactions, cardMap, currencyFn, isLo
             </CardHeader>
             <CardContent className="flex-1 flex flex-col min-h-0 p-4">
                 {/* List Headers */}
-                <div className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 mb-2 px-2 flex-shrink-0">
+                <div className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 mb-2 px-2 shrink-0">
                     <div className="flex-1 min-w-0">Name</div>
-                    <div className="w-28 text-left px-2 flex-shrink-0 hidden sm:block">Date</div>
-                    <div className="w-28 text-right flex-shrink-0">Amount</div>
+                    <div className="w-28 text-left px-2 shrink-0 hidden sm:block">Date</div>
+                    <div className="w-28 text-right shrink-0">Amount</div>
                 </div>
 
                 <div className="space-y-2 flex-1 overflow-y-auto">

@@ -194,7 +194,7 @@ export default function TransactionDetailSheet({
             </div>
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{label}</p>
-                <div className="text-sm text-slate-500 dark:text-slate-400 break-words">{value}</div>
+                <div className="text-sm text-slate-500 dark:text-slate-400 wrap-break-word">{value}</div>
                 {subValue && <div className="text-xs text-slate-400 mt-0.5">{subValue}</div>}
             </div>
         </div>
@@ -441,7 +441,7 @@ export default function TransactionDetailSheet({
             </div>
             <div>
                 {/* Use proper Title component in parent, this is just content */}
-                <h2 className="text-xl font-bold leading-tight break-words">
+                <h2 className="text-xl font-bold leading-tight wrap-break-word">
                     {currentTransaction['Transaction Name']}
                 </h2>
                 {currentTransaction.merchantLookup && (

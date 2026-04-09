@@ -859,7 +859,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
             {pastDueStatements && pastDueStatements.length > 0 && (
                 <div className="p-4 bg-orange-50 border-b border-orange-200">
                     <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-orange-500 mt-0-5 flex-shrink-0" />
+                        <AlertTriangle className="h-5 w-5 text-orange-500 mt-0-5 shrink-0" />
                         <div>
                             <h4 className="font-bold text-sm text-orange-800">Past Due Payments Found</h4>
                             <div className="mt-1 text-xs text-orange-700 space-y-1">
@@ -901,7 +901,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                             </div>
                         )}
                     </div>
-                    <div className={cn("text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 inline-flex items-center", isUpcomingView ? "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300" : status.className)}>
+                    <div className={cn("text-xs font-bold px-2.5 py-1 rounded-full shrink-0 inline-flex items-center", isUpcomingView ? "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300" : status.className)}>
                         {isUpcomingView ? <CalendarDays className="h-3 w-3 mr-1.5" /> : status.icon}
                         {isUpcomingView ? "Upcoming" : status.text}
                     </div>
@@ -910,7 +910,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                 {isNotFinalized && (
                     <div className="mb-4 p-3 rounded-lg bg-sky-50 border border-sky-200">
                         <div className="flex items-start gap-3">
-                            <CalendarClock className="h-5 w-5 text-sky-600 mt-0.5 flex-shrink-0" />
+                            <CalendarClock className="h-5 w-5 text-sky-600 mt-0.5 shrink-0" />
                             <div>
                                 <h4 className="font-bold text-sm text-sky-800">Statement Not Finalized</h4>
                                 <p className="mt-1 text-xs text-sky-700">
@@ -929,7 +929,7 @@ function PaymentCard({ statement, upcomingStatements, pastStatements, pastDueSta
                             <p className="text-sm text-slate-500 dark:text-slate-400">{noPaymentNeeded ? "You're all clear for this statement cycle." : "No further payments needed for this statement cycle."}</p>
                             {isMoreThanTwoCycles && (
                                 <p className="text-xs text-slate-500 mt-3 font-medium bg-slate-100/80 px-3 py-1.5 rounded-full inline-flex items-center gap-2 flex-wrap">
-                                    <History className="h-3 w-3 flex-shrink-0" />
+                                    <History className="h-3 w-3 shrink-0" />
                                     <span>Most Recent Statement: <span className="font-semibold">{fmtYMShortFn(displayStatement.month)}</span></span>
                                     <span className="text-slate-300 mx-1">•</span>
                                     <span>Payment Date: <span className="font-semibold">{displayStatement.paymentDate}</span></span>

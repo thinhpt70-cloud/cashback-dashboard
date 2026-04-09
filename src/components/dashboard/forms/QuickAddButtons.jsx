@@ -16,7 +16,7 @@ export default function QuickAddButtons({ vendors, onSelect }) {
                         variant="outline"
                         size="sm"
                         onClick={() => onSelect(vendor)}
-                        className="h-8 flex-shrink-0"
+                        className="h-8 shrink-0"
                     >
                         {vendor.name}
                     </Button>
