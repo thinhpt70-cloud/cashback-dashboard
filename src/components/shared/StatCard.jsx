@@ -46,7 +46,7 @@ function SparklineChart({ data, lineColor, fillColor, dataKey, currencyFn, title
             <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                     data={formattedData}
-                    margin={{ top: 5, right: 0, left: 0, bottom: 0 }}
+                    margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
                 >
                     {/* Gradient definition for the fill */}
                     <defs>
@@ -160,7 +160,7 @@ export default function StatCard({
 
     return (
         <Card className="flex flex-col justify-between overflow-hidden">
-            <CardContent className="p-6 grow flex flex-col justify-between h-full min-h-[140px]">
+            <CardContent className="px-6 py-4 grow flex flex-col justify-between h-full min-h-[140px]">
                 {/* --- Top Row: Title and Trend Badge --- */}
                 <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center text-sm font-medium text-muted-foreground">
@@ -194,7 +194,7 @@ export default function StatCard({
             
             {/* Sparkline Integration */}
             {sparklineData && sparklineData.length > 1 && (
-                <div className="px-1 -mt-4 pb-2"> {/* Pull sparkline up a bit */}
+                <div className="w-full -mt-2"> {/* Pull sparkline up a bit, remove padding for overflow effect */}
                      <SparklineChart
                         data={sparklineData}
                         lineColor={lineColor}
