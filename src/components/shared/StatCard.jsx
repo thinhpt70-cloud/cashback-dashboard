@@ -159,10 +159,10 @@ export default function StatCard({
     }
 
     return (
-        <Card className="flex flex-col justify-between overflow-hidden">
-            <CardContent className="p-6 grow flex flex-col justify-between h-full min-h-[140px]">
+        <Card className="flex flex-col justify-between overflow-hidden py-4">
+            <CardContent className="px-4 py-0 grow flex flex-col justify-between h-full min-h-[100px]">
                 {/* --- Top Row: Title and Trend Badge --- */}
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center text-sm font-medium text-muted-foreground">
                         {icon && <span className="mr-2">{icon}</span>}
                         {title}
@@ -194,7 +194,7 @@ export default function StatCard({
             
             {/* Sparkline Integration */}
             {sparklineData && sparklineData.length > 1 && (
-                <div className="px-1 -mt-4 pb-2"> {/* Pull sparkline up a bit */}
+                <div className="px-1 pt-2">
                      <SparklineChart
                         data={sparklineData}
                         lineColor={lineColor}

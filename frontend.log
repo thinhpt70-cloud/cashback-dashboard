@@ -3,11 +3,7 @@
 > vite
 
 
-  VITE v8.0.3  ready in 361 ms
+  VITE v8.0.3  ready in 539 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-5:49:54 AM [vite] http proxy error: /api/common-vendors
-AggregateError [ECONNREFUSED]:
-    at internalConnectMultiple (node:net:1134:18)
-    at afterConnectMultiple (node:net:1715:7)
