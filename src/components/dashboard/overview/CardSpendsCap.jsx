@@ -82,9 +82,11 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                             {cap.limit > 0 ? (
                                 <Progress
                                     value={cap.usedPct}
-                                    className="h-2"
-                                    indicatorClassName={cn(
-                                        cap.isCompleted ? "bg-emerald-500" : "bg-black dark:bg-slate-200"
+                                    className={cn(
+                                        "h-2",
+                                        cap.isCompleted
+                                            ? "[&_[data-slot=progress-indicator]]:bg-emerald-500"
+                                            : "[&_[data-slot=progress-indicator]]:bg-black dark:[&_[data-slot=progress-indicator]]:bg-slate-200"
                                     )}
                                 />
                             ) : (
@@ -138,7 +140,7 @@ function SingleCapCard({
     onSelectCategory
 }) {
     return (
-        <Card key={p.cardId} className={cn("w-full", p.isFrozen && "opacity-60 grayscale bg-slate-50 dark:bg-slate-900/50")}>
+        <Card key={p.cardId} className={cn("w-full py-2 gap-2", p.isFrozen && "opacity-60 grayscale bg-slate-50 dark:bg-slate-900/50")}>
             {/* Clickable Header Area */}
             <div 
                 className="flex flex-col gap-2 p-3 cursor-pointer"
@@ -186,7 +188,7 @@ function SingleCapCard({
                             </span>
                         </div>
                         {/* Progress Bar */}
-                        <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-1.5 w-full" />
+                        <Progress value={p.usedCapPct} className={cn("h-1.5 w-full", getProgressColor(p.usedCapPct))} />
                     </div>
                 )}
 
@@ -427,13 +429,10 @@ export default function CardSpendsCap({
     }, [cards, activeMonth, monthlySummary, isLiveView, getCurrentCashbackMonthForCard]);
 
     const getProgressColor = (percentage) => {
-        // If logic needs to depend on card frozen state, we might need to change signature,
-        // but easier to handle in SingleCapCard render or assume passed percentage handles it.
-        // Actually, we should handle Frozen color in the component render logic or update this.
-        // But for now, let's keep this pure percentage based.
-        if (percentage >= 100) return "bg-emerald-500";
-        if (percentage > 85) return "bg-orange-500";
-        return "bg-sky-500";
+        // Use Tailwind arbitrary child selectors to target the indicator
+        if (percentage >= 100) return "[&_[data-slot=progress-indicator]]:bg-chart-2";
+        // The default color (bg-primary) is already applied by the Progress component itself
+        return "";
     };
 
     const getDotColorClass = (status) => {
