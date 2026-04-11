@@ -360,7 +360,7 @@ export default function SharedTransactionsDialog({
 
                 {/* Bulk Actions with Summaries */}
                 {isSelectionActive && selectedRows.size > 0 ? (
-                    <div className="flex flex-1 items-center justify-between p-2 bg-slate-100 dark:bg-slate-800 rounded-md mr-2">
+                    <div className="flex flex-1 items-center justify-between h-12 py-1.5 pl-5 pr-2 bg-slate-100 dark:bg-slate-800 rounded-4xl mr-2">
                         <div className="flex items-center gap-4">
                             <span className="text-sm font-semibold">{selectedRows.size} selected</span>
 
@@ -392,7 +392,7 @@ export default function SharedTransactionsDialog({
                 <div className="hidden md:flex">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" className="h-12 px-4">
                                 <MoreVertical className="h-4 w-4 mr-2" />
                                 Columns
                             </Button>
