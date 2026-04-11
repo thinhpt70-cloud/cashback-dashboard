@@ -159,10 +159,10 @@ export default function StatCard({
     }
 
     return (
-        <Card className="flex flex-col justify-between overflow-hidden">
-            <CardContent className="p-6 grow flex flex-col justify-between h-full min-h-[140px]">
+        <Card className="flex flex-col justify-between overflow-hidden p-0 gap-0">
+            <CardContent className="p-0 pt-4 grow flex flex-col justify-between h-full min-h-[90px] md:min-h-[110px]">
                 {/* --- Top Row: Title and Trend Badge --- */}
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between mb-2 px-4">
                     <div className="flex items-center text-sm font-medium text-muted-foreground">
                         {icon && <span className="mr-2">{icon}</span>}
                         {title}
@@ -179,12 +179,12 @@ export default function StatCard({
                 </div>
 
                 {/* --- Middle Content: Value and Month Label --- */}
-                <div className="mt-auto">
-                    <p className="text-3xl font-semibold tracking-tight leading-none">
+                <div className="mt-auto px-4">
+                    <p className="text-2xl md:text-3xl font-semibold tracking-tight leading-none">
                         {value}
                     </p>
                     {currentMonthLabel && (
-                        <p className="text-sm text-muted-foreground mt-2">
+                        <p className="text-sm text-muted-foreground mt-1 md:mt-2">
                             {currentMonthLabel}
                         </p>
                     )}
@@ -194,7 +194,7 @@ export default function StatCard({
             
             {/* Sparkline Integration */}
             {sparklineData && sparklineData.length > 1 && (
-                <div className="px-1 -mt-4 pb-2"> {/* Pull sparkline up a bit */}
+                <div className="px-0 pt-2 pb-0"> {/* Flush to edges */}
                      <SparklineChart
                         data={sparklineData}
                         lineColor={lineColor}
