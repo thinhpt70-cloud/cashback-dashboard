@@ -12,6 +12,33 @@ const cheerio = require('cheerio'); // ADDED: for scraping rcgv.vn
 const helmet = require('helmet');
 require('dotenv').config();
 
+// --- SECURITY: Environment Variable Validation ---
+const requiredEnvVars = [
+    'JWT_SECRET',
+    'ACCESS_PASSWORD',
+    'NOTION_API_KEY',
+    'NOTION_TRANSACTIONS_DB_ID',
+    'NOTION_CARDS_DB_ID',
+    'NOTION_RULES_DB_ID',
+    'NOTION_MONTHLY_SUMMARY_DB_ID',
+    'NOTION_MONTHLY_CATEGORY_DB_ID',
+    'NOTION_VENDORS_DB_ID'
+];
+
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+    console.error('CRITICAL ERROR: Missing required environment variables:');
+    missingEnvVars.forEach(varName => console.error(`  - ${varName}`));
+    console.error('The server cannot start securely without these variables.');
+    // In test environment, don't exit the process so tests can still run/fail gracefully
+    if (process.env.NODE_ENV !== 'test') {
+        process.exit(1);
+    } else {
+        console.warn('Continuing execution because NODE_ENV is set to "test", but tests may fail.');
+    }
+}
+
 const mccDataPath = path.join(__dirname, 'MCC.json');
 const mccData = JSON.parse(fs.readFileSync(mccDataPath, 'utf8'));
 
