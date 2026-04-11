@@ -25,7 +25,7 @@ export default function DashboardHeader({
             <div className="md:hidden">
                 <Sheet>
                     <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" aria-label="Toggle menu">
                             <Menu className="h-6 w-6" />
                         </Button>
                     </SheetTrigger>
@@ -189,7 +189,7 @@ export default function DashboardHeader({
                 <div className="flex items-center gap-2 md:hidden">
                     <Drawer open={isAddTxDialogOpen && !isDesktop} onOpenChange={setIsAddTxDialogOpen}>
                         <DrawerTrigger asChild>
-                            <Button variant="default" size="icon" className="h-10 w-10 rounded-full shadow-lg">
+                            <Button variant="default" size="icon" className="h-10 w-10 rounded-full shadow-lg" aria-label="Add transaction">
                                 <Plus className="h-6 w-6" />
                             </Button>
                         </DrawerTrigger>
