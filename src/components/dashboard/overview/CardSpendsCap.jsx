@@ -83,15 +83,15 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                                 <Progress
                                     value={cap.usedPct}
                                     className={cn(
-                                        "h-2",
+                                        "h-1.5 w-full",
                                         cap.isCompleted
-                                            ? "[&_[data-slot=progress-indicator]]:bg-emerald-500"
-                                            : "[&_[data-slot=progress-indicator]]:bg-black dark:[&_[data-slot=progress-indicator]]:bg-slate-200"
+                                            ? "[&_[data-slot=progress-indicator]]:bg-chart-2"
+                                            : ""
                                     )}
                                 />
                             ) : (
-                                <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                                    <Infinity className="h-4 w-4 text-gray-500" />
+                                <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                                    <Infinity className="h-3 w-3 text-gray-500" />
                                 </div>
                             )}
                             <div className="flex justify-between items-center text-xs text-muted-foreground mt-1.5">
@@ -140,10 +140,10 @@ function SingleCapCard({
     onSelectCategory
 }) {
     return (
-        <Card key={p.cardId} className={cn("w-full py-2 gap-2", p.isFrozen && "opacity-60 grayscale bg-slate-50 dark:bg-slate-900/50")}>
+        <Card key={p.cardId} className={cn("w-full", p.isFrozen && "opacity-60 grayscale bg-slate-50 dark:bg-slate-900/50")}>
             {/* Clickable Header Area */}
             <div 
-                className="flex flex-col gap-2 p-3 cursor-pointer"
+                className="flex flex-col gap-2 px-3 py-1.5 cursor-pointer"
                 onClick={() => onToggleExpand(p.cardId)}
             >
                 {/* Card Name and Days Left */}
