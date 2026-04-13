@@ -82,14 +82,16 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
                             {cap.limit > 0 ? (
                                 <Progress
                                     value={cap.usedPct}
-                                    className="h-2"
-                                    indicatorClassName={cn(
-                                        cap.isCompleted ? "bg-emerald-500" : "bg-black dark:bg-slate-200"
+                                    className={cn(
+                                        "h-1.5 w-full",
+                                        cap.isCompleted
+                                            ? "[&_[data-slot=progress-indicator]]:bg-chart-2"
+                                            : ""
                                     )}
                                 />
                             ) : (
-                                <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                                    <Infinity className="h-4 w-4 text-gray-500" />
+                                <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                                    <Infinity className="h-3 w-3 text-gray-500" />
                                 </div>
                             )}
                             <div className="flex justify-between items-center text-xs text-muted-foreground mt-1.5">
@@ -141,7 +143,7 @@ function SingleCapCard({
         <Card key={p.cardId} className={cn("w-full", p.isFrozen && "opacity-60 grayscale bg-slate-50 dark:bg-slate-900/50")}>
             {/* Clickable Header Area */}
             <div 
-                className="flex flex-col gap-2 p-3 cursor-pointer"
+                className="flex flex-col gap-2 px-3 py-1.5 cursor-pointer"
                 onClick={() => onToggleExpand(p.cardId)}
             >
                 {/* Card Name and Days Left */}
@@ -186,7 +188,7 @@ function SingleCapCard({
                             </span>
                         </div>
                         {/* Progress Bar */}
-                        <Progress value={p.usedCapPct} indicatorClassName={getProgressColor(p.usedCapPct)} className="h-1.5 w-full" />
+                        <Progress value={p.usedCapPct} className={cn("h-1.5 w-full", getProgressColor(p.usedCapPct))} />
                     </div>
                 )}
 
@@ -427,13 +429,10 @@ export default function CardSpendsCap({
     }, [cards, activeMonth, monthlySummary, isLiveView, getCurrentCashbackMonthForCard]);
 
     const getProgressColor = (percentage) => {
-        // If logic needs to depend on card frozen state, we might need to change signature,
-        // but easier to handle in SingleCapCard render or assume passed percentage handles it.
-        // Actually, we should handle Frozen color in the component render logic or update this.
-        // But for now, let's keep this pure percentage based.
-        if (percentage >= 100) return "bg-emerald-500";
-        if (percentage > 85) return "bg-orange-500";
-        return "bg-sky-500";
+        // Use Tailwind arbitrary child selectors to target the indicator
+        if (percentage >= 100) return "[&_[data-slot=progress-indicator]]:bg-chart-2";
+        // The default color (bg-primary) is already applied by the Progress component itself
+        return "";
     };
 
     const getDotColorClass = (status) => {
