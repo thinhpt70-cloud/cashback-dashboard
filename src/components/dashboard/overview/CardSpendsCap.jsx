@@ -143,7 +143,7 @@ function SingleCapCard({
         <Card key={p.cardId} className={cn("w-full p-0", p.isFrozen && "opacity-60 grayscale bg-slate-50 dark:bg-slate-900/50")}>
             {/* Clickable Header Area */}
             <div 
-                className="flex flex-col gap-2 px-4 pt-4 pb-3 cursor-pointer"
+                className="flex flex-col gap-2 px-4 pt-4 pb-2 cursor-pointer"
                 onClick={() => onToggleExpand(p.cardId)}
             >
                 {/* Card Name and Days Left */}
@@ -194,7 +194,7 @@ function SingleCapCard({
 
                 {/* Status Badges */}
                 {(p.minSpend > 0 || (p.cashbackType === '2 Tier' && p.tier2MinSpend > 0)) && (
-                    <div className="flex items-center gap-2 flex-wrap mt-1">
+                    <div className="flex items-center gap-2 flex-wrap mt-0">
                         {/* Min Spend Tag */}
                         {p.minSpend > 0 && (
                             <Badge
