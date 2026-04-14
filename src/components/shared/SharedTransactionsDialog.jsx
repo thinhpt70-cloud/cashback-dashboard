@@ -24,6 +24,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 import {
     Select,
@@ -399,19 +400,19 @@ export default function SharedTransactionsDialog({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                             {Object.keys(visibleColumns).map((column) => (
-                                <DropdownMenuItem key={column}>
-                                    <Checkbox
-                                        checked={visibleColumns[column]}
-                                        onCheckedChange={() =>
-                                            setVisibleColumns({
-                                                ...visibleColumns,
-                                                [column]: !visibleColumns[column],
-                                            })
-                                        }
-                                        className="mr-2"
-                                    />
+                                <DropdownMenuCheckboxItem
+                                    key={column}
+                                    checked={visibleColumns[column]}
+                                    onCheckedChange={() =>
+                                        setVisibleColumns({
+                                            ...visibleColumns,
+                                            [column]: !visibleColumns[column],
+                                        })
+                                    }
+                                    onSelect={(e) => e.preventDefault()}
+                                >
                                     {column}
-                                </DropdownMenuItem>
+                                </DropdownMenuCheckboxItem>
                             ))}
                         </DropdownMenuContent>
                     </DropdownMenu>
