@@ -64,7 +64,7 @@ function CategoryCapsUsage({ card, rules, activeMonth, monthlyCategorySummary, c
     }, [card, rules, activeMonth, monthlyCategorySummary, isTier2Met]);
 
     return (
-        <div className="px-4">
+        <div className="px-0">
             <h4 className="text-sm font-semibold text-muted-foreground mb-4">CATEGORY CAPS USAGE</h4>
             {categoryCapData.length > 0 ? (
                 <div className="space-y-4">
@@ -140,10 +140,10 @@ function SingleCapCard({
     onSelectCategory
 }) {
     return (
-        <Card key={p.cardId} className={cn("w-full", p.isFrozen && "opacity-60 grayscale bg-slate-50 dark:bg-slate-900/50")}>
+        <Card key={p.cardId} className={cn("w-full p-0", p.isFrozen && "opacity-60 grayscale bg-slate-50 dark:bg-slate-900/50")}>
             {/* Clickable Header Area */}
             <div 
-                className="flex flex-col gap-2 px-3 py-1.5 cursor-pointer"
+                className="flex flex-col gap-2 p-4 cursor-pointer"
                 onClick={() => onToggleExpand(p.cardId)}
             >
                 {/* Card Name and Days Left */}
@@ -256,7 +256,7 @@ function SingleCapCard({
                 isExpanded ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
             )}>
                 {isExpanded && (
-                    <div className="py-4 border-t"> 
+                    <div className="py-4 border-t px-4">
                         <CategoryCapsUsage
                             card={p.card}
                             rules={rules.filter(r => r.cardId === p.cardId)}
