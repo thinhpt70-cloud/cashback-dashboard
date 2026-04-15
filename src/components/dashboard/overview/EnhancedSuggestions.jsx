@@ -308,14 +308,14 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
     }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, getCurrentCashbackMonthForCard]);
 
     return (
-        <Card className="flex flex-col h-full max-h-[600px] bg-background/50 border-none shadow-none">
-            <CardHeader className="px-0 pt-0 pb-4">
+        <Card className="flex flex-col h-full max-h-[600px]">
+            <CardHeader>
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                     Top Cashback Opportunities
                 </CardTitle>
             </CardHeader>
             
-            <CardContent className="px-0 flex-1 flex flex-col min-h-0 overflow-y-auto">
+            <CardContent className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden">
                 {isLoading ? (
                     <div className="space-y-4">
                         {[1, 2, 3, 4].map(i => (
@@ -361,29 +361,23 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                         <DialogTrigger asChild>
                                             <button
                                                 className={cn(
-                                                    "w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-colors",
+                                                    "w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-colors",
                                                     isTopPick
-                                                        ? "bg-primary/5 hover:bg-primary/10 border border-primary/10 shadow-sm relative overflow-hidden"
-                                                        : "bg-muted/40 hover:bg-muted/60"
+                                                        ? "bg-muted/50 border border-border shadow-sm hover:bg-muted/70"
+                                                        : "bg-transparent hover:bg-muted/30"
                                                 )}
                                             >
-                                                {isTopPick && (
-                                                    <div className="absolute top-0 right-0 p-2">
-                                                        <Badge variant="default" className="bg-primary/20 text-primary hover:bg-primary/30 border-none shadow-none text-[10px] uppercase font-bold py-0 h-5">Top Pick</Badge>
-                                                    </div>
-                                                )}
-
                                                 <CircularIndicator progress={progress} colorClass={circleColor} />
 
-                                                <div className="flex-1 min-w-0 pr-4">
+                                                <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-1.5">
                                                         {!s.hasMetMinSpend && (
-                                                            <AlertTriangle className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+                                                            <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />
                                                         )}
                                                         {s.hasBetterChallenger && (
-                                                            <ArrowUpCircle className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                                                            <ArrowUpCircle className="h-4 w-4 text-blue-500 shrink-0" />
                                                         )}
-                                                        <span className="font-medium text-foreground truncate block">
+                                                        <span className="font-medium text-base text-foreground truncate block">
                                                             {s.suggestionFor}
                                                         </span>
                                                         {(s.isBoosted || s.hasTier2) && (
@@ -402,11 +396,13 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
                                                     </div>
                                                 </div>
 
-                                                <div className="shrink-0 text-right">
-                                                    <div className={cn(
-                                                        "font-semibold text-lg",
-                                                        isTopPick ? "text-primary" : "text-foreground"
-                                                    )}>
+                                                <div className="shrink-0 flex flex-col items-end gap-1">
+                                                    {isTopPick && (
+                                                        <Badge variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted font-bold text-[9px] px-1.5 py-0 h-[18px] uppercase tracking-wider">
+                                                            Top Pick
+                                                        </Badge>
+                                                    )}
+                                                    <div className="font-semibold text-xl text-foreground">
                                                         {(s.rate * 100).toFixed(1)}%
                                                     </div>
                                                 </div>
