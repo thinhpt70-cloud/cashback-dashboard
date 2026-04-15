@@ -11,6 +11,7 @@ const MobileTransactionItem = React.memo(({
     onSelect,
     onClick,
     cardMap,
+    ruleMap,
     currencyFn,
     isDeleting,
     isUpdating
@@ -29,6 +30,19 @@ const MobileTransactionItem = React.memo(({
         }
         return name.substring(0, 2).toUpperCase();
     };
+
+
+    let ruleName = null;
+    if (ruleMap && tx['Applicable Rule'] && tx['Applicable Rule'].length > 0) {
+        const ruleId = tx['Applicable Rule'][0];
+        const rule = ruleMap.get(ruleId);
+        if (rule) {
+            ruleName = rule.ruleName || rule.name;
+            if (ruleName && ruleName.includes('-')) {
+                ruleName = ruleName.split('-')[1].trim();
+            }
+        }
+    }
 
     return (
         <div
@@ -73,7 +87,7 @@ const MobileTransactionItem = React.memo(({
                 {/* Left Side: Method Icon, Name, Date/Card */}
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* The square rounded icon like the stock ticker symbols */}
-                    <div className="relative shrink-0 flex items-center justify-center w-[46px] h-[46px] rounded-[14px] bg-white border border-slate-200 dark:bg-slate-950 dark:border-slate-800 shadow-sm text-slate-900 dark:text-slate-100 font-bold text-sm tracking-tight">
+                    <div className="relative shrink-0 flex items-center justify-center w-[36px] h-[36px] rounded-lg bg-white border border-slate-200 dark:bg-slate-950 dark:border-slate-800 shadow-sm text-slate-900 dark:text-slate-100 font-medium text-xs tracking-tight">
                          {getInitials(tx['Transaction Name'])}
                          {/* Optional tiny indicator for Method */}
                          <div className="absolute -top-1 -right-1 p-0.5 bg-white dark:bg-slate-950 rounded-full">
@@ -85,10 +99,14 @@ const MobileTransactionItem = React.memo(({
                         <h4 className="text-[14px] font-semibold text-slate-900 dark:text-slate-100 truncate tracking-tight">
                             {tx['Transaction Name']}
                         </h4>
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wide font-medium min-w-0">
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 tracking-wide font-medium min-w-0">
                             <span className="truncate shrink-0 whitespace-nowrap">{formatTransactionDate(effectiveDate)}</span>
-                            <span className="w-0.5 h-0.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0"></span>
-                            <span className="truncate min-w-0">{card ? card.name : 'Unknown'}</span>
+                            {ruleName && (
+                                <>
+                                    <span className="w-0.5 h-0.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0"></span>
+                                    <span className="truncate min-w-0">{ruleName}</span>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -103,7 +121,7 @@ const MobileTransactionItem = React.memo(({
                             </span>
                         )}
                         <div className="flex flex-col items-end gap-0.5">
-                             <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Value</span>
+
                              <span className="text-[15px] font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap leading-none">
                                  {currencyFn(tx['Amount'])}
                              </span>
@@ -112,15 +130,15 @@ const MobileTransactionItem = React.memo(({
 
                     {/* Bottom Row: Cashback/Rate */}
                     {tx.estCashback > 0 && (
-                        <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="flex flex-col items-end gap-0.5 mt-0.5">
+                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap leading-none">
+                                +{currencyFn(tx.estCashback)}
+                            </span>
                             {tx.rate > 0 && (
                                 <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 px-1 rounded">
                                     {(tx.rate * 100).toFixed(1)}%
                                 </span>
                             )}
-                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap leading-none">
-                                +{currencyFn(tx.estCashback)}
-                            </span>
                         </div>
                     )}
                 </div>
