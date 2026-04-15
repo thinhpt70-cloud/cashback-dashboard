@@ -1,49 +1,75 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Lightbulb, AlertTriangle, Sparkles, DollarSign, ShoppingCart, ArrowUpCircle, Award } from 'lucide-react';
-import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
-import { cn } from '@/lib/utils'; // Import cn utility
-
-// --- ADDED: Date calculation utilities ---
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from '@/lib/utils';
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '@/lib/date';
 
-// --- NEW SUB-COMPONENT: RateStatusBadge ---
 function RateStatusBadge({ suggestion }) {
     if (suggestion.isBoosted) {
         return (
-            // Using green for active boost, which works well on light/dark
-            <Badge variant="default" className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white dark:text-green-100 text-xs h-5 px-2 whitespace-nowrap overflow-hidden text-ellipsis shrink-3 min-w-[40px]">
-                ✨ Tier 2 Active
+            <Badge variant="default" className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white dark:text-green-100 text-[10px] h-4 px-1.5 whitespace-nowrap overflow-hidden text-ellipsis shrink-3 min-w-[30px] rounded-sm">
+                ✨ Tier 2
             </Badge>
         );
     }
-
     if (suggestion.hasTier2) {
         return (
-             // Adding specific dark mode styles for the outline badge
-            <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700 text-xs h-5 px-2 whitespace-nowrap overflow-hidden text-ellipsis shrink-3 min-w-[40px]">
-                Tier 2 Available
+            <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700 text-[10px] h-4 px-1.5 whitespace-nowrap overflow-hidden text-ellipsis shrink-3 min-w-[30px] rounded-sm">
+                Tier 2 Avail
             </Badge>
         );
     }
-
-    // --- MODIFIED: Return null for standard rate ---
     return null; 
 }
 
-// --- NEW SUB-COMPONENT: SuggestionInfoCallout (for Accordion Content) ---
+// Circular indicator showing progress roughly
+function CircularIndicator({ progress, colorClass }) {
+    const radius = 10;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference - progress * circumference;
+
+    return (
+        <div className="relative inline-flex items-center justify-center shrink-0">
+            <svg className="transform -rotate-90 w-6 h-6">
+                <circle
+                    className="text-slate-200 dark:text-slate-700"
+                    strokeWidth="3"
+                    stroke="currentColor"
+                    fill="transparent"
+                    r={radius}
+                    cx="12"
+                    cy="12"
+                />
+                <circle
+                    className={colorClass || "text-primary"}
+                    strokeWidth="3"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="transparent"
+                    r={radius}
+                    cx="12"
+                    cy="12"
+                />
+            </svg>
+        </div>
+    );
+}
+
 function SuggestionInfoCallout({ suggestion, currencyFn }) {
     const s = suggestion;
 
     if (s.isBoosted) {
         return (
-            <div className="flex items-start gap-3 text-sm p-3 rounded-md bg-green-50 dark:bg-green-900/50 border border-green-200 dark:border-green-800">
+            <div className="flex items-start gap-3 text-sm p-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30">
                 <Sparkles className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
                 <div>
-                    <p className="font-semibold text-green-800 dark:text-green-300">Tier 2 Active</p>
-                    <p className="text-green-700 dark:text-green-400 text-xs">
+                    <p className="font-medium text-green-900 dark:text-green-300">Tier 2 Active</p>
+                    <p className="text-green-700 dark:text-green-400/80 text-sm mt-0.5 leading-snug">
                         This card has met its {currencyFn(s.tier2MinSpend)} spend requirement, unlocking a higher cashback rate or an increased category limit.
                     </p>
                 </div>
@@ -53,12 +79,12 @@ function SuggestionInfoCallout({ suggestion, currencyFn }) {
 
     if (s.hasTier2) {
         return (
-            <div className="flex items-start gap-3 text-sm p-3 rounded-md bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800">
+            <div className="flex items-start gap-3 text-sm p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/30">
                 <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                 <div>
-                    <p className="font-semibold text-blue-800 dark:text-blue-300">Tier 2 Available</p>
-                    <p className="text-blue-700 dark:text-blue-400 text-xs">
-                        Spend {currencyFn(s.tier2MinSpend - s.currentSpend)} more on this card to unlock a better rate of <span className="font-bold">{(s.tier2Rate * 100).toFixed(1)}%</span>.
+                    <p className="font-medium text-blue-900 dark:text-blue-300">Tier 2 Available</p>
+                    <p className="text-blue-700 dark:text-blue-400/80 text-sm mt-0.5 leading-snug">
+                        Spend {currencyFn(s.tier2MinSpend - s.currentSpend)} more on this card to unlock a better rate of <span className="font-medium">{(s.tier2Rate * 100).toFixed(1)}%</span>.
                     </p>
                 </div>
             </div>
@@ -68,137 +94,97 @@ function SuggestionInfoCallout({ suggestion, currencyFn }) {
     return null;
 }
 
-// --- NEW SUB-COMPONENT: SuggestionDetails (for Accordion Content) ---
-function SuggestionDetails({ suggestion, currencyFn }) {
-    const s = suggestion; // for brevity
-
-    // --- MODIFIED: Improved daysLeft display logic ---
+function SuggestionPopupContent({ suggestion: s, currencyFn }) {
     let daysLeftDisplay;
-    let daysLeftColor = "text-foreground dark:text-slate-200"; // Default color
+    let daysLeftColor = "text-foreground dark:text-slate-200";
 
     if (s.daysLeft === null) {
         daysLeftDisplay = "Completed";
-        daysLeftColor = "text-emerald-600"; // Green color as requested
+        daysLeftColor = "text-emerald-600";
     } else if (s.daysLeft === 0) {
         daysLeftDisplay = "0 days (Cycle ends today)";
     } else {
-        daysLeftDisplay = s.daysLeft === 1 ? `${s.daysLeft} day` : `${s.daysLeft} days`; // Handle plural
+        daysLeftDisplay = s.daysLeft === 1 ? `${s.daysLeft} day` : `${s.daysLeft} days`;
     }
 
     return (
-        <div className="space-y-4">
-            
-            {/* 1. Status Details (Alerts) - Now more descriptive */}
-            <div className="space-y-2">
+        <div className="space-y-6">
+            <DialogHeader>
+                <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+                    {s.suggestionFor}
+                </DialogTitle>
+                <DialogDescription>
+                    {s.cardName}
+                </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
                 <SuggestionInfoCallout suggestion={s} currencyFn={currencyFn} />
 
                 {!s.hasMetMinSpend && (
-                    <div className="flex items-start gap-2 text-sm p-3 rounded-md bg-orange-50 dark:bg-orange-900/50 border border-orange-200 dark:border-orange-800">
+                    <div className="flex items-start gap-3 text-sm p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/30">
                         <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />
                         <div>
-                            <p className="font-semibold text-orange-800 dark:text-orange-300">Minimum Spend Not Met</p>
-                            <p className="text-orange-700 dark:text-orange-400 text-xs">
-                                Spend <span className="font-bold">{currencyFn(s.minimumMonthlySpend - s.currentSpend)}</span> more on this card to activate this rate.
+                            <p className="font-medium text-orange-900 dark:text-orange-300">Minimum Spend Not Met</p>
+                            <p className="text-orange-700 dark:text-orange-400/80 text-sm mt-0.5 leading-snug">
+                                Spend <span className="font-medium">{currencyFn(s.minimumMonthlySpend - s.currentSpend)}</span> more on this card to activate this rate.
                             </p>
                         </div>
                     </div>
                 )}
+
                 {s.hasBetterChallenger && s.challengerDetails && (
-                     <div className="flex items-start gap-2 text-sm p-3 rounded-md bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800">
+                     <div className="flex items-start gap-3 text-sm p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/30">
                         <ArrowUpCircle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
                         <div>
-                            <p className="font-semibold text-blue-800 dark:text-blue-300">Better Offer Available</p>
-                            <p className="text-blue-700 dark:text-blue-400 text-xs">
-                                <span className="font-bold">{s.challengerDetails.cardName}</span> offers <span className="font-bold">{(s.challengerDetails.rate * 100).toFixed(1)}%</span>.
+                            <p className="font-medium text-blue-900 dark:text-blue-300">Better Offer Available</p>
+                            <p className="text-blue-700 dark:text-blue-400/80 text-sm mt-0.5 leading-snug">
+                                <span className="font-medium">{s.challengerDetails.cardName}</span> offers <span className="font-medium">{(s.challengerDetails.rate * 100).toFixed(1)}%</span>.
                             </p>
-                            <p className="text-blue-700 dark:text-blue-400 text-xs mt-1">
+                            <p className="text-blue-700 dark:text-blue-400/80 text-sm mt-1 leading-snug">
                                 It's not active because its {currencyFn(s.challengerDetails.minSpend)} min. spend is not met (Current: {currencyFn(s.challengerDetails.currentSpend)}).
                             </p>
                         </div>
                     </div>
                 )}
-            </div>
-            
-            {/* 2. Card & Cycle Stats */}
-            <div className="space-y-2">
-                <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-400">Card Status</h4>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 rounded-md bg-slate-50 dark:bg-slate-800 border dark:border-slate-700">
-                    <div className="space-y-0.5">
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Days Left in Cycle</p>
-                        {/* --- MODIFIED: Use new display string and color class --- */}
-                        <p className={cn("font-medium", daysLeftColor)}>{daysLeftDisplay}</p>
-                    </div>
-                    {/* --- RE-ADDED: Cycle Status, but only if not 'Completed' --- */}
-                    {s.cycleStatus !== 'Completed' && s.daysLeft !== null && (
-                        <div className="space-y-0.5">
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Cycle Status</p>
-                            <p className="font-medium text-slate-800 dark:text-slate-200">{s.cycleStatus}</p>
-                        </div>
-                    )}
-                    <div className="space-y-0.5">
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Total Card Spend</p>
-                        <p className="font-medium text-slate-800 dark:text-slate-200">{currencyFn(s.currentSpend)}</p>
-                    </div>
-                    <div className="space-y-0.5">
-                        <p className="text-xs text-slate-500 dark:text-slate-400">This Category's CB</p>
-                        <p className="font-medium text-slate-800 dark:text-slate-200">{currencyFn(s.currentCategoryCashback)}</p>
-                    </div>
-                </div>
-            </div>
 
-            {/* 3. Rule Breakdown */}
-            <div className="space-y-2">
-                <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-400">Rule Breakdown</h4>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 rounded-md bg-slate-50 dark:bg-slate-800 border dark:border-slate-700">
-                    <div className="space-y-0.5">
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Base Rate</p>
-                        <p className="font-medium text-slate-800 dark:text-slate-200">{(s.tier1Rate * 100).toFixed(1)}%</p>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1 p-4 bg-muted/50 rounded-2xl">
+                        <span className="text-sm text-muted-foreground">Cashback Rate</span>
+                        <span className="text-xl font-medium">{(s.rate * 100).toFixed(1)}%</span>
                     </div>
-                    <div className="space-y-0.5">
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Base Category Limit</p>
-                        <p className="font-medium text-slate-800 dark:text-slate-200">{s.categoryLimit === Infinity ? 'Unlimited' : currencyFn(s.categoryLimit)}</p>
+                    <div className="flex flex-col gap-1 p-4 bg-muted/50 rounded-2xl">
+                        <span className="text-sm text-muted-foreground">Days Left</span>
+                        <span className={cn("text-xl font-medium", daysLeftColor)}>{daysLeftDisplay}</span>
                     </div>
-                    {s.hasTier2 && (
-                        <>
-                            <div className="space-y-0.5">
-                                <p className="text-xs text-slate-500 dark:text-slate-400">Tier 2 Rate</p>
-                                <p className="font-medium text-slate-800 dark:text-slate-200">{(s.tier2Rate * 100).toFixed(1)}%</p>
-                            </div>
-                            <div className="space-y-0.5">
-                                <p className="text-xs text-slate-500 dark:text-slate-400">Tier 2 Category Limit</p>
-                                <p className="font-medium text-slate-800 dark:text-slate-200">{s.tier2CategoryLimit === Infinity ? 'Unlimited' : currencyFn(s.tier2CategoryLimit)}</p>
-                            </div>
-                        </>
-                    )}
+                    <div className="flex flex-col gap-1 p-4 bg-muted/50 rounded-2xl">
+                        <span className="text-sm text-muted-foreground">Remaining CB</span>
+                        <span className="text-xl font-medium">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 p-4 bg-muted/50 rounded-2xl">
+                        <span className="text-sm text-muted-foreground">Remaining Spend</span>
+                        <span className="text-xl font-medium">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span>
+                    </div>
                     {s.transactionLimit > 0 && (
-                        <div className="space-y-0.5">
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Max / Transaction</p>
-                            <p className="font-medium text-slate-800 dark:text-slate-200">{currencyFn(s.transactionLimit)}</p>
+                        <div className="flex flex-col gap-1 p-4 bg-muted/50 rounded-2xl">
+                            <span className="text-sm text-muted-foreground">Max / Trans</span>
+                            <span className="text-xl font-medium">{currencyFn(s.transactionLimit)}</span>
                         </div>
                     )}
                     {s.secondaryTransactionLimit > 0 && (
-                        <div className="space-y-0.5">
-                            <p className="text-xs text-slate-500 dark:text-slate-400">2nd Tx Limit</p>
-                            <p className="font-medium text-slate-800 dark:text-slate-200">{currencyFn(s.secondaryTransactionLimit)}</p>
+                        <div className="flex flex-col gap-1 p-4 bg-muted/50 rounded-2xl">
+                            <span className="text-sm text-muted-foreground">2nd Tx Limit</span>
+                            <span className="text-xl font-medium">{currencyFn(s.secondaryTransactionLimit)}</span>
                         </div>
                     )}
                 </div>
             </div>
-            
-            {/* --- REMOVED: Original Stats Footer --- */}
         </div>
     );
 }
 
 
-// --- REMOVED: HeroSuggestion component ---
-// This is no longer a separate component and will be built directly in the main return.
-
-
-// --- REFACTORED MAIN COMPONENT ---
-export default function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard, isLoading }) { // NEW PROP
-    
-    // --- UPDATED: Core logic hook ---
+export default function EnhancedSuggestions({ rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, currencyFn, getCurrentCashbackMonthForCard, isLoading }) {
     const suggestions = useMemo(() => {
         const MINIMUM_RATE_THRESHOLD = 0.02;
 
@@ -223,7 +209,6 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
 
             if (effectiveRate < MINIMUM_RATE_THRESHOLD) return [];
 
-            // --- CHANGED: Incorporate Card Monthly Limit Logic ---
             const cardTierLimit = isTier2Met ? card.tier2Limit : card.overallMonthlyLimit;
             const dynamicLimit = cardSummary?.monthlyCashbackLimit;
             const effectiveCardLimit = dynamicLimit > 0 ? dynamicLimit : cardTierLimit;
@@ -234,7 +219,6 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
 
             let remainingCategoryCap = effectiveCategoryLimit > 0 ? Math.max(0, effectiveCategoryLimit - currentCashbackForCategory) : Infinity;
 
-            // The actual remaining cap is the bottleneck of the Category Limit and the Card Limit
             remainingCategoryCap = Math.min(remainingCategoryCap, remainingCardCap);
 
             if (remainingCategoryCap === 0) return [];
@@ -323,186 +307,113 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
         return bestCardPerCategory;
     }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, getCurrentCashbackMonthForCard]);
 
-    const topSuggestion = suggestions[0];
-    const otherSuggestions = suggestions.slice(1);
-
     return (
         <Card className="flex flex-col h-full max-h-[600px]">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Lightbulb className="h-5 w-5" />
-                    <span>Top Cashback Opportunities</span>
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    Top Cashback Opportunities
                 </CardTitle>
             </CardHeader>
             
-            <CardContent className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-                {/* SKELETON LOADING STATE */}
+            <CardContent className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden">
                 {isLoading ? (
                     <div className="space-y-4">
-                        <div className="border border-sky-100 dark:border-sky-900 rounded-lg p-4 space-y-3">
-                            <div className="flex justify-between">
-                                <Skeleton className="h-6 w-24" />
-                                <Skeleton className="h-4 w-32" />
-                            </div>
-                            <div className="flex gap-4">
-                                <div className="space-y-2 flex-1">
-                                    <Skeleton className="h-6 w-48" />
-                                    <Skeleton className="h-4 w-32" />
-                                </div>
-                                <Skeleton className="h-10 w-20" />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                             {[1, 2, 3].map(i => (
-                                <Skeleton key={i} className="h-16 w-full rounded-lg" />
-                             ))}
-                        </div>
+                        {[1, 2, 3, 4].map(i => (
+                           <Skeleton key={i} className="h-16 w-full rounded-2xl" />
+                        ))}
                     </div>
                 ) : (
                     <>
-                    {/* Scenario 1: No suggestions */}
                     {suggestions.length === 0 && (
-                        <div className="flex flex-col items-center justify-center text-center p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/50 h-full min-h-[200px]">
-                            <Sparkles className="h-8 w-8 text-emerald-500 mb-2" />
-                            <p className="font-semibold text-emerald-800 dark:text-emerald-300">All Qualified Tiers Maxed Out!</p>
-                            <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">No high-tier opportunities are available on cards that have met their minimum spend.</p>
+                        <div className="flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-muted/40 h-full min-h-[200px]">
+                            <Sparkles className="h-8 w-8 text-emerald-500 mb-2 opacity-80" />
+                            <p className="font-medium text-foreground">All Qualified Tiers Maxed Out!</p>
+                            <p className="text-sm text-muted-foreground mt-1">No high-tier opportunities are available on cards that have met their minimum spend.</p>
                         </div>
                     )}
 
-                    {/* Scenarios 2 & 3: At least one suggestion exists */}
                     {suggestions.length > 0 && (
-                        // --- MODIFIED: Removed min-h-0 to allow full scrolling ---
-                        <div className="space-y-3 flex flex-col flex-1">
+                        <div className="space-y-2 flex flex-col flex-1">
+                            {suggestions.map((s, index) => {
+                                const isTopPick = index === 0;
 
-                            {/* --- MODIFIED: Top Pick is now an Accordion --- */}
-                            <Accordion type="single" collapsible className="w-full">
-                                <AccordionItem
-                                    value="top-pick"
-                                    className="border-2 border-sky-500 bg-sky-50 dark:bg-sky-900/40 dark:border-sky-700 shadow-md rounded-lg overflow-hidden"
-                                >
-                                    <AccordionTrigger className="p-4 hover:no-underline hover:bg-sky-100/50 dark:hover:bg-sky-900/60 data-[state=open]:border-b border-sky-200 dark:border-sky-800 items-start">
-                                        <div className="w-full space-y-3">
-                                            {/* Header: Top Pick Badge + Card Name */}
-                                            <div className="flex items-center justify-between gap-2">
-                                                <Badge variant="default" className="bg-sky-600 dark:bg-sky-600 w-fit">
-                                                    <Award className="h-4 w-4 mr-1.5" />
-                                                    TOP PICK
-                                                </Badge>
-                                                <span className="text-sm font-medium text-slate-600 dark:text-slate-400 truncate" title={topSuggestion.cardName}>{topSuggestion.cardName}</span>
-                                            </div>
+                                // Calculate simple progress if there's a category limit
+                                let progress = 0.05; // Base tiny progress
+                                if (s.categoryLimit !== Infinity && s.currentCategoryCashback > 0) {
+                                    // Make progress relative to the limit
+                                    const limit = s.hasTier2 ? s.tier2CategoryLimit : s.categoryLimit;
+                                    if (limit > 0) {
+                                        progress = Math.min(1, s.currentCategoryCashback / limit);
+                                    }
+                                }
 
-                                            {/* Body: Split into two columns */}
-                                            <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-                                                {/* Left Column: Info */}
+                                const colorClasses = [
+                                    "text-blue-600",
+                                    "text-emerald-500",
+                                    "text-purple-500",
+                                    "text-orange-500",
+                                    "text-sky-400"
+                                ];
+                                const circleColor = isTopPick ? "text-primary" : colorClasses[index % colorClasses.length];
+
+                                return (
+                                    <Dialog key={`${s.id}-${s.suggestionFor}`}>
+                                        <DialogTrigger asChild>
+                                            <button
+                                                className={cn(
+                                                    "w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-colors",
+                                                    isTopPick
+                                                        ? "bg-muted/50 border border-border shadow-sm hover:bg-muted/70"
+                                                        : "bg-transparent hover:bg-muted/30"
+                                                )}
+                                            >
+                                                <CircularIndicator progress={progress} colorClass={circleColor} />
+
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-1.5">
-                                                        {!topSuggestion.hasMetMinSpend && (
-                                                            <AlertTriangle className="h-5 w-5 text-orange-500 shrink-0" />
+                                                        {!s.hasMetMinSpend && (
+                                                            <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />
                                                         )}
-                                                        {topSuggestion.hasBetterChallenger && (
-                                                            <ArrowUpCircle className="h-5 w-5 text-blue-500 shrink-0" />
+                                                        {s.hasBetterChallenger && (
+                                                            <ArrowUpCircle className="h-4 w-4 text-blue-500 shrink-0" />
                                                         )}
-                                                        <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 wrap-break-word" title={topSuggestion.suggestionFor}>
-                                                            {topSuggestion.suggestionFor}
-                                                        </h3>
+                                                        <span className="font-medium text-base text-foreground truncate block">
+                                                            {s.suggestionFor}
+                                                        </span>
+                                                        {(s.isBoosted || s.hasTier2) && (
+                                                            <div className="hidden sm:block ml-1">
+                                                                <RateStatusBadge suggestion={s} />
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <div className="mt-1.5 flex gap-2 items-center">
-                                                        {/* Badge only shows for special cases */}
-                                                        {(topSuggestion.isBoosted || topSuggestion.hasTier2) && (
-                                                            <RateStatusBadge suggestion={topSuggestion} />
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className="text-sm text-muted-foreground truncate">{s.cardName}</span>
+                                                        {(s.isBoosted || s.hasTier2) && (
+                                                            <div className="sm:hidden">
+                                                                <RateStatusBadge suggestion={s} />
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>
-                                                {/* Right Column: Rate */}
-                                                <div className="shrink-0 sm:text-right">
-                                                    <p className="text-4xl font-bold text-sky-700 dark:text-sky-400">
-                                                        {(topSuggestion.rate * 100).toFixed(1)}%
-                                                    </p>
+
+                                                <div className="shrink-0 flex flex-col items-end gap-1">
+                                                    {isTopPick && (
+                                                        <Badge variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted font-bold text-[9px] px-1.5 py-0 h-[18px] uppercase tracking-wider">
+                                                            Top Pick
+                                                        </Badge>
+                                                    )}
+                                                    <div className="font-semibold text-xl text-foreground">
+                                                        {(s.rate * 100).toFixed(1)}%
+                                                    </div>
                                                 </div>
-                                            </div>
-
-                                            {/* Footer: Stats */}
-                                            <div className="pt-3 border-t border-sky-200 dark:border-sky-800 text-xs text-slate-600 dark:text-slate-400 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-x-4 gap-y-1">
-                                                <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700 dark:text-emerald-400">{topSuggestion.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(topSuggestion.remainingCategoryCap)}</span><span>left</span></span>
-                                                <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800 dark:text-slate-200">{topSuggestion.spendingNeeded === Infinity ? 'N/A' : currencyFn(topSuggestion.spendingNeeded)}</span></span>
-                                            </div>
-                                        </div>
-                                    </AccordionTrigger>
-                                    <AccordionContent className="p-4 pt-3 bg-white dark:bg-slate-900 max-h-[400px] overflow-y-auto">
-                                        <SuggestionDetails
-                                            suggestion={topSuggestion}
-                                            currencyFn={currencyFn}
-                                        />
-                                    </AccordionContent>
-                                </AccordionItem>
-                            </Accordion>
-
-
-                            {/* Scenario 3: More than one suggestion */}
-                            {otherSuggestions.length > 0 && (
-                                <div className="flex flex-col flex-1">
-                                    <div className="flex items-center gap-3 my-3">
-                                        <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">Other Suggestions</h4>
-                                        <div className="grow border-t border-slate-200 dark:border-slate-700"></div>
-                                    </div>
-
-                                    <Accordion type="single" collapsible className="flex-1 space-y-2">
-                                        {otherSuggestions.map((s, index) => {
-                                            return (
-                                                <AccordionItem
-                                                    key={`${s.id}-${s.suggestionFor}`}
-                                                    value={s.suggestionFor}
-                                                    className="rounded-lg border bg-card shadow-sm overflow-hidden" // Item is styled as a card
-                                                >
-                                                    <AccordionTrigger className="p-3 hover:no-underline hover:bg-slate-50 dark:hover:bg-slate-800/60 w-full text-left data-[state=open]:border-b border-slate-200 dark:border-slate-700 items-start">
-                                                        <div className="w-full space-y-2">
-                                                            {/* --- MODIFIED: Main Info Row --- */}
-                                                            <div className="flex justify-between items-center gap-3">
-                                                                {/* Left side: Rank, Icons, Category, Badge */}
-                                                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                                    <span className="text-sm font-semibold text-sky-600 dark:text-sky-400">#{index + 2}</span>
-                                                                    {!s.hasMetMinSpend && (
-                                                                        <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />
-                                                                    )}
-                                                                    {s.hasBetterChallenger && (
-                                                                        <ArrowUpCircle className="h-4 w-4 text-blue-500 shrink-0" />
-                                                                    )}
-                                                                    <p className="font-medium text-slate-800 dark:text-slate-200 truncate" title={s.suggestionFor}>{s.suggestionFor}</p>
-                                                                    {/* --- MODIFIED: Badge is here, and conditional --- */}
-                                                                    {(s.isBoosted || s.hasTier2) && (
-                                                                        <RateStatusBadge suggestion={s} />
-                                                                    )}
-                                                                </div>
-                                                                {/* Right side: Card Name, Rate */}
-                                                                <div className="flex items-center gap-2 shrink-0">
-                                                                    <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">{s.cardName}</span>
-                                                                    <Badge variant="outline" className="text-base font-bold text-sky-700 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/50 border-sky-200 dark:border-sky-800">
-                                                                        {(s.rate * 100).toFixed(1)}%
-                                                                    </Badge>
-                                                                </div>
-                                                            </div>
-                                                            <span className="text-xs text-slate-500 dark:text-slate-400 sm:hidden ml-7 -mt-1 block">{s.cardName}</span>
-
-                                                            {/* --- MOVED: Stats Footer is now in the trigger --- */}
-                                                            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 flex justify-between items-center flex-wrap gap-x-4 gap-y-1">
-                                                                <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /><span className="font-medium text-emerald-700 dark:text-emerald-400">{s.remainingCategoryCap === Infinity ? 'Unlimited' : currencyFn(s.remainingCategoryCap)}</span><span>left</span></span>
-                                                                <span className="flex items-center gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /><span>Spend</span><span className="font-medium text-slate-800 dark:text-slate-200">{s.spendingNeeded === Infinity ? 'N/A' : currencyFn(s.spendingNeeded)}</span></span>
-                                                            </div>
-                                                        </div>
-                                                    </AccordionTrigger>
-
-                                                    <AccordionContent className="p-4 pt-3 bg-white dark:bg-slate-900 max-h-[400px] overflow-y-auto">
-                                                        <SuggestionDetails
-                                                            suggestion={s}
-                                                            currencyFn={currencyFn}
-                                                        />
-                                                    </AccordionContent>
-                                                </AccordionItem>
-                                            )
-                                        })}
-                                    </Accordion>
-                                </div>
-                            )}
+                                            </button>
+                                        </DialogTrigger>
+                                        <DialogContent className="sm:max-w-md">
+                                            <SuggestionPopupContent suggestion={s} currencyFn={currencyFn} />
+                                        </DialogContent>
+                                    </Dialog>
+                                );
+                            })}
                         </div>
                     )}
                     </>
