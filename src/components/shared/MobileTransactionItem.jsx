@@ -20,19 +20,29 @@ const MobileTransactionItem = React.memo(({
     const effectiveDate = tx['billingDate'] || tx['Transaction Date'];
     const isProcessing = isDeleting || isUpdating;
 
+    // Attempt to get a short acronym for the icon if method is not defined
+    const getInitials = (name) => {
+        if (!name || typeof name !== 'string') return "?";
+        const parts = name.trim().split(/\s+/);
+        if (parts.length > 1) {
+            return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+    };
+
     return (
         <div
             className={cn(
-                "relative flex items-center gap-3 p-3 bg-white dark:bg-slate-950 rounded-xl shadow-sm border transition-all cursor-pointer",
+                "relative flex items-center gap-3 p-3.5 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-3xl transition-all cursor-pointer border border-transparent",
                 isSelected
-                    ? "border-blue-500 bg-blue-50/30 dark:bg-blue-900/20 ring-1 ring-blue-500/20"
-                    : "border-slate-100 hover:border-slate-200 dark:border-slate-800",
+                    ? "border-blue-500 bg-blue-50/50 dark:bg-blue-900/20"
+                    : "",
                 isProcessing && "opacity-60 pointer-events-none"
             )}
             onClick={() => !isProcessing && onClick && onClick(tx)}
         >
             {isProcessing && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/20 dark:bg-black/20 backdrop-blur-[1px] rounded-xl">
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/20 dark:bg-black/20 backdrop-blur-[1px] rounded-3xl">
                     <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
                 </div>
             )}
@@ -42,13 +52,13 @@ const MobileTransactionItem = React.memo(({
                     checked={isSelected}
                     onCheckedChange={() => onSelect && onSelect(tx.id, !isSelected)}
                     aria-label={`Select ${tx['Transaction Name']}`}
-                    className={cn("h-5 w-5 rounded border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 bg-white border-slate-300")}
+                    className={cn("h-5 w-5 rounded-md border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 bg-white border-slate-300")}
                 />
             </div>
 
             {/* Main Content */}
             <div
-                className="flex-1 min-w-0 flex flex-col gap-1.5 outline-none rounded-md focus-visible:ring-2 focus-visible:ring-blue-500 -m-1 p-1"
+                className="flex-1 min-w-0 flex items-center justify-between gap-3 outline-none rounded-md focus-visible:ring-2 focus-visible:ring-blue-500"
                 tabIndex={0}
                 role="button"
                 aria-label={`View details for ${tx['Transaction Name']}, ${currencyFn(tx['Amount'])}`}
@@ -60,42 +70,59 @@ const MobileTransactionItem = React.memo(({
                     }
                 }}
             >
-                {/* Top Row: Name & Amount */}
-                <div className="flex justify-between items-start gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <MethodIndicator method={tx['Method']} />
-                        <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate leading-tight">
+                {/* Left Side: Method Icon, Name, Date/Card */}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {/* The square rounded icon like the stock ticker symbols */}
+                    <div className="relative shrink-0 flex items-center justify-center w-[46px] h-[46px] rounded-[14px] bg-white border border-slate-200 dark:bg-slate-950 dark:border-slate-800 shadow-sm text-slate-900 dark:text-slate-100 font-bold text-sm tracking-tight">
+                         {getInitials(tx['Transaction Name'])}
+                         {/* Optional tiny indicator for Method */}
+                         <div className="absolute -top-1 -right-1 p-0.5 bg-white dark:bg-slate-950 rounded-full">
+                            <MethodIndicator method={tx['Method']} />
+                         </div>
+                    </div>
+
+                    <div className="flex flex-col min-w-0 flex-1 justify-center h-full gap-0.5">
+                        <h4 className="text-[14px] font-semibold text-slate-900 dark:text-slate-100 truncate tracking-tight">
                             {tx['Transaction Name']}
                         </h4>
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wide font-medium min-w-0">
+                            <span className="truncate shrink-0 whitespace-nowrap">{formatTransactionDate(effectiveDate)}</span>
+                            <span className="w-0.5 h-0.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0"></span>
+                            <span className="truncate min-w-0">{card ? card.name : 'Unknown'}</span>
+                        </div>
                     </div>
-                    <span className="text-sm font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap leading-tight">
-                        {currencyFn(tx['Amount'])}
-                    </span>
                 </div>
 
-                {/* Bottom Row: Metadata & Cashback */}
-                <div className="flex justify-between items-start">
-                    {/* Left: Date • Card */}
-                    <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                        <div className="flex items-center gap-1.5">
-                            <span>{formatTransactionDate(effectiveDate)}</span>
-                            <span className="w-0.5 h-0.5 rounded-full bg-slate-300 dark:bg-slate-600"></span>
-                            <span className="truncate max-w-[90px] text-slate-600 dark:text-slate-300">{card ? card.name : 'Unknown'}</span>
-                        </div>
-                        {tx['Category'] && <span className="text-slate-400 dark:text-slate-500">{tx['Category']}</span>}
-                    </div>
-
-                    {/* Right: Cashback & Rate */}
-                    <div className="flex flex-col items-end gap-0.5">
-                        <div className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-[4px] border border-emerald-100 dark:border-emerald-900">
-                            <span className="text-[10px] font-bold">+{currencyFn(tx.estCashback)}</span>
-                        </div>
-                        {tx.rate > 0 && (
-                            <span className="text-[9px] font-medium text-emerald-600/80 dark:text-emerald-500/80">
-                                {(tx.rate * 100).toFixed(1)}% Rate
+                {/* Right Side: Category, Amount, Cashback */}
+                <div className="flex flex-col items-end justify-center gap-1 shrink-0 ml-auto pl-1">
+                    {/* Top Row: Category Pill & Amount */}
+                    <div className="flex items-center gap-2">
+                        {tx['Category'] && (
+                            <span className="hidden sm:flex text-[10px] font-semibold tracking-wider text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2 py-0.5 rounded-full shadow-sm">
+                                {tx['Category']}
                             </span>
                         )}
+                        <div className="flex flex-col items-end gap-0.5">
+                             <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Value</span>
+                             <span className="text-[15px] font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap leading-none">
+                                 {currencyFn(tx['Amount'])}
+                             </span>
+                        </div>
                     </div>
+
+                    {/* Bottom Row: Cashback/Rate */}
+                    {tx.estCashback > 0 && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            {tx.rate > 0 && (
+                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 px-1 rounded">
+                                    {(tx.rate * 100).toFixed(1)}%
+                                </span>
+                            )}
+                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap leading-none">
+                                +{currencyFn(tx.estCashback)}
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

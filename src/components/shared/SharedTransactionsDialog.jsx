@@ -10,13 +10,7 @@ import {
     DialogTitle,
     DialogDescription,
 } from '@/components/ui/dialog';
-import {
-    Drawer,
-    DrawerContent,
-    DrawerHeader,
-    DrawerTitle,
-    DrawerDescription,
-} from '@/components/ui/drawer';
+
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -254,8 +248,8 @@ export default function SharedTransactionsDialog({
 
     const renderMobileFilters = () => {
         return (
-            <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm px-4 py-3 shadow-sm border-b border-slate-100/50 dark:border-slate-800/50 -mx-6 mb-2">
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-2 py-1 select-none no-scrollbar">
+            <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm px-4 py-3 shadow-sm border-b border-slate-100/50 dark:border-slate-800/50 -mx-6 mb-2 max-w-full overflow-hidden">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-2 py-1 select-none no-scrollbar w-full max-w-[100vw]">
                     {/* Search */}
                     <div className="relative flex items-center min-w-[140px]">
                         <Search className="absolute left-3 w-3.5 h-3.5 text-slate-400" />
@@ -674,20 +668,20 @@ export default function SharedTransactionsDialog({
 
     return (
         <>
-            <Drawer open={isOpen} onOpenChange={onClose}>
-                <DrawerContent
+            <Dialog open={isOpen} onOpenChange={onClose}>
+                <DialogContent
                     className="max-h-[90vh] flex flex-col p-0 gap-0"
                     onOpenAutoFocus={(e) => e.preventDefault()}
                 >
-                    <DrawerHeader className="p-6 pb-2 text-left">
-                        <DrawerTitle>{title}</DrawerTitle>
-                        <DrawerDescription>
+                    <DialogHeader className="p-6 pb-2 text-left">
+                        <DialogTitle>{title}</DialogTitle>
+                        <DialogDescription>
                             {description}
-                        </DrawerDescription>
-                    </DrawerHeader>
+                        </DialogDescription>
+                    </DialogHeader>
                     {renderContent()}
-                </DrawerContent>
-            </Drawer>
+                </DialogContent>
+            </Dialog>
 
             {/* Embedded Transaction Detail Sheet */}
             <TransactionDetailSheet
