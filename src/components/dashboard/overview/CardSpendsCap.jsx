@@ -143,7 +143,7 @@ function SingleCapCard({
         <Card key={p.cardId} className={cn("w-full p-0", p.isFrozen && "opacity-60 grayscale bg-slate-50 dark:bg-slate-900/50")}>
             {/* Clickable Header Area */}
             <div 
-                className="flex flex-col gap-2 px-4 pt-4 pb-4 cursor-pointer"
+                className="flex flex-col gap-2 px-4 pt-4 pb-1 cursor-pointer"
                 onClick={() => onToggleExpand(p.cardId)}
             >
                 {/* Card Name and Days Left */}
