@@ -269,7 +269,7 @@ export default function SharedTransactionsDialog({
 
                      {/* Group By Pill */}
                      <Select value={groupBy} onValueChange={setGroupBy}>
-                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                        <SelectTrigger asChild className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
                             <div className={cn(
                                 "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
                                 groupBy !== 'none'
@@ -297,7 +297,7 @@ export default function SharedTransactionsDialog({
 
                     {/* Sort Pill */}
                     <Select value={sortByValue} onValueChange={handleSortChange}>
-                        <SelectTrigger className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                        <SelectTrigger asChild className="h-[30px] w-auto border-0 p-0 bg-transparent shadow-none focus:ring-0 [&>span]:hidden [&>svg]:hidden">
                             <div className={cn(
                                 "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer",
                                 sortByValue !== 'Newest' && sortByValue !== 'Custom'
