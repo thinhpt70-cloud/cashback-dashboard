@@ -46,16 +46,16 @@ const MobileTransactionItem = React.memo(({
     return (
         <div
             className={cn(
-                "relative flex items-center gap-3 p-3 transition-colors cursor-pointer border-b border-slate-100 dark:border-slate-800/60 last:border-0",
+                "relative flex items-center gap-3 p-3.5 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-3xl transition-all cursor-pointer border border-transparent",
                 isSelected
-                    ? "bg-blue-50/50 dark:bg-blue-900/20"
-                    : "hover:bg-slate-50 dark:hover:bg-slate-900/50",
+                    ? "border-blue-500 bg-blue-50/50 dark:bg-blue-900/20"
+                    : "",
                 isProcessing && "opacity-60 pointer-events-none"
             )}
             onClick={() => !isProcessing && onClick && onClick(tx)}
         >
             {isProcessing && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/20 dark:bg-black/20 backdrop-blur-[1px]">
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/20 dark:bg-black/20 backdrop-blur-[1px] rounded-3xl">
                     <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
                 </div>
             )}
