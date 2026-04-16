@@ -193,11 +193,11 @@ export default function DashboardHeader({
                                 <Plus className="h-6 w-6" />
                             </Button>
                         </DrawerTrigger>
-                        <DrawerContent className="h-[90vh]">
+                        <DrawerContent className="h-[90vh] flex flex-col">
                             <DrawerHeader>
                                 <DrawerTitle>Add Transaction</DrawerTitle>
                             </DrawerHeader>
-                            <div className="px-4 pb-4 overflow-y-auto">
+                            <div className="flex-1 px-4 pb-4 overflow-y-auto min-h-0">
                                 <AddTransactionForm
                                     cards={cards}
                                     categories={allCategories}
@@ -221,11 +221,11 @@ export default function DashboardHeader({
                     {/* Mobile Edit Transaction Drawer */}
                     {editingTransaction && !isDesktop && (
                          <Drawer open={!!editingTransaction} onOpenChange={(isOpen) => !isOpen && setEditingTransaction(null)}>
-                            <DrawerContent className="h-[90vh]">
+                            <DrawerContent className="h-[90vh] flex flex-col">
                                 <DrawerHeader>
                                     <DrawerTitle>Edit Transaction</DrawerTitle>
                                 </DrawerHeader>
-                                <div className="px-4 pb-4 overflow-y-auto">
+                                <div className="flex-1 px-4 pb-4 overflow-y-auto min-h-0">
                                     <AddTransactionForm
                                         cards={cards}
                                         categories={allCategories}
