@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 import { calculateDaysLeftInCashbackMonth, calculateDaysUntilStatement } from '@/lib/date';
 
 import { toast } from 'sonner';
-import SharedTransactionsDialog from '@/components/shared/SharedTransactionsDialog';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -288,16 +287,11 @@ export default function CardSpendsCap({
     onTransactionDeleted,
     onBulkDelete,
     onViewTransactionDetails,
+    openTransactionsDialog,
     cardMap,
     isLoading // NEW PROP
 }) {
     const [expandedCardId, setExpandedCardId] = useState(null);
-    const [dialogState, setDialogState] = useState({
-        isOpen: false,
-        isLoading: false,
-        categoryName: null,
-        transactions: [],
-    });
 
     const isLiveView = activeMonth === 'live';
 
@@ -305,39 +299,35 @@ export default function CardSpendsCap({
         setExpandedCardId(prevId => (prevId === cardId ? null : cardId));
     };
 
-    const handleSelectCategory = async ({ categoryName, cardId, summaryPageId }) => { // <-- 1. ADD summaryPageId here
-        setDialogState({ isOpen: true, isLoading: true, categoryName, transactions: [] });
+    const handleSelectCategory = ({ categoryName, cardId, summaryPageId }) => { // <-- 1. ADD summaryPageId here
+        const card = cards.find(c => c.id === cardId);
+        if (!card) return;
 
-        try {
-            const card = cards.find(c => c.id === cardId);
-            if (!card) throw new Error("Card not found");
+        const monthForCard = isLiveView ? getCurrentCashbackMonthForCard(card) : activeMonth;
 
-            const monthForCard = isLiveView ? getCurrentCashbackMonthForCard(card) : activeMonth;
-
-            const res = await fetch(`${API_BASE_URL}/transactions?month=${monthForCard.replace('-', '')}&filterBy=cashbackMonth&cardId=${cardId}`);
-            if (!res.ok) throw new Error('Failed to fetch transactions');
-
-            const allTransactions = await res.json();
-
-            // --- 2. REPLACE THE FILTER LOGIC ---
-            const filtered = allTransactions.filter(t => {
-                const summaryCategories = t['Card Summary Category']; // This is an array of relation IDs
-                if (!Array.isArray(summaryCategories) || summaryCategories.length === 0) {
-                    return false;
-                }
-                // Check if the transaction's summary category IDs
-                // include the specific summaryPageId that was clicked.
-                return summaryCategories.includes(summaryPageId);
+        const fetchPromise = fetch(`${API_BASE_URL}/transactions?month=${monthForCard.replace('-', '')}&filterBy=cashbackMonth&cardId=${cardId}`)
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to fetch transactions');
+                return res.json();
+            })
+            .then(allTransactions => {
+                // --- 2. REPLACE THE FILTER LOGIC ---
+                return allTransactions.filter(t => {
+                    const summaryCategories = t['Card Summary Category']; // This is an array of relation IDs
+                    if (!Array.isArray(summaryCategories) || summaryCategories.length === 0) {
+                        return false;
+                    }
+                    // Check if the transaction's summary category IDs
+                    // include the specific summaryPageId that was clicked.
+                    return summaryCategories.includes(summaryPageId);
+                });
             });
-            // --- END OF REPLACEMENT ---
 
-            setDialogState({ isOpen: true, isLoading: false, categoryName, transactions: filtered });
-
-        } catch (err) {
-            console.error(err);
-            toast.error("Could not load transaction details.");
-            setDialogState({ isOpen: false, isLoading: false, categoryName: null, transactions: [] });
-        }
+        openTransactionsDialog({
+            title: `Transactions for ${categoryName}`,
+            description: "Here are the transactions for the selected category.",
+            fetchPromise
+        });
     };
 
     const cardSpendsCapProgress = useMemo(() => {
@@ -550,23 +540,6 @@ export default function CardSpendsCap({
                     </Card>
                 )}
             </div>
-            <SharedTransactionsDialog
-                isOpen={dialogState.isOpen}
-                isLoading={dialogState.isLoading}
-                onClose={() => setDialogState({ isOpen: false, isLoading: false, categoryName: null, transactions: [] })}
-                transactions={dialogState.transactions}
-                title={`Transactions for ${dialogState.categoryName}`}
-                description="Here are the transactions for the selected category."
-                currencyFn={currencyFn}
-                onEdit={onEditTransaction}
-                onDelete={onTransactionDeleted}
-                onBulkDelete={onBulkDelete}
-                onViewDetails={onViewTransactionDetails}
-                cardMap={cardMap}
-                rules={rules}
-                allCards={cards}
-                monthlyCategorySummary={monthlyCategorySummary}
-            />
         </div>
     );
 }

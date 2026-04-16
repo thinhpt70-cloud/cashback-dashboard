@@ -23,7 +23,6 @@ import {
 } from "../../ui/table";
 import { cn } from "@/lib/utils";
 import StatCard from "../../shared/StatCard";
-import SharedTransactionsDialog from '@/components/shared/SharedTransactionsDialog';
 import { PointsDetailSheet } from './components/PointsDetailSheet';
 import { RedeemPointsDialog } from './components/RedeemPointsDialog';
 import { UpdateDetailsDialog } from './components/UpdateDetailsDialog';
@@ -441,7 +440,8 @@ export default function CashbackTracker({
     monthlyCategorySummary,
     onEditTransaction,
     onTransactionDeleted,
-    onBulkDelete
+    onBulkDelete,
+    openTransactionsDialog
 }) {
     // --- STATE ---
     const [mainTab, setMainTab] = useState('cash'); // 'cash' | 'points'
@@ -466,14 +466,6 @@ export default function CashbackTracker({
     // Points Details Sheet
     const [pointsDetailOpen, setPointsDetailOpen] = useState(false);
     const [selectedPointsCardId, setSelectedPointsCardId] = useState(null);
-
-    // Shared Transaction Dialog
-    const [txDialog, setTxDialog] = useState({
-        isOpen: false,
-        isLoading: false,
-        transactions: [],
-        title: ''
-    });
 
     // --- DATA PROCESSING ---
     const { cashItems, pointsByCard, stats, cardMap } = useMemo(() => {
@@ -998,38 +990,18 @@ export default function CashbackTracker({
         }
     };
 
-    const handleViewTransactions = async (item) => {
-        setTxDialog({
-            isOpen: true,
-            isLoading: true,
-            transactions: [],
-            title: `Transactions - ${item.cardName} (${fmtYMShort(item.month)})`
-        });
-
-        try {
-            // 1. Fetch transactions using the dedicated API filters
-            // The API handles the logic: matches 'Cashback Month' formula AND 'Card' relation
-            const res = await fetch(`${API_BASE_URL}/transactions?month=${item.month}&filterBy=cashbackMonth&cardId=${item.cardId}`);
-            
-            if (!res.ok) throw new Error('Failed to fetch transactions');
-
-            const allTransactions = await res.json();
-
-            // 2. FIX: Removed the incorrect client-side filtering.
-            // The API has already returned exactly what we need (transactions for this card in this month).
-            
-            setTxDialog({
-                isOpen: true,
-                isLoading: false,
-                transactions: allTransactions, // <--- Pass the API results directly
-                title: `Transactions - ${item.cardName} (${fmtYMShort(item.month)})`
+    const handleViewTransactions = (item) => {
+        const fetchPromise = fetch(`${API_BASE_URL}/transactions?month=${item.month}&filterBy=cashbackMonth&cardId=${item.cardId}`)
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to fetch transactions');
+                return res.json();
             });
 
-        } catch (err) {
-            console.error(err);
-            toast.error("Could not load transactions");
-            setTxDialog({ isOpen: false, isLoading: false, transactions: [], title: '' });
-        }
+        openTransactionsDialog({
+            title: `Transactions - ${item.cardName} (${fmtYMShort(item.month)})`,
+            description: "List of transactions associated with this cashback period.",
+            fetchPromise
+        });
     };
 
     const handleUndoRedemption = async (event) => {
@@ -1553,23 +1525,6 @@ export default function CashbackTracker({
                 onViewTransactions={handleViewTransactions}
                 onUndoRedemption={handleUndoRedemption}
                 currencyFn={currency}
-            />
-
-            <SharedTransactionsDialog
-                isOpen={txDialog.isOpen}
-                isLoading={txDialog.isLoading}
-                onClose={() => setTxDialog(prev => ({ ...prev, isOpen: false }))}
-                transactions={txDialog.transactions}
-                title={txDialog.title}
-                description="List of transactions associated with this cashback period."
-                currencyFn={currency}
-                cardMap={cardMap}
-                rules={rules}
-                allCards={cards}
-                monthlyCategorySummary={monthlyCategorySummary}
-                onEdit={onEditTransaction}
-                onDelete={onTransactionDeleted}
-                onBulkDelete={onBulkDelete}
             />
 
         </div>

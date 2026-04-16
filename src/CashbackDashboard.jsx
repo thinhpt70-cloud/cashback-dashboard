@@ -1,3 +1,4 @@
+import useSharedTransactionsDialog from './hooks/useSharedTransactionsDialog';
 // CashbackDashboard.jsx
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
@@ -98,9 +99,10 @@ export default function CashbackDashboard() {
     const [duplicateTransaction, setDuplicateTransaction] = useState(null);
     const [viewingTransaction, setViewingTransaction] = useState(null);
     const [transactionFilterType, setTransactionFilterType] = useState('date'); // 'date' or 'cashbackMonth'
-    const [dialogDetails, setDialogDetails] = useState(null); // Will hold { cardId, cardName, month, monthLabel }
-    const [dialogTransactions, setDialogTransactions] = useState([]);
-    const [isDialogLoading, setIsDialogLoading] = useState(false);
+
+    // Custom hook for SharedTransactionsDialog
+    const sharedTransactionsDialog = useSharedTransactionsDialog();
+
     // const [cardView, setCardView] = useState('month'); // MOVED TO CardsTab
     const [activeView, setActiveView] = useState('overview');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
@@ -245,28 +247,23 @@ export default function CashbackDashboard() {
         refreshData(true, true);
     }, [activeMonth, setRecentTransactions, refreshData]);
 
-    const handleViewTransactions = useCallback(async (cardId, cardName, month, monthLabel) => {
-        setDialogDetails({ cardId, cardName, month, monthLabel });
-        setIsDialogLoading(true);
-        setDialogTransactions([]);
+    const handleViewTransactions = useCallback((cardId, cardName, month, monthLabel) => {
+        const fetchPromise = fetch(`${API_BASE_URL}/transactions?month=${month}&filterBy=statementMonth&cardId=${cardId}`)
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to fetch transactions for dialog');
+                return res.json();
+            })
+            .then(data => {
+                data.sort((a, b) => new Date(b['Transaction Date']) - new Date(a['Transaction Date']));
+                return data;
+            });
 
-        try {
-            // Use 'cashbackMonth' filter as it aligns with statement periods
-            const res = await fetch(`${API_BASE_URL}/transactions?month=${month}&filterBy=statementMonth&cardId=${cardId}`);
-            if (!res.ok) throw new Error('Failed to fetch transactions for dialog');
-            const data = await res.json();
-
-            // Sort by date just in case
-            data.sort((a, b) => new Date(b['Transaction Date']) - new Date(a['Transaction Date']));
-
-            setDialogTransactions(data);
-        } catch (err) {
-            console.error(err);
-            toast.error("Could not load transaction details.");
-        } finally {
-            setIsDialogLoading(false);
-        }
-    }, []);
+        sharedTransactionsDialog.openDialog({
+            title: `Transactions - ${cardName}`,
+            description: `Viewing statement for ${monthLabel}`,
+            fetchPromise
+        });
+    }, [sharedTransactionsDialog]);
 
     const handleTransactionDeleted = useCallback(async (deletedTxId, txName) => {
         // 1. Ask for confirmation to prevent accidental deletion
@@ -305,6 +302,9 @@ export default function CashbackDashboard() {
 
             // Also remove it from the review transactions list
             setReviewTransactions(prevReview => prevReview.filter(tx => tx.id !== deletedTxId));
+
+            // Sync with SharedTransactionsDialog if open
+            sharedTransactionsDialog.updateTransactions('delete', deletedTxId);
 
             toast.success('Transaction deleted successfully!');
 
@@ -368,6 +368,10 @@ export default function CashbackDashboard() {
             setLiveTransactions(prev => prev.filter(tx => !idsSet.has(tx.id))); // Optimistic Live Update
             setRecentTransactions(prevRecent => prevRecent.filter(tx => !idsSet.has(tx.id)));
             setReviewTransactions(prevReview => prevReview.filter(tx => !idsSet.has(tx.id)));
+
+            // Sync with SharedTransactionsDialog if open
+            sharedTransactionsDialog.updateTransactions('bulkDelete', transactionIds);
+
             toast.success(`${transactionIds.length} transactions deleted successfully!`);
             refreshData(true, true);
         } catch (error) {
@@ -399,13 +403,16 @@ export default function CashbackDashboard() {
             prevReview.filter(tx => tx.id !== updatedTransaction.id)
         );
 
+        // Sync with SharedTransactionsDialog if open
+        sharedTransactionsDialog.updateTransactions('update', updatedTransaction);
+
         // Close the edit form ONLY IF we are editing THIS transaction
         if (editingTransaction && editingTransaction.id === updatedTransaction.id) {
             setEditingTransaction(null);
         }
 
         refreshData(true, true);
-    }, [setRecentTransactions, setReviewTransactions, refreshData, editingTransaction]);
+    }, [setRecentTransactions, setReviewTransactions, refreshData, editingTransaction, sharedTransactionsDialog]);
 
     const handleBulkTransactionUpdate = useCallback((updatedTransactions) => {
         if (!updatedTransactions || updatedTransactions.length === 0) return;
@@ -424,8 +431,11 @@ export default function CashbackDashboard() {
         // Update Recent
         setRecentTransactions(prev => prev.map(tx => updatedIds.has(tx.id) ? updatedTransactions.find(u => u.id === tx.id) : tx));
 
+        // Sync with SharedTransactionsDialog if open
+        sharedTransactionsDialog.updateTransactions('bulkUpdate', updatedTransactions);
+
         refreshData(true, true);
-    }, [refreshData, setRecentTransactions, setReviewTransactions]);
+    }, [refreshData, setRecentTransactions, setReviewTransactions, sharedTransactionsDialog]);
 
     // NEW: Optimistic updates from TransactionReview actions
     const handleTransactionReviewUpdate = useCallback((action, txIdOrIds, updatedData) => {
@@ -455,11 +465,14 @@ export default function CashbackDashboard() {
             // If 'Automated' is false and Match is true, it might not be in "needs-review" anymore.
             // For now, let's assume if we update it here, we update it everywhere.
              setReviewTransactions(prev => prev.map(tx => tx.id === txIdOrIds ? updatedData : tx));
+
+             // Sync with SharedTransactionsDialog if open
+             sharedTransactionsDialog.updateTransactions('update', updatedData);
         }
 
         // We do NOT trigger full refreshData here to keep it instant.
         // The background refresh is triggered by the caller if needed (e.g. onRefresh prop in TransactionReview).
-    }, [setRecentTransactions, setReviewTransactions]);
+    }, [setRecentTransactions, setReviewTransactions, sharedTransactionsDialog]);
 
 
 
@@ -688,6 +701,7 @@ export default function CashbackDashboard() {
                                     onTransactionDeleted={handleTransactionDeleted}
                                     onBulkDelete={handleBulkDelete}
                                     onViewTransactionDetails={handleViewTransactionDetails}
+                                    openTransactionsDialog={sharedTransactionsDialog.openDialog}
                                     cardMap={cardMap}
                                     isLoading={isDashboardLoading}
                                 />
@@ -831,6 +845,7 @@ export default function CashbackDashboard() {
                             onTransactionDeleted={handleTransactionDeleted}
                             onBulkDelete={handleBulkDelete}
                             onViewTransactionDetails={handleViewTransactionDetails}
+                            openTransactionsDialog={sharedTransactionsDialog.openDialog}
                             cardMap={cardMap}
                             rules={cashbackRules}
                             monthlyCategorySummary={monthlyCategorySummary}
@@ -873,13 +888,13 @@ export default function CashbackDashboard() {
                 isDesktop={isDesktop}
             />
             <SharedTransactionsDialog
-                isOpen={!!dialogDetails}
-                onClose={() => setDialogDetails(null)}
-                transactions={dialogTransactions}
-                title={dialogDetails ? `Transactions - ${dialogDetails.cardName}` : 'Transactions'}
-                description={dialogDetails ? `Viewing statement for ${dialogDetails.monthLabel}` : ''}
+                isOpen={sharedTransactionsDialog.isOpen}
+                onClose={sharedTransactionsDialog.closeDialog}
+                transactions={sharedTransactionsDialog.transactions}
+                title={sharedTransactionsDialog.title}
+                description={sharedTransactionsDialog.description}
                 currencyFn={currency}
-                isLoading={isDialogLoading}
+                isLoading={sharedTransactionsDialog.isLoading}
                 cardMap={cardMap}
                 rules={cashbackRules}
                 allCards={cards}
