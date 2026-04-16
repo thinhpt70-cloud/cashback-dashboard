@@ -475,8 +475,8 @@ export default function CardSpendsCap({
             <div>
                  {/* SKELETON LOADING STATE */}
                 {isLoading ? (
-                    <div className="space-y-4">
-                        {[1, 2, 3].map((i) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[1, 2, 3, 4].map((i) => (
                             <div key={i} className="rounded-xl border bg-card text-card-foreground shadow-sm p-4">
                                 <div className="flex items-center justify-between mb-3">
                                     <div className="flex items-center gap-2">
@@ -496,7 +496,7 @@ export default function CardSpendsCap({
                         ))}
                     </div>
                 ) : cardSpendsCapProgress.length > 0 ? (
-                    <div className="space-y-4"> {/* This stacks the new <SingleCapCard> components */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start"> {/* This stacks the new <SingleCapCard> components */}
                         {cardSpendsCapProgress.map(p => (
                             <SingleCapCard
                                 key={p.cardId}
