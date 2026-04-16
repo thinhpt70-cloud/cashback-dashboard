@@ -308,7 +308,7 @@ export default function EnhancedSuggestions({ rules, cards, monthlyCategorySumma
     }, [rules, cards, monthlyCategorySummary, monthlySummary, activeMonth, getCurrentCashbackMonthForCard]);
 
     return (
-        <Card className="flex flex-col h-full max-h-[600px]">
+        <Card className="flex flex-col h-full max-h-[380px]">
             <CardHeader>
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                     Top Cashback Opportunities
