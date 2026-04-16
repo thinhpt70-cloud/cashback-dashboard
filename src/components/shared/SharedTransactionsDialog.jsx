@@ -287,7 +287,7 @@ export default function SharedTransactionsDialog({
                                 <ChevronDown className={cn("w-3 h-3 opacity-50", groupBy !== 'none' ? 'text-white dark:text-slate-900' : '')} />
                             </div>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="z-[100]" position="popper" sideOffset={4}>
                             <SelectItem value="none">No Grouping</SelectItem>
                             <SelectItem value="card">Card</SelectItem>
                             <SelectItem value="category">Category</SelectItem>
@@ -315,7 +315,7 @@ export default function SharedTransactionsDialog({
                                 <ChevronDown className={cn("w-3 h-3 opacity-50", sortByValue !== 'Newest' && sortByValue !== 'Custom' ? 'text-white dark:text-slate-900' : '')} />
                             </div>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="z-[100]" position="popper" sideOffset={4}>
                             <SelectItem value="Newest">Newest</SelectItem>
                             <SelectItem value="Oldest">Oldest</SelectItem>
                             <SelectItem value="Amount: High">Amount: High</SelectItem>
@@ -413,12 +413,12 @@ export default function SharedTransactionsDialog({
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto pb-0 pt-0 flex flex-col">
-                    {/* Mobile Header (Filters) - Rendered INSIDE scroll area but sticky */}
-                    <div className="md:hidden px-6">
-                    {renderMobileFilters()}
-                    </div>
+            {/* Mobile Header (Filters) - Rendered OUTSIDE scroll area to prevent portal clipping */}
+            <div className="md:hidden px-6 pb-2">
+                {renderMobileFilters()}
+            </div>
 
+            <div className="flex-1 overflow-y-auto pb-0 pt-0 flex flex-col">
                     {/* Mobile Bulk Bar - Rendered OUTSIDE normal flow but fixed via CSS */}
                     <div className="md:hidden px-6">
                     {selectedRows.size > 0 && renderBulkBar()}
