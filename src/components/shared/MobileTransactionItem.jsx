@@ -1,6 +1,5 @@
 import React from "react";
-import { Loader2 } from "lucide-react";
-import { Checkbox } from "../ui/checkbox";
+import { Loader2, Check } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { formatTransactionDate } from "../../lib/date";
 import MethodIndicator from "./MethodIndicator";
@@ -60,16 +59,6 @@ const MobileTransactionItem = React.memo(({
                     <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
                 </div>
             )}
-            {/* Checkbox Area */}
-            <div className="shrink-0" onClick={(e) => { e.stopPropagation(); onSelect && onSelect(tx.id, !isSelected); }}>
-                <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={() => onSelect && onSelect(tx.id, !isSelected)}
-                    aria-label={`Select ${tx['Transaction Name']}`}
-                    className={cn("h-5 w-5 rounded-md border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 bg-white border-slate-300")}
-                />
-            </div>
-
             {/* Main Content */}
             <div
                 className="flex-1 min-w-0 flex items-center justify-between gap-3 outline-none rounded-md focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -86,26 +75,33 @@ const MobileTransactionItem = React.memo(({
             >
                 {/* Left Side: Method Icon, Name, Date/Card */}
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                    {/* The square rounded icon like the stock ticker symbols */}
-                    <div className="relative shrink-0 flex items-center justify-center w-[36px] h-[36px] rounded-lg bg-white border border-slate-200 dark:bg-slate-950 dark:border-slate-800 shadow-sm text-slate-900 dark:text-slate-100 font-medium text-xs tracking-tight">
-                         {getInitials(tx['Transaction Name'])}
+                    {/* The square rounded icon like the stock ticker symbols (also acts as Checkbox) */}
+                    <div
+                        className={cn(
+                            "relative shrink-0 flex items-center justify-center w-[36px] h-[36px] rounded-lg shadow-sm font-medium text-xs tracking-tight cursor-pointer transition-colors",
+                            isSelected
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "bg-white border border-slate-200 dark:bg-slate-950 dark:border-slate-800 text-slate-900 dark:text-slate-100"
+                        )}
+                        onClick={(e) => { e.stopPropagation(); onSelect && onSelect(tx.id, !isSelected); }}
+                    >
+                         {isSelected ? <Check className="w-4 h-4" /> : getInitials(tx['Transaction Name'])}
                          {/* Optional tiny indicator for Method */}
-                         <div className="absolute -top-1 -right-1 p-0.5 bg-white dark:bg-slate-950 rounded-full">
-                            <MethodIndicator method={tx['Method']} />
-                         </div>
+                         {!isSelected && (
+                             <div className="absolute -top-1 -right-1 p-0.5 bg-white dark:bg-slate-950 rounded-full">
+                                <MethodIndicator method={tx['Method']} />
+                             </div>
+                         )}
                     </div>
 
                     <div className="flex flex-col min-w-0 flex-1 justify-center h-full gap-0.5">
                         <h4 className="text-[14px] font-semibold text-slate-900 dark:text-slate-100 truncate tracking-tight">
                             {tx['Transaction Name']}
                         </h4>
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 tracking-wide font-medium min-w-0">
-                            <span className="truncate shrink-0 whitespace-nowrap">{formatTransactionDate(effectiveDate)}</span>
+                        <div className="flex flex-col text-[11px] text-slate-500 dark:text-slate-400 tracking-wide font-medium min-w-0">
+                            <span className="truncate whitespace-nowrap">{formatTransactionDate(effectiveDate)}</span>
                             {ruleName && (
-                                <>
-                                    <span className="w-0.5 h-0.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0"></span>
-                                    <span className="truncate min-w-0">{ruleName}</span>
-                                </>
+                                <span className="truncate min-w-0 text-slate-400 dark:text-slate-500">{ruleName}</span>
                             )}
                         </div>
                     </div>
@@ -121,8 +117,7 @@ const MobileTransactionItem = React.memo(({
                             </span>
                         )}
                         <div className="flex flex-col items-end gap-0.5">
-
-                             <span className="text-[15px] font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap leading-none">
+                             <span className="text-[13px] font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap leading-none">
                                  {currencyFn(tx['Amount'])}
                              </span>
                         </div>
@@ -131,11 +126,11 @@ const MobileTransactionItem = React.memo(({
                     {/* Bottom Row: Cashback/Rate */}
                     {tx.estCashback > 0 && (
                         <div className="flex flex-col items-end gap-0.5 mt-0.5">
-                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap leading-none">
+                            <span className="text-[9px] font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap leading-none">
                                 +{currencyFn(tx.estCashback)}
                             </span>
                             {tx.rate > 0 && (
-                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 px-1 rounded">
+                                <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 px-1 rounded">
                                     {(tx.rate * 100).toFixed(1)}%
                                 </span>
                             )}
