@@ -193,11 +193,12 @@ function SingleCapCard({
                 )}
 
                 {/* Status Badges */}
-                {(p.minSpend > 0 || (p.cashbackType === '2 Tier' && p.tier2MinSpend > 0)) && (
-                    <div className="flex items-center gap-2 flex-wrap mt-0">
-                        {/* Min Spend Tag */}
-                        {p.minSpend > 0 && (
-                            <Badge
+                <div className="flex items-center gap-2 flex-wrap mt-0 min-h-[20px]">
+                    {(p.minSpend > 0 || (p.cashbackType === '2 Tier' && p.tier2MinSpend > 0)) && (
+                        <>
+                            {/* Min Spend Tag */}
+                            {p.minSpend > 0 && (
+                                <Badge
                                 variant="outline"
                                 className={cn(
                                     "text-xs h-5 px-1.5 font-semibold flex items-center gap-1.5",
@@ -245,10 +246,11 @@ function SingleCapCard({
                                         </span>
                                     </>
                                 )}
-                            </Badge>
-                        )}
-                    </div>
-                )}
+                                </Badge>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
 
             {/* Expandable Section */}
@@ -465,6 +467,9 @@ export default function CardSpendsCap({
         );
     };
 
+    const activeCards = cardSpendsCapProgress.filter(p => !p.isFrozen);
+    const frozenCards = cardSpendsCapProgress.filter(p => p.isFrozen);
+
     return (
         // This div replaces the original outer <Card>
         <div>
@@ -472,11 +477,11 @@ export default function CardSpendsCap({
             <h3 className="text-lg font-semibold mb-4 px-1">Card Spends Cap</h3>
 
             {/* This div replaces the original <CardContent> */}
-            <div>
+            <div className="space-y-6">
                  {/* SKELETON LOADING STATE */}
                 {isLoading ? (
-                    <div className="space-y-4">
-                        {[1, 2, 3].map((i) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[1, 2, 3, 4].map((i) => (
                             <div key={i} className="rounded-xl border bg-card text-card-foreground shadow-sm p-4">
                                 <div className="flex items-center justify-between mb-3">
                                     <div className="flex items-center gap-2">
@@ -496,23 +501,47 @@ export default function CardSpendsCap({
                         ))}
                     </div>
                 ) : cardSpendsCapProgress.length > 0 ? (
-                    <div className="space-y-4"> {/* This stacks the new <SingleCapCard> components */}
-                        {cardSpendsCapProgress.map(p => (
-                            <SingleCapCard
-                                key={p.cardId}
-                                p={p}
-                                isExpanded={expandedCardId === p.cardId}
-                                onToggleExpand={handleToggleExpand}
-                                currencyFn={currencyFn}
-                                rules={rules}
-                                monthlyCategorySummary={monthlyCategorySummary}
-                                getProgressColor={getProgressColor}
-                                getDotColorClass={getDotColorClass}
-                                DaysLeftBadge={DaysLeftBadge}
-                                onSelectCategory={handleSelectCategory}
-                            />
-                        ))}
-                    </div>
+                    <>
+                        {activeCards.length > 0 && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                                {activeCards.map(p => (
+                                    <SingleCapCard
+                                        key={p.cardId}
+                                        p={p}
+                                        isExpanded={expandedCardId === p.cardId}
+                                        onToggleExpand={handleToggleExpand}
+                                        currencyFn={currencyFn}
+                                        rules={rules}
+                                        monthlyCategorySummary={monthlyCategorySummary}
+                                        getProgressColor={getProgressColor}
+                                        getDotColorClass={getDotColorClass}
+                                        DaysLeftBadge={DaysLeftBadge}
+                                        onSelectCategory={handleSelectCategory}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                        {frozenCards.length > 0 && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start pt-2 border-t border-slate-100 dark:border-slate-800">
+                                {frozenCards.map(p => (
+                                    <SingleCapCard
+                                        key={p.cardId}
+                                        p={p}
+                                        isExpanded={expandedCardId === p.cardId}
+                                        onToggleExpand={handleToggleExpand}
+                                        currencyFn={currencyFn}
+                                        rules={rules}
+                                        monthlyCategorySummary={monthlyCategorySummary}
+                                        getProgressColor={getProgressColor}
+                                        getDotColorClass={getDotColorClass}
+                                        DaysLeftBadge={DaysLeftBadge}
+                                        onSelectCategory={handleSelectCategory}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </>
                 ) : (
                     <Card>
                         <CardContent className="pt-6"> {/* Add pt-6 to match default CardContent padding */}
