@@ -83,12 +83,12 @@ export default function SharedTransactionsDialog({
     const [visibleColumns, setVisibleColumns] = useState({
         'Date': true,
         'Transaction Name': true,
-        'Merchant': false, 
+        'Merchant': false,
         'Amount': true,
         'Estimated Cashback': true,
         'Card Name': false,
         'Category': false,
-        'Applicable Rule': false, 
+        'Applicable Rule': false,
         'MCC Code': false,
         'Notes': false,
         'Cashback Rate': false,
@@ -193,10 +193,10 @@ export default function SharedTransactionsDialog({
         if (checked) {
             const allIds = new Set(filteredAndSortedData.map(t => t.id));
             setSelectedRows(allIds);
-            setIsSelectionActive(true); 
+            setIsSelectionActive(true);
         } else {
             setSelectedRows(new Set());
-            setIsSelectionActive(false); 
+            setIsSelectionActive(false);
         }
     };
 
@@ -243,7 +243,7 @@ export default function SharedTransactionsDialog({
             onBulkDelete(Array.from(selectedRows));
         }
         setSelectedRows(new Set());
-        setIsSelectionActive(false); 
+        setIsSelectionActive(false);
     };
 
     const renderMobileFilters = () => {
@@ -413,12 +413,12 @@ export default function SharedTransactionsDialog({
                 </div>
             </div>
 
-            {/* Mobile Header (Filters) - Moved OUTSIDE scroll area so dropdowns aren't clipped */}
-            <div className="md:hidden px-6 pt-2 pb-1 relative z-50">
-                {renderMobileFilters()}
-            </div>
-
             <div className="flex-1 overflow-y-auto pb-0 pt-0 flex flex-col">
+                    {/* Mobile Header (Filters) - Rendered INSIDE scroll area but sticky */}
+                    <div className="md:hidden px-6">
+                    {renderMobileFilters()}
+                    </div>
+
                     {/* Mobile Bulk Bar - Rendered OUTSIDE normal flow but fixed via CSS */}
                     <div className="md:hidden px-6">
                     {selectedRows.size > 0 && renderBulkBar()}
