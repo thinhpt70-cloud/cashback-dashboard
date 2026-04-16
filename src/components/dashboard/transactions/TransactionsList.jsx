@@ -947,7 +947,7 @@ const TransactionsList = React.memo(({
                     {transactionsToShow.map((item, index) => {
                         if (item.type === 'header') {
                             return (
-                                <div key={`header-${index}`} className="px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
+                                <div key={`header-${index}`} className="px-3 py-2 bg-white dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
                                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{item.title} ({item.count})</span>
                                 </div>
                             );
@@ -1093,7 +1093,7 @@ const TransactionsList = React.memo(({
     return (
         <Card className={cn(
             "relative",
-            isDesktop ? "bg-white dark:bg-slate-950 border shadow-sm" : "bg-slate-50 dark:bg-slate-950 border-0 shadow-none"
+            isDesktop ? "bg-white dark:bg-slate-950 border shadow-sm" : "bg-white dark:bg-slate-950 border-0 shadow-none"
         )}>
             {/* Mobile Bulk Bar - Rendered OUTSIDE the static header wrapper */}
             {!isDesktop && selectedIds.length > 0 && renderBulkBar(true)}
