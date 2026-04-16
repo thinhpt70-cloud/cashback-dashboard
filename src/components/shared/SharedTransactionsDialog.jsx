@@ -249,7 +249,7 @@ export default function SharedTransactionsDialog({
     const renderMobileFilters = () => {
         return (
             <div className="sticky top-0 z-40 mb-2 max-w-full overflow-hidden">
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1 select-none no-scrollbar w-full max-w-[100vw]">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide p-1 select-none no-scrollbar w-full max-w-[100vw]">
                     {/* Search */}
                     <div className="relative flex items-center min-w-[140px]">
                         <Search className="absolute left-3 w-3.5 h-3.5 text-slate-400" />
