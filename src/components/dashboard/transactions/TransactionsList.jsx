@@ -927,10 +927,10 @@ const TransactionsList = React.memo(({
 
         if (!isDesktop) {
             return (
-                <div className="space-y-2.5 p-3">
+                <div className="flex flex-col">
                     {/* Select All Row */}
                     {filteredData.length > 0 && (
-                        <div className="flex items-center justify-between px-2 pt-1 pb-1">
+                        <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800">
                             <div className="flex items-center gap-2 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleSelectAll(selectedIds.length !== filteredData.length); }}>
                                 <Checkbox
                                     checked={selectedIds.length > 0 && selectedIds.length === filteredData.length}
@@ -947,7 +947,7 @@ const TransactionsList = React.memo(({
                     {transactionsToShow.map((item, index) => {
                         if (item.type === 'header') {
                             return (
-                                <div key={`header-${index}`} className="pt-2 pb-1 px-1">
+                                <div key={`header-${index}`} className="px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
                                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{item.title} ({item.count})</span>
                                 </div>
                             );
