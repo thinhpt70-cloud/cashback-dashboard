@@ -122,7 +122,7 @@ const RecentTransactions = React.memo(({ transactions, cardMap, currencyFn, isLo
     if (!transactions && !isLoading) return null;
 
     return (
-        <Card className="flex flex-col lg:flex-1 lg:min-h-0 max-h-[600px]">
+        <Card className="flex flex-col lg:flex-1 lg:min-h-0 max-h-[600px] lg:max-h-none">
             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                     <History className="h-5 w-5" />
