@@ -328,19 +328,19 @@ export default function SharedTransactionsDialog({
     }
 
     const renderBulkBar = () => (
-        <div className="fixed bottom-4 left-4 right-4 z-50 shadow-xl rounded-xl flex flex-col items-start gap-2 p-3 bg-slate-900 text-white animate-in fade-in slide-in-from-top-2">
+        <div className="fixed bottom-4 left-4 right-4 z-50 shadow-xl rounded-xl border bg-background text-foreground flex flex-col items-start gap-2 p-3 animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-2 pl-1 w-full">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-white shrink-0" onClick={() => setSelectedRows(new Set())}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0" onClick={() => setSelectedRows(new Set())}>
                     <X className="h-4 w-4" />
                 </Button>
                 <span className="text-sm font-medium whitespace-nowrap">{selectedRows.size} Selected</span>
                 <div className="flex-1" />
-                <div className="flex items-center gap-3 text-xs text-slate-300">
-                     <span className="whitespace-nowrap">Total: <span className="text-white font-medium">{currencyFn(selectedTotals.amount)}</span></span>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                     <span className="whitespace-nowrap">Total: <span className="text-foreground font-medium">{currencyFn(selectedTotals.amount)}</span></span>
                 </div>
             </div>
             <div className="flex items-center gap-2 w-full justify-between pl-1 pr-1">
-                 <span className="text-xs text-slate-300 whitespace-nowrap">Cashback: <span className="text-emerald-400 font-medium">{currencyFn(selectedTotals.cashback)}</span></span>
+                 <span className="text-xs text-muted-foreground whitespace-nowrap">Cashback: <span className="text-emerald-600 dark:text-emerald-400 font-medium">{currencyFn(selectedTotals.cashback)}</span></span>
                 <Button variant="destructive" size="sm" onClick={handleDeleteSelected} className="h-8 text-xs">
                     <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
                 </Button>
@@ -566,7 +566,7 @@ export default function SharedTransactionsDialog({
                         </div>
 
                         {/* Mobile List View */}
-                        <div className="md:hidden space-y-2.5 pb-20 px-6">
+                        <div className="md:hidden space-y-2.5 pb-36 px-6">
                                 {/* Select All Row */}
                             {filteredAndSortedData.length > 0 && (
                                 <div className="flex items-center justify-between px-2 pt-1 pb-1">
