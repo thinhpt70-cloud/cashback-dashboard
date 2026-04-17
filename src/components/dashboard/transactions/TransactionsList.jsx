@@ -624,17 +624,17 @@ const TransactionsList = React.memo(({
 
     const renderMobileFilters = () => {
         return (
-            <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm px-4 py-3 shadow-sm border-b border-slate-100/50 dark:border-slate-800/50 rounded-xl">
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 py-1 select-none no-scrollbar">
+            <div className="sticky top-0 z-30 max-w-full overflow-hidden">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-4 py-1 select-none no-scrollbar w-full max-w-[100vw]">
                     {/* Search */}
                     <div className="relative flex items-center min-w-[140px]">
                         <Search className="absolute left-3 w-3.5 h-3.5 text-slate-400" />
-                        <input
-                            type="text"
+                        <Input
+                            type="search"
                             placeholder={isServerSide ? "Search Database..." : "Search..."}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full h-[30px] pl-8 pr-3 bg-slate-100 dark:bg-slate-900 rounded-full text-base font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-500 transition-all border-none"
+                            className="w-full h-[30px] pl-8 pr-8 rounded-full bg-slate-100 dark:bg-slate-900 text-base border-none focus-visible:ring-1 focus-visible:ring-slate-300"
                         />
                         {searchTerm && (
                             <Button
@@ -675,7 +675,7 @@ const TransactionsList = React.memo(({
                                 <ChevronDown className={cn("w-3 h-3 opacity-50", cardFilter !== 'all' ? 'text-white dark:text-slate-900' : '')} />
                             </div>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="z-[100]" position="popper" sideOffset={4}>
                             <SelectItem value="all">All Cards</SelectItem>
                             {[...allCards].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
                                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -706,7 +706,7 @@ const TransactionsList = React.memo(({
                                 <ChevronDown className={cn("w-3 h-3 opacity-50", categoryFilter !== 'all' ? 'text-white dark:text-slate-900' : '')} />
                             </div>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="z-[100]" position="popper" sideOffset={4}>
                             {categories.map(cat => (
                                 <SelectItem key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</SelectItem>
                             ))}
@@ -736,7 +736,7 @@ const TransactionsList = React.memo(({
                                 <ChevronDown className={cn("w-3 h-3 opacity-50", methodFilter !== 'all' ? 'text-white dark:text-slate-900' : '')} />
                             </div>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="z-[100]" position="popper" sideOffset={4}>
                             <SelectItem value="all">All Methods</SelectItem>
                             <SelectItem value="POS">POS</SelectItem>
                             <SelectItem value="eCom">eCom</SelectItem>
@@ -795,7 +795,7 @@ const TransactionsList = React.memo(({
                                 <ChevronDown className={cn("w-3 h-3 opacity-50", groupBy !== 'none' ? 'text-white dark:text-slate-900' : '')} />
                             </div>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="z-[100]" position="popper" sideOffset={4}>
                             <SelectItem value="none">No Grouping</SelectItem>
                             <SelectItem value="card">Card</SelectItem>
                             <SelectItem value="category">Category</SelectItem>
@@ -823,7 +823,7 @@ const TransactionsList = React.memo(({
                                 <ChevronDown className={cn("w-3 h-3 opacity-50", sortByValue !== 'Newest' && sortByValue !== 'Custom' ? 'text-white dark:text-slate-900' : '')} />
                             </div>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="z-[100]" position="popper" sideOffset={4}>
                             <SelectItem value="Newest">Newest</SelectItem>
                             <SelectItem value="Oldest">Oldest</SelectItem>
                             <SelectItem value="Amount: High">Amount: High</SelectItem>
@@ -1258,7 +1258,7 @@ const TransactionsList = React.memo(({
                                                 <Settings2 className="h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-[180px]">
+                                        <DropdownMenuContent align="end" className="w-[180px] z-[100]">
                                             <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
                                             <DropdownMenuSeparator />
                                             {columnsConfig.map((column) => (
