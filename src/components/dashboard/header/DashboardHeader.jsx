@@ -219,13 +219,13 @@ export default function DashboardHeader({
                     </Drawer>
 
                     {/* Mobile Edit Transaction Drawer */}
-                    {editingTransaction && !isDesktop && (
-                         <Drawer open={!!editingTransaction} onOpenChange={(isOpen) => !isOpen && setEditingTransaction(null)}>
-                            <DrawerContent className="h-[90vh]">
-                                <DrawerHeader>
-                                    <DrawerTitle>Edit Transaction</DrawerTitle>
-                                </DrawerHeader>
-                                <div className="flex-1 min-h-0 px-4 pb-4 overflow-y-auto">
+                    <Drawer open={!!editingTransaction && !isDesktop} onOpenChange={(isOpen) => !isOpen && setEditingTransaction(null)}>
+                        <DrawerContent className="h-[90vh]">
+                            <DrawerHeader>
+                                <DrawerTitle>Edit Transaction</DrawerTitle>
+                            </DrawerHeader>
+                            <div className="flex-1 min-h-0 px-4 pb-4 overflow-y-auto">
+                                {editingTransaction && !isDesktop && (
                                     <AddTransactionForm
                                         cards={cards}
                                         categories={allCategories}
@@ -241,10 +241,10 @@ export default function DashboardHeader({
                                         onClose={() => setEditingTransaction(null)}
                                         addToQueue={addToQueue}
                                     />
-                                </div>
-                            </DrawerContent>
-                        </Drawer>
-                    )}
+                                )}
+                            </div>
+                        </DrawerContent>
+                    </Drawer>
                 </div>
             </div>
         </header>
