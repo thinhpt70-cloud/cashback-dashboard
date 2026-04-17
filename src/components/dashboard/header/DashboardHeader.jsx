@@ -197,7 +197,7 @@ export default function DashboardHeader({
                             <DrawerHeader>
                                 <DrawerTitle>Add Transaction</DrawerTitle>
                             </DrawerHeader>
-                            <div className="px-4 pb-4 overflow-y-auto">
+                            <div className="flex-1 min-h-0 px-4 pb-4 overflow-y-auto">
                                 <AddTransactionForm
                                     cards={cards}
                                     categories={allCategories}
@@ -225,7 +225,7 @@ export default function DashboardHeader({
                                 <DrawerHeader>
                                     <DrawerTitle>Edit Transaction</DrawerTitle>
                                 </DrawerHeader>
-                                <div className="px-4 pb-4 overflow-y-auto">
+                                <div className="flex-1 min-h-0 px-4 pb-4 overflow-y-auto">
                                     <AddTransactionForm
                                         cards={cards}
                                         categories={allCategories}
