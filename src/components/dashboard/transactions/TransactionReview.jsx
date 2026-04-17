@@ -446,7 +446,7 @@ const TransactionReview = React.memo(({
     // 1. Loading State
     if (isLoading) {
         return (
-            <Card className="mb-6">
+            <Card className="mb-6 p-0">
                 <CardHeader className="py-4">
                     <div className="flex items-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -462,7 +462,7 @@ const TransactionReview = React.memo(({
     // 2. All Caught Up State (No transactions)
     if (transactions.length === 0) {
         return (
-            <Card className="mb-6">
+            <Card className="mb-6 p-0">
                 <CardHeader className="py-4">
                     <div className="flex items-center gap-2">
                         <div className="h-5 w-5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
@@ -666,7 +666,7 @@ const TransactionReview = React.memo(({
     // 3. Review Needed State (Has transactions)
     return (
         <Card className={cn(
-            "mb-6 relative",
+            "mb-6 p-0 relative",
             // Remove overflow-hidden on mobile when open to allow sticky header to work
             isOpen && !isDesktop ? "" : "overflow-hidden"
         )}>
@@ -1020,7 +1020,7 @@ const TransactionReview = React.memo(({
                                                     <Card
                                                         key={tx.id}
                                                         className={cn(
-                                                            "transition-colors",
+                                                            "transition-colors p-0",
                                                             isSelected ? "border-primary bg-primary/5 dark:bg-primary/10" : ""
                                                         )}
                                                     >
