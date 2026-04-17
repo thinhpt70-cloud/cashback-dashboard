@@ -671,11 +671,13 @@ export default function CashbackDashboard() {
                 {activeView === 'overview' && (
                     <div className="space-y-4 pt-4">
                         {/* --- 1. UNIFIED DYNAMIC COMPONENTS --- */}
+                        <div className="flex flex-col gap-4 mb-4">
+                            <StatCards stats={displayStats} currencyFn={currency} isLoading={isDashboardLoading} />
+                        </div>
+
                         <div className="flex flex-col lg:flex-row gap-4">
                             {/* LEFT COLUMN */}
                             <div className="lg:w-7/12 flex flex-col gap-4">
-                                <StatCards stats={displayStats} currencyFn={currency} isLoading={isDashboardLoading} />
-
                                 <CardSpendsCap
                                     cards={cards}
                                     rules={rules}
