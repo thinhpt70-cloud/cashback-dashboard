@@ -1093,7 +1093,7 @@ const TransactionsList = React.memo(({
     return (
         <Card className={cn(
             "relative",
-            isDesktop ? "bg-white dark:bg-slate-950 border shadow-sm" : "bg-slate-50 dark:bg-slate-950 border-0 shadow-none"
+            isDesktop ? "bg-white dark:bg-slate-950 border shadow-sm" : "bg-white dark:bg-slate-950 border-0 shadow-none"
         )}>
             {/* Mobile Bulk Bar - Rendered OUTSIDE the static header wrapper */}
             {!isDesktop && selectedIds.length > 0 && renderBulkBar(true)}
