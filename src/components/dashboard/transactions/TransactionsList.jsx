@@ -624,8 +624,8 @@ const TransactionsList = React.memo(({
 
     const renderMobileFilters = () => {
         return (
-            <div className="sticky top-0 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm border-b border-slate-100/50 dark:border-slate-800/50 mb-1 max-w-full overflow-hidden">
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-4 py-2 select-none no-scrollbar w-full max-w-[100vw]">
+            <div className="sticky top-0 z-30 max-w-full overflow-hidden">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-4 py-1 select-none no-scrollbar w-full max-w-[100vw]">
                     {/* Search */}
                     <div className="relative flex items-center min-w-[140px]">
                         <Search className="absolute left-3 w-3.5 h-3.5 text-slate-400" />
