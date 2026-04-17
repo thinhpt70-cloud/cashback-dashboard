@@ -2,6 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "../../ui/table";
+import {
+    Card, CardHeader, CardTitle, CardContent
+} from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { Input } from "../../ui/input";
@@ -443,34 +446,34 @@ const TransactionReview = React.memo(({
     // 1. Loading State
     if (isLoading) {
         return (
-            <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 overflow-hidden transition-colors">
-                <div className="p-4 bg-white dark:bg-slate-950 flex justify-between items-center select-none transition-colors">
+            <Card className="mb-6 p-0">
+                <CardHeader className="py-4">
                     <div className="flex items-center gap-2">
-                        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
-                        <h3 className="font-semibold text-slate-700 dark:text-slate-200 flex items-center">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        <CardTitle className="flex items-center">
                             Checking transactions...
-                        </h3>
+                        </CardTitle>
                     </div>
-                </div>
-            </div>
+                </CardHeader>
+            </Card>
         );
     }
 
     // 2. All Caught Up State (No transactions)
     if (transactions.length === 0) {
         return (
-            <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 overflow-hidden transition-colors">
-                <div className="p-4 bg-white dark:bg-slate-950 border-emerald-100 dark:border-emerald-900/50 flex justify-between items-center select-none transition-colors">
+            <Card className="mb-6 p-0">
+                <CardHeader className="py-4">
                     <div className="flex items-center gap-2">
                         <div className="h-5 w-5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
                             <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                         </div>
-                        <h3 className="font-semibold text-emerald-950 dark:text-emerald-100 flex items-center">
+                        <CardTitle className="text-emerald-950 dark:text-emerald-100 flex items-center">
                             All caught up!
-                        </h3>
+                        </CardTitle>
                     </div>
-                </div>
-            </div>
+                </CardHeader>
+            </Card>
         );
     }
 
@@ -662,39 +665,48 @@ const TransactionReview = React.memo(({
 
     // 3. Review Needed State (Has transactions)
     return (
-        <div className={cn(
-            "border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-800 shadow-sm mb-6 transition-colors relative",
+        <Card className={cn(
+            "mb-6 p-0 relative",
             // Remove overflow-hidden on mobile when open to allow sticky header to work
             isOpen && !isDesktop ? "" : "overflow-hidden"
         )}>
             {/* Header */}
-            <button
-                type="button"
-                className="w-full p-4 bg-orange-50 dark:bg-orange-950/30 border-b border-orange-100 dark:border-orange-900/50 flex justify-between items-center cursor-pointer select-none transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+            <CardHeader
+                className="py-4 cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border-b"
                 onClick={() => setIsOpen(!isOpen)}
                 aria-expanded={isOpen}
                 aria-controls="review-needed-content"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setIsOpen(!isOpen);
+                    }
+                }}
             >
-                <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-500" />
-                    <h3 className="font-semibold text-orange-900 dark:text-orange-100 flex items-center">
-                        Review Needed
-                        <Badge variant="secondary" className="ml-2 bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-100 hover:bg-orange-300 dark:hover:bg-orange-800">
-                            {transactions.length}
-                        </Badge>
-                    </h3>
+                <div className="flex justify-between items-center w-full">
+                    <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 text-amber-500" />
+                        <CardTitle className="flex items-center">
+                            Review Needed
+                            <Badge variant="secondary" className="ml-2">
+                                {transactions.length}
+                            </Badge>
+                        </CardTitle>
+                    </div>
+                    <div className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors">
+                        {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </div>
                 </div>
-                <div className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors">
-                    {isOpen ? <ChevronUp className="h-4 w-4 text-orange-700 dark:text-orange-300" /> : <ChevronDown className="h-4 w-4 text-orange-700 dark:text-orange-300" />}
-                </div>
-            </button>
+            </CardHeader>
 
             {/* Content */}
             {isOpen && (
-                <div className="p-0" id="review-needed-content">
+                <CardContent className="p-0" id="review-needed-content">
                     {/* Toolbar (Desktop) */}
                     {isDesktop && (
-                        <div className="p-4 border-b dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center transition-colors">
+                        <div className="p-4 border-b bg-card flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center transition-colors">
                             <div className="flex flex-wrap gap-2 items-center w-full xl:w-auto">
                                 {/* Search */}
                                 <div className="relative w-full md:w-48">
@@ -1005,75 +1017,76 @@ const TransactionReview = React.memo(({
                                                 const formattedMcc = formatMcc(tx['MCC Code']);
 
                                                 return (
-                                                    <div
+                                                    <Card
                                                         key={tx.id}
                                                         className={cn(
-                                                            "border rounded-lg p-3 bg-white dark:bg-slate-900 shadow-sm transition-colors",
-                                                            isSelected ? "border-primary bg-primary/5 dark:bg-primary/10" : "dark:border-slate-800"
+                                                            "transition-colors p-0",
+                                                            isSelected ? "border-primary bg-primary/5 dark:bg-primary/10" : ""
                                                         )}
                                                     >
-                                                        {/* Row 1: Checkbox & Name */}
-                                                        <div className="flex gap-3 items-start">
-                                                             <div className="pt-1">
-                                                                <Checkbox
-                                                                    checked={isSelected}
-                                                                    onCheckedChange={() => handleSelectOne(tx.id)}
-                                                                    aria-label={`Select ${tx['Transaction Name']}`}
-                                                                />
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex justify-between items-start gap-2">
-                                                                    <div className="flex-col overflow-hidden">
-                                                                        <p className="font-semibold text-sm truncate">{tx['Transaction Name']}</p>
-                                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                                                            <span>{formatTransactionDate(tx['Transaction Date'])}</span>
+                                                        <CardContent className="p-3">
+                                                            {/* Row 1: Checkbox & Name */}
+                                                            <div className="flex gap-3 items-start">
+                                                                 <div className="pt-1">
+                                                                    <Checkbox
+                                                                        checked={isSelected}
+                                                                        onCheckedChange={() => handleSelectOne(tx.id)}
+                                                                        aria-label={`Select ${tx['Transaction Name']}`}
+                                                                    />
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex justify-between items-start gap-2">
+                                                                        <div className="flex-col overflow-hidden">
+                                                                            <p className="font-semibold text-sm truncate">{tx['Transaction Name']}</p>
+                                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                                                                <span>{formatTransactionDate(tx['Transaction Date'])}</span>
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                    <div className="text-right shrink-0">
-                                                                        <p className="font-bold text-sm">{currency(tx['Amount'])}</p>
+                                                                        <div className="text-right shrink-0">
+                                                                            <p className="font-bold text-sm">{currency(tx['Amount'])}</p>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
 
-                                                        {/* Row 2: Details Chips */}
-                                                        <div className="flex flex-wrap gap-1.5 mt-3 ml-7">
-                                                            {cardName && (
-                                                                <Badge variant="outline" className="text-[10px] px-1.5 h-5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-normal">
-                                                                    {cardName}
-                                                                </Badge>
-                                                            )}
-                                                            {formattedMcc && (
-                                                                <Badge variant="outline" className="text-[10px] px-1.5 h-5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-normal max-w-[150px] truncate block">
-                                                                    {formattedMcc}
-                                                                </Badge>
-                                                            )}
-                                                            {tx['Category'] && (
-                                                                <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-normal">
-                                                                    {tx['Category']}
-                                                                </Badge>
-                                                            )}
-                                                             {ruleName && (
-                                                                <Badge variant="outline" className="text-[10px] px-1.5 h-5 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 font-normal">
-                                                                    {ruleName}
-                                                                </Badge>
-                                                            )}
-                                                        </div>
+                                                            {/* Row 2: Details Chips */}
+                                                            <div className="flex flex-wrap gap-1.5 mt-3 ml-7">
+                                                                {cardName && (
+                                                                    <Badge variant="outline" className="text-[10px] px-1.5 h-5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-normal">
+                                                                        {cardName}
+                                                                    </Badge>
+                                                                )}
+                                                                {formattedMcc && (
+                                                                    <Badge variant="outline" className="text-[10px] px-1.5 h-5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-normal max-w-[150px] truncate block">
+                                                                        {formattedMcc}
+                                                                    </Badge>
+                                                                )}
+                                                                {tx['Category'] && (
+                                                                    <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-normal">
+                                                                        {tx['Category']}
+                                                                    </Badge>
+                                                                )}
+                                                                 {ruleName && (
+                                                                    <Badge variant="outline" className="text-[10px] px-1.5 h-5 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 font-normal">
+                                                                        {ruleName}
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
 
-                                                        {/* Row 3: Status & Actions */}
-                                                        <div className="flex justify-between items-center mt-3 ml-7 border-t pt-2 dark:border-slate-800">
-                                                            <Badge variant="outline" className={cn(
-                                                                "text-[10px] px-2 h-5 whitespace-nowrap",
-                                                                tx.statusType === 'success' && "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900",
-                                                                tx.statusType === 'warning' && "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900",
-                                                                tx.statusType === 'error' && "bg-red-100 text-red-800 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-900",
-                                                                tx.statusType === 'info' && "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-900"
-                                                            )}>
-                                                                {tx.status}
-                                                            </Badge>
+                                                            {/* Row 3: Status & Actions */}
+                                                            <div className="flex justify-between items-center mt-3 ml-7 border-t pt-2 dark:border-slate-800">
+                                                                <Badge variant="outline" className={cn(
+                                                                    "text-[10px] px-2 h-5 whitespace-nowrap",
+                                                                    tx.statusType === 'success' && "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900",
+                                                                    tx.statusType === 'warning' && "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900",
+                                                                    tx.statusType === 'error' && "bg-red-100 text-red-800 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-900",
+                                                                    tx.statusType === 'info' && "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-900"
+                                                                )}>
+                                                                    {tx.status}
+                                                                </Badge>
 
-                                                            <div className="flex items-center gap-2">
-                                                                 <Button
+                                                                <div className="flex items-center gap-2">
+                                                                     <Button
                                                                     size="sm"
                                                                     variant="ghost"
                                                                     className={cn(
@@ -1119,7 +1132,8 @@ const TransactionReview = React.memo(({
                                                                 </DropdownMenu>
                                                             </div>
                                                         </div>
-                                                    </div>
+                                                        </CardContent>
+                                                    </Card>
                                                 );
                                             })}
                                         </React.Fragment>
@@ -1128,7 +1142,7 @@ const TransactionReview = React.memo(({
                             </div>
                         )}
                     </div>
-                </div>
+                </CardContent>
             )}
 
             {/* Bulk Edit Dialog */}
@@ -1147,7 +1161,7 @@ const TransactionReview = React.memo(({
                     setSelectedIds(new Set());
                 }}
             />
-        </div>
+        </Card>
     );
 });
 
