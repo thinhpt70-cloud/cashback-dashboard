@@ -77,7 +77,7 @@ function CustomLineChartTooltip({ active, payload, label, currencyFn, selectedCa
 }
 
 // [Updated] Main component - removed cardColorMap
-export default function CummulativeResultsChart({ data, cards, currencyFn }) {
+const CummulativeResultsChart = React.memo(({ data, cards, currencyFn }) => {
   const [view, setView] = useState('All');
   const [selectedCardId, setSelectedCardId] = useState('all'); // 'all' or a card.id
 
@@ -342,4 +342,8 @@ export default function CummulativeResultsChart({ data, cards, currencyFn }) {
       </CardContent>
     </Card>
   );
-}
+});
+
+CummulativeResultsChart.displayName = 'CummulativeResultsChart';
+
+export default CummulativeResultsChart;

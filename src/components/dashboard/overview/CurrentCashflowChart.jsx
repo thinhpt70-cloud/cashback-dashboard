@@ -81,7 +81,7 @@ const CustomRechartsTooltip = ({ active, payload, label, isRateView, isAllView, 
 /**
  * Main Chart Component
  */
-export default function CurrentCashflowChart({ data, cards, currencyFn }) {
+const CurrentCashflowChart = React.memo(({ data, cards, currencyFn }) => {
     const [chartView, setChartView] = useState("all"); // "all", "spend", "cashback", "rate"
     const [selectedCardId, setSelectedCardId] = useState('all'); // 'all' or a card.id
 
@@ -305,4 +305,8 @@ export default function CurrentCashflowChart({ data, cards, currencyFn }) {
             </CardContent>
         </Card>
     );
-}
+});
+
+CurrentCashflowChart.displayName = 'CurrentCashflowChart';
+
+export default CurrentCashflowChart;
