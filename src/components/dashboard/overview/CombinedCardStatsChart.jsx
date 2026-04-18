@@ -53,7 +53,7 @@ const CustomTooltip = ({ active, payload, label, currencyFn }) => {
   return null;
 };
 
-export default function CombinedCardStatsChart({ data, currencyFn, isLiveView, period, onPeriodChange }) {
+const CombinedCardStatsChart = React.memo(({ data, currencyFn, isLiveView, period, onPeriodChange }) => {
 
   // Sort data by spend (highest to lowest) for better readability
   const sortedData = useMemo(() => {
@@ -162,4 +162,8 @@ export default function CombinedCardStatsChart({ data, currencyFn, isLiveView, p
       </CardContent>
     </Card>
   );
-}
+});
+
+CombinedCardStatsChart.displayName = 'CombinedCardStatsChart';
+
+export default CombinedCardStatsChart;

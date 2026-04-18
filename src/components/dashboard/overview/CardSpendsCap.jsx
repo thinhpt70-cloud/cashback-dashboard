@@ -276,7 +276,7 @@ function SingleCapCard({
 }
 
 // --- REFACTORED CardSpendsCap Component ---
-export default function CardSpendsCap({
+const CardSpendsCap = React.memo(({
     cards,
     rules,
     activeMonth,
@@ -290,7 +290,7 @@ export default function CardSpendsCap({
     onViewTransactionDetails,
     cardMap,
     isLoading // NEW PROP
-}) {
+}) => {
     const [expandedCardId, setExpandedCardId] = useState(null);
     const [dialogState, setDialogState] = useState({
         isOpen: false,
@@ -569,4 +569,8 @@ export default function CardSpendsCap({
             />
         </div>
     );
-}
+});
+
+CardSpendsCap.displayName = 'CardSpendsCap';
+
+export default CardSpendsCap;
