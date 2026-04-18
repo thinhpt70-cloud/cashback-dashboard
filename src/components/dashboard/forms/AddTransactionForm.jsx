@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
+import { Tabs, TabsList, TabsTrigger } from '../../ui/tabs';
 import { Badge } from '../../ui/badge';
 import { Switch } from '../../ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../ui/accordion';
@@ -484,37 +485,25 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
             : ['POS', 'eCom', 'International'];
 
         return (
-            <div className="grid grid-cols-3 gap-1 p-1 bg-muted/50 rounded-lg">
-                {methods.map((m) => {
-                    let icon = <Store className="h-4 w-4" />;
-                    let activeClass = "bg-white dark:bg-slate-800 shadow-sm text-sky-600 dark:text-sky-400";
+            <Tabs value={method} onValueChange={setMethod} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 h-10">
+                    {methods.map((m) => {
+                        let icon = <Store className="h-4 w-4 mr-2" />;
+                        if (m === 'eCom') {
+                            icon = <Laptop className="h-4 w-4 mr-2" />;
+                        } else if (m === 'International') {
+                            icon = <Globe className="h-4 w-4 mr-2" />;
+                        }
 
-                    if (m === 'eCom') {
-                        icon = <Laptop className="h-4 w-4" />;
-                        activeClass = "bg-white dark:bg-slate-800 shadow-sm text-emerald-600 dark:text-emerald-400";
-                    } else if (m === 'International') {
-                        icon = <Globe className="h-4 w-4" />;
-                        activeClass = "bg-white dark:bg-slate-800 shadow-sm text-orange-600 dark:text-orange-400";
-                    }
-
-                    return (
-                        <button
-                            key={m}
-                            type="button"
-                            onClick={() => setMethod(m)}
-                            className={cn(
-                                "flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all",
-                                method === m
-                                    ? activeClass
-                                    : "text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-800/50"
-                            )}
-                        >
-                            {icon}
-                            {m === 'International' ? "Int'l" : m}
-                        </button>
-                    );
-                })}
-            </div>
+                        return (
+                            <TabsTrigger key={m} value={m} className="flex items-center justify-center">
+                                {icon}
+                                {m === 'International' ? "Int'l" : m}
+                            </TabsTrigger>
+                        );
+                    })}
+                </TabsList>
+            </Tabs>
         );
     };
 
@@ -523,40 +512,29 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 pb-20">
 
                 {/* --- 1. HERO AMOUNT & DATE --- */}
-                <div className="flex flex-col items-center justify-center space-y-3 pt-2">
-                    <div className="relative w-full max-w-[280px]">
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 text-3xl font-bold text-muted-foreground/50">₫</span>
-                        <input
+                <div className="flex flex-col items-center justify-center space-y-4 pt-4">
+                    <div className="relative w-full max-w-xs mx-auto">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-muted-foreground">₫</span>
+                        <Input
                             ref={amountInputRef}
                             type="text"
-                            inputMode="numeric"
+                            inputMode="decimal"
+                            pattern="[0-9.,]*"
                             value={amount}
                             onChange={handleAmountChange}
                             placeholder="0"
-                            className="w-full bg-transparent text-center text-5xl font-bold placeholder:text-muted-foreground/30 focus:outline-none focus:ring-0 focus-visible:border-b-2 focus-visible:border-primary pb-1 rounded-none transition-all"
+                            className="w-full h-16 pl-10 text-center text-4xl font-bold appearance-none"
                             required
                             aria-label="Transaction Amount"
                         />
                     </div>
 
-                    {/* Date Pill with Time Toggle */}
-                     <div className="relative flex items-center gap-2">
-                        <div className="relative group">
-                            <button
-                                type="button"
-                                onClick={() => dateInputRef.current?.showPicker()}
-                                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-sm font-medium transition-colors group-focus-within:ring-2 group-focus-within:ring-ring group-focus-within:ring-offset-2"
-                            >
-                                <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                                {hasTime
-                                    ? new Date(date).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: getTimezone() })
-                                    : new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: getTimezone() })
-                                }
-                            </button>
-                            <input
+                    <div className="flex items-center justify-center gap-2 w-full max-w-xs mx-auto">
+                        <div className="relative flex-1">
+                            <Input
                                 ref={dateInputRef}
                                 type={hasTime ? "datetime-local" : "date"}
-                                className={cn("absolute inset-0 opacity-0 cursor-pointer", isDesktop && "pointer-events-none")}
+                                className="w-full h-10 appearance-none"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
                                 required
@@ -565,21 +543,17 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
 
                         <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
                             size="icon"
-                            className={cn("h-8 w-8 rounded-full", hasTime ? "text-primary bg-primary/10" : "text-muted-foreground")}
+                            className={cn("shrink-0 h-10 w-10", hasTime ? "text-primary" : "text-muted-foreground")}
                             onClick={() => {
                                 const newHasTime = !hasTime;
                                 setHasTime(newHasTime);
                                 if (newHasTime) {
-                                    // Switch to datetime-local: append current time or 00:00
-                                    // If date was YYYY-MM-DD, make it YYYY-MM-DDTHH:mm
-                                    // Better: use current time if switching ON
                                     const now = getZonedDate();
                                     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                                     setDate(`${date}T${timeStr}`);
                                 } else {
-                                    // Switch to date-only: slice the string
                                     setDate(date.split('T')[0]);
                                 }
                             }}
@@ -596,137 +570,71 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                     <QuickAddButtons vendors={commonVendors} onSelect={handleVendorSelect} />
                 </div>
 
+                {/* --- MAIN GRID CONTAINER --- */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* --- 3. MAIN INPUTS & METHOD --- */}
+                    <div className="space-y-4">
+                        {/* Method Selector */}
+                        {renderMethodSelector()}
 
-                {/* --- 3. MAIN INPUTS & METHOD --- */}
-                <div className="space-y-4">
-                    {/* Method Selector */}
-                    {renderMethodSelector()}
-
-                    {/* Merchant & Lookup */}
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                             <label htmlFor="merchant" className="text-sm font-semibold text-muted-foreground">Merchant</label>
-                             {isLookingUp && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                        {/* Merchant & Lookup */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                 <label htmlFor="merchant" className="text-sm font-semibold text-muted-foreground">Merchant</label>
+                                 {isLookingUp && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                            </div>
+                            <div className="relative">
+                                <Input
+                                    id="merchant"
+                                    value={merchant}
+                                    onChange={(e) => { setMerchant(e.target.value); setShowLookupButton(false); }}
+                                    required
+                                    className="pr-10 h-12 text-lg"
+                                    placeholder="e.g. Starbucks, Grab..."
+                                />
+                                 <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="absolute right-1 top-1 h-10 w-10 text-muted-foreground hover:text-primary"
+                                    onClick={handleMerchantLookup}
+                                    disabled={!merchant || isLookingUp}
+                                    aria-label="Lookup merchant"
+                                >
+                                    <Sparkles className="h-5 w-5" />
+                                </Button>
+                            </div>
+                            {showLookupButton && (
+                                <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setIsLookupDialogOpen(true)}>
+                                    View suggestions found for "{merchant}"
+                                </Button>
+                            )}
                         </div>
-                        <div className="relative">
-                            <Input 
-                                id="merchant"
-                                value={merchant}
-                                onChange={(e) => { setMerchant(e.target.value); setShowLookupButton(false); }}
-                                required
-                                className="pr-10 h-12 text-lg"
-                                placeholder="e.g. Starbucks, Grab..."
+
+                        {/* Category - Promoted to main view */}
+                        <div className="space-y-2">
+                             <label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</label>
+                            <Combobox
+                                id="category"
+                                options={categories.map(c => ({ value: c, label: c }))}
+                                value={category}
+                                onChange={setCategory}
+                                placeholder="Select category"
+                                searchPlaceholder="Search..."
+                                className="h-12"
+                                disableAutoFocus={!isDesktop} // Disable on mobile to prevent keyboard jump
                             />
-                             <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                className="absolute right-1 top-1 h-10 w-10 text-muted-foreground hover:text-primary"
-                                onClick={handleMerchantLookup}
-                                disabled={!merchant || isLookingUp}
-                                aria-label="Lookup merchant"
-                            >
-                                <Sparkles className="h-5 w-5" />
-                            </Button>
-                        </div>
-                        {showLookupButton && (
-                            <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setIsLookupDialogOpen(true)}>
-                                View suggestions found for "{merchant}"
-                            </Button>
-                        )}
-                    </div>
-
-                    {/* Category - Promoted to main view */}
-                    <div className="space-y-2">
-                         <label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</label>
-                        <Combobox
-        id="category"
-                            options={categories.map(c => ({ value: c, label: c }))}
-                            value={category}
-                            onChange={setCategory}
-                            placeholder="Select category"
-                            searchPlaceholder="Search..."
-                            className="h-12"
-                                        disableAutoFocus={!isDesktop} // Disable on mobile to prevent keyboard jump
-                        />
-                    </div>
-                </div>
-
-
-                {/* --- 4. INTERNATIONAL DETAILS (Conditional) --- */}
-                {method === 'International' && (
-                    <div className="bg-orange-50 dark:bg-orange-950/20 p-4 rounded-xl border border-orange-100 dark:border-orange-900/50 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm font-semibold text-orange-700 dark:text-orange-400 flex items-center gap-2">
-                                <Globe className="h-4 w-4" />
-                                Foreign Currency
-                            </span>
-                            <div className="flex items-center space-x-2">
-                                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Input Mode</span>
-                                <Switch
-                                    checked={foreignInputMode === 'vnd_unknown'}
-                                    onCheckedChange={(checked) => setForeignInputMode(checked ? 'vnd_unknown' : 'vnd_known')}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                                <label className="text-xs text-muted-foreground">Amount</label>
-                                <Input
-                                    inputMode="decimal"
-                                    value={foreignCurrencyAmount}
-                                    onChange={(e) => handleFormattedNumericInput(e.target.value, setForeignCurrencyAmount, true)}
-                                    className="bg-white dark:bg-slate-900"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs text-muted-foreground">Currency</label>
-                                <Select value={foreignCurrency} onValueChange={setForeignCurrency}>
-                                    <SelectTrigger className="bg-white dark:bg-slate-900">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {(definitions?.foreignCurrencies?.length > 0
-                                            ? definitions.foreignCurrencies
-                                            : ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'SGD', 'THB', 'KRW']
-                                        ).map(curr => (
-                                            <SelectItem key={curr} value={curr}>{curr}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                                <label className="text-xs text-muted-foreground">Ex. Rate</label>
-                                <Input 
-                                    inputMode="decimal" 
-                                    value={conversionRate} 
-                                    onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionRate, true)} 
-                                    readOnly={foreignInputMode === 'vnd_known'}
-                                    className={cn("bg-white dark:bg-slate-900", foreignInputMode === 'vnd_known' && "bg-muted text-muted-foreground")}
-                                />
-                            </div>
-                             <div className="space-y-1">
-                                <label className="text-xs text-muted-foreground">Fee (VND)</label>
-                                <Input
-                                    value={conversionFee}
-                                    onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionFee)}
-                                    className="bg-white dark:bg-slate-900"
-                                />
-                            </div>
                         </div>
                     </div>
-                )}
 
 
-                {/* --- 5. CASHBACK DETAILS (Moved from Accordions) --- */}
-                <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
-                     <div className="space-y-2">
-                        <label htmlFor="card" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Card</label>
-                        <Select value={cardId} onValueChange={(value) => { handleCardSelect(value); localStorage.setItem('lastUsedCardId', value); }}>
+
+
+                    {/* --- 5. CASHBACK DETAILS (Moved from Accordions) --- */}
+                    <div className="space-y-4">
+                         <div className="space-y-2">
+                            <label htmlFor="card" className="text-sm font-semibold text-muted-foreground">Card</label>
+                            <Select value={cardId} onValueChange={(value) => { handleCardSelect(value); localStorage.setItem('lastUsedCardId', value); }}>
                             <SelectTrigger id="card">
                                 <SelectValue placeholder="Select a card..." />
                             </SelectTrigger>
@@ -736,12 +644,12 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                 ))}
                             </SelectContent>
                         </Select>
-                    </div>
+                        </div>
 
-                    <div className="space-y-2">
-                        <label htmlFor="rule" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rule</label>
-                        <div className="flex items-center gap-2">
-                            <Select value={applicableRuleId} onValueChange={(val) => val && setApplicableRuleId(val)} disabled={filteredRules.length === 0}>
+                        <div className="space-y-2">
+                            <label htmlFor="rule" className="text-sm font-semibold text-muted-foreground">Rule</label>
+                            <div className="flex items-center gap-2">
+                                <Select value={applicableRuleId} onValueChange={(val) => val && setApplicableRuleId(val)} disabled={filteredRules.length === 0}>
                                 <SelectTrigger id="rule" className="flex-1 min-w-0 [&>span]:min-w-0">
                                     <SelectValue placeholder={filteredRules.length === 0 ? 'No active rules' : 'Select rule...'} />
                                 </SelectTrigger>
@@ -776,36 +684,103 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                             </div>
                                         </div>
                                     )}
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                        {selectedRule && estimatedCashbackAndWarnings.cashback > 0 && (
-                            <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/20 p-2 rounded-md border border-emerald-100 dark:border-emerald-900/50 mt-2">
-                                <span className="text-xs font-medium text-emerald-800 dark:text-emerald-400">Estimated Cashback:</span>
-                                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-500">
-                                    {currencyFn(estimatedCashbackAndWarnings.cashback)}
-                                </span>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
-                        )}
+                            {selectedRule && estimatedCashbackAndWarnings.cashback > 0 && (
+                                <div className="flex items-center justify-between p-2 rounded-md border mt-2">
+                                    <span className="text-xs font-medium">Estimated Cashback:</span>
+                                    <span className="text-sm font-bold">
+                                        {currencyFn(estimatedCashbackAndWarnings.cashback)}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                                 <label htmlFor="mcc" className="text-sm font-semibold text-muted-foreground">MCC Code</label>
+                                 {mccName && (
+                                    <Badge variant="outline" className="text-[10px] font-normal px-2 py-0 h-5 max-w-[200px] truncate" title={mccName}>
+                                        {mccName}
+                                    </Badge>
+                                 )}
+                            </div>
+                            <Input
+                                id="mcc"
+                                value={mccCode}
+                                onChange={(e) => setMccCode(e.target.value)}
+                                placeholder="e.g. 5411"
+                                type="number"
+                            />
+                        </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                             <label htmlFor="mcc" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">MCC Code</label>
-                             {mccName && (
-                                <Badge variant="outline" className="text-[10px] font-normal px-2 py-0 h-5 max-w-[200px] truncate" title={mccName}>
-                                    {mccName}
-                                </Badge>
-                             )}
+                    {/* --- 4. INTERNATIONAL DETAILS (Conditional) --- */}
+                    {method === 'International' && (
+                        <div className="col-span-1 md:col-span-2 p-4 rounded-xl border space-y-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-semibold flex items-center gap-2">
+                                    <Globe className="h-4 w-4" />
+                                    Foreign Currency
+                                </span>
+                                <div className="flex items-center space-x-2">
+                                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Input Mode</span>
+                                    <Switch
+                                        checked={foreignInputMode === 'vnd_unknown'}
+                                        onCheckedChange={(checked) => setForeignInputMode(checked ? 'vnd_unknown' : 'vnd_known')}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Amount</label>
+                                    <Input
+                                        inputMode="decimal"
+                                        value={foreignCurrencyAmount}
+                                        onChange={(e) => handleFormattedNumericInput(e.target.value, setForeignCurrencyAmount, true)}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Currency</label>
+                                    <Select value={foreignCurrency} onValueChange={setForeignCurrency}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {(definitions?.foreignCurrencies?.length > 0
+                                                ? definitions.foreignCurrencies
+                                                : ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'SGD', 'THB', 'KRW']
+                                            ).map(curr => (
+                                                <SelectItem key={curr} value={curr}>{curr}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Ex. Rate</label>
+                                    <Input
+                                        inputMode="decimal"
+                                        value={conversionRate}
+                                        onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionRate, true)}
+                                        readOnly={foreignInputMode === 'vnd_known'}
+                                        className={cn(foreignInputMode === 'vnd_known' && "bg-muted text-muted-foreground")}
+                                    />
+                                </div>
+                                 <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Fee (VND)</label>
+                                    <Input
+                                        value={conversionFee}
+                                        onChange={(e) => handleFormattedNumericInput(e.target.value, setConversionFee)}
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <Input
-                            id="mcc"
-                            value={mccCode}
-                            onChange={(e) => setMccCode(e.target.value)}
-                            placeholder="e.g. 5411"
-                            type="number"
-                        />
-                    </div>
+                    )}
                 </div>
 
 
@@ -837,9 +812,9 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                             More Details (Sub-category, Paid For, Notes)
                         </AccordionTrigger>
                         <AccordionContent className="pt-2 space-y-4">
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label htmlFor="merchantLookup">Merchant Name</label>
+                                    <label htmlFor="merchantLookup" className="text-sm font-medium">Merchant Name</label>
                                     <Input
                                         id="merchantLookup"
                                         value={merchantLookup}
@@ -847,9 +822,7 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                         placeholder=""
                                     />
                                 </div>
-                            </div>
 
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <TagsInputField
                                         name="subCategory"
@@ -858,10 +831,11 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                         suggestions={definitions?.subCategories || []}
                                     />
                                 </div>
+
                                 <div className="space-y-2">
-                                    <label htmlFor="paidFor">Paid For</label>
+                                    <label htmlFor="paidFor" className="text-sm font-medium">Paid For</label>
                                     <Combobox
-        id="paidFor"
+                                        id="paidFor"
                                         options={(definitions?.paidFor?.length > 0
                                             ? definitions.paidFor
                                             : ['Personal', 'Family', 'Work']
@@ -870,24 +844,24 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                                         onChange={setPaidFor}
                                         placeholder="Who is this for?"
                                         searchPlaceholder="Search..."
-                                        disableAutoFocus={!isDesktop} // Disable on mobile
+                                        disableAutoFocus={!isDesktop}
+                                    />
+                                </div>
+
+                                <div className="space-y-2 md:col-span-2">
+                                    <label htmlFor="notes" className="text-sm font-medium">Notes</label>
+                                    <Textarea
+                                        id="notes"
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        className="min-h-[80px]"
+                                        placeholder="Add details..."
                                     />
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <label htmlFor="notes">Notes</label>
-                                <Textarea
-                                    id="notes"
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                    className="min-h-[80px]"
-                                    placeholder="Add details..."
-                                />
-                            </div>
-
                             {/* Discounts & Fees */}
-                             <div className="space-y-2 pt-2 border-t">
+                             <div className="space-y-2 pt-4 mt-2 border-t">
                                 <label className="text-sm font-medium">Adjustments</label>
                                 {discounts.map((discount, index) => (
                                     <div key={`d-${index}`} className="flex items-center gap-2">
@@ -937,22 +911,12 @@ export default function AddTransactionForm({ cards, categories, definitions, rul
                 </Accordion>
                 
                 {/* --- 8. SUBMIT (Desktop & Mobile FAB) --- */}
-                {isDesktop ? (
-                    <div className="sticky bottom-0 bg-background/95 backdrop-blur pt-4 pb-4 border-t mt-8">
-                         <Button type="submit" disabled={isSubmitting} size="lg" className="w-full text-lg h-12 shadow-lg">
-                            {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : (initialData ? "Update Transaction" : "Add Transaction")}
-                        </Button>
-                    </div>
-                ) : (
-                    <Button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-xl z-50 p-0 flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90"
-                        aria-label={initialData ? "Update Transaction" : "Add Transaction"}
-                    >
-                        {isSubmitting ? <Loader2 className="h-6 w-6 animate-spin" /> : <Check className="h-7 w-7" />}
+                <div className="sticky bottom-0 bg-background/95 backdrop-blur pt-4 pb-4 border-t mt-8 z-10 md:static md:bg-transparent md:backdrop-blur-none md:border-none md:p-0 md:mt-4">
+                     <Button type="submit" disabled={isSubmitting} className="w-full h-12 text-lg md:shadow-lg">
+                        {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
+                        {isSubmitting ? "Submitting..." : (initialData ? "Update Transaction" : "Add Transaction")}
                     </Button>
-                )}
+                </div>
             </form>
             <MccSearchResultsDialog
                 open={isLookupDialogOpen}
