@@ -258,10 +258,16 @@ export default function SharedTransactionsDialog({
                             placeholder="Search..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            aria-label="Search transactions"
                             className="w-full h-[30px] pl-8 pr-3 bg-slate-100 dark:bg-slate-900 rounded-full text-base font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-500 transition-all border-none"
                         />
                         {searchTerm && (
-                            <button onClick={() => setSearchTerm('')} className="absolute right-2 p-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500">
+                            <button
+                                type="button"
+                                onClick={() => setSearchTerm('')}
+                                aria-label="Clear search"
+                                className="absolute right-2 p-0.5 rounded-full bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                            >
                                 <X className="w-3 h-3" />
                             </button>
                         )}
@@ -330,7 +336,7 @@ export default function SharedTransactionsDialog({
     const renderBulkBar = () => (
         <div className="fixed bottom-4 left-4 right-4 z-50 shadow-xl rounded-xl border bg-background text-foreground flex flex-col items-start gap-2 p-3 animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-2 pl-1 w-full">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0" onClick={() => setSelectedRows(new Set())}>
+                <Button variant="ghost" size="icon" aria-label="Clear selection" className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0" onClick={() => setSelectedRows(new Set())}>
                     <X className="h-4 w-4" />
                 </Button>
                 <span className="text-sm font-medium whitespace-nowrap">{selectedRows.size} Selected</span>
