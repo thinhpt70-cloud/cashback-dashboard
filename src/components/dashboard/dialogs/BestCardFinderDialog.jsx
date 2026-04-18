@@ -656,13 +656,15 @@ function CardFinderContent({
                             placeholder="Search merchant (e.g., Shopee)..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            aria-label="Search for a merchant or category"
                             className="pl-9 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-emerald-500"
                         />
                          {searchTerm && (
                             <button
                                 type="button"
                                 onClick={() => { setSearchTerm(''); setView('initial'); setSearchResult(null); inputRef.current?.focus(); }}
-                                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                className="absolute right-2 top-1.5 p-1 rounded-full text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                                aria-label="Clear search"
                             >
                                 <span className="sr-only">Clear</span>
                                 <X className="h-4 w-4" />
@@ -691,13 +693,15 @@ function CardFinderContent({
                                                 value={amount}
                                                 onChange={handleAmountChange}
                                                 inputMode="numeric"
+                                                aria-label="Transaction amount"
                                                 className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 pr-8 focus-visible:ring-emerald-500"
                                             />
                                             {amount && (
                                                 <button
                                                     type="button"
                                                     onClick={handleClearAmount}
-                                                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                                    aria-label="Clear amount"
+                                                    className="absolute right-2 top-2 p-0.5 rounded-full text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                                                 >
                                                     <X className="h-3.5 w-3.5" />
                                                 </button>
